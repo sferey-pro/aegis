@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Settings as SettingsIcon, Github, RefreshCw } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Key, RefreshCw } from 'lucide-react';
 
 export function Settings() {
   const [settings, setSettings] = useState({
@@ -65,7 +65,7 @@ export function Settings() {
             
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <Github className="w-5 h-5" />
+                <Key className="w-5 h-5" />
                 <label className="text-lg font-bold">Jeton GitHub (API)</label>
               </div>
               <p className="text-sm text-muted-foreground mb-2">

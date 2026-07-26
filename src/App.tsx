@@ -40,7 +40,7 @@ export function App() {
     }
   };
   
-  // Time formatting logic
+  // Formatage de l'heure
   let syncDisplay = 'Aucune synchronisation';
   if (stats?.lastSync) {
     const d = new Date(stats.lastSync + "Z");
@@ -53,7 +53,7 @@ export function App() {
   return (
     <div className="flex flex-col min-h-screen p-6 md:p-12 overflow-hidden relative">
       
-      {/* Navbar */}
+      {/* Navigation */}
       <header className="flex items-center justify-between py-4 w-full max-w-6xl mx-auto z-10">
         <div className="flex items-center gap-3">
           <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 neon-glow">
@@ -63,10 +63,10 @@ export function App() {
         </div>
         
         <nav className="hidden md:flex gap-8 text-sm font-medium text-muted-foreground">
-          <a href="#" className="text-foreground transition-colors">Overview</a>
-          <a href="#" className="hover:text-foreground transition-colors">Projects</a>
-          <a href="#" className="hover:text-foreground transition-colors">CVE Triage</a>
-          <a href="#" className="hover:text-foreground transition-colors">Settings</a>
+          <a href="#" className="text-foreground transition-colors">Aperçu</a>
+          <a href="#" className="hover:text-foreground transition-colors">Projets</a>
+          <a href="#" className="hover:text-foreground transition-colors">Triage CVE</a>
+          <a href="#" className="hover:text-foreground transition-colors">Paramètres</a>
         </nav>
         
         <button 
@@ -75,39 +75,39 @@ export function App() {
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:pointer-events-none"
         >
           {auditing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {auditing ? 'Auditing...' : 'Run Global Audit'}
+          {auditing ? 'Audit en cours...' : 'Lancer l\'audit global'}
         </button>
       </header>
 
-      {/* Main Content */}
+      {/* Contenu Principal */}
       <main className="flex-1 w-full max-w-6xl mx-auto mt-16 z-10 flex flex-col lg:flex-row gap-12 items-center">
         
-        {/* Left Column: Hero Copy */}
+        {/* Colonne Gauche : Textes */}
         <div className="flex-1 space-y-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary border border-border text-xs font-medium text-muted-foreground animate-in slide-in-from-bottom-2 duration-500">
             <span className="flex w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            System Online & Active
+            Système En Ligne & Actif
           </div>
           
           <h2 className="text-5xl md:text-6xl font-bold leading-[1.1]">
-            Continuous <br />
-            <span className="text-gradient">Security Audit</span>
+            Audit de Sécurité <br />
+            <span className="text-gradient">Continu</span>
           </h2>
           
           <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-            Aegis aggregates your Node and PHP ecosystem vulnerabilities.
-            Detect, triage, and enforce security policies directly from Git.
+            Aegis agrège les vulnérabilités de votre écosystème Node et PHP.
+            Détectez, triez et appliquez vos politiques de sécurité directement depuis Git.
           </p>
           
           <div className="flex flex-wrap gap-4 pt-4">
             <button className="flex items-center gap-2 px-6 py-3 rounded-lg bg-foreground text-background font-medium hover:bg-foreground/90 transition-all group">
-              View Triage Board
+              Voir le Triage
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
 
-        {/* Right Column: Visual Widgets */}
+        {/* Colonne Droite : Widgets */}
         <div className="flex-1 w-full relative">
           <div className="relative z-10 grid gap-6 md:grid-cols-2">
             
@@ -116,7 +116,7 @@ export function App() {
                 <Activity className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Critical Vulnerabilities</p>
+                <p className="text-sm font-medium text-muted-foreground">Failles Critiques</p>
                 <h3 className="text-3xl font-bold mt-1">
                   {loading ? <span className="opacity-50">...</span> : (stats?.criticalVulnerabilities ?? 0)}
                 </h3>
@@ -128,7 +128,7 @@ export function App() {
                 <GitBranch className="w-5 h-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Monitored Projects</p>
+                <p className="text-sm font-medium text-muted-foreground">Projets Surveillés</p>
                 <h3 className="text-3xl font-bold mt-1">
                   {loading ? <span className="opacity-50">...</span> : (stats?.monitoredProjects ?? 0)}
                 </h3>
@@ -141,13 +141,13 @@ export function App() {
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Database Sync</p>
+                  <p className="text-sm font-medium text-muted-foreground">Base de Données</p>
                   <h3 className="text-xl font-bold mt-1 text-primary">
-                    {loading ? <span className="opacity-50">Loading...</span> : (stats?.lastSync ? 'Up to date' : 'Waiting for audit')}
+                    {loading ? <span className="opacity-50">Chargement...</span> : (stats?.lastSync ? 'À jour' : 'En attente d\'audit')}
                   </h3>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Last check</p>
+                  <p className="text-sm text-muted-foreground">Dernier scan</p>
                   <p className="text-sm font-medium tabular-nums">{loading ? '--' : syncDisplay}</p>
                 </div>
               </div>
@@ -155,7 +155,7 @@ export function App() {
 
           </div>
           
-          {/* Decorative background element behind cards */}
+          {/* Décoration d'arrière-plan */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 bg-primary/20 blur-[100px] rounded-full z-0 pointer-events-none"></div>
         </div>
       </main>

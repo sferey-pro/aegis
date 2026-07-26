@@ -192,7 +192,7 @@ export function Projects() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map(p => (
-            <div key={p.id} className={`glass-panel p-5 rounded-xl flex flex-col gap-3 transition-opacity ${p.ignored ? 'opacity-50 grayscale' : ''}`}>
+            <div key={p.id} className={`glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-300 ${p.ignored ? 'opacity-50 grayscale' : 'hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5'}`}>
               
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">

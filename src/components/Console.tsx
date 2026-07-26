@@ -75,7 +75,16 @@ export function Console() {
 
   useEffect(() => {
     if (isOpen) {
-      logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      const container = logsEndRef.current?.parentElement;
+      if (container) {
+        const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+        if (isAtBottom) {
+          logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+      } else {
+        // Initial open
+        logsEndRef.current?.scrollIntoView();
+      }
     }
   }, [logs, isOpen]);
 

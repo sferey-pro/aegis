@@ -72,12 +72,20 @@ const server = serve({
     "/api/projects": {
       async GET() {
         const projects = listProjects();
-        // Enrichir en parallèle
-        const enriched = await Promise.all(projects.map(async p => {
-          const git = await getGitInfo(p.path);
-          const run = getLatestRun(p.id);
-          return { ...p, git, lastRun: run };
-        }));
+        // Enrichir en parallèle mais borné à 4 pour ne pas exploser le nombre de processus
+        const limit = 4;
+        const enriched = new Array(projects.length);
+        let i = 0;
+        const exec = async () => {
+          while (i < projects.length) {
+            const index = i++;
+            const p = projects[index];
+            const git = await getGitInfo(p.path);
+            const run = getLatestRun(p.id);
+            enriched[index] = { ...p, git, lastRun: run };
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(limit, projects.length) }).map(() => exec()));
         return Response.json(enriched);
       },
       async POST(req) {

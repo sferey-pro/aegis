@@ -1,9 +1,11 @@
-@import "../styles/globals.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Core app styles and micro-animations */
 @layer utilities {
   .glass-panel {
-    @apply bg-card/60 backdrop-blur-xl border border-border shadow-2xl;
+    @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)];
   }
   
   .neon-glow {

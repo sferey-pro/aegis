@@ -67,11 +67,11 @@ export function App() {
           <h1 className="text-2xl font-bold font-heading">Aegis</h1>
         </div>
         
-        <nav className="hidden md:flex gap-8 text-sm font-medium text-muted-foreground">
-          <button onClick={() => setCurrentTab('overview')} className={`${currentTab === 'overview' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors`}>Aperçu</button>
-          <button onClick={() => setCurrentTab('projects')} className={`${currentTab === 'projects' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors`}>Projets</button>
-          <button onClick={() => setCurrentTab('triage')} className={`${currentTab === 'triage' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors`}>Triage CVE</button>
-          <button onClick={() => setCurrentTab('settings')} className={`${currentTab === 'settings' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors`}>Paramètres</button>
+        <nav className="flex gap-4 md:gap-8 overflow-x-auto text-sm font-medium text-muted-foreground pb-2 md:pb-0 w-full md:w-auto mt-4 md:mt-0 px-2 hide-scrollbar">
+          <button onClick={() => setCurrentTab('overview')} className={`${currentTab === 'overview' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap`}>Aperçu</button>
+          <button onClick={() => setCurrentTab('projects')} className={`${currentTab === 'projects' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap`}>Projets</button>
+          <button onClick={() => setCurrentTab('triage')} className={`${currentTab === 'triage' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap`}>Triage CVE</button>
+          <button onClick={() => setCurrentTab('settings')} className={`${currentTab === 'settings' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap`}>Paramètres</button>
         </nav>
         
         <button 

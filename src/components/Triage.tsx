@@ -19,7 +19,7 @@ const SEVERITY_ICONS: Record<string, React.ReactNode> = {
   unknown: <HelpCircle className="w-5 h-5 text-gray-400" />
 };
 
-export function Triage({ projectId, onClearProject }: { projectId?: number | null, onClearProject?: () => void }) {
+export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { projectId?: number | null, onClearProject?: () => void, cveFilter?: string | null, onClearCve?: () => void }) {
   const [cves, setCves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -96,6 +96,16 @@ export function Triage({ projectId, onClearProject }: { projectId?: number | nul
                 )}
               </span>
             )}
+            {cveFilter && (
+              <span className="text-sm font-semibold px-3 py-1 bg-orange-500/20 text-orange-500 rounded-full border border-orange-500/30 flex items-center gap-2">
+                Filtré par CVE ({cveFilter})
+                {onClearCve && (
+                  <button onClick={onClearCve} className="hover:text-red-400 transition-colors">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </span>
+            )}
           </h2>
           <p className="text-muted-foreground mt-1">Gérez le statut des CVEs remontées par l'audit.</p>
         </div>
@@ -115,7 +125,7 @@ export function Triage({ projectId, onClearProject }: { projectId?: number | nul
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {cves.map((group) => {
+          {cves.filter((group) => !cveFilter || group.cve === cveFilter).map((group) => {
             const projectOccurrences = projectId 
               ? group.occurrences.filter((o: any) => o.projectId === projectId)
               : group.occurrences;

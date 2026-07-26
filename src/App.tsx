@@ -23,6 +23,7 @@ export function App() {
   const [auditing, setAuditing] = useState(false);
   const [auditProgress, setAuditProgress] = useState<{ current: number; total: number; name: string } | null>(null);
   const [triageProjectId, setTriageProjectId] = useState<number | null>(null);
+  const [triageCveFilter, setTriageCveFilter] = useState<string | null>(null);
   const [reportModal, setReportModal] = useState<any | null>(null);
 
   useEffect(() => {
@@ -164,7 +165,7 @@ export function App() {
             Projets
           </button>
           <button 
-            onClick={() => { setTriageProjectId(null); setCurrentTab('triage'); }}
+            onClick={() => { setTriageProjectId(null); setTriageCveFilter(null); setCurrentTab('triage'); }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'triage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
             CVEs
@@ -277,7 +278,14 @@ export function App() {
                 <p className="text-sm font-medium text-muted-foreground">Top 3 Vulnérabilités</p>
                 <div className="flex flex-col gap-2 mt-2">
                   {stats.topCves.map((tc, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm bg-black/20 p-2 rounded border border-border/50">
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        setTriageCveFilter(tc.cve);
+                        setCurrentTab('triage');
+                      }}
+                      className="flex items-center justify-between text-sm bg-black/20 p-2 rounded border border-border/50 hover:bg-primary/20 hover:border-primary/50 cursor-pointer transition-all hover:scale-[1.02]"
+                    >
                       <span className="font-mono text-xs text-muted-foreground">{tc.cve}</span>
                       <span className="font-bold text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">{tc.count}x</span>
                     </div>
@@ -296,7 +304,7 @@ export function App() {
       )}
 
       {currentTab === 'projects' && <Projects onViewTriage={(id) => { setTriageProjectId(id); setCurrentTab('triage'); }} />}
-      {currentTab === 'triage' && <Triage projectId={triageProjectId} onClearProject={() => setTriageProjectId(null)} />}
+      {currentTab === 'triage' && <Triage projectId={triageProjectId} cveFilter={triageCveFilter} onClearProject={() => setTriageProjectId(null)} onClearCve={() => setTriageCveFilter(null)} />}
       {currentTab === 'reports' && <Reports />}
       {currentTab === 'settings' && <Settings />}
 

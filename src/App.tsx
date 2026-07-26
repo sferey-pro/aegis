@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Shield, Activity, Database, GitBranch, ArrowRight, Loader2 } from 'lucide-react';
 import { Projects } from './components/Projects';
-
 import { Settings } from './components/Settings';
+import { Triage } from './components/Triage';
 
 interface Stats {
   monitoredProjects: number;
@@ -168,14 +168,7 @@ export function App() {
 
       {currentTab === 'projects' && <Projects />}
       
-      {currentTab === 'triage' && (
-        <div className="flex-1 w-full max-w-6xl mx-auto mt-8 z-10 flex items-center justify-center animate-in fade-in">
-          <div className="glass-panel p-12 text-center rounded-2xl">
-            <h2 className="text-2xl font-bold">Triage CVE</h2>
-            <p className="text-muted-foreground mt-2">Bientôt disponible...</p>
-          </div>
-        </div>
-      )}
+      {currentTab === 'triage' && <Triage />}
 
       {currentTab === 'settings' && <Settings />}
     </div>

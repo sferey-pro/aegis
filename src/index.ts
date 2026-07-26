@@ -17,8 +17,7 @@ getDb();
 const server = serve({
   port: process.env.PORT ? parseInt(process.env.PORT) : 3001,
   routes: {
-    // Serve index.html for all unmatched routes.
-    "/*": index,
+    // Removed /* from here, moved to the bottom
 
     "/api/console": {
       async GET() {
@@ -247,7 +246,10 @@ const server = serve({
         }
         return Response.json({ status: "done", results });
       }
-    }
+    },
+    
+    // Serve index.html for all unmatched routes.
+    "/*": index,
   },
 
   development: process.env.NODE_ENV !== "production" && {

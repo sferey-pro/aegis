@@ -403,7 +403,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   
                   <div className="flex items-center gap-1">
                     <button 
-                      onClick={() => handleFetch(p.id)}
+                      onClick={(e) => handleFetch(p.id, e)}
                       className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
                       title="Git Fetch"
                     >
@@ -411,7 +411,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                     </button>
                     {p.git.behind > 0 && (
                       <button 
-                        onClick={() => handlePull(p.id)}
+                        onClick={(e) => handlePull(p.id, e)}
                         className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors font-bold flex items-center gap-1"
                         title="Git Pull (Fast-Forward uniquement)"
                       >
@@ -424,21 +424,21 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
 
               <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
                 <button 
-                  onClick={() => toggleIgnore(p)}
+                  onClick={(e) => toggleIgnore(p, e)}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {p.ignored ? 'Activer' : 'Ignorer'}
                 </button>
                 <div className="flex items-center gap-1">
                   <button 
-                    onClick={() => handleEdit(p)}
+                    onClick={(e) => handleEdit(p, e)}
                     className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"
                     title="Modifier"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
                   </button>
                   <button 
-                    onClick={() => handleDelete(p.id)}
+                    onClick={(e) => handleDelete(p.id, e)}
                     className="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"
                     title="Supprimer"
                   >

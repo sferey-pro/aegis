@@ -56,6 +56,27 @@ export function App() {
     });
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center flex-col gap-6 bg-background relative overflow-hidden">
+        {/* Background glow for loader */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/20 blur-[100px] rounded-full pointer-events-none"></div>
+        
+        <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 neon-glow shadow-2xl animate-pulse z-10">
+          <Shield className="w-10 h-10 text-primary animate-bounce" />
+        </div>
+        
+        <div className="z-10 flex flex-col items-center gap-2">
+          <h1 className="text-3xl font-bold font-heading text-gradient">AEGIS</h1>
+          <div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            Initialisation du bouclier...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen p-6 md:p-12 overflow-hidden relative">
       

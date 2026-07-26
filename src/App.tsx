@@ -116,8 +116,9 @@ export function App() {
           {/* Background glow for loader */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/20 blur-[100px] rounded-full pointer-events-none"></div>
           
-          <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 neon-glow shadow-2xl animate-pulse z-10">
-            <Shield className="w-10 h-10 text-primary animate-bounce" />
+          <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 neon-glow shadow-2xl z-10">
+            <div className="absolute inset-0 border-[3px] border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <Shield className="w-10 h-10 text-primary" />
           </div>
           
           <div className="z-10 flex flex-col items-center gap-2">

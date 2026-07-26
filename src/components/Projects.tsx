@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
   const [projects, setProjects] = useState<any[]>([]);
@@ -9,6 +9,8 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
   const [filterTag, setFilterTag] = useState<string | null>(null);
 
   const [isAdding, setIsAdding] = useState(false);
+  const [detectStatus, setDetectStatus] = useState<'idle' | 'detecting' | 'success' | 'error'>('idle');
+  const [detectedToolName, setDetectedToolName] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -48,6 +50,8 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
   const resetForm = () => {
     setIsAdding(false);
     setEditingId(null);
+    setDetectStatus('idle');
+    setDetectedToolName(null);
     setFormData({ name: '', path: '', audit_path: '', type: 'node', tool: 'npm', tags: [] });
   };
 
@@ -162,6 +166,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
 
   const handleDetectTool = async () => {
     if (!formData.path) return;
+    setDetectStatus('detecting');
     try {
       const res = await fetch('/api/projects/detect', {
         method: 'POST',
@@ -175,9 +180,14 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
           tool: data.tool, 
           type: data.tool === 'composer' ? 'composer' : 'node' 
         }));
+        setDetectedToolName(data.tool);
+        setDetectStatus('success');
+      } else {
+        setDetectStatus('error');
       }
     } catch (err) {
       console.error("Auto-detect failed", err);
+      setDetectStatus('error');
     }
   };
 
@@ -249,6 +259,21 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
                   placeholder="Ex: backend/src (vide si racine)"
                 />
+                {detectStatus === 'detecting' && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Détection en cours...
+                  </span>
+                )}
+                {detectStatus === 'success' && (
+                  <span className="text-xs text-green-500 flex items-center gap-1 mt-1">
+                    <CheckCircle2 className="w-3 h-3" /> Projet détecté ({detectedToolName})
+                  </span>
+                )}
+                {detectStatus === 'error' && (
+                  <span className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                    <XCircle className="w-3 h-3" /> Aucun projet détecté à cet emplacement
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-col gap-1">

@@ -85,7 +85,7 @@ export function Triage({ projectId, onClearProject }: { projectId?: number | nul
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-3xl font-bold font-heading flex items-center gap-3">
-            Triage des Failles 
+            CVEs 
             {projectId && (
               <span className="text-sm font-semibold px-3 py-1 bg-primary/20 text-primary rounded-full border border-primary/30 flex items-center gap-2">
                 Filtré par projet

@@ -163,7 +163,7 @@ export function App() {
             onClick={() => { setTriageProjectId(null); setCurrentTab('triage'); }}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'triage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
-            Triage des Failles
+            CVEs
           </button>
           <button 
             onClick={() => setCurrentTab('reports')}

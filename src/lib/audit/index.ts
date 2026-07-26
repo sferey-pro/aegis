@@ -133,12 +133,35 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
   try {
     const parsed = parseAuditOutput(project.tool, stdout);
     
+    const { resolveFixedVersion } = await import("../github");
+    const enhancedVulns = await Promise.all(parsed.vulnerabilities.map(async (v: any) => {
+      const res = await resolveFixedVersion({
+        tool: project.tool,
+        package: v.package,
+        cve: v.cve,
+        link: v.link
+      });
+      return {
+        ...v,
+        fixedIn: res.fixedIn,
+        // Override severity if github gave us a valid one, else keep the original
+        severity: res.severity !== "unknown" ? res.severity : v.severity
+      };
+    }));
+
+    const counts = { critical: 0, high: 0, moderate: 0, low: 0, info: 0, unknown: 0 };
+    for (const v of enhancedVulns) {
+      const sev = v.severity || "unknown";
+      if (sev in counts) counts[sev as keyof typeof counts]++;
+      else counts.unknown++;
+    }
+
     const successRun = addRun({
       project_id: projectId,
-      status: parsed.total > 0 ? "vulnerable" : "ok",
-      total: parsed.total,
-      counts: parsed.counts,
-      vulnerabilities: parsed.vulnerabilities,
+      status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
+      total: enhancedVulns.length,
+      counts: counts as any,
+      vulnerabilities: enhancedVulns,
       command: commandStr,
       commit_sha: gitInfo.sha,
       error: null,
@@ -149,7 +172,7 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
     const newCves = [];
     if (lastRun && lastRun.status !== "error") {
       const oldSet = new Set(lastRun.vulnerabilities.map((v: any) => `${v.package}::${v.cve || v.title}`));
-      for (const v of parsed.vulnerabilities) {
+      for (const v of enhancedVulns) {
         const key = `${v.package}::${v.cve || v.title}`;
         if (!oldSet.has(key)) {
           newCves.push({ ref: v.cve || v.package, package: v.package, severity: v.severity });
@@ -157,7 +180,7 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
       }
     } else {
       // Premier run ou précédent en erreur -> toutes les failles trouvées sont considérées "nouvelles"
-      for (const v of parsed.vulnerabilities) {
+      for (const v of enhancedVulns) {
         newCves.push({ ref: v.cve || v.package, package: v.package, severity: v.severity });
       }
     }

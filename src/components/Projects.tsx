@@ -483,7 +483,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map(p => {
+          {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map((p, index) => {
             const hasCritical = p.lastRun?.counts?.critical > 0;
             const hasNoCves = p.lastRun && Object.values(p.lastRun.counts).reduce((a: any, b: any) => a + b, 0) === 0;
             return (
@@ -494,7 +494,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 hasCritical ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)] bg-red-500/5 cursor-pointer hover:-translate-y-1' :
                 'hover:-translate-y-1 hover:border-white/20 hover:shadow-xl hover:shadow-primary/5 cursor-pointer bg-background/40 backdrop-blur-md'
               }`}
-              style={{ animationDelay: `${(p.id % 10) * 50}ms` }}
+              style={{ animationDelay: `${(index % 20) * 50}ms`, animationFillMode: 'backwards' }}
               onClick={(e) => {
                 if (onViewTriage) onViewTriage(p.id);
               }}

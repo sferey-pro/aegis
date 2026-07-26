@@ -143,7 +143,12 @@ const server = serve({
           while (i < projects.length) {
             const index = i++;
             const p = projects[index];
-            const git = await getGitInfo(p.path);
+            let git = { isRepo: false };
+            try {
+              git = await getGitInfo(p.path);
+            } catch (e) {
+              console.error(`Git error on ${p.path}:`, e);
+            }
             const run = getLatestRun(p.id);
             enriched[index] = { ...p, git, lastRun: run };
           }
@@ -294,16 +299,17 @@ const server = serve({
     "/api/audit/run": {
       async POST() {
         const projects = listProjects().filter(p => !p.ignored);
-        const results = [];
-        for (const p of projects) {
-          try {
-            const res = await runAudit(p.id);
-            results.push({ projectId: p.id, success: true, ...res });
-          } catch (e: any) {
-            results.push({ projectId: p.id, success: false, error: e.message });
+        // Lancer l'audit en arrière-plan sans bloquer la requête HTTP
+        setTimeout(async () => {
+          for (const p of projects) {
+            try {
+              await runAudit(p.id);
+            } catch (e) {
+              console.error(`Audit background fail for ${p.id}`, e);
+            }
           }
-        }
-        return Response.json({ status: "done", results });
+        }, 0);
+        return Response.json({ status: "started", count: projects.length });
       }
     },
     

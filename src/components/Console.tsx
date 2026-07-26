@@ -122,7 +122,7 @@ export function Console() {
   }
 
   return (
-    <div className={`fixed bottom-0 right-0 z-50 bg-black/95 backdrop-blur-xl border-t border-l border-border shadow-2xl transition-all duration-300 flex flex-col font-mono text-sm ${isMaximized ? 'w-full h-1/2 rounded-t-2xl' : 'w-full md:w-[700px] h-[450px] md:bottom-6 md:right-6 md:rounded-2xl md:border'}`}>
+    <div className={`fixed bottom-0 right-0 z-50 bg-black/95 backdrop-blur-xl border-t border-l border-border shadow-2xl transition-all duration-300 flex flex-col font-mono text-sm ${isMaximized ? 'w-full h-[80vh] sm:w-[90vw] mx-auto sm:left-0 sm:right-0 sm:bottom-0 rounded-t-xl' : 'w-full md:w-[700px] h-[450px] md:bottom-6 md:right-6 md:rounded-2xl md:border'}`}>
       
       {/* Console Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-border/50 select-none">
@@ -178,7 +178,7 @@ export function Console() {
           </div>
         ) : (
           filteredLogs.map(log => (
-            <div key={log.id} className="flex gap-3 group break-all">
+            <div key={log.id} className="flex gap-3 group break-words whitespace-pre-wrap">
               <div className="w-4 flex-shrink-0 mt-0.5">
                 {log.status === "running" && <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />}
                 {log.status === "success" && <CheckCircle className="w-4 h-4 text-green-500" />}

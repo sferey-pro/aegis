@@ -135,16 +135,17 @@ export function App() {
         </div>
       )}
 
-      <div className={`flex flex-col min-h-screen p-6 md:p-12 overflow-hidden relative transition-opacity duration-300 ${(loading || auditing) ? 'opacity-50 pointer-events-none blur-sm' : 'opacity-100'}`}>
+      <div className={`flex flex-col min-h-screen overflow-hidden relative transition-opacity duration-300 ${(loading || auditing) ? 'opacity-50 pointer-events-none blur-sm' : 'opacity-100'}`}>
         
         {/* Navigation */}
-      <header className="flex items-center justify-between py-4 w-full max-w-6xl mx-auto z-10">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentTab('overview')}>
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 neon-glow">
-            <Shield className="w-5 h-5 text-primary" />
+      <header className="sticky top-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/50 shadow-sm flex items-center justify-between py-4 px-6 md:px-12 w-full mx-auto">
+        <div className="flex items-center gap-2 select-none w-full max-w-6xl mx-auto justify-between">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentTab('overview')}>
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 neon-glow">
+              <Shield className="w-5 h-5 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold font-heading">Aegis</h1>
           </div>
-          <h1 className="text-2xl font-bold font-heading">Aegis</h1>
-        </div>
         
         <nav className="flex items-center gap-1">
           <button 

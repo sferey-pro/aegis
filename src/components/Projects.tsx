@@ -51,7 +51,8 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     setFormData({ name: '', path: '', audit_path: '', type: 'node', tool: 'npm', tags: [] });
   };
 
-  const handleEdit = (p: any) => {
+  const handleEdit = (p: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setFormData({
       name: p.name,
       path: p.path,
@@ -62,7 +63,6 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     });
     setEditingId(p.id);
     setIsAdding(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,7 +91,8 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) return;
     try {
       await fetch(`/api/projects/${id}`, { method: 'DELETE' });
@@ -101,7 +102,8 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     }
   };
 
-  const toggleIgnore = async (project: any) => {
+  const toggleIgnore = async (project: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await fetch(`/api/projects/${project.id}`, {
         method: 'PUT',
@@ -114,7 +116,8 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     }
   };
 
-  const handleFetch = async (id: number) => {
+  const handleFetch = async (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await fetch(`/api/projects/${id}/git-fetch`, { method: 'POST' });
       fetchProjects();
@@ -123,7 +126,8 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     }
   };
 
-  const handlePull = async (id: number) => {
+  const handlePull = async (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await fetch(`/api/projects/${id}/git-pull`, { method: 'POST' });
       fetchProjects();
@@ -198,109 +202,111 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
       </div>
 
       {isAdding && (
-        <form onSubmit={handleSubmit} className="glass-panel p-6 rounded-2xl mb-8 flex flex-col gap-4 border-primary/30 animate-in slide-in-from-top-4">
-          <h3 className="text-xl font-bold mb-2 text-primary">{editingId ? "Modifier le Projet" : "Nouveau Projet"}</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Nom du projet</label>
-              <input 
-                required
-                type="text" 
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
-                placeholder="Ex: Mon API Node"
-              />
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setIsAdding(false)}>
+          <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar">
+            <h3 className="text-xl font-bold mb-2 text-primary">{editingId ? "Modifier le Projet" : "Nouveau Projet"}</h3>
             
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Chemin absolu (Racine Git)</label>
-              <input 
-                required
-                type="text" 
-                value={formData.path}
-                onChange={e => setFormData({...formData, path: e.target.value})}
-                onBlur={handleDetectTool}
-                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
-                placeholder="Ex: /home/user/projects/api"
-              />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">Nom du projet</label>
+                <input 
+                  required
+                  type="text" 
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                  placeholder="Ex: Mon API Node"
+                />
+              </div>
+              
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">Chemin absolu (Racine Git)</label>
+                <input 
+                  required
+                  type="text" 
+                  value={formData.path}
+                  onChange={e => setFormData({...formData, path: e.target.value})}
+                  onBlur={handleDetectTool}
+                  className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                  placeholder="Ex: /home/user/projects/api"
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Sous-dossier d'audit (Optionnel)</label>
-              <input 
-                type="text" 
-                value={formData.audit_path}
-                onChange={e => setFormData({...formData, audit_path: e.target.value})}
-                onBlur={handleDetectTool}
-                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
-                placeholder="Ex: backend/src (vide si racine)"
-              />
-            </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">Sous-dossier d'audit (Optionnel)</label>
+                <input 
+                  type="text" 
+                  value={formData.audit_path}
+                  onChange={e => setFormData({...formData, audit_path: e.target.value})}
+                  onBlur={handleDetectTool}
+                  className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                  placeholder="Ex: backend/src (vide si racine)"
+                />
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Outil d'audit</label>
-              <select 
-                value={formData.tool}
-                onChange={e => setFormData({...formData, tool: e.target.value, type: e.target.value === 'composer' ? 'composer' : 'node'})}
-                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
-              >
-                <option value="npm">NPM</option>
-                <option value="yarn">Yarn</option>
-                <option value="bun">Bun</option>
-                <option value="composer">Composer</option>
-              </select>
-            </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium">Outil d'audit</label>
+                <select 
+                  value={formData.tool}
+                  onChange={e => setFormData({...formData, tool: e.target.value, type: e.target.value === 'composer' ? 'composer' : 'node'})}
+                  className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                >
+                  <option value="npm">NPM</option>
+                  <option value="yarn">Yarn</option>
+                  <option value="bun">Bun</option>
+                  <option value="composer">Composer</option>
+                </select>
+              </div>
 
-            <div className="flex flex-col gap-2 md:col-span-2">
-              <label className="text-sm font-medium">Tags (Configurations)</label>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map(t => {
-                  const isSelected = formData.tags.includes(t.name);
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        if (isSelected) {
-                          setFormData({...formData, tags: formData.tags.filter(tag => tag !== t.name)});
-                        } else {
-                          setFormData({...formData, tags: [...formData.tags, t.name]});
-                        }
-                      }}
-                      className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
-                        isSelected 
-                          ? 'border-primary bg-primary/20 text-primary' 
-                          : 'border-border bg-background hover:bg-secondary text-muted-foreground'
-                      }`}
-                    >
-                      <span className="w-2 h-2 rounded-full inline-block mr-2" style={{ backgroundColor: `var(--color-${t.color}-500, var(--primary))` }}></span>
-                      {t.name}
-                    </button>
-                  );
-                })}
-                {availableTags.length === 0 && <span className="text-xs text-muted-foreground italic">Aucun tag configuré dans les Paramètres.</span>}
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="text-sm font-medium">Tags (Configurations)</label>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map(t => {
+                    const isSelected = formData.tags.includes(t.name);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setFormData({...formData, tags: formData.tags.filter(tag => tag !== t.name)});
+                          } else {
+                            setFormData({...formData, tags: [...formData.tags, t.name]});
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                          isSelected 
+                            ? 'border-primary bg-primary/20 text-primary' 
+                            : 'border-border bg-background hover:bg-secondary text-muted-foreground'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full inline-block mr-2" style={{ backgroundColor: `var(--color-${t.color}-500, var(--primary))` }}></span>
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                  {availableTags.length === 0 && <span className="text-xs text-muted-foreground italic">Aucun tag configuré dans les Paramètres.</span>}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-end gap-3 mt-4">
-            <button 
-              type="button" 
-              onClick={() => setIsAdding(false)}
-              className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-            >
-              Annuler
-            </button>
-            <button 
-              type="submit"
-              className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              {editingId ? "Enregistrer" : "Créer le projet"}
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end gap-3 mt-4">
+              <button 
+                type="button" 
+                onClick={() => setIsAdding(false)}
+                className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              >
+                Annuler
+              </button>
+              <button 
+                type="submit"
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                {editingId ? "Enregistrer" : "Créer le projet"}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {availableTags.length > 0 && projects.length > 0 && (
@@ -350,8 +356,6 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 'hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 cursor-pointer'
               }`}
               onClick={(e) => {
-                // Prevent routing if clicking on a button inside the card
-                if ((e.target as HTMLElement).closest('button')) return;
                 if (onViewTriage) onViewTriage(p.id);
               }}
             >

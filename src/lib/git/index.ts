@@ -45,7 +45,7 @@ async function runGit(args: string[], cwd: string, tolerateFailure = false): Pro
     cwd,
     env: GIT_ENV,
     stdout: "pipe",
-    stderr: "pipe",
+    stderr: "ignore",
   });
   
   const stdout = await new Response(proc.stdout).text();
@@ -132,8 +132,10 @@ export async function gitFetch(rawPath: string): Promise<{ ok: boolean, log: str
       stderr: "pipe",
     });
     
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text()
+    ]);
     const exitCode = await proc.exited;
     
     emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
@@ -164,8 +166,10 @@ export async function gitPull(rawPath: string): Promise<{ ok: boolean, log: stri
       stderr: "pipe",
     });
     
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text()
+    ]);
     const exitCode = await proc.exited;
     
     emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });

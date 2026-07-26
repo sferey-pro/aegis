@@ -88,8 +88,12 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
       stdout: "pipe",
       stderr: "pipe",
     });
-    stdout = await new Response(proc.stdout).text();
-    stderr = await new Response(proc.stderr).text();
+    const [stdoutText, stderrText] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text()
+    ]);
+    stdout = stdoutText;
+    stderr = stderrText;
     exitCode = await proc.exited;
   } catch (err: any) {
     systemError = err.message;

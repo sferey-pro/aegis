@@ -253,7 +253,14 @@ export function App() {
                 <p className="text-sm font-medium text-muted-foreground">Top 3 Projets à Risque</p>
                 <div className="flex flex-col gap-2 mt-2">
                   {stats.topProjects.map((tp, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm bg-black/20 p-2 rounded border border-border/50">
+                    <div 
+                      key={i} 
+                      onClick={() => {
+                        setTriageProjectId(tp.id);
+                        setCurrentTab('triage');
+                      }}
+                      className="flex items-center justify-between text-sm bg-black/20 p-2 rounded border border-border/50 hover:bg-primary/20 hover:border-primary/50 cursor-pointer transition-all hover:scale-[1.02]"
+                    >
                       <span className="font-bold truncate max-w-[120px]" title={tp.name}>{tp.name}</span>
                       <div className="flex gap-2">
                         {tp.critical > 0 && <span className="text-red-500 text-xs font-bold">{tp.critical} C</span>}

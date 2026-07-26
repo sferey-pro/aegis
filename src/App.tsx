@@ -140,7 +140,7 @@ export function App() {
         </div>
       )}
 
-      <div className={`flex flex-col min-h-screen overflow-hidden relative transition-opacity duration-300 ${(loading || auditing) ? 'opacity-50 pointer-events-none blur-sm' : 'opacity-100'}`}>
+      <div className={`flex flex-col min-h-screen overflow-x-hidden relative transition-opacity duration-300 ${(loading || auditing) ? 'opacity-50 pointer-events-none blur-sm' : 'opacity-100'}`}>
         
         {/* Navigation */}
       <header className="sticky top-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/50 shadow-sm flex items-center justify-between py-4 px-6 md:px-12 w-full mx-auto">

@@ -6,6 +6,7 @@ import { Triage } from './components/Triage';
 import { Console } from './components/Console';
 import { HistoryChart } from './components/HistoryChart';
 import { Reports } from './components/Reports';
+import { PromptsLibrary } from './components/PromptsLibrary';
 
 interface Stats {
   monitoredProjects: number;

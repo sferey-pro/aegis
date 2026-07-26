@@ -171,7 +171,7 @@ export function Console() {
                 
                 {/* Infos secondaires (CWD + temps) */}
                 <div className="flex gap-4 mt-1 text-xs text-muted-foreground/50">
-                  <span className="truncate max-w-[70%]" title={log.cwd}>in {log.cwd.replace(process.env.HOME || '~', '~')}</span>
+                  <span className="truncate max-w-[70%]" title={log.cwd}>in {log.cwd}</span>
                   {log.ms !== undefined && (
                     <span>
                       {log.ms}ms {log.exitCode !== 0 && <span className="text-red-400 ml-2">exit {log.exitCode}</span>}

@@ -174,6 +174,18 @@ const server = serve({
       }
     },
 
+    "/api/projects/:id/audit": {
+      async POST(req) {
+        const id = parseInt(req.params.id);
+        try {
+          const res = await runAudit(id);
+          return Response.json({ success: true, ...res });
+        } catch (e: any) {
+          return Response.json({ success: false, error: e.message }, { status: 500 });
+        }
+      }
+    },
+
     "/api/settings": {
       async GET() {
         return Response.json(getAllSettings());

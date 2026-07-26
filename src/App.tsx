@@ -17,6 +17,7 @@ export function App() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [auditing, setAuditing] = useState(false);
+  const [auditProgress, setAuditProgress] = useState<{ current: number; total: number; name: string } | null>(null);
 
   useEffect(() => {
     fetchStats(true);
@@ -45,13 +46,26 @@ export function App() {
 
   const handleRunAudit = async () => {
     setAuditing(true);
+    setAuditProgress(null);
     try {
-      await fetch('/api/audit/run', { method: 'POST' });
+      const res = await fetch('/api/projects');
+      const allProjects = await res.json();
+      const projectsToAudit = allProjects.filter((p: any) => !p.ignored);
+      
+      let current = 1;
+      const total = projectsToAudit.length;
+      for (const p of projectsToAudit) {
+        setAuditProgress({ current, total, name: p.name });
+        await fetch(`/api/projects/${p.id}/audit`, { method: 'POST' });
+        current++;
+      }
+      
       await fetchStats(); // Refresh stats after audit
     } catch (err) {
       console.error(err);
     } finally {
       setAuditing(false);
+      setAuditProgress(null);
     }
   };
   
@@ -65,7 +79,7 @@ export function App() {
     });
   }
 
-  if (loading) {
+  if (loading || auditing) {
     return (
       <div className="min-h-screen flex items-center justify-center flex-col gap-6 bg-background relative overflow-hidden">
         {/* Background glow for loader */}
@@ -79,7 +93,11 @@ export function App() {
           <h1 className="text-3xl font-bold font-heading text-gradient">AEGIS</h1>
           <div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            Initialisation du bouclier...
+            {loading ? "Initialisation du bouclier..." : (
+              auditProgress 
+                ? `Analyse du projet ${auditProgress.name} .... ${auditProgress.current}/${auditProgress.total}`
+                : "Démarrage de l'audit global..."
+            )}
           </div>
         </div>
       </div>

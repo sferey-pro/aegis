@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle } from 'lucide-react';
 
-export function Projects() {
+export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -339,8 +339,22 @@ export function Projects() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map(p => (
-            <div key={p.id} className={`glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-300 ${p.ignored ? 'opacity-50 grayscale' : 'hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5'}`}>
+          {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map(p => {
+            const hasCritical = p.lastRun?.counts?.critical > 0;
+            return (
+            <div 
+              key={p.id} 
+              className={`glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-300 ${
+                p.ignored ? 'opacity-50 grayscale' : 
+                hasCritical ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)] bg-red-500/5 cursor-pointer hover:-translate-y-1' :
+                'hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 cursor-pointer'
+              }`}
+              onClick={(e) => {
+                // Prevent routing if clicking on a button inside the card
+                if ((e.target as HTMLElement).closest('button')) return;
+                if (onViewTriage) onViewTriage(p.id);
+              }}
+            >
               
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
@@ -430,7 +444,8 @@ export function Projects() {
               </div>
 
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

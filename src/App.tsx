@@ -18,6 +18,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [auditing, setAuditing] = useState(false);
   const [auditProgress, setAuditProgress] = useState<{ current: number; total: number; name: string } | null>(null);
+  const [triageProjectId, setTriageProjectId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchStats(true);
@@ -115,11 +116,26 @@ export function App() {
           <h1 className="text-2xl font-bold font-heading">Aegis</h1>
         </div>
         
-        <nav className="flex gap-4 md:gap-8 overflow-x-auto text-sm font-medium text-muted-foreground pb-2 md:pb-0 w-full md:w-auto mt-4 md:mt-0 px-2 hide-scrollbar">
-          <button onClick={() => setCurrentTab('overview')} className={`${currentTab === 'overview' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap`}>Aperçu</button>
-          <button onClick={() => setCurrentTab('projects')} className={`${currentTab === 'projects' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap`}>Projets</button>
-          <button onClick={() => setCurrentTab('triage')} className={`${currentTab === 'triage' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap`}>Triage CVE</button>
-          <button onClick={() => setCurrentTab('settings')} className={`${currentTab === 'settings' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap`}>Paramètres</button>
+        <nav className="flex items-center gap-1">
+          <button 
+            onClick={() => setCurrentTab('overview')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'overview' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+          >
+            Vue d'ensemble
+          </button>
+          <button 
+            onClick={() => setCurrentTab('projects')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'projects' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+          >
+            Projets
+          </button>
+          <button 
+            onClick={() => { setTriageProjectId(null); setCurrentTab('triage'); }}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'triage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+          >
+            Triage des Failles
+          </button>
+          <button onClick={() => setCurrentTab('settings')} className={`${currentTab === 'settings' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap ml-4`}>Paramètres</button>
         </nav>
         
         <button 
@@ -220,10 +236,8 @@ export function App() {
         </main>
       )}
 
-      {currentTab === 'projects' && <Projects />}
-      
-      {currentTab === 'triage' && <Triage />}
-
+      {currentTab === 'projects' && <Projects onViewTriage={(id) => { setTriageProjectId(id); setCurrentTab('triage'); }} />}
+      {currentTab === 'triage' && <Triage projectId={triageProjectId} onClearProject={() => setTriageProjectId(null)} />}
       {currentTab === 'settings' && <Settings />}
 
       <Console />

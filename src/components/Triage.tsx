@@ -19,7 +19,7 @@ const SEVERITY_ICONS: Record<string, React.ReactNode> = {
   unknown: <HelpCircle className="w-5 h-5 text-gray-400" />
 };
 
-export function Triage() {
+export function Triage({ projectId, onClearProject }: { projectId?: number | null, onClearProject?: () => void }) {
   const [cves, setCves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -84,8 +84,20 @@ export function Triage() {
       
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-3xl font-bold font-heading">Triage CVE</h2>
-          <p className="text-muted-foreground mt-1">Examinez et annotez les vulnérabilités détectées.</p>
+          <h2 className="text-3xl font-bold font-heading flex items-center gap-3">
+            Triage des Failles 
+            {projectId && (
+              <span className="text-sm font-semibold px-3 py-1 bg-primary/20 text-primary rounded-full border border-primary/30 flex items-center gap-2">
+                Filtré par projet
+                {onClearProject && (
+                  <button onClick={onClearProject} className="hover:text-red-400 transition-colors">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </span>
+            )}
+          </h2>
+          <p className="text-muted-foreground mt-1">Gérez le statut des CVEs remontées par l'audit.</p>
         </div>
       </div>
 
@@ -104,8 +116,14 @@ export function Triage() {
       ) : (
         <div className="flex flex-col gap-4">
           {cves.map((group) => {
+            const projectOccurrences = projectId 
+              ? group.occurrences.filter((o: any) => o.projectId === projectId)
+              : group.occurrences;
+              
+            if (projectOccurrences.length === 0) return null;
+
             const isExpanded = expanded[group.cve];
-            const pendingCount = group.occurrences.filter((o: any) => o.status === 'pending').length;
+            const pendingCount = projectOccurrences.filter((o: any) => o.status === 'pending').length;
             
             return (
               <div key={group.cve} className={`glass-panel rounded-xl overflow-hidden border transition-colors ${pendingCount > 0 ? 'border-primary/30' : 'border-border/50'}`}>
@@ -132,7 +150,7 @@ export function Triage() {
                   
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="text-sm font-medium">{group.occurrences.length} occurrence(s)</p>
+                      <p className="text-sm font-medium">{projectOccurrences.length} occurrence(s)</p>
                       {pendingCount > 0 && <p className="text-xs text-primary font-bold">{pendingCount} à trier</p>}
                     </div>
                     
@@ -151,8 +169,10 @@ export function Triage() {
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <div className="border-t border-border/50 bg-black/20 p-5 flex flex-col gap-4">
-                    {group.occurrences.map((occ: any, i: number) => (
+                  <div className="p-5 border-t border-border/50 bg-black/20">
+                    <h4 className="font-semibold text-sm mb-3">Occurrences dans vos projets :</h4>
+                    <div className="flex flex-col gap-2">
+                      {projectOccurrences.map((occ: any, i: number) => (
                       <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg bg-card/40 border border-border/50">
                         
                         <div className="flex flex-col gap-1">
@@ -201,6 +221,7 @@ export function Triage() {
 
                       </div>
                     ))}
+                    </div>
                   </div>
                 )}
 

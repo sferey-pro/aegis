@@ -18,9 +18,10 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     name: '',
     path: '',
     audit_path: '',
-    type: 'node',
-    tool: 'npm',
-    tags: [] as string[]
+    tool: 'npm' as 'npm' | 'yarn' | 'bun' | 'composer',
+    type: 'node' as 'node' | 'composer',
+    tags: [] as string[],
+    is_remote: false
   });
 
   const fetchTags = async () => {
@@ -54,7 +55,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     setEditingId(null);
     setDetectStatus('idle');
     setDetectedToolName(null);
-    setFormData({ name: '', path: '', audit_path: '', type: 'node', tool: 'npm', tags: [] });
+    setFormData({ name: '', path: '', audit_path: '', type: 'node', tool: 'npm', tags: [], is_remote: false });
   };
 
   const handleEdit = (p: any, e?: React.MouseEvent) => {
@@ -65,7 +66,8 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
       audit_path: p.audit_path || '',
       type: p.type,
       tool: p.tool,
-      tags: p.tags || []
+      tags: p.tags || [],
+      is_remote: !!p.is_remote
     });
     setEditingId(p.id);
     setIsAdding(true);
@@ -225,6 +227,23 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
           <form ref={formRef} onSubmit={handleSubmit} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar">
             <h3 className="text-xl font-bold mb-2 text-primary">{editingId ? "Modifier le Projet" : "Nouveau Projet"}</h3>
             
+            <div className="flex bg-black/20 p-1 rounded-lg border border-border/50 mb-2">
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, is_remote: false})}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${!formData.is_remote ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:bg-white/5'}`}
+              >
+                Projet Local
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, is_remote: true, path: ''})}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${formData.is_remote ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:bg-white/5'}`}
+              >
+                Projet Distant (CI)
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">Nom du projet</label>
@@ -254,51 +273,43 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 </div>
               </div>
               
-              <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-sm font-medium">Chemin absolu (Racine Git)</label>
-                <input 
-                  required
-                  type="text" 
-                  value={formData.path}
-                  onChange={e => setFormData({...formData, path: e.target.value})}
-                  onBlur={handleDetectTool}
-                  className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
-                  placeholder="Ex: /home/user/projects/api"
-                />
-              </div>
+              {!formData.is_remote && (
+                <div className="flex flex-col gap-1 md:col-span-2">
+                  <label className="text-sm font-medium">Chemin absolu (Racine Git)</label>
+                  <input 
+                    required={!formData.is_remote}
+                    type="text" 
+                    value={formData.path}
+                    onChange={e => setFormData({...formData, path: e.target.value})}
+                    onBlur={handleDetectTool}
+                    className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                    placeholder="Ex: /home/user/projects/api"
+                  />
+                  {detectStatus === 'detecting' && <span className="text-xs text-blue-400 mt-1 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Détection automatique...</span>}
+                  {detectStatus === 'success' && <span className="text-xs text-green-400 mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Outil détecté : {detectedToolName}</span>}
+                  {detectStatus === 'error' && <span className="text-xs text-orange-400 mt-1 flex items-center gap-1"><XCircle className="w-3 h-3"/> Impossible de détecter automatiquement (vérifiez le chemin)</span>}
+                </div>
+              )}
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium">Sous-dossier d'audit (Optionnel)</label>
-                <input 
-                  type="text" 
-                  value={formData.audit_path}
-                  onChange={e => setFormData({...formData, audit_path: e.target.value})}
-                  onBlur={handleDetectTool}
-                  className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
-                  placeholder="Ex: backend/src (vide si racine)"
-                />
-                {detectStatus === 'detecting' && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Détection en cours...
-                  </span>
-                )}
-                {detectStatus === 'success' && (
-                  <span className="text-xs text-green-500 flex items-center gap-1 mt-1">
-                    <CheckCircle2 className="w-3 h-3" /> Projet détecté ({detectedToolName})
-                  </span>
-                )}
-                {detectStatus === 'error' && (
-                  <span className="text-xs text-red-500 flex items-center gap-1 mt-1">
-                    <XCircle className="w-3 h-3" /> Aucun projet détecté à cet emplacement
-                  </span>
-                )}
-              </div>
+              {!formData.is_remote && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium">Sous-dossier d'audit (Optionnel)</label>
+                  <input 
+                    type="text" 
+                    value={formData.audit_path}
+                    onChange={e => setFormData({...formData, audit_path: e.target.value})}
+                    onBlur={handleDetectTool}
+                    className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                    placeholder="Ex: backend/src (vide si racine)"
+                  />
+                </div>
+              )}
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">Outil d'audit</label>
                 <select 
                   value={formData.tool}
-                  onChange={e => setFormData({...formData, tool: e.target.value, type: e.target.value === 'composer' ? 'composer' : 'node'})}
+                  onChange={e => setFormData({...formData, tool: e.target.value as any, type: e.target.value === 'composer' ? 'composer' : 'node'})}
                   className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
                 >
                   <option value="npm">NPM</option>
@@ -348,7 +359,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               >
                 Annuler
               </button>
-              {!editingId && (
+              {!editingId && !formData.is_remote && (
                 <button 
                   type="button"
                   onClick={(e) => {
@@ -363,13 +374,23 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   Créer et Auditer
                 </button>
               )}
-              <button 
-                type="submit"
-                onClick={(e) => handleSubmit(e, false)}
-                className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                {editingId ? "Enregistrer" : "Créer uniquement"}
-              </button>
+              {formData.is_remote && !editingId && (
+                <button 
+                  type="submit"
+                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+                >
+                  Créer le projet CI
+                </button>
+              )}
+              {(!formData.is_remote || editingId) && (
+                <button 
+                  type="submit"
+                  onClick={(e) => handleSubmit(e, false)}
+                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+                >
+                  {editingId ? "Enregistrer" : "Créer sans auditer"}
+                </button>
+              )}
             </div>
           </form>
         </div>
@@ -466,10 +487,12 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 </button>
               </div>
               
-              <div className="text-sm text-muted-foreground mt-2 truncate" title={p.path}>
-                <span className="font-mono text-xs">{p.path}</span>
-                {p.audit_path && <span className="font-mono text-xs text-primary ml-1">/{p.audit_path}</span>}
-              </div>
+              {!p.is_remote && (
+                <div className="text-sm text-muted-foreground mt-2 truncate" title={p.path}>
+                  <span className="font-mono text-xs">{p.path}</span>
+                  {p.audit_path && <span className="font-mono text-xs text-primary ml-1">/{p.audit_path}</span>}
+                </div>
+              )}
 
               {p.tags && p.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">

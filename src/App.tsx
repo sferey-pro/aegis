@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Shield, Activity, Database, GitBranch, ArrowRight, Loader2 } from 'lucide-react';
 import { Projects } from './components/Projects';
 
+import { Settings } from './components/Settings';
+
 interface Stats {
   monitoredProjects: number;
   criticalVulnerabilities: number;
@@ -9,7 +11,7 @@ interface Stats {
 }
 
 export function App() {
-  const [currentTab, setCurrentTab] = useState<'overview' | 'projects' | 'triage'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'projects' | 'triage' | 'settings'>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [auditing, setAuditing] = useState(false);
@@ -68,7 +70,7 @@ export function App() {
           <button onClick={() => setCurrentTab('overview')} className={`${currentTab === 'overview' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors`}>Aperçu</button>
           <button onClick={() => setCurrentTab('projects')} className={`${currentTab === 'projects' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors`}>Projets</button>
           <button onClick={() => setCurrentTab('triage')} className={`${currentTab === 'triage' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors`}>Triage CVE</button>
-          <button className="hover:text-foreground transition-colors opacity-50 cursor-not-allowed" title="À venir">Paramètres</button>
+          <button onClick={() => setCurrentTab('settings')} className={`${currentTab === 'settings' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors`}>Paramètres</button>
         </nav>
         
         <button 
@@ -174,6 +176,8 @@ export function App() {
           </div>
         </div>
       )}
+
+      {currentTab === 'settings' && <Settings />}
     </div>
   );
 }

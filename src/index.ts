@@ -5,6 +5,7 @@ import { buildCveGroups } from "./lib/aggregator";
 import { runAudit } from "./lib/audit";
 import { getLatestRun } from "./db/runs";
 import { getDb } from "./db";
+import { getAllSettings, setAllSettings } from "./db/settings";
 
 // Ensure DB is initialized before starting
 getDb();
@@ -68,6 +69,17 @@ const server = serve({
       async DELETE(req) {
         const id = parseInt(req.params.id);
         deleteProject(id);
+        return Response.json({ success: true });
+      }
+    },
+
+    "/api/settings": {
+      async GET() {
+        return Response.json(getAllSettings());
+      },
+      async PUT(req) {
+        const body = await req.json();
+        setAllSettings(body);
         return Response.json({ success: true });
       }
     },

@@ -10,6 +10,7 @@ interface ConsoleEvent {
   project?: string;
   exitCode?: number;
   ms?: number;
+  errorText?: string;
 }
 
 interface LogEntry {
@@ -22,6 +23,7 @@ interface LogEntry {
   exitCode?: number;
   ms?: number;
   startTime: number;
+  errorText?: string;
 }
 
 export function Console() {
@@ -64,7 +66,8 @@ export function Console() {
                   ...log,
                   status: data.exitCode === 0 ? "success" : "error",
                   exitCode: data.exitCode,
-                  ms: data.ms
+                  ms: data.ms,
+                  errorText: data.errorText
                 };
               }
               return log;
@@ -220,6 +223,11 @@ export function Console() {
                 {log.cwd && (
                   <div className="text-xs text-muted-foreground/70 mt-1 pl-1 border-l-2 border-white/10">
                     {log.cwd}
+                  </div>
+                )}
+                {log.status === "error" && log.errorText && (
+                  <div className="text-xs text-red-400 mt-1 pl-2 border-l-2 border-red-500/50 bg-red-500/10 p-2 rounded break-all">
+                    {log.errorText}
                   </div>
                 )}
               </div>

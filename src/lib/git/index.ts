@@ -137,8 +137,7 @@ export async function gitFetch(rawPath: string): Promise<{ ok: boolean, log: str
       new Response(proc.stderr).text()
     ]);
     const exitCode = await proc.exited;
-    
-    emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+    emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime, errorText: exitCode !== 0 ? stderr.trim() : undefined });
 
     let log = stderr + stdout;
     
@@ -147,8 +146,8 @@ export async function gitFetch(rawPath: string): Promise<{ ok: boolean, log: str
     }
     
     return { ok: exitCode === 0, log: log.trim() };
-  } catch (e) {
-    emitConsoleEnd(eventId, { exitCode: 1, ms: Date.now() - startTime });
+  } catch (e: any) {
+    emitConsoleEnd(eventId, { exitCode: 1, ms: Date.now() - startTime, errorText: e.message });
     return { ok: false, log: `chemin introuvable ou erreur système` };
   }
 }
@@ -171,8 +170,7 @@ export async function gitPull(rawPath: string): Promise<{ ok: boolean, log: stri
       new Response(proc.stderr).text()
     ]);
     const exitCode = await proc.exited;
-    
-    emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+    emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime, errorText: exitCode !== 0 ? stderr.trim() : undefined });
 
     let log = stdout + stderr;
     if (exitCode !== 0 && log.trim() === "") {
@@ -180,8 +178,8 @@ export async function gitPull(rawPath: string): Promise<{ ok: boolean, log: stri
     }
     
     return { ok: exitCode === 0, log: log.trim() };
-  } catch (e) {
-    emitConsoleEnd(eventId, { exitCode: 1, ms: Date.now() - startTime });
+  } catch (e: any) {
+    emitConsoleEnd(eventId, { exitCode: 1, ms: Date.now() - startTime, errorText: e.message });
     return { ok: false, log: "chemin introuvable ou erreur système" };
   }
 }

@@ -101,7 +101,8 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
 
   const duration_ms = Date.now() - startTime;
   
-  emitConsoleEnd(eventId, { exitCode, ms: duration_ms });
+  const errorOutput = systemError || (exitCode !== 0 ? stderr : undefined);
+  emitConsoleEnd(eventId, { exitCode, ms: duration_ms, errorText: errorOutput?.trim() });
 
   if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
     let errMsg = systemError ? `Erreur système: ${systemError}` : (stderr.trim() || `${project.tool}: aucune sortie (exit ${exitCode})`);

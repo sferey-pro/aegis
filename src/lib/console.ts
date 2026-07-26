@@ -9,6 +9,7 @@ export interface ConsoleEvent {
   project?: string;
   exitCode?: number;
   ms?: number;
+  errorText?: string;
 }
 
 export const projectContext = new AsyncLocalStorage<{ project: string }>();

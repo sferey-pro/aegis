@@ -5,15 +5,18 @@ import { ConfirmDialog } from './ConfirmDialog';
 export function Reports() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<number | null>(null);
 
   const fetchReports = async () => {
+    setIsFetching(true);
     try {
       const res = await fetch('/api/reports');
       setReports(await res.json());
     } catch (e) {
       console.error(e);
     } finally {
+      setIsFetching(false);
       setLoading(false);
     }
   };
@@ -46,9 +49,10 @@ export function Reports() {
         </div>
         <button 
           onClick={fetchReports}
-          className="p-2 rounded hover:bg-white/5 transition-colors"
+          disabled={isFetching}
+          className="p-2 rounded hover:bg-white/5 transition-colors disabled:opacity-50"
         >
-          <RefreshCw className="w-5 h-5 text-muted-foreground" />
+          <RefreshCw className={`w-5 h-5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
         </button>
       </div>
 

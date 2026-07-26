@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info } from 'lucide-react';
+import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2 } from 'lucide-react';
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
   const [projects, setProjects] = useState<any[]>([]);
@@ -451,11 +451,12 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             return (
             <div 
               key={p.id} 
-              className={`glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-300 ${
+              className={`group glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-500 animate-in slide-in-from-bottom-4 fade-in ${
                 p.ignored ? 'opacity-50 grayscale' : 
                 hasCritical ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)] bg-red-500/5 cursor-pointer hover:-translate-y-1' :
-                'hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 cursor-pointer'
+                'hover:-translate-y-1 hover:border-white/20 hover:shadow-xl hover:shadow-primary/5 cursor-pointer bg-background/40 backdrop-blur-md'
               }`}
+              style={{ animationDelay: `${(p.id % 10) * 50}ms` }}
               onClick={(e) => {
                 if (onViewTriage) onViewTriage(p.id);
               }}
@@ -479,31 +480,38 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   )}
                 </div>
                 
-                <span className="text-xs font-semibold px-2 py-1 rounded bg-secondary text-secondary-foreground border border-border uppercase">
-                  {p.tool}
-                </span>
-
-                <button
-                  title="Copier l'URL d'ingestion CI"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (p.slug) {
-                      navigator.clipboard.writeText(`${window.location.origin}/api/ingest/${p.slug}`);
-                      setCopiedSlug(p.id);
-                      setTimeout(() => setCopiedSlug(null), 2000);
-                    }
-                  }}
-                  className={`flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded border transition-colors ${copiedSlug === p.id ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'}`}
-                >
-                  {copiedSlug === p.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                  URL CI
-                </button>
+                <div className="relative group/menu">
+                  <button className="p-1.5 rounded-full hover:bg-white/10 text-muted-foreground transition-colors" onClick={(e) => e.stopPropagation()}>
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-background/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 flex flex-col p-1">
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground border-b border-border/50 mb-1 flex items-center justify-between">
+                      <span>Outil d'audit</span>
+                      <span className="font-bold text-foreground uppercase">{p.tool}</span>
+                    </div>
+                    <button
+                      title="Copier l'URL d'ingestion CI"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (p.slug) {
+                          navigator.clipboard.writeText(`${window.location.origin}/api/ingest/${p.slug}`);
+                          setCopiedSlug(p.id);
+                          setTimeout(() => setCopiedSlug(null), 2000);
+                        }
+                      }}
+                      className="flex items-center gap-2 text-xs px-2 py-1.5 rounded hover:bg-white/10 transition-colors text-left"
+                    >
+                      {copiedSlug === p.id ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-blue-400" />}
+                      {copiedSlug === p.id ? "Copié !" : "Copier URL Ingestion"}
+                    </button>
+                  </div>
+                </div>
               </div>
               
               {!p.is_remote && (
-                <div className="text-sm text-muted-foreground mt-2 truncate" title={p.path}>
-                  <span className="font-mono text-xs">{p.path}</span>
-                  {p.audit_path && <span className="font-mono text-xs text-primary ml-1">/{p.audit_path}</span>}
+                <div className="flex items-center gap-1 mt-0">
+                  <span className="text-xs text-muted-foreground">Local</span>
+                  <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || 'Racine'}`} />
                 </div>
               )}
 
@@ -518,62 +526,68 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               )}
 
               {p.git?.isRepo && (
-                <div className="flex items-center justify-between mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="w-3.5 h-3.5 text-orange-400" />
-                    <span className="font-mono truncate max-w-[80px]" title={p.git.branch || 'detached'}>
-                      {p.git.branch || 'detached'}
-                    </span>
-                    {p.git.behind > 0 && (
-                      <span className="text-red-400 font-bold flex items-center gap-0.5 ml-1" title={`${p.git.behind} commits de retard sur l'upstream`}>
-                        <ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
+                <div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Branche</span>
+                    <div className="flex items-center gap-1 font-mono text-orange-400">
+                      <GitBranch className="w-3 h-3" />
+                      <span className="truncate max-w-[80px]" title={p.git.branch || 'detached'}>
+                        {p.git.branch || 'detached'}
                       </span>
-                    )}
-                    {p.git.dirty && <AlertTriangle className="w-3 h-3 text-yellow-500 ml-1" title="Arbre de travail sale (modifications non commitées)" />}
+                    </div>
                   </div>
                   
-                  <div className="flex items-center gap-1">
-                    <button 
-                      onClick={(e) => handleFetch(p.id, e)}
-                      className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
-                      title="Git Fetch"
-                    >
-                      <CloudDownload className="w-3.5 h-3.5" />
-                    </button>
-                    {p.git.behind > 0 && (
+                  <div className="flex flex-col gap-1 items-end">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Actions</span>
+                    <div className="flex items-center gap-1.5">
+                      {p.git.dirty && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" title="Arbre de travail sale (modifications non commitées)" />}
+                      {p.git.behind > 0 && (
+                        <span className="text-red-400 font-bold flex items-center gap-0.5" title={`${p.git.behind} commits de retard`}>
+                          <ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
+                        </span>
+                      )}
                       <button 
-                        onClick={(e) => handlePull(p.id, e)}
-                        className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors font-bold flex items-center gap-1"
-                        title="Git Pull (Fast-Forward uniquement)"
+                        onClick={(e) => handleFetch(p.id, e)}
+                        className="p-1 hover:bg-white/10 text-muted-foreground hover:text-white rounded transition-colors"
+                        title="Git Fetch"
                       >
-                        Pull
+                        <CloudDownload className="w-3.5 h-3.5" />
                       </button>
-                    )}
+                      {p.git.behind > 0 && (
+                        <button 
+                          onClick={(e) => handlePull(p.id, e)}
+                          className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors font-bold text-[10px] uppercase"
+                          title="Git Pull (Fast-Forward uniquement)"
+                        >
+                          Pull
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
+              <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 <button 
                   onClick={(e) => toggleIgnore(p, e)}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {p.ignored ? 'Activer' : 'Ignorer'}
+                  {p.ignored ? 'Réactiver' : 'Ignorer le projet'}
                 </button>
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={(e) => handleEdit(p, e)}
-                    className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"
+                    className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"
                     title="Modifier"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button 
                     onClick={(e) => handleDelete(p.id, e)}
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"
+                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"
                     title="Supprimer"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>

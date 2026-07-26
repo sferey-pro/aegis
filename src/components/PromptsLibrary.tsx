@@ -10,12 +10,9 @@ export function PromptsLibrary() {
   
   // To launch a prompt, we need to know on which project
   const [projects, setProjects] = useState<any[]>([]);
-  const [launchModal, setLaunchModal] = useState<{ isOpen: boolean, prompt: any, projectId: number | '' }>({ isOpen: false, prompt: null, projectId: '' });
-  const [launching, setLaunching] = useState(false);
 
   useEffect(() => {
     fetchPrompts();
-    fetchProjects();
   }, []);
 
   const fetchPrompts = async () => {
@@ -30,15 +27,6 @@ export function PromptsLibrary() {
     }
   };
 
-  const fetchProjects = async () => {
-    try {
-      const res = await fetch('/api/projects');
-      const data = await res.json();
-      setProjects(data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,26 +84,12 @@ export function PromptsLibrary() {
     setFormData({ title: '', body: '', tags: '' });
   };
 
-  const openLaunchModal = (prompt: any) => {
-    setLaunchModal({ isOpen: true, prompt, projectId: '' });
-  };
-
-  const handleLaunch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!launchModal.projectId) return;
-    setLaunching(true);
+  const handleCopy = async (text: string) => {
     try {
-      await fetch(`/api/projects/${launchModal.projectId}/run-cmd`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cmd: launchModal.prompt.body })
-      });
-      // The result is broadcasted to the live console
-      setLaunchModal({ isOpen: false, prompt: null, projectId: '' });
+      await navigator.clipboard.writeText(text);
+      // Optional: Add a toast notification here if you have one
     } catch (err) {
-      console.error(err);
-    } finally {
-      setLaunching(false);
+      console.error('Failed to copy', err);
     }
   };
 
@@ -126,7 +100,7 @@ export function PromptsLibrary() {
           <h2 className="text-3xl font-bold font-heading flex items-center gap-3">
             Bibliothèque de Prompts
           </h2>
-          <p className="text-muted-foreground mt-1">Créez et lancez des commandes personnalisées sur vos projets.</p>
+          <p className="text-muted-foreground mt-1">Créez et stockez des prompts IA pour vous aider à analyser vos vulnérabilités. À copier/coller.</p>
         </div>
         <button 
           onClick={() => { resetForm(); setIsAdding(true); }}
@@ -155,13 +129,13 @@ export function PromptsLibrary() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Commande Shell (Body)</label>
+              <label className="text-sm font-medium">Contenu du Prompt IA</label>
               <textarea 
                 required
                 value={formData.body}
                 onChange={e => setFormData({...formData, body: e.target.value})}
-                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors min-h-[100px] font-mono text-sm"
-                placeholder="Ex: npm cache clean --force"
+                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors min-h-[150px] font-mono text-sm"
+                placeholder="Ex: Agis comme un expert en cybersécurité. Explique moi la faille {{cve}} sur le package {{package}}..."
               />
             </div>
 
@@ -195,55 +169,7 @@ export function PromptsLibrary() {
         </div>
       )}
 
-      {launchModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setLaunchModal({ isOpen: false, prompt: null, projectId: '' })}>
-          <form onSubmit={handleLaunch} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-lg p-6 rounded-2xl flex flex-col gap-4 border-blue-500/30 animate-in zoom-in-95 duration-300">
-            <h3 className="text-xl font-bold text-blue-500 flex items-center gap-2">
-              <Play className="w-5 h-5" /> Lancer un prompt
-            </h3>
-            
-            <div className="bg-black/20 p-3 rounded-lg border border-border/50 text-sm">
-              <span className="font-semibold">{launchModal.prompt?.title}</span>
-              <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap font-mono">
-                $ {launchModal.prompt?.body}
-              </pre>
-            </div>
 
-            <div className="flex flex-col gap-1 mt-2">
-              <label className="text-sm font-medium">Sélectionnez le projet cible</label>
-              <select 
-                required
-                value={launchModal.projectId}
-                onChange={e => setLaunchModal({...launchModal, projectId: Number(e.target.value)})}
-                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-blue-500 transition-colors"
-              >
-                <option value="" disabled>-- Choisir un projet --</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.path})</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-4">
-              <button 
-                type="button" 
-                onClick={() => setLaunchModal({ isOpen: false, prompt: null, projectId: '' })}
-                className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-              >
-                Annuler
-              </button>
-              <button 
-                type="submit"
-                disabled={launching}
-                className="flex items-center gap-2 px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
-              >
-                {launching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                Lancer
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {loading ? (
         <div className="flex justify-center p-12">
@@ -286,11 +212,11 @@ export function PromptsLibrary() {
 
               <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
                 <button 
-                  onClick={() => openLaunchModal(p)}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg"
+                  onClick={() => handleCopy(p.body)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg"
                 >
-                  <Play className="w-4 h-4 fill-current" />
-                  Exécuter
+                  <Code className="w-4 h-4" />
+                  Copier
                 </button>
                 <div className="flex items-center gap-1">
                   <button 

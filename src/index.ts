@@ -272,45 +272,6 @@ const server = serve({
       }
     },
 
-    "/api/projects/:id/run-cmd": {
-      async POST(req) {
-        const id = parseInt(req.params.id);
-        const { cmd } = await req.json();
-        const project = listProjects().find(p => p.id === id);
-        if (!project || !cmd) return Response.json({ error: "Invalid request" }, { status: 400 });
-        
-        const { projectContext } = await import("./lib/console");
-        const { runCommand } = await import("./lib/git"); // I will write a generic runCommand or use Bun.spawn directly
-        
-        const res = await projectContext.run({ project: project.name }, async () => {
-          const { emitConsoleStart, emitConsoleEnd } = await import("./lib/console");
-          const eventId = emitConsoleStart({ cmd, cwd: project.path, label: "custom" });
-          
-          try {
-            const proc = Bun.spawn(["bash", "-c", cmd], {
-              cwd: project.path,
-              stdout: "pipe",
-              stderr: "pipe"
-            });
-            
-            const [stdout, stderr] = await Promise.all([
-              new Response(proc.stdout).text(),
-              new Response(proc.stderr).text()
-            ]);
-            
-            const exitCode = await proc.exited;
-            emitConsoleEnd(eventId, { exitCode });
-            return { success: exitCode === 0, stdout, stderr, exitCode };
-          } catch (e: any) {
-            emitConsoleEnd(eventId, { exitCode: 1 });
-            return { success: false, error: e.message };
-          }
-        });
-        
-        return Response.json(res);
-      }
-    },
-
     "/api/tags": {
       async GET() {
         return Response.json(listTags());

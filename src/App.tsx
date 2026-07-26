@@ -79,35 +79,34 @@ export function App() {
     });
   }
 
-  if (loading || auditing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-6 bg-background relative overflow-hidden">
-        {/* Background glow for loader */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/20 blur-[100px] rounded-full pointer-events-none"></div>
-        
-        <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 neon-glow shadow-2xl animate-pulse z-10">
-          <Shield className="w-10 h-10 text-primary animate-bounce" />
-        </div>
-        
-        <div className="z-10 flex flex-col items-center gap-2">
-          <h1 className="text-3xl font-bold font-heading text-gradient">AEGIS</h1>
-          <div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
-            <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            {loading ? "Initialisation du bouclier..." : (
-              auditProgress 
-                ? `Analyse du projet ${auditProgress.name} .... ${auditProgress.current}/${auditProgress.total}`
-                : "Démarrage de l'audit global..."
-            )}
+  return (
+    <>
+      {(loading || auditing) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center flex-col gap-6 bg-background/60 backdrop-blur-md animate-in fade-in duration-300">
+          {/* Background glow for loader */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/20 blur-[100px] rounded-full pointer-events-none"></div>
+          
+          <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/10 border border-primary/20 neon-glow shadow-2xl animate-pulse z-10">
+            <Shield className="w-10 h-10 text-primary animate-bounce" />
+          </div>
+          
+          <div className="z-10 flex flex-col items-center gap-2">
+            <h1 className="text-3xl font-bold font-heading text-gradient">AEGIS</h1>
+            <div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              {loading ? "Initialisation du bouclier..." : (
+                auditProgress 
+                  ? `Analyse du projet ${auditProgress.name} .... ${auditProgress.current}/${auditProgress.total}`
+                  : "Démarrage de l'audit global..."
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="flex flex-col min-h-screen p-6 md:p-12 overflow-hidden relative">
-      
-      {/* Navigation */}
+      <div className={`flex flex-col min-h-screen p-6 md:p-12 overflow-hidden relative transition-opacity duration-300 ${(loading || auditing) ? 'opacity-50 pointer-events-none blur-sm' : 'opacity-100'}`}>
+        
+        {/* Navigation */}
       <header className="flex items-center justify-between py-4 w-full max-w-6xl mx-auto z-10">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentTab('overview')}>
           <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 neon-glow">
@@ -229,5 +228,6 @@ export function App() {
 
       <Console />
     </div>
+    </>
   );
 }

@@ -65,10 +65,11 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     setIsAdding(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent | React.MouseEvent, shouldAudit = false) => {
     e.preventDefault();
     try {
       const payload = { ...formData };
+      let createdProjectId = null;
       
       if (editingId) {
         await fetch(`/api/projects/${editingId}`, {
@@ -77,15 +78,21 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
           body: JSON.stringify(payload)
         });
       } else {
-        await fetch('/api/projects', {
+        const res = await fetch('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        const newProject = await res.json();
+        createdProjectId = newProject.id;
       }
       
       resetForm();
-      fetchProjects();
+      await fetchProjects();
+      
+      if (shouldAudit && createdProjectId) {
+        fetch(`/api/projects/${createdProjectId}/audit`, { method: 'POST' }).catch(console.error);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -298,11 +305,21 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               >
                 Annuler
               </button>
+              {!editingId && (
+                <button 
+                  type="button"
+                  onClick={(e) => handleSubmit(e, true)}
+                  className="px-4 py-2 rounded-md bg-blue-500/20 text-blue-500 border border-blue-500/30 hover:bg-blue-500/40 transition-colors"
+                >
+                  Créer et Auditer
+                </button>
+              )}
               <button 
                 type="submit"
+                onClick={(e) => handleSubmit(e, false)}
                 className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
-                {editingId ? "Enregistrer" : "Créer le projet"}
+                {editingId ? "Enregistrer" : "Créer uniquement"}
               </button>
             </div>
           </form>

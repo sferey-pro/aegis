@@ -45,6 +45,12 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     }
   };
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'Inconnu';
+    const parsed = new Date(dateStr.replace(' ', 'T') + 'Z');
+    return isNaN(parsed.getTime()) ? 'Inconnu' : parsed.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
   const fetchTags = async () => {
     try {
       const res = await fetch('/api/tags');
@@ -550,9 +556,9 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground/70">
                 <Clock className="w-3 h-3" />
                 {p.lastRun ? (
-                  <span>Dernier audit : {new Date(p.lastRun.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>Dernier audit : {formatDate(p.lastRun.ran_at)}</span>
                 ) : (
-                  <span>Ajouté le {new Date(p.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>Ajouté le {formatDate(p.created_at)}</span>
                 )}
               </div>
 

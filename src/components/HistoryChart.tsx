@@ -101,10 +101,10 @@ export function HistoryChart() {
             <XAxis dataKey="date" stroke="#ffffff50" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
             <YAxis stroke="#ffffff50" fontSize={12} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff20', strokeWidth: 2 }} />
-            <Area type="monotone" dataKey="critical" stackId="1" stroke="#ef4444" fill="url(#colorCritical)" strokeWidth={2} />
-            <Area type="monotone" dataKey="high" stackId="1" stroke="#f97316" fill="url(#colorHigh)" strokeWidth={2} />
-            <Area type="monotone" dataKey="moderate" stackId="1" stroke="#eab308" fill="url(#colorMod)" strokeWidth={2} />
-            <Area type="monotone" dataKey="low" stackId="1" stroke="#3b82f6" fill="url(#colorLow)" strokeWidth={2} />
+            <Area type="monotone" dataKey="critical" stackId="1" stroke="#ef4444" fill="url(#colorCritical)" strokeWidth={2} isAnimationActive={false} />
+            <Area type="monotone" dataKey="high" stackId="1" stroke="#f97316" fill="url(#colorHigh)" strokeWidth={2} isAnimationActive={false} />
+            <Area type="monotone" dataKey="moderate" stackId="1" stroke="#eab308" fill="url(#colorMod)" strokeWidth={2} isAnimationActive={false} />
+            <Area type="monotone" dataKey="low" stackId="1" stroke="#3b82f6" fill="url(#colorLow)" strokeWidth={2} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

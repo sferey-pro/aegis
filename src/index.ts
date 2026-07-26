@@ -160,13 +160,16 @@ const server = serve({
         let tool = null;
         try {
           const expanded = expandPath(path);
-          const fullPath = nodePath.resolve(expanded, audit_path || "");
+          // Retirer le slash initial de audit_path pour éviter que resolve() ne le considère comme absolu
+          const safeAuditPath = (audit_path || "").replace(/^\/+/, '');
+          const fullPath = nodePath.resolve(expanded, safeAuditPath);
           
           if (fs.existsSync(nodePath.join(fullPath, "composer.lock"))) tool = "composer";
           else if (fs.existsSync(nodePath.join(fullPath, "bun.lockb"))) tool = "bun";
           else if (fs.existsSync(nodePath.join(fullPath, "yarn.lock"))) tool = "yarn";
           else if (fs.existsSync(nodePath.join(fullPath, "package-lock.json"))) tool = "npm";
           else if (fs.existsSync(nodePath.join(fullPath, "composer.json"))) tool = "composer";
+          else if (fs.existsSync(nodePath.join(fullPath, "package.json"))) tool = "npm";
         } catch (e) {}
         
         return Response.json({ tool });

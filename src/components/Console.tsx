@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Maximize2, Minimize2, X } from 'lucide-react';
+import { Terminal, Maximize2, Minimize2, X, Folder, Globe } from 'lucide-react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import 'xterm/css/xterm.css';
@@ -20,15 +20,20 @@ export function Console() {
   const [isMaximized, setIsMaximized] = useState(false);
   const [runningCount, setRunningCount] = useState(0);
   
+  const [activeTab, setActiveTab] = useState<string>('Global');
+  const [tabs, setTabs] = useState<string[]>(['Global']);
+  
   const terminalRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<XTerm | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-
-  // We keep track of running tasks by ID to update the badge count
+  
+  // Maps tabName -> { term: XTerm, fit: FitAddon }
+  const terminals = useRef<Record<string, { term: XTerm, fit: FitAddon }>>({});
+  
+  // Set of running task IDs
   const runningTasks = useRef<Set<number>>(new Set());
 
-  // Initialize xterm only once
-  useEffect(() => {
+  const getOrCreateTerminal = (name: string) => {
+    if (terminals.current[name]) return terminals.current[name];
+
     const term = new XTerm({
       theme: {
         background: '#0a0a0a',
@@ -41,45 +46,50 @@ export function Console() {
       cursorBlink: false,
       convertEol: true,
     });
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
+    const fit = new FitAddon();
+    term.loadAddon(fit);
     
-    xtermRef.current = term;
-    fitAddonRef.current = fitAddon;
+    term.writeln(`\x1b[1;34m[AEGIS]\x1b[0m Live console initialized for ${name}...`);
+    
+    terminals.current[name] = { term, fit };
+    
+    // Add to state if it's a new tab (only state triggers re-render of tab list)
+    setTabs(prev => prev.includes(name) ? prev : [...prev, name]);
+    
+    return terminals.current[name];
+  };
 
-    term.writeln('\x1b[1;34m[AEGIS]\x1b[0m Live console initialized. Waiting for background tasks...');
-
-    return () => {
-      term.dispose();
-    };
-  }, []);
-
-  // Handle terminal mounting to DOM
+  // Mount terminal when tab changes or opens
   useEffect(() => {
-    if (isOpen && terminalRef.current && xtermRef.current) {
-      if (!xtermRef.current.element) {
-        xtermRef.current.open(terminalRef.current);
-      }
-      // Delay fit slightly to allow DOM to render
-      setTimeout(() => {
-        fitAddonRef.current?.fit();
-      }, 50);
-    }
-  }, [isOpen, isMaximized]);
+    if (!isOpen || !terminalRef.current) return;
+    
+    const container = terminalRef.current;
+    container.innerHTML = ''; // Clear previous terminal DOM
+    
+    const { term, fit } = getOrCreateTerminal(activeTab);
+    term.open(container);
+    
+    setTimeout(() => {
+      fit.fit();
+    }, 50);
+  }, [isOpen, activeTab, isMaximized]);
 
   // Handle resize events
   useEffect(() => {
     const handleResize = () => {
       if (isOpen) {
-        fitAddonRef.current?.fit();
+        terminals.current[activeTab]?.fit.fit();
       }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isOpen]);
+  }, [isOpen, activeTab]);
 
   // Handle SSE
   useEffect(() => {
+    // Ensure Global is created early
+    getOrCreateTerminal('Global');
+
     const evtSource = new EventSource("/api/console");
     
     evtSource.onmessage = (event) => {
@@ -87,8 +97,6 @@ export function Console() {
       
       try {
         const data: ConsoleEvent = JSON.parse(event.data);
-        const term = xtermRef.current;
-        if (!term) return;
 
         const time = new Date().toLocaleTimeString('fr-FR', { hour12: false });
         const prefix = `\x1b[90m[${time}]\x1b[0m`;
@@ -100,23 +108,38 @@ export function Console() {
         const labelStr = data.label ? `${labelColor}[${data.label.toUpperCase()}]\x1b[0m ` : '';
         const projStr = data.project ? `\x1b[90m(${data.project})\x1b[0m ` : '';
 
+        let logString = '';
         if (data.phase === "start") {
           runningTasks.current.add(data.id);
-          term.writeln(`${prefix} ${labelStr}${projStr}Running: \x1b[1m$ ${data.cmd}\x1b[0m`);
+          logString = `${prefix} ${labelStr}${projStr}Running: \x1b[1m$ ${data.cmd}\x1b[0m`;
         } else {
           runningTasks.current.delete(data.id);
           const success = data.exitCode === 0;
           const statusStr = success ? `\x1b[32msuccess\x1b[0m` : `\x1b[31merror (exit ${data.exitCode})\x1b[0m`;
-          term.writeln(`${prefix} ${labelStr}${projStr}Finished: \x1b[1m$ ${data.cmd}\x1b[0m in ${data.ms}ms -> ${statusStr}`);
+          logString = `${prefix} ${labelStr}${projStr}Finished: \x1b[1m$ ${data.cmd}\x1b[0m in ${data.ms}ms -> ${statusStr}`;
         }
         
         setRunningCount(runningTasks.current.size);
+
+        // Always write to Global tab
+        terminals.current['Global']?.term.writeln(logString);
+
+        // Write to specific project tab if there is one
+        if (data.project) {
+          const { term } = getOrCreateTerminal(data.project);
+          term.writeln(logString);
+        }
+
       } catch (e) {
         console.error("SSE parse error", e);
       }
     };
 
-    return () => evtSource.close();
+    return () => {
+      evtSource.close();
+      // Dispose all terminals on unmount
+      Object.values(terminals.current).forEach(({ term }) => term.dispose());
+    };
   }, []);
 
   if (!isOpen) {
@@ -142,6 +165,7 @@ export function Console() {
   return (
     <div className={`fixed bottom-0 right-0 z-50 bg-black/95 backdrop-blur-xl border-t border-l border-border shadow-2xl transition-all duration-300 flex flex-col font-mono text-sm ${isMaximized ? 'w-full h-1/2 rounded-t-2xl' : 'w-full md:w-[600px] h-[400px] md:bottom-6 md:right-6 md:rounded-2xl md:border'}`}>
       
+      {/* Console Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-border/50 select-none">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Terminal className="w-4 h-4" />
@@ -157,6 +181,25 @@ export function Console() {
         </div>
       </div>
 
+      {/* Tabs Menu */}
+      <div className="flex overflow-x-auto bg-[#050505] border-b border-border/30 hide-scrollbar">
+        {tabs.map(t => (
+          <button
+            key={t}
+            onClick={() => setActiveTab(t)}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold whitespace-nowrap transition-colors border-b-2 ${
+              activeTab === t 
+                ? 'text-primary border-primary bg-primary/10' 
+                : 'text-muted-foreground border-transparent hover:bg-white/5 hover:text-foreground'
+            }`}
+          >
+            {t === 'Global' ? <Globe className="w-3.5 h-3.5" /> : <Folder className="w-3.5 h-3.5" />}
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Terminal Viewport */}
       <div className="flex-1 w-full relative overflow-hidden bg-[#0a0a0a]">
         <div ref={terminalRef} className="absolute inset-2" />
       </div>

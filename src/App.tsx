@@ -11,6 +11,9 @@ interface Stats {
   monitoredProjects: number;
   criticalVulnerabilities: number;
   lastSync: string | null;
+  healthGrade?: string;
+  topProjects?: Array<{ id: number; name: string; critical: number; high: number }>;
+  topCves?: Array<{ cve: string; title: string; count: number; worst: string }>;
 }
 
 export function App() {
@@ -232,6 +235,49 @@ export function App() {
                 <p className="text-sm font-medium tabular-nums">{loading ? '--' : syncDisplay}</p>
               </div>
             </div>
+
+            {stats?.healthGrade && (
+              <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300 relative z-10 hover:-translate-y-1 transition-transform">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-muted-foreground">Santé Globale</p>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl font-black ${stats.healthGrade === 'A' ? 'bg-green-500/20 text-green-500' : stats.healthGrade === 'B' ? 'bg-blue-500/20 text-blue-500' : stats.healthGrade === 'C' ? 'bg-yellow-500/20 text-yellow-500' : stats.healthGrade === 'D' ? 'bg-orange-500/20 text-orange-500' : 'bg-red-500/20 text-red-500'}`}>
+                    {stats.healthGrade}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-auto">Note calculée selon le ratio de failles.</p>
+              </div>
+            )}
+
+            {stats?.topProjects && stats.topProjects.length > 0 && (
+              <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300 relative z-10">
+                <p className="text-sm font-medium text-muted-foreground">Top 3 Projets à Risque</p>
+                <div className="flex flex-col gap-2 mt-2">
+                  {stats.topProjects.map((tp, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm bg-black/20 p-2 rounded border border-border/50">
+                      <span className="font-bold truncate max-w-[120px]" title={tp.name}>{tp.name}</span>
+                      <div className="flex gap-2">
+                        {tp.critical > 0 && <span className="text-red-500 text-xs font-bold">{tp.critical} C</span>}
+                        {tp.high > 0 && <span className="text-orange-500 text-xs font-bold">{tp.high} H</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {stats?.topCves && stats.topCves.length > 0 && (
+              <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300 relative z-10">
+                <p className="text-sm font-medium text-muted-foreground">Top 3 Vulnérabilités</p>
+                <div className="flex flex-col gap-2 mt-2">
+                  {stats.topCves.map((tc, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm bg-black/20 p-2 rounded border border-border/50">
+                      <span className="font-mono text-xs text-muted-foreground">{tc.cve}</span>
+                      <span className="font-bold text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">{tc.count}x</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Décoration d'arrière-plan optimisée */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-primary/5 blur-[80px] rounded-full z-0 pointer-events-none"></div>

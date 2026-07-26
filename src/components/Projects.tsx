@@ -24,6 +24,27 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     is_remote: false
   });
 
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (error) {
+        console.error('Failed to copy', error);
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
   const fetchTags = async () => {
     try {
       const res = await fetch('/api/tags');
@@ -271,10 +292,11 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                     type="button"
                     title="Copier l'URL"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       const slug = formData.name ? formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : '';
                       if (slug) {
-                        navigator.clipboard.writeText(`${window.location.origin}/api/ingest/${slug}`);
+                        copyToClipboard(`${window.location.origin}/api/ingest/${slug}`);
                         setCopiedSlug(-1);
                         setTimeout(() => setCopiedSlug(null), 2000);
                       }
@@ -492,12 +514,12 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                     <button
                       title="Copier l'URL d'ingestion CI"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
-                        if (p.slug) {
-                          navigator.clipboard.writeText(`${window.location.origin}/api/ingest/${p.slug}`);
-                          setCopiedSlug(p.id);
-                          setTimeout(() => setCopiedSlug(null), 2000);
-                        }
+                        const slugToCopy = p.slug || `${p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-${p.id}`;
+                        copyToClipboard(`${window.location.origin}/api/ingest/${slugToCopy}`);
+                        setCopiedSlug(p.id);
+                        setTimeout(() => setCopiedSlug(null), 2000);
                       }}
                       className="flex items-center gap-2 text-xs px-2 py-1.5 rounded hover:bg-white/10 transition-colors text-left"
                     >

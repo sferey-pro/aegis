@@ -199,7 +199,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             Vérifier les mises à jour Git
           </button>
           <button 
-            onClick={() => { if(isAdding) resetForm(); else setIsAdding(true); }}
+            onClick={() => { if(isAdding) resetForm(); else { resetForm(); setIsAdding(true); } }}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
           >
             <Plus className="w-4 h-4" />
@@ -209,7 +209,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
       </div>
 
       {isAdding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setIsAdding(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={resetForm}>
           <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar">
             <h3 className="text-xl font-bold mb-2 text-primary">{editingId ? "Modifier le Projet" : "Nouveau Projet"}</h3>
             
@@ -300,7 +300,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             <div className="flex justify-end gap-3 mt-4">
               <button 
                 type="button" 
-                onClick={() => setIsAdding(false)}
+                onClick={resetForm}
                 className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
               >
                 Annuler

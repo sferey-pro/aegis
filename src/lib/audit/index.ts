@@ -182,4 +182,5 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
     });
     return { run: parseErrRun, deduped: false, newCves: [] };
   }
+  });
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Play, Code, Tag, RefreshCw, Copy, Check } from 'lucide-react';
+import { Terminal, Plus, Trash2, Edit2, Play, Code, Tag, RefreshCw, Copy, Check } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 
 export function PromptsLibrary() {

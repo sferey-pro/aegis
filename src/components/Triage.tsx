@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2, Edit2 } from 'lucide-react';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-500 border-red-500/20',
@@ -130,8 +130,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
     }
   };
 
-  const handleConfirmCve = (cve: string, projectId: number) => {
-    setConfirmModal({ isOpen: true, cve, projectId, reason: '' });
+  const handleConfirmCve = (cve: string, projectId: number, initialReason: string = '') => {
+    setConfirmModal({ isOpen: true, cve, projectId, reason: initialReason });
   };
 
   const submitConfirm = async (e: React.FormEvent) => {
@@ -351,7 +351,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                               À traiter
                             </button>
                             <button 
-                              onClick={(e) => { e.stopPropagation(); handleConfirmCve(cveObj.cve, group.projectId); }}
+                              onClick={(e) => { e.stopPropagation(); handleConfirmCve(cveObj.cve, group.projectId, cveObj.note || ''); }}
                               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'confirmed' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'}`}
                             >
                               <Check className="w-3 h-3" /> Confirmé
@@ -370,9 +370,16 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                             </p>
                           )}
                           {cveObj.note && (
-                            <div className="text-xs text-muted-foreground mt-2 bg-black/30 p-2 rounded border border-white/5">
+                            <div className="text-xs text-muted-foreground mt-2 bg-black/30 p-2.5 rounded border border-white/5 relative group">
                               <span className="font-semibold block mb-0.5 text-foreground/80">Raison / Note :</span>
-                              {cveObj.note}
+                              <p className="pr-6 whitespace-pre-wrap">{cveObj.note}</p>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleConfirmCve(cveObj.cve, group.projectId, cveObj.note); }}
+                                className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-white"
+                                title="Modifier la note"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           )}
                         </div>

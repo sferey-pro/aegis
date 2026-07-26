@@ -87,6 +87,23 @@ export function Projects() {
     }
   };
 
+  const [isFetchingAll, setIsFetchingAll] = useState(false);
+
+  const handleFetchAll = async () => {
+    setIsFetchingAll(true);
+    try {
+      const activeProjects = projects.filter(p => !p.ignored && p.git?.isRepo);
+      for (const p of activeProjects) {
+        await fetch(`/api/projects/${p.id}/git-fetch`, { method: 'POST' });
+      }
+      await fetchProjects();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsFetchingAll(false);
+    }
+  };
+
   return (
     <div className="flex-1 w-full max-w-6xl mx-auto mt-8 z-10 animate-in fade-in duration-500">
       
@@ -95,13 +112,23 @@ export function Projects() {
           <h2 className="text-3xl font-bold font-heading">Projets</h2>
           <p className="text-muted-foreground mt-1">Gérez les dépôts surveillés par Aegis.</p>
         </div>
-        <button 
-          onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
-        >
-          <Plus className="w-4 h-4" />
-          Ajouter un Projet
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleFetchAll}
+            disabled={isFetchingAll || projects.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50"
+          >
+            {isFetchingAll ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}
+            Vérifier les mises à jour Git
+          </button>
+          <button 
+            onClick={() => setIsAdding(!isAdding)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4" />
+            Ajouter un Projet
+          </button>
+        </div>
       </div>
 
       {isAdding && (

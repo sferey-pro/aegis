@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Terminal, Plus, Trash2, Edit2, Play, Code, Tag, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Edit2, Play, Code, Tag, RefreshCw, Copy, Check } from 'lucide-react';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export function PromptsLibrary() {
   const [prompts, setPrompts] = useState<any[]>([]);
@@ -8,8 +9,8 @@ export function PromptsLibrary() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ title: '', body: '', tags: '' });
   
-  // To launch a prompt, we need to know on which project
-  const [projects, setProjects] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [promptToDelete, setPromptToDelete] = useState<number | null>(null);
 
   useEffect(() => {
     fetchPrompts();
@@ -69,9 +70,14 @@ export function PromptsLibrary() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Supprimer ce prompt ?')) return;
+    setPromptToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (promptToDelete === null) return;
     try {
-      await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
+      await fetch(`/api/prompts/${promptToDelete}`, { method: 'DELETE' });
+      setPromptToDelete(null);
       fetchPrompts();
     } catch (err) {
       console.error(err);
@@ -239,6 +245,15 @@ export function PromptsLibrary() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={promptToDelete !== null}
+        title="Supprimer le prompt"
+        message="Êtes-vous sûr de vouloir supprimer ce prompt de la bibliothèque ?"
+        confirmText="Supprimer"
+        onConfirm={confirmDelete}
+        onCancel={() => setPromptToDelete(null)}
+      />
     </div>
   );
 }

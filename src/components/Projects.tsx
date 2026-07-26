@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2, Clock, Play } from 'lucide-react';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
   const [projects, setProjects] = useState<any[]>([]);
@@ -10,6 +11,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
 
   const [isAdding, setIsAdding] = useState(false);
   const [detectStatus, setDetectStatus] = useState<'idle' | 'detecting' | 'success' | 'error'>('idle');
+  const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
   const [detectedToolName, setDetectedToolName] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<number | null>(null);
@@ -135,9 +137,14 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
 
   const handleDelete = async (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) return;
+    setProjectToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (projectToDelete === null) return;
     try {
-      await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      await fetch(`/api/projects/${projectToDelete}`, { method: 'DELETE' });
+      setProjectToDelete(null);
       fetchProjects();
     } catch (err) {
       console.error(err);
@@ -653,6 +660,15 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
           })}
         </div>
       )}
+      
+      <ConfirmDialog
+        isOpen={projectToDelete !== null}
+        title="Supprimer le projet"
+        message="Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible et supprimera tout l'historique d'audit."
+        confirmText="Supprimer"
+        onConfirm={confirmDelete}
+        onCancel={() => setProjectToDelete(null)}
+      />
     </div>
   );
 }

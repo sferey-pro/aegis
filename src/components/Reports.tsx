@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Calendar, Shield, Activity, Trash2, RefreshCw } from 'lucide-react';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export function Reports() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reportToDelete, setReportToDelete] = useState<number | null>(null);
 
   const fetchReports = async () => {
     try {
@@ -21,9 +23,14 @@ export function Reports() {
   }, []);
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Voulez-vous vraiment supprimer ce rapport ?')) return;
+    setReportToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (reportToDelete === null) return;
     try {
-      await fetch(`/api/reports/${id}`, { method: 'DELETE' });
+      await fetch(`/api/reports/${reportToDelete}`, { method: 'DELETE' });
+      setReportToDelete(null);
       fetchReports();
     } catch (e) {
       console.error(e);
@@ -110,6 +117,15 @@ export function Reports() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={reportToDelete !== null}
+        title="Supprimer le rapport"
+        message="Voulez-vous vraiment supprimer ce rapport d'audit ?"
+        confirmText="Supprimer"
+        onConfirm={confirmDelete}
+        onCancel={() => setReportToDelete(null)}
+      />
     </div>
   );
 }

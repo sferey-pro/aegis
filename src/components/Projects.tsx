@@ -258,18 +258,31 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-blue-400 flex items-center gap-1"><Info className="w-3.5 h-3.5"/> Identifiant CI (Slug)</label>
+                <label className="text-sm font-medium text-blue-400 flex items-center gap-1"><Info className="w-3.5 h-3.5"/> URL d'Ingestion CI</label>
                 <div className="relative">
                   <input 
                     readOnly
                     type="text" 
-                    value={formData.name ? formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'auto-généré'}
+                    value={formData.name ? `${window.location.origin}/api/ingest/${formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}` : 'URL auto-générée'}
                     className="w-full bg-black/30 border border-border/50 text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
-                    title="Cet identifiant est généré automatiquement et sera utilisé pour envoyer l'audit depuis votre CI/CD."
+                    title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
                   />
-                  <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                    <Copy className="w-4 h-4 text-muted-foreground/50" />
-                  </div>
+                  <button 
+                    type="button"
+                    title="Copier l'URL"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const slug = formData.name ? formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : '';
+                      if (slug) {
+                        navigator.clipboard.writeText(`${window.location.origin}/api/ingest/${slug}`);
+                        setCopiedSlug(-1);
+                        setTimeout(() => setCopiedSlug(null), 2000);
+                      }
+                    }}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 hover:bg-white/10 rounded-r-md transition-colors"
+                  >
+                    {copiedSlug === -1 ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-muted-foreground hover:text-white" />}
+                  </button>
                 </div>
               </div>
               
@@ -471,11 +484,11 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 </span>
 
                 <button
-                  title="Copier le Slug pour la CI"
+                  title="Copier l'URL d'ingestion CI"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (p.slug) {
-                      navigator.clipboard.writeText(p.slug);
+                      navigator.clipboard.writeText(`${window.location.origin}/api/ingest/${p.slug}`);
                       setCopiedSlug(p.id);
                       setTimeout(() => setCopiedSlug(null), 2000);
                     }
@@ -483,7 +496,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   className={`flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-1 rounded border transition-colors ${copiedSlug === p.id ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'}`}
                 >
                   {copiedSlug === p.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                  {p.slug || 'Slug non généré'}
+                  URL CI
                 </button>
               </div>
               

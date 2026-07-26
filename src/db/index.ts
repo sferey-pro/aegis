@@ -115,5 +115,12 @@ function initDb(database: Database) {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      projects_audited INTEGER NOT NULL,
+      total_vulnerabilities INTEGER NOT NULL,
+      counts JSON NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }

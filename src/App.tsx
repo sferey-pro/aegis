@@ -5,6 +5,7 @@ import { Settings } from './components/Settings';
 import { Triage } from './components/Triage';
 import { Console } from './components/Console';
 import { HistoryChart } from './components/HistoryChart';
+import { Reports } from './components/Reports';
 
 interface Stats {
   monitoredProjects: number;
@@ -13,12 +14,13 @@ interface Stats {
 }
 
 export function App() {
-  const [currentTab, setCurrentTab] = useState<'overview' | 'projects' | 'triage' | 'settings'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'projects' | 'triage' | 'reports' | 'settings'>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [auditing, setAuditing] = useState(false);
   const [auditProgress, setAuditProgress] = useState<{ current: number; total: number; name: string } | null>(null);
   const [triageProjectId, setTriageProjectId] = useState<number | null>(null);
+  const [reportModal, setReportModal] = useState<any | null>(null);
 
   useEffect(() => {
     fetchStats(true);
@@ -55,11 +57,38 @@ export function App() {
       
       let current = 1;
       const total = projectsToAudit.length;
+      let totalVulns = 0;
+      let counts = { critical: 0, high: 0, moderate: 0, low: 0, info: 0, unknown: 0 };
+
       for (const p of projectsToAudit) {
         setAuditProgress({ current, total, name: p.name });
-        await fetch(`/api/projects/${p.id}/audit`, { method: 'POST' });
+        const auditRes = await fetch(`/api/projects/${p.id}/audit`, { method: 'POST' });
+        const auditData = await auditRes.json();
+        
+        if (auditData.run && auditData.run.counts) {
+           totalVulns += auditData.run.total || 0;
+           counts.critical += auditData.run.counts.critical || 0;
+           counts.high += auditData.run.counts.high || 0;
+           counts.moderate += auditData.run.counts.moderate || 0;
+           counts.low += auditData.run.counts.low || 0;
+           counts.info += auditData.run.counts.info || 0;
+           counts.unknown += auditData.run.counts.unknown || 0;
+        }
+        
         current++;
       }
+      
+      const reportRes = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+           projects_audited: projectsToAudit.length,
+           total_vulnerabilities: totalVulns,
+           counts: counts
+        })
+      });
+      const generatedReport = await reportRes.json();
+      setReportModal(generatedReport);
       
       await fetchStats(); // Refresh stats after audit
     } catch (err) {
@@ -134,6 +163,12 @@ export function App() {
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'triage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
             Triage des Failles
+          </button>
+          <button 
+            onClick={() => setCurrentTab('reports')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'reports' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+          >
+            Rapports
           </button>
           <button onClick={() => setCurrentTab('settings')} className={`${currentTab === 'settings' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap ml-4`}>Paramètres</button>
         </nav>
@@ -238,7 +273,46 @@ export function App() {
 
       {currentTab === 'projects' && <Projects onViewTriage={(id) => { setTriageProjectId(id); setCurrentTab('triage'); }} />}
       {currentTab === 'triage' && <Triage projectId={triageProjectId} onClearProject={() => setTriageProjectId(null)} />}
+      {currentTab === 'reports' && <Reports />}
       {currentTab === 'settings' && <Settings />}
+
+      {/* Report Modal */}
+      {reportModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="glass-panel w-full max-w-xl rounded-2xl p-8 flex flex-col gap-6 animate-in zoom-in-95 duration-300 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-32 bg-primary/10 blur-[80px] rounded-full pointer-events-none"></div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary/20 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary/30">
+                <Shield className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-bold font-heading">Audit Terminé !</h3>
+              <p className="text-muted-foreground mt-2">Voici le résumé de l'analyse globale.</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-background/50 border border-border/50 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                <span className="text-3xl font-bold text-white">{reportModal.projects_audited}</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-1">Projets</span>
+              </div>
+              <div className="bg-background/50 border border-border/50 p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                <span className="text-3xl font-bold text-red-400">{reportModal.total_vulnerabilities}</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-1">Vulnérabilités</span>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => {
+                setReportModal(null);
+                setCurrentTab('reports');
+              }}
+              className="mt-2 w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+            >
+              Voir tous les rapports
+            </button>
+          </div>
+        </div>
+      )}
 
       <Console />
     </div>

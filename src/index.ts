@@ -11,6 +11,7 @@ import { upsertAnnotation, getAllAnnotations } from "./db/annotations";
 import { addConsoleClient, removeConsoleClient } from "./lib/console";
 import { createSnapshot, restoreSnapshot } from "./db/backup";
 import { listTags, createTag, deleteTag } from "./db/tags";
+import { createReport, getReports, deleteReport } from "./db/reports";
 
 // Ensure DB is initialized before starting
 getDb();
@@ -303,6 +304,24 @@ const server = serve({
           }
         }
         return Response.json({ status: "done", results });
+      }
+    },
+    
+    "/api/reports": {
+      async GET() {
+        return Response.json(getReports());
+      },
+      async POST(req) {
+        const body = await req.json();
+        return Response.json(createReport(body));
+      }
+    },
+
+    "/api/reports/:id": {
+      async DELETE(req) {
+        const id = parseInt(req.params.id);
+        deleteReport(id);
+        return Response.json({ success: true });
       }
     },
     

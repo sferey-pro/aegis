@@ -69,6 +69,38 @@ const server = serve({
       }
     },
 
+    "/api/tickets": {
+      async POST(req) {
+        const { cve } = await req.json();
+        const groups = buildCveGroups();
+        const group = groups.find(g => g.cve === cve);
+        
+        if (!group) return Response.json({ error: "Non trouvé" }, { status: 404 });
+
+        const title = `[Aegis] Remédiation ${group.ref} - ${group.occurrences[0]?.package || 'Unknown'}`;
+        
+        let md = `# ${title}\n\n`;
+        md += `**Sévérité:** ${group.worst.toUpperCase()}\n`;
+        md += `**Description:** ${group.occurrences[0]?.title || 'Aucune description'}\n`;
+        if (group.occurrences[0]?.link) {
+          md += `**Lien:** ${group.occurrences[0].link}\n`;
+        }
+        
+        md += `\n## Projets affectés\n\n`;
+        for (const occ of group.occurrences) {
+          md += `- **${occ.projectName}** (${occ.tool})\n`;
+          md += `  - Package: \`${occ.package}\`\n`;
+          md += `  - Version affectée: \`${occ.versionRange || 'N/A'}\`\n`;
+          md += `  - Correction disponible: \`${occ.fixedIn || 'Aucune (mise à jour majeure requise)'}\`\n`;
+        }
+        
+        md += `\n## Baseline & Remédiation\n`;
+        md += `> **Rappel de sécurité :** Effectuez la mise à jour sans casser le lockfile. Utilisez les commandes d'audit natives (ex: \`npm audit fix\`) pour isoler les changements.\n`;
+
+        return Response.json({ markdown: md });
+      }
+    },
+
     "/api/cves": {
       async GET() {
         return Response.json(buildCveGroups());

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon } from 'lucide-react';
+import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2 } from 'lucide-react';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-500 border-red-500/20',
@@ -23,6 +23,7 @@ export function Triage() {
   const [cves, setCves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
 
   const fetchCves = async () => {
     try {
@@ -55,6 +56,27 @@ export function Triage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const createTicket = async (e: React.MouseEvent, cve: string) => {
+    e.stopPropagation(); // Eviter le toggleExpand
+    try {
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cve })
+      });
+      const data = await res.json();
+      setTicketModal({ isOpen: true, md: data.markdown, copied: false });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(ticketModal.md);
+    setTicketModal(prev => ({ ...prev, copied: true }));
+    setTimeout(() => setTicketModal(prev => ({ ...prev, copied: false })), 2000);
   };
 
   return (
@@ -113,6 +135,16 @@ export function Triage() {
                       <p className="text-sm font-medium">{group.occurrences.length} occurrence(s)</p>
                       {pendingCount > 0 && <p className="text-xs text-primary font-bold">{pendingCount} à trier</p>}
                     </div>
+                    
+                    <button 
+                      onClick={(e) => createTicket(e, group.cve)}
+                      className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors border border-blue-500/20 text-xs font-medium"
+                      title="Générer un ticket Jira pour cette faille"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Jira
+                    </button>
+
                     {isExpanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
                   </div>
                 </div>
@@ -175,6 +207,46 @@ export function Triage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Ticket Modal */}
+      {ticketModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="glass-panel w-full max-w-3xl rounded-2xl p-6 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold font-heading flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-400" />
+                Ticket Jira (Markdown)
+              </h3>
+              <button 
+                onClick={() => setTicketModal({ ...ticketModal, isOpen: false })}
+                className="p-1.5 rounded-md text-muted-foreground hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-auto bg-black/50 rounded-xl border border-white/5 p-4 relative font-mono text-sm text-gray-300 whitespace-pre-wrap select-all">
+              {ticketModal.md}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setTicketModal({ ...ticketModal, isOpen: false })}
+                className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              >
+                Fermer
+              </button>
+              <button 
+                onClick={copyToClipboard}
+                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-500 transition-colors flex items-center gap-2"
+              >
+                {ticketModal.copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {ticketModal.copied ? "Copié !" : "Copier le texte"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

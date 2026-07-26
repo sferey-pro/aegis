@@ -129,7 +129,7 @@ export function getGlobalHistory(days = 30) {
   const rowsByDay = new Map<string, any[]>();
   
   for (const r of rows) {
-    const day = r.ran_at.split('T')[0];
+    const day = r.ran_at.split('T')[0].split(' ')[0];
     if (!rowsByDay.has(day)) rowsByDay.set(day, []);
     rowsByDay.get(day)!.push(r);
   }

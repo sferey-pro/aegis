@@ -1,0 +1,18 @@
+export type Severity = "critical" | "high" | "moderate" | "low" | "info" | "unknown";
+
+export interface Vulnerability {
+  package: string;
+  severity: Severity;
+  title: string;
+  cve: string | null;
+  link: string | null;
+  versionRange: string | null;
+  fixedIn?: string | null;
+  abandoned?: boolean;
+}
+
+export interface ParseResult {
+  vulnerabilities: Vulnerability[];
+  counts: Record<Severity, number>;
+  total: number;
+}

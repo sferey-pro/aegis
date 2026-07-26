@@ -118,7 +118,12 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   const updateStatus = async (cve: string, projectId: number, newStatus: string, note?: string) => {
     try {
       const payload: any = { cve, projectId, status: newStatus };
-      if (note !== undefined) payload.note = note;
+      if (note !== undefined) {
+        payload.note = note;
+      } else if (newStatus !== 'confirmed') {
+        payload.note = ''; // Effacer la note si on passe en "À traiter" ou "Ignoré"
+      }
+      
       await fetch('/api/annotations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

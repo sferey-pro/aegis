@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Maximize2, Minimize2, X, Folder, Globe, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Terminal, Maximize2, Minimize2, X, Folder, Globe, Loader2, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 
 interface ConsoleEvent {
   id: number;
@@ -131,6 +131,13 @@ export function Console() {
           <span className="font-semibold text-xs tracking-wider">AEGIS LIVE CONSOLE</span>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setLogs([])} 
+            className="text-muted-foreground hover:text-white transition-colors"
+            title="Effacer la console"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
           <button onClick={() => setIsMaximized(!isMaximized)} className="text-muted-foreground hover:text-white transition-colors hidden md:block">
             {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>

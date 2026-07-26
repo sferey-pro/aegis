@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeEach, afterEach } from "bun:test";
-import { getAuditTarget, runAudit } from "./index";
+import { getAuditTarget, runAudit, ingestAudit } from "./index";
 import { getDb, closeDb } from "../../db";
 import { createProject } from "../../db/projects";
 import { addRun, getLatestRun } from "../../db/runs";
@@ -74,5 +74,27 @@ describe("Engine: Audit", () => {
     expect(res.deduped).toBe(false);
     
     if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("ingestAudit creates a run correctly for remote projects", async () => {
+    const p = createProject({ name: "RemoteIngest", path: "", type: "node", tool: "npm" });
+    const db = getDb();
+    db.query('UPDATE projects SET is_remote = 1 WHERE id = ?').run(p.id);
+
+    const fakeNpmStdout = JSON.stringify({
+      vulnerabilities: {
+        "lodash": {
+          name: "lodash",
+          severity: "high",
+          via: [{ title: "Prototype pollution" }]
+        }
+      }
+    });
+
+    const res = await ingestAudit(p.id, fakeNpmStdout, "sha-12345");
+    expect(res.run).not.toBeNull();
+    expect(res.run!.commit_sha).toBe("sha-12345");
+    expect(res.run!.status).toBe("vulnerable");
+    expect(res.run!.counts.high).toBe(1);
   });
 });

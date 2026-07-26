@@ -1,7 +1,7 @@
 import { expect, test, describe, beforeEach, afterEach } from "bun:test";
 import { getDb, closeDb } from "./index";
 import { createProject } from "./projects";
-import { addRun, getRunsForProject, getLatestRun, deleteRun } from "./runs";
+import { addRun, getRunsForProject, getLatestRun, deleteRun, getGlobalHistory } from "./runs";
 import { unlinkSync, existsSync } from "node:fs";
 
 describe("Database: Runs", () => {
@@ -56,5 +56,20 @@ describe("Database: Runs", () => {
     const run = addRun({ project_id: projectId, status: "ok", total: 0, counts: { critical: 0, high: 0, moderate: 0, low: 0, info: 0, unknown: 0 }, vulnerabilities: [], duration_ms: 100 });
     deleteRun(run.id);
     expect(getLatestRun(projectId)).toBeNull();
+  });
+
+  test("getGlobalHistory aggregates runs by days and hours", () => {
+    addRun({ project_id: projectId, status: "vulnerable", total: 10, counts: { critical: 1, high: 2, moderate: 3, low: 4, info: 0, unknown: 0 }, vulnerabilities: [], duration_ms: 100 });
+    
+    const history = getGlobalHistory(7);
+    expect(history.length).toBe(7);
+    const today = history[history.length - 1];
+    expect(today.critical).toBe(1);
+    expect(today.high).toBe(2);
+
+    const historyHourly = getGlobalHistory(1);
+    expect(historyHourly.length).toBe(24);
+    const thisHour = historyHourly[historyHourly.length - 1];
+    expect(thisHour.critical).toBe(1);
   });
 });

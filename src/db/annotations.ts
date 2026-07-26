@@ -55,3 +55,8 @@ export function getAnnotationsForProject(projectId: number): Annotation[] {
   const db = getDb();
   return db.query(`SELECT * FROM annotations WHERE project_id = ?`).all(projectId) as Annotation[];
 }
+
+export function getAllAnnotations(): Annotation[] {
+  const db = getDb();
+  return db.query(`SELECT * FROM annotations`).all() as Annotation[];
+}

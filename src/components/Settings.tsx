@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Settings as SettingsIcon, Key, RefreshCw } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Key, RefreshCw, CheckCircle2, Database, Download, AlertTriangle } from 'lucide-react';
 
 export function Settings() {
   const [settings, setSettings] = useState({
@@ -9,7 +9,11 @@ export function Settings() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Backup states
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<{text: string, type: 'success'|'error'} | null>(null);
 
   useEffect(() => {
     fetch('/api/settings')
@@ -27,20 +31,39 @@ export function Settings() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    setSaved(false);
+    setSaveSuccess(false);
     try {
       await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
       console.error(err);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSnapshot = async (action: 'create' | 'restore') => {
+    setBackupLoading(true);
+    setBackupMessage(null);
+    try {
+      const res = await fetch(`/api/snapshots/${action}`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+      setBackupMessage({ text: action === 'create' ? `Snapshot créé (${data.path})` : data.message, type: 'success' });
+    } catch (err: any) {
+      setBackupMessage({ text: err.message, type: 'error' });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleExportJSON = async () => {
+    window.open('/api/config/export', '_blank');
   };
 
   return (
@@ -101,7 +124,7 @@ export function Settings() {
           </div>
 
           <div className="flex justify-end items-center gap-4">
-            {saved && <span className="text-sm text-green-500 font-medium animate-in fade-in slide-in-from-right-4">Paramètres sauvegardés avec succès !</span>}
+            {saveSuccess && <span className="text-sm text-green-500 font-medium animate-in fade-in slide-in-from-right-4">Paramètres sauvegardés avec succès !</span>}
             <button 
               type="submit"
               disabled={saving}
@@ -113,6 +136,60 @@ export function Settings() {
           </div>
         </form>
       )}
+
+      <div className="glass-panel p-8 rounded-2xl animate-in slide-in-from-bottom-6 duration-700 delay-300 mt-8">
+        <h3 className="text-xl font-bold font-heading mb-6 flex items-center gap-2">
+          <Database className="w-5 h-5 text-primary" />
+          Sauvegarde & Restauration
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="flex flex-col gap-4">
+            <h4 className="font-semibold text-lg">Snapshots SQLite (Recommandé)</h4>
+            <p className="text-sm text-muted-foreground">
+              Crée une copie parfaite (VACUUM INTO) de la base de données. Pratique avant une migration.
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button 
+                onClick={() => handleSnapshot('create')}
+                disabled={backupLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              >
+                Créer Snapshot
+              </button>
+              <button 
+                onClick={() => handleSnapshot('restore')}
+                disabled={backupLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-md border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                <AlertTriangle className="w-4 h-4" /> Restaurer
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-4">
+            <h4 className="font-semibold text-lg">Export JSON</h4>
+            <p className="text-sm text-muted-foreground">
+              Exporte vos projets, annotations et réglages au format JSON lisible.
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button 
+                onClick={handleExportJSON}
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              >
+                <Download className="w-4 h-4" /> Exporter JSON
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {backupMessage && (
+          <div className={`mt-6 p-4 rounded-lg border ${backupMessage.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'} flex items-center gap-2`}>
+            {backupMessage.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
+            {backupMessage.text}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

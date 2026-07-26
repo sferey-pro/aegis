@@ -13,9 +13,11 @@ interface HistoryPoint {
 export function HistoryChart() {
   const [data, setData] = useState<HistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(30);
 
   useEffect(() => {
-    fetch('/api/history-global')
+    setLoading(true);
+    fetch(`/api/history-global?days=${days}`)
       .then(r => r.json())
       .then(d => {
         setData(d);
@@ -25,7 +27,7 @@ export function HistoryChart() {
         console.error(e);
         setLoading(false);
       });
-  }, []);
+  }, [days]);
 
   if (loading) {
     return (
@@ -71,9 +73,22 @@ export function HistoryChart() {
 
   return (
     <div className="glass-panel w-full p-6 rounded-2xl">
-      <div className="mb-6">
-        <h3 className="text-xl font-bold font-heading">Évolution Globale</h3>
-        <p className="text-sm text-muted-foreground">Volume de vulnérabilités sur les 30 derniers jours (tous projets confondus).</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold font-heading">Évolution Globale</h3>
+          <p className="text-sm text-muted-foreground">Volume de vulnérabilités sur les derniers {days} jours (tous projets confondus).</p>
+        </div>
+        <select 
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary outline-none"
+        >
+          <option value={7}>7 Jours</option>
+          <option value={14}>14 Jours</option>
+          <option value={30}>30 Jours</option>
+          <option value={60}>60 Jours</option>
+          <option value={90}>90 Jours</option>
+        </select>
       </div>
       
       <div className="h-[300px] w-full">

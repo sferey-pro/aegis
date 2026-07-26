@@ -108,8 +108,10 @@ const server = serve({
     },
 
     "/api/history-global": {
-      async GET() {
-        return Response.json(getGlobalHistory(30));
+      async GET(req) {
+        const url = new URL(req.url);
+        const days = parseInt(url.searchParams.get("days") || "30", 10);
+        return Response.json(getGlobalHistory(days));
       }
     },
 

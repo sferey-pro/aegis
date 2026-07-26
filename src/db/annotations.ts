@@ -53,7 +53,7 @@ export function setAnnotationFix(cve: string, projectId: number, fixedIn: string
 
 export function getAnnotationsForProject(projectId: number): Annotation[] {
   const db = getDb();
-  return db.query(`SELECT * FROM annotations WHERE project_id = ?`).all(projectId) as Annotation[];
+  return db.query(`SELECT * FROM annotations WHERE project_id = ? OR project_id = -1 ORDER BY project_id DESC`).all(projectId) as Annotation[];
 }
 
 export function getAllAnnotations(): Annotation[] {

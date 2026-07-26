@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2, Edit2 } from 'lucide-react';
+import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2, Edit2, Globe } from 'lucide-react';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-500 border-red-500/20',
@@ -29,6 +29,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; cve: string; projectId: number; reason: string } | null>(null);
+  const [hideProcessed, setHideProcessed] = useState(false);
 
   const fetchCves = async () => {
     try {
@@ -77,6 +78,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
 
       cveGroup.occurrences.forEach((occ: any) => {
         if (projectId && occ.projectId !== projectId) return;
+        if (hideProcessed && occ.status !== 'pending') return;
         
         const key = `${occ.projectId}::${occ.package}`;
         if (!map.has(key)) {
@@ -112,8 +114,10 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         });
       });
     });
-    return Array.from(map.values()).sort((a, b) => b.projectName.localeCompare(a.projectName));
-  }, [cves, projectId, cveFilter]);
+    return Array.from(map.values())
+      .filter(g => g.cves.length > 0)
+      .sort((a, b) => b.projectName.localeCompare(a.projectName));
+  }, [cves, projectId, cveFilter, hideProcessed]);
 
   const updateStatus = async (cve: string, projectId: number, newStatus: string, note?: string) => {
     try {
@@ -220,6 +224,12 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
           </h2>
           <p className="text-muted-foreground mt-1">Regroupé par Package et par Projet. Créez facilement vos tickets Jira.</p>
         </div>
+        <button 
+          onClick={() => setHideProcessed(!hideProcessed)}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${hideProcessed ? 'bg-primary/20 text-primary border-primary/30' : 'bg-secondary text-muted-foreground border-transparent hover:bg-white/5'}`}
+        >
+          <CheckCircle2 className="w-4 h-4" /> Zero-Inbox (Masquer traitées)
+        </button>
       </div>
 
       {loading ? (
@@ -363,9 +373,17 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                             </button>
                             <button 
                               onClick={() => updateStatus(cveObj.cve, group.projectId, 'ignored')}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'ignored' ? 'bg-gray-500/20 text-gray-300 border border-gray-500/30' : 'text-muted-foreground hover:bg-gray-500/10 hover:text-gray-300'}`}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'ignored' && !cveObj.isGlobal ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'text-muted-foreground hover:bg-orange-500/10 hover:text-orange-400'}`}
+                              title="Faux positif pour ce projet"
                             >
-                              <X className="w-3 h-3" /> Ignoré (Faux positif)
+                              <X className="w-3 h-3" /> Faux positif
+                            </button>
+                            <button 
+                              onClick={() => updateStatus(cveObj.cve, -1, 'ignored', 'Faux positif global')}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'ignored' && cveObj.isGlobal ? 'bg-orange-500/30 text-orange-400 border border-orange-500/50' : 'text-muted-foreground hover:bg-orange-500/10 hover:text-orange-400'}`}
+                              title="Ignorer cette CVE sur TOUS les projets"
+                            >
+                              <Globe className="w-3 h-3" /> Faux positif global
                             </button>
                           </div>
                           

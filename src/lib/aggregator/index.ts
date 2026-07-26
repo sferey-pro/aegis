@@ -24,6 +24,7 @@ export interface CveOccurrence {
   link: string | null;
   status: string;
   note: string;
+  isGlobal?: boolean;
 }
 
 export interface CveGroup {
@@ -86,7 +87,8 @@ export function buildCveGroups(): CveGroup[] {
         title: vuln.title,
         link: vuln.link || null,
         status,
-        note
+        note,
+        isGlobal: ann ? ann.project_id === -1 : false
       };
 
       if (!groups.has(groupKey)) {

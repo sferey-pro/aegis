@@ -11,7 +11,8 @@ export function Projects() {
     path: '',
     audit_path: '',
     type: 'node',
-    tool: 'npm'
+    tool: 'npm',
+    tagsStr: ''
   });
 
   const fetchProjects = async () => {
@@ -33,13 +34,17 @@ export function Projects() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        tags: formData.tagsStr.split(',').map(t => t.trim()).filter(Boolean)
+      };
       await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       setIsAdding(false);
-      setFormData({ name: '', path: '', audit_path: '', type: 'node', tool: 'npm' });
+      setFormData({ name: '', path: '', audit_path: '', type: 'node', tool: 'npm', tagsStr: '' });
       fetchProjects();
     } catch (err) {
       console.error(err);
@@ -207,6 +212,17 @@ export function Projects() {
                 <option value="composer">Composer</option>
               </select>
             </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Tags (séparés par des virgules)</label>
+              <input 
+                type="text" 
+                value={formData.tagsStr}
+                onChange={e => setFormData({...formData, tagsStr: e.target.value})}
+                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                placeholder="Ex: API, Prod, Frontend"
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 mt-4">
@@ -259,6 +275,16 @@ export function Projects() {
                 <span className="font-mono text-xs">{p.path}</span>
                 {p.audit_path && <span className="font-mono text-xs text-primary ml-1">/{p.audit_path}</span>}
               </div>
+
+              {p.tags && p.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {p.tags.map((tag: string, i: number) => (
+                    <span key={i} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {p.git?.isRepo && (
                 <div className="flex items-center justify-between mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2, Clock } from 'lucide-react';
+import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2, Clock, Play } from 'lucide-react';
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
   const [projects, setProjects] = useState<any[]>([]);
@@ -179,6 +179,16 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
   };
 
   const [isFetchingAll, setIsFetchingAll] = useState(false);
+
+  const handleForceAudit = async (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/projects/${id}/audit?force=true`, { method: 'POST' });
+      await fetchProjects();
+    } catch (err) {
+      console.error("Failed to force audit", err);
+    }
+  };
 
   const handleFetchAll = async () => {
     setIsFetchingAll(true);
@@ -612,6 +622,15 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   {p.ignored ? 'Réactiver' : 'Ignorer le projet'}
                 </button>
                 <div className="flex items-center gap-1">
+                  {!p.is_remote && (
+                    <button 
+                      onClick={(e) => handleForceAudit(p.id, e)}
+                      className="p-1.5 text-muted-foreground hover:text-green-400 transition-colors rounded-md hover:bg-green-400/10"
+                      title="Forcer un audit (sans déduplication)"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button 
                     onClick={(e) => handleEdit(p, e)}
                     className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"

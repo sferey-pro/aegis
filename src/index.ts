@@ -283,8 +283,10 @@ const server = serve({
     "/api/projects/:id/audit": {
       async POST(req) {
         const id = parseInt(req.params.id);
+        const url = new URL(req.url);
+        const force = url.searchParams.get("force") === "true";
         try {
-          const res = await runAudit(id);
+          const res = await runAudit(id, force);
           return Response.json({ success: true, ...res });
         } catch (e: any) {
           return Response.json({ success: false, error: e.message }, { status: 500 });

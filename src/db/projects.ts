@@ -13,6 +13,7 @@ export interface Project {
   tool: ProjectTool;
   tags: string[];
   ignored: boolean;
+  is_remote: boolean;
   created_at: string;
 }
 
@@ -25,13 +26,15 @@ export interface CreateProjectInput {
   tool: ProjectTool;
   tags?: string[];
   ignored?: boolean;
+  is_remote?: boolean;
 }
 
 function parseProject(row: any): Project {
   return {
     ...row,
     tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags,
-    ignored: Boolean(row.ignored)
+    ignored: Boolean(row.ignored),
+    is_remote: Boolean(row.is_remote)
   };
 }
 
@@ -58,6 +61,7 @@ export function createProject(input: CreateProjectInput): Project {
   
   const tagsStr = JSON.stringify(input.tags || []);
   const ignored = input.ignored ? 1 : 0;
+  const is_remote = input.is_remote ? 1 : 0;
   let slug = input.slug || input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   if (!slug) slug = 'project';
   
@@ -70,20 +74,21 @@ export function createProject(input: CreateProjectInput): Project {
   }
 
   const query = db.query(`
-    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored)
-    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored)
+    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored, is_remote)
+    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored, $is_remote)
     RETURNING *
   `);
 
   const row = query.get({
     $name: input.name,
     $slug: finalSlug,
-    $path: input.path,
+    $path: input.path || 'remote',
     $audit_path: input.audit_path || null,
     $type: input.type,
     $tool: input.tool,
     $tags: tagsStr,
-    $ignored: ignored
+    $ignored: ignored,
+    $is_remote: is_remote
   });
 
   return parseProject(row);

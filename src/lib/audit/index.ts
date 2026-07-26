@@ -249,7 +249,7 @@ export async function ingestAudit(projectId: number, stdout: string, commitSha: 
 
   const run = addRun({
     project_id: projectId,
-    status: "success",
+    status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
     total: enhancedVulns.length,
     counts: finalCounts,
     vulnerabilities: enhancedVulns,

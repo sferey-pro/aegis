@@ -70,7 +70,7 @@ export function HistoryChart() {
   };
 
   return (
-    <div className="glass-panel w-full p-6 rounded-2xl animate-in slide-in-from-bottom-8 duration-700 delay-500">
+    <div className="glass-panel w-full p-6 rounded-2xl">
       <div className="mb-6">
         <h3 className="text-xl font-bold font-heading">Évolution Globale</h3>
         <p className="text-sm text-muted-foreground">Volume de vulnérabilités sur les 30 derniers jours (tous projets confondus).</p>

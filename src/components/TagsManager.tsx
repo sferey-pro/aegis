@@ -79,19 +79,18 @@ export function TagsManager() {
         </div>
         <div className="flex flex-col w-full sm:w-auto gap-1">
           <label className="text-xs font-semibold uppercase text-muted-foreground">Couleur</label>
-          <select 
-            value={newColor}
-            onChange={e => setNewColor(e.target.value)}
-            className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors min-w-[120px]"
-          >
-            <option value="indigo">Indigo</option>
-            <option value="red">Rouge</option>
-            <option value="green">Vert</option>
-            <option value="blue">Bleu</option>
-            <option value="yellow">Jaune</option>
-            <option value="purple">Violet</option>
-            <option value="pink">Rose</option>
-          </select>
+          <div className="flex items-center gap-2 px-1 py-1 h-[42px]">
+            {['indigo', 'red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink'].map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setNewColor(c)}
+                className={`w-6 h-6 rounded-full transition-all ${newColor === c ? 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-110' : 'opacity-70 hover:opacity-100 hover:scale-110'}`}
+                style={{ backgroundColor: `var(--color-${c}-500, var(--primary))` }}
+                title={c}
+              />
+            ))}
+          </div>
         </div>
         <button type="submit" className="mt-5 flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors w-full sm:w-auto justify-center">
           <Plus className="w-4 h-4" /> Ajouter

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Shield, Folder, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle } from 'lucide-react';
 
 export function Projects() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -63,6 +63,24 @@ export function Projects() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ignored: !project.ignored })
       });
+      fetchProjects();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleFetch = async (id: number) => {
+    try {
+      await fetch(`/api/projects/${id}/git-fetch`, { method: 'POST' });
+      fetchProjects();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handlePull = async (id: number) => {
+    try {
+      await fetch(`/api/projects/${id}/git-pull`, { method: 'POST' });
       fetchProjects();
     } catch (err) {
       console.error(err);
@@ -191,6 +209,42 @@ export function Projects() {
                 <span className="font-mono text-xs">{p.path}</span>
                 {p.audit_path && <span className="font-mono text-xs text-primary ml-1">/{p.audit_path}</span>}
               </div>
+
+              {p.git?.isRepo && (
+                <div className="flex items-center justify-between mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">
+                  <div className="flex items-center gap-2">
+                    <GitBranch className="w-3.5 h-3.5 text-orange-400" />
+                    <span className="font-mono truncate max-w-[80px]" title={p.git.branch || 'detached'}>
+                      {p.git.branch || 'detached'}
+                    </span>
+                    {p.git.behind > 0 && (
+                      <span className="text-red-400 font-bold flex items-center gap-0.5 ml-1" title={`${p.git.behind} commits de retard sur l'upstream`}>
+                        <ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
+                      </span>
+                    )}
+                    {p.git.dirty && <AlertTriangle className="w-3 h-3 text-yellow-500 ml-1" title="Arbre de travail sale (modifications non commitées)" />}
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => handleFetch(p.id)}
+                      className="p-1.5 rounded hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+                      title="Git Fetch"
+                    >
+                      <CloudDownload className="w-3.5 h-3.5" />
+                    </button>
+                    {p.git.behind > 0 && (
+                      <button 
+                        onClick={() => handlePull(p.id)}
+                        className="p-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors font-bold flex items-center gap-1"
+                        title="Git Pull (Fast-Forward uniquement)"
+                      >
+                        Pull
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
                 <button 

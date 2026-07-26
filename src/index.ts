@@ -3,6 +3,7 @@ import index from "./index.html";
 import { listProjects, createProject, updateProject, deleteProject } from "./db/projects";
 import { buildCveGroups } from "./lib/aggregator";
 import { runAudit } from "./lib/audit";
+import { getGitInfo, gitFetch, gitPull } from "./lib/git";
 import { getLatestRun } from "./db/runs";
 import { getDb } from "./db";
 import { getAllSettings, setAllSettings } from "./db/settings";
@@ -70,7 +71,14 @@ const server = serve({
     
     "/api/projects": {
       async GET() {
-        return Response.json(listProjects());
+        const projects = listProjects();
+        // Enrichir en parallèle
+        const enriched = await Promise.all(projects.map(async p => {
+          const git = await getGitInfo(p.path);
+          const run = getLatestRun(p.id);
+          return { ...p, git, lastRun: run };
+        }));
+        return Response.json(enriched);
       },
       async POST(req) {
         const body = await req.json();
@@ -91,6 +99,32 @@ const server = serve({
         const id = parseInt(req.params.id);
         deleteProject(id);
         return Response.json({ success: true });
+      }
+    },
+
+    "/api/projects/:id/git-fetch": {
+      async POST(req) {
+        const id = parseInt(req.params.id);
+        const project = listProjects().find(p => p.id === id);
+        if (!project) return Response.json({ error: "Not found" }, { status: 404 });
+        
+        const { projectContext } = await import("./lib/console");
+        const res = await projectContext.run({ project: project.name }, () => gitFetch(project.path));
+        
+        return Response.json(res);
+      }
+    },
+
+    "/api/projects/:id/git-pull": {
+      async POST(req) {
+        const id = parseInt(req.params.id);
+        const project = listProjects().find(p => p.id === id);
+        if (!project) return Response.json({ error: "Not found" }, { status: 404 });
+        
+        const { projectContext } = await import("./lib/console");
+        const res = await projectContext.run({ project: project.name }, () => gitPull(project.path));
+        
+        return Response.json(res);
       }
     },
 

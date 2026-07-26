@@ -211,3 +211,63 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
   }
   });
 }
+
+export async function ingestAudit(projectId: number, stdout: string, commitSha: string = ""): Promise<{ run: Run | null, newCves: any[] }> {
+  const project = getProjectById(projectId);
+  if (!project) throw new Error("Projet introuvable");
+
+  let commandStr = `ci-ingest ${project.tool}`;
+  
+  if (stdout.trim() === "") {
+    throw new Error("Payload vide");
+  }
+
+  // Parsing
+  const { parseAuditOutput } = await import("../parsers");
+  const parsed = parseAuditOutput(project.tool, stdout);
+  
+  const { resolveFixedVersion } = await import("../github");
+  const enhancedVulns = await Promise.all(parsed.vulnerabilities.map(async (v: any) => {
+    const res = await resolveFixedVersion({
+      tool: project.tool,
+      package: v.package,
+      cve: v.cve,
+      link: v.link
+    });
+    return {
+      ...v,
+      fixedIn: res.fixedIn,
+      severity: res.severity !== "unknown" ? res.severity : v.severity
+    };
+  }));
+
+  const finalCounts = { critical:0, high:0, moderate:0, low:0, info:0, unknown:0 };
+  for (const v of enhancedVulns) {
+    finalCounts[v.severity as Severity]++;
+  }
+
+  const run = addRun({
+    project_id: projectId,
+    status: "success",
+    total: enhancedVulns.length,
+    counts: finalCounts,
+    vulnerabilities: enhancedVulns,
+    command: commandStr,
+    commit_sha: commitSha,
+    error: null,
+    duration_ms: 0
+  });
+
+  const { buildCveGroups } = await import("../aggregator");
+  const groups = buildCveGroups();
+  
+  const newCves = [];
+  const projectGroups = groups.filter(g => g.occurrences.some(o => o.projectId === projectId));
+  for (const g of projectGroups) {
+    if (g.occurrences.some(o => o.projectId === projectId && o.status === 'pending')) {
+      newCves.push(g);
+    }
+  }
+
+  return { run, newCves };
+}

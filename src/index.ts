@@ -1,8 +1,8 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { listProjects, createProject, updateProject, deleteProject } from "./db/projects";
+import { listProjects, createProject, updateProject, deleteProject, getProjectBySlug } from "./db/projects";
 import { buildCveGroups } from "./lib/aggregator";
-import { runAudit } from "./lib/audit";
+import { runAudit, ingestAudit } from "./lib/audit";
 import { getGitInfo, gitFetch, gitPull } from "./lib/git";
 import { getLatestRun, getGlobalHistory } from "./db/runs";
 import { getDb } from "./db";
@@ -436,6 +436,28 @@ const server = serve({
         const id = parseInt(req.params.id);
         deleteReport(id);
         return Response.json({ success: true });
+      }
+    },
+
+    "/api/ingest/:slug": {
+      async POST(req) {
+        const slug = req.params.slug;
+        const project = getProjectBySlug(slug);
+        
+        if (!project) {
+          return Response.json({ error: "Project introuvable" }, { status: 404 });
+        }
+        
+        const url = new URL(req.url);
+        const commitSha = url.searchParams.get('sha') || "";
+        const stdout = await req.text();
+        
+        try {
+          const res = await ingestAudit(project.id, stdout, commitSha);
+          return Response.json({ success: true, run: res.run, newCvesCount: res.newCves.length });
+        } catch (e: any) {
+          return Response.json({ error: e.message }, { status: 400 });
+        }
       }
     },
     

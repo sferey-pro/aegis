@@ -41,6 +41,7 @@ function initDb(database: Database) {
     CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
+      slug TEXT UNIQUE,
       path TEXT NOT NULL,
       audit_path TEXT,
       type TEXT NOT NULL,
@@ -49,7 +50,22 @@ function initDb(database: Database) {
       ignored BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+  `);
+  
+  try {
+    database.exec(`ALTER TABLE projects ADD COLUMN slug TEXT UNIQUE;`);
+  } catch (e) {
+    // Column might already exist
+  }
 
+  // Populate missing slugs
+  database.exec(`
+    UPDATE projects 
+    SET slug = lower(replace(name, ' ', '-')) || '-' || id 
+    WHERE slug IS NULL;
+  `);
+
+  database.exec(`
     CREATE TABLE IF NOT EXISTS runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       project_id INTEGER NOT NULL,

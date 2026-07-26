@@ -6,6 +6,7 @@ export type ProjectTool = "npm" | "yarn" | "bun" | "composer";
 export interface Project {
   id: number;
   name: string;
+  slug: string;
   path: string;
   audit_path: string | null;
   type: ProjectType;
@@ -17,6 +18,7 @@ export interface Project {
 
 export interface CreateProjectInput {
   name: string;
+  slug?: string;
   path: string;
   audit_path?: string | null;
   type: ProjectType;
@@ -45,25 +47,45 @@ export function getProjectById(id: number): Project | null {
   return row ? parseProject(row) : null;
 }
 
+export function getProjectBySlug(slug: string): Project | null {
+  const db = getDb();
+  const row = db.query(`SELECT * FROM projects WHERE slug = ?`).get(slug);
+  return row ? parseProject(row) : null;
+}
+
 export function createProject(input: CreateProjectInput): Project {
   const db = getDb();
   
+  const tagsStr = JSON.stringify(input.tags || []);
+  const ignored = input.ignored ? 1 : 0;
+  let slug = input.slug || input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  if (!slug) slug = 'project';
+  
+  // Assure slug uniqueness
+  let finalSlug = slug;
+  let counter = 1;
+  while (db.query(`SELECT id FROM projects WHERE slug = ?`).get(finalSlug)) {
+    finalSlug = `${slug}-${counter}`;
+    counter++;
+  }
+
   const query = db.query(`
-    INSERT INTO projects (name, path, audit_path, type, tool, tags, ignored)
-    VALUES ($name, $path, $audit_path, $type, $tool, $tags, $ignored)
+    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored)
+    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored)
     RETURNING *
   `);
-  
+
   const row = query.get({
-    $name: input.name.trim(),
-    $path: input.path.trim(),
-    $audit_path: input.audit_path ? input.audit_path.trim() : null,
+    $name: input.name,
+    $slug: finalSlug,
+    $path: input.path,
+    $audit_path: input.audit_path || null,
     $type: input.type,
     $tool: input.tool,
-    $tags: JSON.stringify(input.tags || []),
-    $ignored: input.ignored ? 1 : 0
+    $tags: tagsStr,
+    $ignored: ignored
   });
-  
+
   return parseProject(row);
 }
 

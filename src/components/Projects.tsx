@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
@@ -12,6 +12,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
   const [detectStatus, setDetectStatus] = useState<'idle' | 'detecting' | 'success' | 'error'>('idle');
   const [detectedToolName, setDetectedToolName] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState({
     name: '',
     path: '',
@@ -220,7 +221,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
 
       {isAdding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={resetForm}>
-          <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar">
+          <form ref={formRef} onSubmit={handleSubmit} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar">
             <h3 className="text-xl font-bold mb-2 text-primary">{editingId ? "Modifier le Projet" : "Nouveau Projet"}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -333,7 +334,13 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               {!editingId && (
                 <button 
                   type="button"
-                  onClick={(e) => handleSubmit(e, true)}
+                  onClick={(e) => {
+                    if (formRef.current && !formRef.current.checkValidity()) {
+                      formRef.current.reportValidity();
+                      return;
+                    }
+                    handleSubmit(e, true);
+                  }}
                   className="px-4 py-2 rounded-md bg-blue-500/20 text-blue-500 border border-blue-500/30 hover:bg-blue-500/40 transition-colors"
                 >
                   Créer et Auditer

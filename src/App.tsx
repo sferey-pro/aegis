@@ -191,7 +191,7 @@ export function App() {
         <main className="flex-1 w-full max-w-6xl mx-auto mt-8 z-10 flex flex-col gap-8 animate-in fade-in duration-500">
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-            <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 relative z-10">
+            <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300 relative z-10 hover:-translate-y-1 transition-transform">
               <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
                 <Activity className="w-5 h-5 text-destructive" />
               </div>
@@ -203,7 +203,7 @@ export function App() {
               </div>
             </div>
 
-            <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200 relative z-10">
+            <div className="glass-panel p-6 rounded-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-300 relative z-10 hover:-translate-y-1 transition-transform">
               <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                 <GitBranch className="w-5 h-5 text-blue-500" />
               </div>
@@ -215,7 +215,7 @@ export function App() {
               </div>
             </div>
 
-            <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300 relative z-10">
+            <div className="glass-panel p-6 rounded-2xl flex flex-col justify-between animate-in fade-in zoom-in-95 duration-300 relative z-10 hover:-translate-y-1 transition-transform">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Database className="w-5 h-5 text-primary" />
@@ -233,8 +233,8 @@ export function App() {
               </div>
             </div>
 
-            {/* Décoration d'arrière-plan */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-full bg-primary/10 blur-[120px] rounded-full z-0 pointer-events-none"></div>
+            {/* Décoration d'arrière-plan optimisée */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-primary/5 blur-[80px] rounded-full z-0 pointer-events-none"></div>
           </div>
 
           <HistoryChart />

@@ -48,22 +48,30 @@ function initDb(database: Database) {
       tool TEXT NOT NULL,
       tags JSON DEFAULT '[]',
       ignored BOOLEAN DEFAULT 0,
+      is_remote BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
   
   try {
-    database.exec(`ALTER TABLE projects ADD COLUMN slug TEXT UNIQUE;`);
-  } catch (e) {
-    // Column might already exist
-  }
+    database.exec(`ALTER TABLE projects ADD COLUMN slug TEXT;`);
+    database.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);`);
+  } catch (e) {}
+  
+  try {
+    database.exec(`ALTER TABLE projects ADD COLUMN is_remote BOOLEAN DEFAULT 0;`);
+  } catch (e) {}
 
   // Populate missing slugs
-  database.exec(`
-    UPDATE projects 
-    SET slug = lower(replace(name, ' ', '-')) || '-' || id 
-    WHERE slug IS NULL;
-  `);
+  try {
+    database.exec(`
+      UPDATE projects 
+      SET slug = lower(replace(name, ' ', '-')) || '-' || id 
+      WHERE slug IS NULL;
+    `);
+  } catch (e) {
+    console.error("Error populating slugs:", e);
+  }
 
   database.exec(`
     CREATE TABLE IF NOT EXISTS runs (

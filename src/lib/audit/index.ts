@@ -5,6 +5,7 @@ import { getProjectById, type Project } from "../../db/projects";
 import { getLatestRun, addRun, type Run } from "../../db/runs";
 import { parseAuditOutput } from "../parsers";
 import { getDb } from "../../db";
+import { emitConsoleStart, emitConsoleEnd, projectContext } from "../console";
 
 function getAuditMaxAgeHours(): number {
   const db = getDb();
@@ -44,9 +45,10 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
   const project = getProjectById(projectId);
   if (!project) throw new Error("Projet introuvable");
 
-  const cwd = getAuditTarget(project);
-  
-  // 1. Lire l'état git
+  return projectContext.run({ project: project.name }, async () => {
+    const cwd = getAuditTarget(project);
+    
+    // 1. Lire l'état git
   const gitInfo = await getGitInfo(project.path); // gitInfo sur la racine git
 
   // 2. Chercher le dernier run
@@ -72,6 +74,8 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
   commandStr = args.join(" ");
   const startTime = Date.now();
   
+  const eventId = emitConsoleStart({ cmd: commandStr, cwd, label: "audit" });
+  
   let stdout = "";
   let stderr = "";
   let exitCode = 1;
@@ -92,6 +96,8 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
   }
 
   const duration_ms = Date.now() - startTime;
+  
+  emitConsoleEnd(eventId, { exitCode, ms: duration_ms });
 
   if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
     let errMsg = systemError ? `Erreur système: ${systemError}` : (stderr.trim() || `${project.tool}: aucune sortie (exit ${exitCode})`);

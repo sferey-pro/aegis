@@ -3,6 +3,7 @@ import { Shield, Activity, Database, GitBranch, ArrowRight, Loader2 } from 'luci
 import { Projects } from './components/Projects';
 import { Settings } from './components/Settings';
 import { Triage } from './components/Triage';
+import { Console } from './components/Console';
 
 interface Stats {
   monitoredProjects: number;
@@ -171,6 +172,8 @@ export function App() {
       {currentTab === 'triage' && <Triage />}
 
       {currentTab === 'settings' && <Settings />}
+
+      <Console />
     </div>
   );
 }

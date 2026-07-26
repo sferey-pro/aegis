@@ -6,6 +6,8 @@ import { runAudit } from "./lib/audit";
 import { getLatestRun } from "./db/runs";
 import { getDb } from "./db";
 import { getAllSettings, setAllSettings } from "./db/settings";
+import { upsertAnnotation } from "./db/annotations";
+import { addConsoleClient, removeConsoleClient } from "./lib/console";
 
 // Ensure DB is initialized before starting
 getDb();
@@ -15,6 +17,25 @@ const server = serve({
   routes: {
     // Serve index.html for all unmatched routes.
     "/*": index,
+
+    "/api/console": {
+      async GET() {
+        return new Response(new ReadableStream({
+          start(controller) {
+            addConsoleClient(controller as any);
+          },
+          cancel(controller) {
+            removeConsoleClient(controller as any);
+          }
+        }), {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+          }
+        });
+      }
+    },
 
     "/api/stats": {
       async GET() {
@@ -81,6 +102,14 @@ const server = serve({
         const body = await req.json();
         setAllSettings(body);
         return Response.json({ success: true });
+      }
+    },
+
+    "/api/annotations": {
+      async POST(req) {
+        const body = await req.json();
+        const res = upsertAnnotation(body.cve, body.projectId, body);
+        return Response.json(res);
       }
     },
     

@@ -1,6 +1,8 @@
 import { getDb } from "../../db";
+import { getSetting } from "../../db/settings";
 import type { ProjectTool } from "../../db/projects";
 import { normSeverity } from "../parsers/utils";
+import { emitConsoleStart, emitConsoleEnd } from "../console";
 
 const GHSA_REGEX = /(GHSA-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4})/i;
 const CVE_REGEX = /(CVE-\d{4}-\d{4,})/i;
@@ -79,22 +81,31 @@ async function fetchAdvisory(key: AdvisoryKey): Promise<{ advisory: CachedAdviso
     "x-github-api-version": "2022-11-28"
   };
 
-  if (process.env.GITHUB_TOKEN) {
-    headers["authorization"] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  const token = getSetting("GITHUB_TOKEN", process.env.GITHUB_TOKEN);
+  if (token) {
+    headers["authorization"] = `Bearer ${token}`;
   }
+
+  const startTime = Date.now();
+  const eventId = emitConsoleStart({ cmd: `GET advisories ${key.id}`, cwd: url, label: "github" });
 
   try {
     const res = await fetch(url, { headers });
+    const exitCode = res.status;
     
     if (res.status === 429 || (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0")) {
+      emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
       return { advisory: null, rateLimited: true };
     }
     
     if (!res.ok) {
+      emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
       return { advisory: null, rateLimited: false };
     }
 
     let data = await res.json();
+    emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+
     if (key.kind === "cve" && Array.isArray(data)) {
       if (data.length === 0) return { advisory: null, rateLimited: false };
       data = data[0];
@@ -118,6 +129,7 @@ async function fetchAdvisory(key: AdvisoryKey): Promise<{ advisory: CachedAdviso
 
     return { advisory: { severity, fixes }, rateLimited: false };
   } catch (e) {
+    emitConsoleEnd(eventId, { exitCode: 0, ms: Date.now() - startTime });
     return { advisory: null, rateLimited: false };
   }
 }

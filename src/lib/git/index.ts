@@ -1,6 +1,7 @@
 import { spawn } from "bun";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
+import { emitConsoleStart, emitConsoleEnd } from "../console";
 
 export interface GitInfo {
   isRepo: boolean;
@@ -36,6 +37,10 @@ export function expandPath(path: string): string {
  * Throws if the command fails, unless tolerateFailure is true.
  */
 async function runGit(args: string[], cwd: string, tolerateFailure = false): Promise<string> {
+  const cmdLine = `git ${args.join(" ")}`;
+  const startTime = Date.now();
+  const eventId = emitConsoleStart({ cmd: cmdLine, cwd, label: "git" });
+
   const proc = spawn(["git", ...args], {
     cwd,
     env: GIT_ENV,
@@ -46,6 +51,8 @@ async function runGit(args: string[], cwd: string, tolerateFailure = false): Pro
   const stdout = await new Response(proc.stdout).text();
   const exitCode = await proc.exited;
   
+  emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+
   if (exitCode !== 0 && !tolerateFailure) {
     throw new Error(`Git command failed with code ${exitCode}`);
   }
@@ -114,6 +121,9 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
 
 export async function gitFetch(rawPath: string): Promise<{ ok: boolean, log: string }> {
   const cwd = expandPath(rawPath);
+  const startTime = Date.now();
+  const eventId = emitConsoleStart({ cmd: "git fetch --verbose", cwd, label: "git" });
+
   try {
     const proc = spawn(["git", "fetch", "--verbose"], {
       cwd,
@@ -126,6 +136,8 @@ export async function gitFetch(rawPath: string): Promise<{ ok: boolean, log: str
     const stderr = await new Response(proc.stderr).text();
     const exitCode = await proc.exited;
     
+    emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+
     let log = stderr + stdout;
     
     if (exitCode === 0 && log.trim() === "") {
@@ -134,12 +146,16 @@ export async function gitFetch(rawPath: string): Promise<{ ok: boolean, log: str
     
     return { ok: exitCode === 0, log: log.trim() };
   } catch (e) {
+    emitConsoleEnd(eventId, { exitCode: 1, ms: Date.now() - startTime });
     return { ok: false, log: `chemin introuvable ou erreur système` };
   }
 }
 
 export async function gitPull(rawPath: string): Promise<{ ok: boolean, log: string }> {
   const cwd = expandPath(rawPath);
+  const startTime = Date.now();
+  const eventId = emitConsoleStart({ cmd: "git pull --ff-only", cwd, label: "git" });
+
   try {
     const proc = spawn(["git", "pull", "--ff-only"], {
       cwd,
@@ -152,15 +168,16 @@ export async function gitPull(rawPath: string): Promise<{ ok: boolean, log: stri
     const stderr = await new Response(proc.stderr).text();
     const exitCode = await proc.exited;
     
+    emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+
     let log = stdout + stderr;
     if (exitCode !== 0 && log.trim() === "") {
       log = "échec du pull (non fast-forward ?)";
     }
     
-    // Fallback: truncate to 160 chars max or 2 last lines as per CONTEXT.md
-    
     return { ok: exitCode === 0, log: log.trim() };
   } catch (e) {
+    emitConsoleEnd(eventId, { exitCode: 1, ms: Date.now() - startTime });
     return { ok: false, log: "chemin introuvable ou erreur système" };
   }
 }

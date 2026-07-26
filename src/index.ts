@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { listProjects } from "./db/projects";
+import { listProjects, createProject, updateProject, deleteProject } from "./db/projects";
 import { buildCveGroups } from "./lib/aggregator";
 import { runAudit } from "./lib/audit";
 import { getLatestRun } from "./db/runs";
@@ -49,6 +49,26 @@ const server = serve({
     "/api/projects": {
       async GET() {
         return Response.json(listProjects());
+      },
+      async POST(req) {
+        const body = await req.json();
+        // createProject requires name, path, type, tool
+        const project = createProject(body);
+        return Response.json(project);
+      }
+    },
+    
+    "/api/projects/:id": {
+      async PUT(req) {
+        const id = parseInt(req.params.id);
+        const body = await req.json();
+        const project = updateProject(id, body);
+        return Response.json(project);
+      },
+      async DELETE(req) {
+        const id = parseInt(req.params.id);
+        deleteProject(id);
+        return Response.json({ success: true });
       }
     },
     

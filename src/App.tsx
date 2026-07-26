@@ -19,12 +19,21 @@ export function App() {
   const [auditing, setAuditing] = useState(false);
 
   useEffect(() => {
-    fetchStats();
+    fetchStats(true);
   }, []);
 
-  const fetchStats = async () => {
+  const fetchStats = async (initial = false) => {
     try {
-      const res = await fetch('/api/stats');
+      let res;
+      if (initial) {
+        // Au démarrage, on force un temps d'attente d'au moins 2s pour que l'animation soit fluide
+        [res] = await Promise.all([
+          fetch('/api/stats'),
+          new Promise(resolve => setTimeout(resolve, 2000))
+        ]);
+      } else {
+        res = await fetch('/api/stats');
+      }
       const data = await res.json();
       setStats(data);
     } catch (err) {

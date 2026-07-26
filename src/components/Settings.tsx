@@ -6,7 +6,8 @@ export function Settings() {
   const [settings, setSettings] = useState({
     GITHUB_TOKEN: '',
     AUDIT_MAX_AGE_HOURS: '24',
-    CRITICAL_ONLY: 'false'
+    CRITICAL_ONLY: 'false',
+    JIRA_BASE_URL: 'https://mon-entreprise.atlassian.net/browse/'
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -119,6 +120,20 @@ export function Settings() {
                 className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors w-32"
                 min="0"
                 step="1"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-lg font-bold">Base URL Jira</label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Utilisée pour construire les liens cliquables des tickets dans l'onglet CVEs.
+              </p>
+              <input 
+                type="text" 
+                value={settings.JIRA_BASE_URL}
+                onChange={e => setSettings({...settings, JIRA_BASE_URL: e.target.value})}
+                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                placeholder="https://votre-entreprise.atlassian.net/browse/"
               />
             </div>
 

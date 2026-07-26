@@ -23,6 +23,8 @@ const SEV_ORDER: Record<string, number> = { critical: 4, high: 3, moderate: 2, l
 
 export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { projectId?: number | null, onClearProject?: () => void, cveFilter?: string | null, onClearCve?: () => void }) {
   const [cves, setCves] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<Record<string, any>>({});
+  const [jiraBaseUrl, setJiraBaseUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
@@ -39,8 +41,28 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
     }
   };
 
+  const fetchTickets = async () => {
+    try {
+      const res = await fetch('/api/tickets/list');
+      const data = await res.json();
+      const map: Record<string, any> = {};
+      data.forEach((t: any) => map[`${t.project_id}::${t.package}`] = t);
+      setTickets(map);
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      setJiraBaseUrl(data.JIRA_BASE_URL || '');
+    } catch (e) { console.error(e); }
+  };
+
   useEffect(() => {
     fetchCves();
+    fetchTickets();
+    fetchSettings();
   }, []);
 
   const toggleExpand = (key: string) => {
@@ -101,6 +123,29 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const linkTicket = async (projectId: number, packageName: string, ref: string, cveList: string[]) => {
+    if (!ref.trim()) return;
+    try {
+      await fetch('/api/tickets/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, packageName, ref, cves: cveList })
+      });
+      fetchTickets();
+    } catch (err) { console.error(err); }
+  };
+
+  const unlinkTicket = async (projectId: number, packageName: string) => {
+    try {
+      await fetch('/api/tickets/unlink', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, packageName })
+      });
+      fetchTickets();
+    } catch (err) { console.error(err); }
   };
 
   const createTicket = async (e: React.MouseEvent, projectId: number, packageName: string) => {
@@ -201,6 +246,39 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                         Projet : <span className="font-semibold text-foreground">{group.projectName}</span>
                         <span className="px-2 py-0.5 text-[10px] rounded bg-secondary uppercase">{group.tool}</span>
                       </p>
+                      
+                      {/* Ligne Ticket Jira Associé */}
+                      <div className="flex items-center gap-2 mt-3" onClick={e => e.stopPropagation()}>
+                        {tickets[group.key] ? (
+                          <div className="flex items-center gap-2 text-sm bg-blue-500/10 text-blue-400 px-3 py-1.5 rounded-lg border border-blue-500/20">
+                            <LinkIcon className="w-3.5 h-3.5" />
+                            <a href={`${jiraBaseUrl}${tickets[group.key].url}`} target="_blank" rel="noreferrer" className="font-semibold hover:underline">
+                              {tickets[group.key].url}
+                            </a>
+                            <button onClick={() => unlinkTicket(group.projectId, group.package)} className="ml-2 hover:text-red-400">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                            {group.cves.some((c: any) => !tickets[group.key].cves.includes(c.cve)) && (
+                              <span className="flex items-center gap-1 text-orange-400 ml-2" title="De nouvelles failles sont apparues depuis l'association de ce ticket !">
+                                <AlertTriangle className="w-4 h-4" /> Nouvelle CVE !
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="text" 
+                              placeholder="Associer Ticket (ex: SEC-123) + Entrée"
+                              className="bg-black/40 border border-border/50 rounded-md px-3 py-1.5 text-xs outline-none focus:border-blue-500 font-mono w-64"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  linkTicket(group.projectId, group.package, e.currentTarget.value, group.cves.map((c:any) => c.cve));
+                                }
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

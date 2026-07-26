@@ -152,6 +152,29 @@ const server = serve({
         return Response.json({ markdown: md });
       }
     },
+    
+    "/api/tickets/list": {
+      async GET() {
+        const { getTickets } = await import("./db/tickets");
+        return Response.json(getTickets());
+      }
+    },
+    "/api/tickets/link": {
+      async POST(req) {
+        const { projectId, packageName, ref, cves } = await req.json();
+        const { saveTicket } = await import("./db/tickets");
+        saveTicket(projectId, packageName, ref, cves);
+        return Response.json({ success: true });
+      }
+    },
+    "/api/tickets/unlink": {
+      async POST(req) {
+        const { projectId, packageName } = await req.json();
+        const { deleteTicket } = await import("./db/tickets");
+        deleteTicket(projectId, packageName);
+        return Response.json({ success: true });
+      }
+    },
 
     "/api/cves": {
       async GET() {

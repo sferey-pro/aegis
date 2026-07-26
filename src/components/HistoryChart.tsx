@@ -78,8 +78,8 @@ export function HistoryChart() {
           <h3 className="text-xl font-bold font-heading">Évolution Globale</h3>
           <p className="text-sm text-muted-foreground">Volume de vulnérabilités sur les derniers {days} jours (tous projets confondus).</p>
         </div>
-        <div className="flex bg-black/40 border border-white/10 rounded-lg p-1 backdrop-blur-sm">
-          {[7, 14, 30, 60, 90].map(d => (
+        <div className="flex bg-black/40 border border-white/10 rounded-lg p-1 backdrop-blur-sm overflow-x-auto hide-scrollbar">
+          {[1, 7, 14, 30, 60, 90].map(d => (
             <button
               key={d}
               onClick={() => setDays(d)}

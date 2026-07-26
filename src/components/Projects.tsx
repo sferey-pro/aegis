@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2, Clock } from 'lucide-react';
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
   const [projects, setProjects] = useState<any[]>([]);
@@ -546,6 +546,15 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   ))}
                 </div>
               )}
+
+              <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground/70">
+                <Clock className="w-3 h-3" />
+                {p.lastRun ? (
+                  <span>Dernier audit : {new Date(p.lastRun.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                ) : (
+                  <span>Ajouté le {new Date(p.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                )}
+              </div>
 
               {p.git?.isRepo && (
                 <div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">

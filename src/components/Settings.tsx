@@ -7,7 +7,8 @@ export function Settings() {
     GITHUB_TOKEN: '',
     AUDIT_MAX_AGE_HOURS: '24',
     CRITICAL_ONLY: 'false',
-    JIRA_BASE_URL: 'https://mon-entreprise.atlassian.net/browse/'
+    JIRA_BASE_URL: 'https://mon-entreprise.atlassian.net/browse/',
+    JIRA_API_KEY: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,7 +25,9 @@ export function Settings() {
         setSettings({
           GITHUB_TOKEN: data.GITHUB_TOKEN || '',
           AUDIT_MAX_AGE_HOURS: data.AUDIT_MAX_AGE_HOURS || '24',
-          CRITICAL_ONLY: data.CRITICAL_ONLY || 'false'
+          CRITICAL_ONLY: data.CRITICAL_ONLY || 'false',
+          JIRA_BASE_URL: data.JIRA_BASE_URL || 'https://mon-entreprise.atlassian.net/browse/',
+          JIRA_API_KEY: data.JIRA_API_KEY || ''
         });
         setLoading(false);
       });
@@ -134,6 +137,26 @@ export function Settings() {
                 onChange={e => setSettings({...settings, JIRA_BASE_URL: e.target.value})}
                 className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
                 placeholder="https://votre-entreprise.atlassian.net/browse/"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 relative opacity-70">
+              <div className="flex items-center gap-3">
+                <label className="text-lg font-bold">Clé d'API Jira</label>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                  En chantier
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-2">
+                Clé d'API pour la création automatique des tickets Jira depuis le module de triage. (Non fonctionnel pour le moment)
+              </p>
+              <input 
+                type="password" 
+                value={settings.JIRA_API_KEY}
+                onChange={e => setSettings({...settings, JIRA_API_KEY: e.target.value})}
+                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors font-mono cursor-not-allowed"
+                placeholder="ATATT3xFfGF0..."
+                disabled
               />
             </div>
 

@@ -107,6 +107,29 @@ const server = serve({
       }
     },
     
+    "/api/projects/detect": {
+      async POST(req) {
+        const { path, audit_path } = await req.json();
+        const fs = await import("node:fs");
+        const nodePath = await import("node:path");
+        const { expandPath } = await import("./lib/git");
+        
+        let tool = null;
+        try {
+          const expanded = expandPath(path);
+          const fullPath = nodePath.resolve(expanded, audit_path || "");
+          
+          if (fs.existsSync(nodePath.join(fullPath, "composer.lock"))) tool = "composer";
+          else if (fs.existsSync(nodePath.join(fullPath, "bun.lockb"))) tool = "bun";
+          else if (fs.existsSync(nodePath.join(fullPath, "yarn.lock"))) tool = "yarn";
+          else if (fs.existsSync(nodePath.join(fullPath, "package-lock.json"))) tool = "npm";
+          else if (fs.existsSync(nodePath.join(fullPath, "composer.json"))) tool = "composer";
+        } catch (e) {}
+        
+        return Response.json({ tool });
+      }
+    },
+    
     "/api/projects": {
       async GET() {
         const projects = listProjects();

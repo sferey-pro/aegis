@@ -104,6 +104,27 @@ export function Projects() {
     }
   };
 
+  const handleDetectTool = async () => {
+    if (!formData.path) return;
+    try {
+      const res = await fetch('/api/projects/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: formData.path, audit_path: formData.audit_path })
+      });
+      const data = await res.json();
+      if (data.tool) {
+        setFormData(prev => ({ 
+          ...prev, 
+          tool: data.tool, 
+          type: data.tool === 'composer' ? 'composer' : 'node' 
+        }));
+      }
+    } catch (err) {
+      console.error("Auto-detect failed", err);
+    }
+  };
+
   return (
     <div className="flex-1 w-full max-w-6xl mx-auto mt-8 z-10 animate-in fade-in duration-500">
       
@@ -155,6 +176,7 @@ export function Projects() {
                 type="text" 
                 value={formData.path}
                 onChange={e => setFormData({...formData, path: e.target.value})}
+                onBlur={handleDetectTool}
                 className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
                 placeholder="Ex: /home/user/projects/api"
               />
@@ -166,6 +188,7 @@ export function Projects() {
                 type="text" 
                 value={formData.audit_path}
                 onChange={e => setFormData({...formData, audit_path: e.target.value})}
+                onBlur={handleDetectTool}
                 className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
                 placeholder="Ex: backend/src (vide si racine)"
               />

@@ -183,6 +183,7 @@ export function App() {
           {auditing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           {auditing ? 'Audit en cours...' : 'Lancer l\'audit global'}
         </button>
+        </div>
       </header>
 
       {/* Contenu Principal (Routing basique) */}

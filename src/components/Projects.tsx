@@ -362,13 +362,19 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             >
               
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : (hasNoCves ? 'text-green-500' : 'text-primary')}`} />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : (hasNoCves ? 'text-green-500' : (hasCritical ? 'text-red-500' : 'text-primary'))}`} />
                   <h3 className="font-bold text-lg leading-tight truncate max-w-[140px]" title={p.name}>{p.name}</h3>
                   {hasNoCves && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 border border-green-500/30 flex items-center" title="Aucune vulnérabilité détectée">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
                       Sain
+                    </span>
+                  )}
+                  {hasCritical && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/30 flex items-center" title="Vulnérabilités critiques détectées">
+                      <AlertTriangle className="w-3 h-3 mr-1" />
+                      Critique
                     </span>
                   )}
                 </div>

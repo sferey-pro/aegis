@@ -78,17 +78,21 @@ export function HistoryChart() {
           <h3 className="text-xl font-bold font-heading">Évolution Globale</h3>
           <p className="text-sm text-muted-foreground">Volume de vulnérabilités sur les derniers {days} jours (tous projets confondus).</p>
         </div>
-        <select 
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
-          className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary outline-none"
-        >
-          <option value={7}>7 Jours</option>
-          <option value={14}>14 Jours</option>
-          <option value={30}>30 Jours</option>
-          <option value={60}>60 Jours</option>
-          <option value={90}>90 Jours</option>
-        </select>
+        <div className="flex bg-black/40 border border-white/10 rounded-lg p-1 backdrop-blur-sm">
+          {[7, 14, 30, 60, 90].map(d => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
+                days === d 
+                  ? 'bg-primary text-primary-foreground shadow-md' 
+                  : 'text-muted-foreground hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {d}j
+            </button>
+          ))}
+        </div>
       </div>
       
       <div className="h-[300px] w-full">

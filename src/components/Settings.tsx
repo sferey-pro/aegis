@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Settings as SettingsIcon, Key, RefreshCw, CheckCircle2, Database, Download, AlertTriangle } from 'lucide-react';
+import { TagsManager } from './TagsManager';
 
 export function Settings() {
   const [settings, setSettings] = useState({
@@ -136,6 +137,8 @@ export function Settings() {
           </div>
         </form>
       )}
+
+      <TagsManager />
 
       <div className="glass-panel p-8 rounded-2xl animate-in slide-in-from-bottom-6 duration-700 delay-300 mt-8">
         <h3 className="text-xl font-bold font-heading mb-6 flex items-center gap-2">

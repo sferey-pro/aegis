@@ -5,15 +5,28 @@ export function Projects() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
+  const [filterTag, setFilterTag] = useState<string | null>(null);
+
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     path: '',
     audit_path: '',
     type: 'node',
     tool: 'npm',
-    tagsStr: ''
+    tags: [] as string[]
   });
+
+  const fetchTags = async () => {
+    try {
+      const res = await fetch('/api/tags');
+      setAvailableTags(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -29,22 +42,49 @@ export function Projects() {
 
   useEffect(() => {
     fetchProjects();
+    fetchTags();
   }, []);
+
+  const resetForm = () => {
+    setIsAdding(false);
+    setEditingId(null);
+    setFormData({ name: '', path: '', audit_path: '', type: 'node', tool: 'npm', tags: [] });
+  };
+
+  const handleEdit = (p: any) => {
+    setFormData({
+      name: p.name,
+      path: p.path,
+      audit_path: p.audit_path || '',
+      type: p.type,
+      tool: p.tool,
+      tags: p.tags || []
+    });
+    setEditingId(p.id);
+    setIsAdding(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = {
-        ...formData,
-        tags: formData.tagsStr.split(',').map(t => t.trim()).filter(Boolean)
-      };
-      await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      setIsAdding(false);
-      setFormData({ name: '', path: '', audit_path: '', type: 'node', tool: 'npm', tagsStr: '' });
+      const payload = { ...formData };
+      
+      if (editingId) {
+        await fetch(`/api/projects/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      
+      resetForm();
       fetchProjects();
     } catch (err) {
       console.error(err);
@@ -148,18 +188,18 @@ export function Projects() {
             Vérifier les mises à jour Git
           </button>
           <button 
-            onClick={() => setIsAdding(!isAdding)}
+            onClick={() => { if(isAdding) resetForm(); else setIsAdding(true); }}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
           >
             <Plus className="w-4 h-4" />
-            Ajouter un Projet
+            {isAdding ? "Annuler" : "Ajouter un Projet"}
           </button>
         </div>
       </div>
 
       {isAdding && (
         <form onSubmit={handleSubmit} className="glass-panel p-6 rounded-2xl mb-8 flex flex-col gap-4 border-primary/30 animate-in slide-in-from-top-4">
-          <h3 className="text-xl font-bold mb-2 text-primary">Nouveau Projet</h3>
+          <h3 className="text-xl font-bold mb-2 text-primary">{editingId ? "Modifier le Projet" : "Nouveau Projet"}</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
@@ -213,15 +253,35 @@ export function Projects() {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium">Tags (séparés par des virgules)</label>
-              <input 
-                type="text" 
-                value={formData.tagsStr}
-                onChange={e => setFormData({...formData, tagsStr: e.target.value})}
-                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
-                placeholder="Ex: API, Prod, Frontend"
-              />
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label className="text-sm font-medium">Tags (Configurations)</label>
+              <div className="flex flex-wrap gap-2">
+                {availableTags.map(t => {
+                  const isSelected = formData.tags.includes(t.name);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setFormData({...formData, tags: formData.tags.filter(tag => tag !== t.name)});
+                        } else {
+                          setFormData({...formData, tags: [...formData.tags, t.name]});
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                        isSelected 
+                          ? 'border-primary bg-primary/20 text-primary' 
+                          : 'border-border bg-background hover:bg-secondary text-muted-foreground'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full inline-block mr-2" style={{ backgroundColor: `var(--color-${t.color}-500, var(--primary))` }}></span>
+                      {t.name}
+                    </button>
+                  );
+                })}
+                {availableTags.length === 0 && <span className="text-xs text-muted-foreground italic">Aucun tag configuré dans les Paramètres.</span>}
+              </div>
             </div>
           </div>
 
@@ -237,10 +297,32 @@ export function Projects() {
               type="submit"
               className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Créer le projet
+              {editingId ? "Enregistrer" : "Créer le projet"}
             </button>
           </div>
         </form>
+      )}
+
+      {availableTags.length > 0 && projects.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-6 animate-in fade-in">
+          <span className="text-sm font-semibold text-muted-foreground mr-2 self-center">Filtre :</span>
+          <button 
+            onClick={() => setFilterTag(null)}
+            className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border transition-all ${filterTag === null ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:bg-secondary'}`}
+          >
+            Tous
+          </button>
+          {availableTags.map(t => (
+            <button 
+              key={t.id}
+              onClick={() => setFilterTag(t.name)}
+              className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border transition-all flex items-center gap-1.5 ${filterTag === t.name ? 'bg-primary/20 text-primary border-primary' : 'bg-background text-muted-foreground border-border hover:bg-secondary'}`}
+            >
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: `var(--color-${t.color}-500, var(--primary))` }}></span>
+              {t.name}
+            </button>
+          ))}
+        </div>
       )}
 
       {loading ? (
@@ -257,7 +339,7 @@ export function Projects() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map(p => (
+          {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map(p => (
             <div key={p.id} className={`glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-300 ${p.ignored ? 'opacity-50 grayscale' : 'hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5'}`}>
               
               <div className="flex items-start justify-between">
@@ -329,13 +411,22 @@ export function Projects() {
                 >
                   {p.ignored ? 'Activer' : 'Ignorer'}
                 </button>
-                <button 
-                  onClick={() => handleDelete(p.id)}
-                  className="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"
-                  title="Supprimer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => handleEdit(p)}
+                    className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"
+                    title="Modifier"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(p.id)}
+                    className="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
             </div>

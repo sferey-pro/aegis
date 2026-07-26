@@ -10,6 +10,7 @@ import { getAllSettings, setAllSettings } from "./db/settings";
 import { upsertAnnotation, getAllAnnotations } from "./db/annotations";
 import { addConsoleClient, removeConsoleClient } from "./lib/console";
 import { createSnapshot, restoreSnapshot } from "./db/backup";
+import { listTags, createTag, deleteTag } from "./db/tags";
 
 // Ensure DB is initialized before starting
 getDb();
@@ -216,6 +217,28 @@ const server = serve({
       async PUT(req) {
         const body = await req.json();
         setAllSettings(body);
+        return Response.json({ success: true });
+      }
+    },
+
+    "/api/tags": {
+      async GET() {
+        return Response.json(listTags());
+      },
+      async POST(req) {
+        const body = await req.json();
+        try {
+          const tag = createTag(body.name, body.color);
+          return Response.json(tag);
+        } catch (e: any) {
+          return Response.json({ error: e.message }, { status: 400 });
+        }
+      }
+    },
+    
+    "/api/tags/:id": {
+      async DELETE(req) {
+        deleteTag(parseInt(req.params.id));
         return Response.json({ success: true });
       }
     },

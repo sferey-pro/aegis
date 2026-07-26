@@ -115,31 +115,39 @@ const server = serve({
 
     "/api/tickets": {
       async POST(req) {
-        const { cve } = await req.json();
+        const { projectId, packageName } = await req.json();
         const groups = buildCveGroups();
-        const group = groups.find(g => g.cve === cve);
         
-        if (!group) return Response.json({ error: "Non trouvé" }, { status: 404 });
-
-        const title = `[Aegis] Remédiation ${group.ref} - ${group.occurrences[0]?.package || 'Unknown'}`;
+        const occurrences = [];
+        for (const g of groups) {
+          for (const occ of g.occurrences) {
+            if (occ.projectId === projectId && occ.package === packageName) {
+              occurrences.push({ cve: g.cve, ref: g.ref, worst: g.worst, ...occ });
+            }
+          }
+        }
+        
+        if (occurrences.length === 0) return Response.json({ error: "Non trouvé" }, { status: 404 });
+        
+        const projectName = occurrences[0].projectName;
+        const title = `[Aegis] Remédiation ${packageName} - ${projectName}`;
         
         let md = `# ${title}\n\n`;
-        md += `**Sévérité:** ${group.worst.toUpperCase()}\n`;
-        md += `**Description:** ${group.occurrences[0]?.title || 'Aucune description'}\n`;
-        if (group.occurrences[0]?.link) {
-          md += `**Lien:** ${group.occurrences[0].link}\n`;
+        md += `**Projet:** ${projectName} (${occurrences[0].tool})\n`;
+        md += `**Package:** \`${packageName}\`\n\n`;
+        md += `## Vulnérabilités (${occurrences.length})\n\n`;
+        
+        for (const occ of occurrences) {
+          md += `### ${occ.ref} - ${occ.severity.toUpperCase()}\n`;
+          md += `**Description:** ${occ.title || 'Aucune description'}\n`;
+          md += `**Version affectée:** \`${occ.versionRange || 'N/A'}\`\n`;
+          md += `**Correction disponible:** \`${occ.fixedIn || 'Aucune (mise à jour majeure requise)'}\`\n`;
+          if (occ.link) md += `**Lien:** ${occ.link}\n`;
+          md += `\n`;
         }
         
-        md += `\n## Projets affectés\n\n`;
-        for (const occ of group.occurrences) {
-          md += `- **${occ.projectName}** (${occ.tool})\n`;
-          md += `  - Package: \`${occ.package}\`\n`;
-          md += `  - Version affectée: \`${occ.versionRange || 'N/A'}\`\n`;
-          md += `  - Correction disponible: \`${occ.fixedIn || 'Aucune (mise à jour majeure requise)'}\`\n`;
-        }
-        
-        md += `\n## Baseline & Remédiation\n`;
-        md += `> **Rappel de sécurité :** Effectuez la mise à jour sans casser le lockfile. Utilisez les commandes d'audit natives (ex: \`npm audit fix\`) pour isoler les changements.\n`;
+        md += `## Recommandation / Raison du risque\n\n`;
+        md += `> À compléter par le référent sécurité...\n`;
 
         return Response.json({ markdown: md });
       }

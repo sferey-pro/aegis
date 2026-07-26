@@ -19,6 +19,8 @@ const SEVERITY_ICONS: Record<string, React.ReactNode> = {
   unknown: <HelpCircle className="w-5 h-5 text-gray-400" />
 };
 
+const SEV_ORDER: Record<string, number> = { critical: 4, high: 3, moderate: 2, low: 1, info: 0, unknown: -1 };
+
 export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { projectId?: number | null, onClearProject?: () => void, cveFilter?: string | null, onClearCve?: () => void }) {
   const [cves, setCves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,9 +43,52 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
     fetchCves();
   }, []);
 
-  const toggleExpand = (cve: string) => {
-    setExpanded(prev => ({ ...prev, [cve]: !prev[cve] }));
+  const toggleExpand = (key: string) => {
+    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
   };
+
+  const packageGroups = React.useMemo(() => {
+    const map = new Map<string, any>();
+    cves.forEach((cveGroup: any) => {
+      if (cveFilter && cveGroup.cve !== cveFilter) return;
+
+      cveGroup.occurrences.forEach((occ: any) => {
+        if (projectId && occ.projectId !== projectId) return;
+        
+        const key = `${occ.projectId}::${occ.package}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            key,
+            projectId: occ.projectId,
+            projectName: occ.projectName,
+            package: occ.package,
+            tool: occ.tool,
+            cves: [],
+            worstSeverity: occ.severity,
+            pendingCount: 0
+          });
+        }
+        const g = map.get(key);
+        if (SEV_ORDER[occ.severity] > SEV_ORDER[g.worstSeverity]) {
+          g.worstSeverity = occ.severity;
+        }
+        if (occ.status === 'pending') g.pendingCount++;
+        
+        g.cves.push({
+          cve: cveGroup.cve,
+          ref: cveGroup.ref,
+          title: occ.title || cveGroup.title,
+          severity: occ.severity,
+          versionRange: occ.versionRange,
+          fixedIn: occ.fixedIn,
+          link: occ.link,
+          status: occ.status,
+          note: occ.note
+        });
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => b.projectName.localeCompare(a.projectName));
+  }, [cves, projectId, cveFilter]);
 
   const updateStatus = async (cve: string, projectId: number, newStatus: string) => {
     try {
@@ -58,13 +103,13 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
     }
   };
 
-  const createTicket = async (e: React.MouseEvent, cve: string) => {
-    e.stopPropagation(); // Eviter le toggleExpand
+  const createTicket = async (e: React.MouseEvent, projectId: number, packageName: string) => {
+    e.stopPropagation();
     try {
       const res = await fetch('/api/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cve })
+        body: JSON.stringify({ projectId, packageName })
       });
       const data = await res.json();
       setTicketModal({ isOpen: true, md: data.markdown, copied: false });
@@ -107,7 +152,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
               </span>
             )}
           </h2>
-          <p className="text-muted-foreground mt-1">Gérez le statut des CVEs remontées par l'audit.</p>
+          <p className="text-muted-foreground mt-1">Regroupé par Package et par Projet. Créez facilement vos tickets Jira.</p>
         </div>
       </div>
 
@@ -115,7 +160,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         <div className="flex justify-center p-12">
           <RefreshCw className="w-8 h-8 text-primary animate-spin" />
         </div>
-      ) : cves.length === 0 ? (
+      ) : packageGroups.length === 0 ? (
         <div className="glass-panel p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
           <Shield className="w-16 h-16 text-green-500 opacity-80" />
           <div>
@@ -125,76 +170,72 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {cves.filter((group) => !cveFilter || group.cve === cveFilter).map((group) => {
-            const projectOccurrences = projectId 
-              ? group.occurrences.filter((o: any) => o.projectId === projectId)
-              : group.occurrences;
-              
-            if (projectOccurrences.length === 0) return null;
-
-            const isExpanded = expanded[group.cve];
-            const pendingCount = projectOccurrences.filter((o: any) => o.status === 'pending').length;
+          {packageGroups.map((group) => {
+            const isExpanded = expanded[group.key];
             
             return (
-              <div key={group.cve} className={`glass-panel rounded-xl overflow-hidden border transition-colors ${pendingCount > 0 ? 'border-primary/30' : 'border-border/50'}`}>
+              <div key={group.key} className={`glass-panel rounded-xl overflow-hidden border transition-colors ${group.pendingCount > 0 ? 'border-primary/30' : 'border-border/50'}`}>
                 
-                {/* Header (Clickable to expand) */}
+                {/* Header = Package + Project */}
                 <div 
-                  className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
-                  onClick={() => toggleExpand(group.cve)}
+                  className="p-5 cursor-pointer hover:bg-white/5 transition-colors flex items-center justify-between gap-4"
+                  onClick={() => toggleExpand(group.key)}
                 >
                   <div className="flex items-center gap-4">
-                    {SEVERITY_ICONS[group.worst]}
+                    <div className={`p-2 rounded-lg border ${SEVERITY_COLORS[group.worstSeverity]}`}>
+                      {SEVERITY_ICONS[group.worstSeverity]}
+                    </div>
                     <div>
-                      <h3 className="font-bold text-lg flex items-center gap-2">
-                        {group.ref || "Sans Référence"}
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${SEVERITY_COLORS[group.worst]}`}>
-                          {group.worst.toUpperCase()}
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-bold text-lg text-foreground font-mono">{group.package}</h3>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase border ${SEVERITY_COLORS[group.worstSeverity]}`}>
+                          {group.worstSeverity}
                         </span>
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1 max-w-2xl truncate">
-                        {group.occurrences[0]?.title}
+                        {group.pendingCount > 0 && (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30 flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> {group.pendingCount} en attente
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                        Projet : <span className="font-semibold text-foreground">{group.projectName}</span>
+                        <span className="px-2 py-0.5 text-[10px] rounded bg-secondary uppercase">{group.tool}</span>
                       </p>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{projectOccurrences.length} occurrence(s)</p>
-                      {pendingCount > 0 && <p className="text-xs text-primary font-bold">{pendingCount} à trier</p>}
-                    </div>
-                    
-                    <button 
-                      onClick={(e) => createTicket(e, group.cve)}
-                      className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors border border-blue-500/20 text-xs font-medium"
-                      title="Générer un ticket Jira pour cette faille"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      Jira
-                    </button>
 
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={(e) => createTicket(e, group.projectId, group.package)}
+                      className="px-3 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors flex items-center gap-2 text-sm font-semibold"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Ticket Jira
+                    </button>
                     {isExpanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
                   </div>
                 </div>
 
-                {/* Expanded Details */}
+                {/* Expanded Details = CVEs */}
                 {isExpanded && (
                   <div className="p-5 border-t border-border/50 bg-black/20">
-                    <h4 className="font-semibold text-sm mb-3">Occurrences dans vos projets :</h4>
+                    <h4 className="font-semibold text-sm mb-3">CVEs détectées sur ce package :</h4>
                     <div className="flex flex-col gap-2">
-                      {projectOccurrences.map((occ: any, i: number) => (
+                      {group.cves.map((cveObj: any, i: number) => (
                       <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg bg-card/40 border border-border/50">
                         
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1 flex-1">
                           <h4 className="font-bold text-foreground flex items-center gap-2">
-                            {occ.projectName}
-                            <span className="text-xs text-muted-foreground px-2 py-0.5 rounded bg-secondary uppercase">{occ.tool}</span>
+                            {cveObj.ref}
+                            <span className={`px-2 py-0.5 rounded text-xs uppercase border ${SEVERITY_COLORS[cveObj.severity]}`}>
+                              {cveObj.severity}
+                            </span>
                           </h4>
-                          <p className="text-sm text-muted-foreground font-mono">
-                            {occ.package} {occ.versionRange && <span>({occ.versionRange})</span>}
+                          <p className="text-sm text-muted-foreground">
+                            {cveObj.title} {cveObj.versionRange && <span className="font-mono">({cveObj.versionRange})</span>}
                           </p>
-                          {occ.link && (
-                            <a href={occ.link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline flex items-center gap-1 mt-1">
+                          {cveObj.link && (
+                            <a href={cveObj.link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline flex items-center gap-1 mt-1">
                               <LinkIcon className="w-3 h-3" /> Lire l'avis de sécurité
                             </a>
                           )}
@@ -203,28 +244,28 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                         <div className="flex flex-col gap-2 md:items-end">
                           <div className="flex gap-2">
                             <button 
-                              onClick={() => updateStatus(group.cve, occ.projectId, 'pending')}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${occ.status === 'pending' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/50'}`}
+                              onClick={() => updateStatus(cveObj.cve, group.projectId, 'pending')}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${cveObj.status === 'pending' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/50'}`}
                             >
                               À traiter
                             </button>
                             <button 
-                              onClick={() => updateStatus(group.cve, occ.projectId, 'confirmed')}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${occ.status === 'confirmed' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'}`}
+                              onClick={() => updateStatus(cveObj.cve, group.projectId, 'confirmed')}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'confirmed' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'}`}
                             >
                               <Check className="w-3 h-3" /> Confirmé
                             </button>
                             <button 
-                              onClick={() => updateStatus(group.cve, occ.projectId, 'ignored')}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${occ.status === 'ignored' ? 'bg-gray-500/20 text-gray-300 border border-gray-500/30' : 'text-muted-foreground hover:bg-gray-500/10 hover:text-gray-300'}`}
+                              onClick={() => updateStatus(cveObj.cve, group.projectId, 'ignored')}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'ignored' ? 'bg-gray-500/20 text-gray-300 border border-gray-500/30' : 'text-muted-foreground hover:bg-gray-500/10 hover:text-gray-300'}`}
                             >
                               <X className="w-3 h-3" /> Ignoré (Faux positif)
                             </button>
                           </div>
                           
-                          {occ.fixedIn && (
+                          {cveObj.fixedIn && (
                             <p className="text-xs text-green-400 mt-1">
-                              Correction dispo : {occ.fixedIn}
+                              Correction dispo : {cveObj.fixedIn}
                             </p>
                           )}
                         </div>

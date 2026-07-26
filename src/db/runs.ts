@@ -106,20 +106,39 @@ export function deleteRun(id: number): void {
 export function getGlobalHistory(days = 30) {
   const db = getDb();
   const projects = db.query(`SELECT id FROM projects WHERE ignored = 0`).all() as {id:number}[];
-  
+  const projectIds = projects.map(p => p.id).join(',');
+
+  const isHourly = days === 1;
   const today = new Date();
-  const dates: string[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    dates.push(`${y}-${m}-${day}`);
+  const buckets: string[] = [];
+  
+  if (isHourly) {
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(today);
+      d.setHours(d.getHours() - i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const h = String(d.getHours()).padStart(2, '0');
+      buckets.push(`${y}-${m}-${day} ${h}`);
+    }
+  } else {
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      buckets.push(`${y}-${m}-${day}`);
+    }
   }
 
-  const projectIds = projects.map(p => p.id).join(',');
-  if (!projectIds) return dates.map(date => ({ date, critical:0, high:0, moderate:0, low:0 }));
+  if (!projectIds) {
+    return buckets.map(b => ({ 
+      date: isHourly ? b.split(' ')[1]+'h' : b.split('-')[2]+'/'+b.split('-')[1], 
+      rawDate: b, critical:0, high:0, moderate:0, low:0 
+    }));
+  }
 
   const rows = db.query(`
     SELECT project_id, ran_at, counts, status
@@ -129,28 +148,39 @@ export function getGlobalHistory(days = 30) {
   `).all() as any[];
 
   const latestCounts = new Map<number, RunCounts>();
-  const rowsByDay = new Map<string, any[]>();
+  const rowsByBucket = new Map<string, any[]>();
   
   for (const r of rows) {
-    const day = r.ran_at.split('T')[0].split(' ')[0];
-    if (!rowsByDay.has(day)) rowsByDay.set(day, []);
-    rowsByDay.get(day)!.push(r);
+    const runDate = new Date(r.ran_at.replace(' ', 'T') + 'Z');
+    if (isNaN(runDate.getTime())) continue;
+    
+    const y = runDate.getFullYear();
+    const m = String(runDate.getMonth() + 1).padStart(2, '0');
+    const day = String(runDate.getDate()).padStart(2, '0');
+    const h = String(runDate.getHours()).padStart(2, '0');
+    
+    const bucket = isHourly ? `${y}-${m}-${day} ${h}` : `${y}-${m}-${day}`;
+    if (!rowsByBucket.has(bucket)) rowsByBucket.set(bucket, []);
+    rowsByBucket.get(bucket)!.push(r);
   }
 
-  for (const [day, dayRows] of rowsByDay.entries()) {
-    if (day < dates[0]) {
-      for (const r of dayRows) {
-        if (r.status === 'ok' || r.status === 'vulnerable') {
-           latestCounts.set(r.project_id, typeof r.counts === 'string' ? JSON.parse(r.counts) : r.counts);
-        }
+  const firstBucketDateStr = isHourly ? buckets[0] + ':00:00' : buckets[0] + ' 00:00:00';
+  const firstBucketDate = new Date(firstBucketDateStr.replace(' ', 'T'));
+
+  for (const r of rows) {
+    const runDate = new Date(r.ran_at.replace(' ', 'T') + 'Z');
+    if (isNaN(runDate.getTime())) continue;
+    if (runDate < firstBucketDate) {
+      if (r.status === 'ok' || r.status === 'vulnerable') {
+         latestCounts.set(r.project_id, typeof r.counts === 'string' ? JSON.parse(r.counts) : r.counts);
       }
     }
   }
 
   const result = [];
-  for (const date of dates) {
-    const dayRows = rowsByDay.get(date) || [];
-    for (const r of dayRows) {
+  for (const b of buckets) {
+    const bRows = rowsByBucket.get(b) || [];
+    for (const r of bRows) {
         if (r.status === 'ok' || r.status === 'vulnerable') {
            latestCounts.set(r.project_id, typeof r.counts === 'string' ? JSON.parse(r.counts) : r.counts);
         }
@@ -164,9 +194,8 @@ export function getGlobalHistory(days = 30) {
       low += counts.low || 0;
     }
     
-    // Format date string from YYYY-MM-DD to DD/MM
-    const [, month, day] = date.split('-');
-    result.push({ date: `${day}/${month}`, rawDate: date, critical, high, moderate, low });
+    const label = isHourly ? b.split(' ')[1] + 'h' : b.split('-')[2] + '/' + b.split('-')[1];
+    result.push({ date: label, rawDate: b, critical, high, moderate, low });
   }
 
   return result;

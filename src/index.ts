@@ -4,7 +4,7 @@ import { listProjects, createProject, updateProject, deleteProject } from "./db/
 import { buildCveGroups } from "./lib/aggregator";
 import { runAudit } from "./lib/audit";
 import { getGitInfo, gitFetch, gitPull } from "./lib/git";
-import { getLatestRun } from "./db/runs";
+import { getLatestRun, getGlobalHistory } from "./db/runs";
 import { getDb } from "./db";
 import { getAllSettings, setAllSettings } from "./db/settings";
 import { upsertAnnotation } from "./db/annotations";
@@ -60,6 +60,12 @@ const server = serve({
           criticalVulnerabilities: criticalCount,
           lastSync,
         });
+      }
+    },
+
+    "/api/history-global": {
+      async GET() {
+        return Response.json(getGlobalHistory(30));
       }
     },
 

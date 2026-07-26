@@ -102,3 +102,69 @@ export function deleteRun(id: number): void {
   const db = getDb();
   db.query(`DELETE FROM runs WHERE id = ?`).run(id);
 }
+
+export function getGlobalHistory(days = 30) {
+  const db = getDb();
+  const projects = db.query(`SELECT id FROM projects WHERE ignored = 0`).all() as {id:number}[];
+  
+  const today = new Date();
+  const dates: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
+  const projectIds = projects.map(p => p.id).join(',');
+  if (!projectIds) return dates.map(date => ({ date, critical:0, high:0, moderate:0, low:0 }));
+
+  const rows = db.query(`
+    SELECT project_id, ran_at, counts, status
+    FROM runs
+    WHERE project_id IN (${projectIds})
+    ORDER BY ran_at ASC
+  `).all() as any[];
+
+  const latestCounts = new Map<number, RunCounts>();
+  const rowsByDay = new Map<string, any[]>();
+  
+  for (const r of rows) {
+    const day = r.ran_at.split('T')[0];
+    if (!rowsByDay.has(day)) rowsByDay.set(day, []);
+    rowsByDay.get(day)!.push(r);
+  }
+
+  for (const [day, dayRows] of rowsByDay.entries()) {
+    if (day < dates[0]) {
+      for (const r of dayRows) {
+        if (r.status === 'ok' || r.status === 'vulnerable') {
+           latestCounts.set(r.project_id, typeof r.counts === 'string' ? JSON.parse(r.counts) : r.counts);
+        }
+      }
+    }
+  }
+
+  const result = [];
+  for (const date of dates) {
+    const dayRows = rowsByDay.get(date) || [];
+    for (const r of dayRows) {
+        if (r.status === 'ok' || r.status === 'vulnerable') {
+           latestCounts.set(r.project_id, typeof r.counts === 'string' ? JSON.parse(r.counts) : r.counts);
+        }
+    }
+    
+    let critical = 0, high = 0, moderate = 0, low = 0;
+    for (const counts of latestCounts.values()) {
+      critical += counts.critical || 0;
+      high += counts.high || 0;
+      moderate += counts.moderate || 0;
+      low += counts.low || 0;
+    }
+    
+    // Format date string from YYYY-MM-DD to DD/MM
+    const [, month, day] = date.split('-');
+    result.push({ date: `${day}/${month}`, rawDate: date, critical, high, moderate, low });
+  }
+
+  return result;
+}

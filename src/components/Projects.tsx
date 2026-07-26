@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
   const [projects, setProjects] = useState<any[]>([]);
@@ -347,6 +347,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map(p => {
             const hasCritical = p.lastRun?.counts?.critical > 0;
+            const hasNoCves = p.lastRun && Object.values(p.lastRun.counts).reduce((a: any, b: any) => a + b, 0) === 0;
             return (
             <div 
               key={p.id} 
@@ -362,8 +363,14 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
-                  <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : 'text-primary'}`} />
-                  <h3 className="font-bold text-lg leading-tight truncate max-w-[200px]" title={p.name}>{p.name}</h3>
+                  <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : (hasNoCves ? 'text-green-500' : 'text-primary')}`} />
+                  <h3 className="font-bold text-lg leading-tight truncate max-w-[140px]" title={p.name}>{p.name}</h3>
+                  {hasNoCves && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 border border-green-500/30 flex items-center" title="Aucune vulnérabilité détectée">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Sain
+                    </span>
+                  )}
                 </div>
                 
                 <span className="text-xs font-semibold px-2 py-1 rounded bg-secondary text-secondary-foreground border border-border uppercase">

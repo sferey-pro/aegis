@@ -17,7 +17,7 @@ interface Stats {
 }
 
 export function App() {
-  const [currentTab, setCurrentTab] = useState<'overview' | 'projects' | 'triage' | 'reports' | 'settings'>('overview');
+  const [currentTab, setCurrentTab] = useState<'overview' | 'projects' | 'triage' | 'reports' | 'prompts' | 'settings'>('overview');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [auditing, setAuditing] = useState(false);
@@ -176,6 +176,12 @@ export function App() {
           >
             Rapports
           </button>
+          <button 
+            onClick={() => setCurrentTab('prompts')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'prompts' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+          >
+            Prompts
+          </button>
           <button onClick={() => setCurrentTab('settings')} className={`${currentTab === 'settings' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap ml-4`}>Paramètres</button>
         </nav>
         
@@ -306,6 +312,7 @@ export function App() {
       {currentTab === 'projects' && <Projects onViewTriage={(id) => { setTriageProjectId(id); setCurrentTab('triage'); }} />}
       {currentTab === 'triage' && <Triage projectId={triageProjectId} cveFilter={triageCveFilter} onClearProject={() => setTriageProjectId(null)} onClearCve={() => setTriageCveFilter(null)} />}
       {currentTab === 'reports' && <Reports />}
+      {currentTab === 'prompts' && <PromptsLibrary />}
       {currentTab === 'settings' && <Settings />}
 
       {/* Report Modal */}

@@ -1,0 +1,318 @@
+import React, { useState, useEffect } from 'react';
+import { Terminal, Plus, Trash2, Edit2, Play, Code, Tag, RefreshCw } from 'lucide-react';
+
+export function PromptsLibrary() {
+  const [prompts, setPrompts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formData, setFormData] = useState({ title: '', body: '', tags: '' });
+  
+  // To launch a prompt, we need to know on which project
+  const [projects, setProjects] = useState<any[]>([]);
+  const [launchModal, setLaunchModal] = useState<{ isOpen: boolean, prompt: any, projectId: number | '' }>({ isOpen: false, prompt: null, projectId: '' });
+  const [launching, setLaunching] = useState(false);
+
+  useEffect(() => {
+    fetchPrompts();
+    fetchProjects();
+  }, []);
+
+  const fetchPrompts = async () => {
+    try {
+      const res = await fetch('/api/prompts');
+      const data = await res.json();
+      setPrompts(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      const data = await res.json();
+      setProjects(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        title: formData.title,
+        body: formData.body,
+        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean)
+      };
+
+      if (editingId) {
+        await fetch(`/api/prompts/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await fetch('/api/prompts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      resetForm();
+      fetchPrompts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleEdit = (prompt: any) => {
+    setFormData({
+      title: prompt.title,
+      body: prompt.body,
+      tags: (prompt.tags || []).join(', ')
+    });
+    setEditingId(prompt.id);
+    setIsAdding(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Supprimer ce prompt ?')) return;
+    try {
+      await fetch(`/api/prompts/${id}`, { method: 'DELETE' });
+      fetchPrompts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const resetForm = () => {
+    setIsAdding(false);
+    setEditingId(null);
+    setFormData({ title: '', body: '', tags: '' });
+  };
+
+  const openLaunchModal = (prompt: any) => {
+    setLaunchModal({ isOpen: true, prompt, projectId: '' });
+  };
+
+  const handleLaunch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!launchModal.projectId) return;
+    setLaunching(true);
+    try {
+      await fetch(`/api/projects/${launchModal.projectId}/run-cmd`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cmd: launchModal.prompt.body })
+      });
+      // The result is broadcasted to the live console
+      setLaunchModal({ isOpen: false, prompt: null, projectId: '' });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLaunching(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 w-full max-w-6xl mx-auto mt-8 z-10 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-3xl font-bold font-heading flex items-center gap-3">
+            Bibliothèque de Prompts
+          </h2>
+          <p className="text-muted-foreground mt-1">Créez et lancez des commandes personnalisées sur vos projets.</p>
+        </div>
+        <button 
+          onClick={() => { resetForm(); setIsAdding(true); }}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+        >
+          <Plus className="w-4 h-4" />
+          Nouveau Prompt
+        </button>
+      </div>
+
+      {isAdding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={resetForm}>
+          <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300">
+            <h3 className="text-xl font-bold mb-2 text-primary">{editingId ? "Modifier le Prompt" : "Nouveau Prompt"}</h3>
+            
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Titre</label>
+              <input 
+                required
+                type="text" 
+                value={formData.title}
+                onChange={e => setFormData({...formData, title: e.target.value})}
+                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                placeholder="Ex: Nettoyage du cache NPM"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Commande Shell (Body)</label>
+              <textarea 
+                required
+                value={formData.body}
+                onChange={e => setFormData({...formData, body: e.target.value})}
+                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors min-h-[100px] font-mono text-sm"
+                placeholder="Ex: npm cache clean --force"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Tags (séparés par des virgules)</label>
+              <input 
+                type="text" 
+                value={formData.tags}
+                onChange={e => setFormData({...formData, tags: e.target.value})}
+                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+                placeholder="Ex: utilitaire, npm, fix"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 mt-4">
+              <button 
+                type="button" 
+                onClick={resetForm}
+                className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              >
+                Annuler
+              </button>
+              <button 
+                type="submit"
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                {editingId ? "Enregistrer" : "Créer le prompt"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {launchModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200" onClick={() => setLaunchModal({ isOpen: false, prompt: null, projectId: '' })}>
+          <form onSubmit={handleLaunch} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-lg p-6 rounded-2xl flex flex-col gap-4 border-blue-500/30 animate-in zoom-in-95 duration-300">
+            <h3 className="text-xl font-bold text-blue-500 flex items-center gap-2">
+              <Play className="w-5 h-5" /> Lancer un prompt
+            </h3>
+            
+            <div className="bg-black/20 p-3 rounded-lg border border-border/50 text-sm">
+              <span className="font-semibold">{launchModal.prompt?.title}</span>
+              <pre className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                $ {launchModal.prompt?.body}
+              </pre>
+            </div>
+
+            <div className="flex flex-col gap-1 mt-2">
+              <label className="text-sm font-medium">Sélectionnez le projet cible</label>
+              <select 
+                required
+                value={launchModal.projectId}
+                onChange={e => setLaunchModal({...launchModal, projectId: Number(e.target.value)})}
+                className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-blue-500 transition-colors"
+              >
+                <option value="" disabled>-- Choisir un projet --</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.path})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-4">
+              <button 
+                type="button" 
+                onClick={() => setLaunchModal({ isOpen: false, prompt: null, projectId: '' })}
+                className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              >
+                Annuler
+              </button>
+              <button 
+                type="submit"
+                disabled={launching}
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                {launching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                Lancer
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center p-12">
+          <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+        </div>
+      ) : prompts.length === 0 ? (
+        <div className="glass-panel p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
+          <Terminal className="w-16 h-16 text-muted-foreground opacity-50" />
+          <div>
+            <h3 className="text-xl font-bold">Aucun prompt</h3>
+            <p className="text-muted-foreground">Créez votre première commande pour l'utiliser sur vos projets.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {prompts.map(p => (
+            <div key={p.id} className="glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2">
+                  <Code className="w-5 h-5 text-primary" />
+                  <h3 className="font-bold text-lg leading-tight truncate max-w-[200px]" title={p.title}>{p.title}</h3>
+                </div>
+              </div>
+              
+              <div className="text-sm mt-2 font-mono bg-black/20 p-2 rounded border border-border/50 text-muted-foreground h-[60px] overflow-hidden relative">
+                {p.body}
+                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#111] to-transparent"></div>
+              </div>
+
+              {p.tags && p.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {p.tags.map((tag: string, i: number) => (
+                    <span key={i} className="px-2 py-0.5 rounded flex items-center gap-1 bg-secondary text-secondary-foreground text-[10px] font-bold uppercase tracking-wider border border-border">
+                      <Tag className="w-3 h-3" />
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
+                <button 
+                  onClick={() => openLaunchModal(p)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  Exécuter
+                </button>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => handleEdit(p)}
+                    className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"
+                    title="Modifier"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(p.id)}
+                    className="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

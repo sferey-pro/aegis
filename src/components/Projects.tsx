@@ -127,6 +127,13 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
       resetForm();
       await fetchProjects();
       
+      if (createdProjectId && !payload.is_remote) {
+        // Déclencher un git fetch en arrière-plan pour vérifier les mises à jour (behind/ahead)
+        fetch(`/api/projects/${createdProjectId}/git-fetch`, { method: 'POST' })
+          .then(() => fetchProjects())
+          .catch(console.error);
+      }
+
       if (shouldAudit && createdProjectId) {
         fetch(`/api/projects/${createdProjectId}/audit`, { method: 'POST' }).catch(console.error);
       }

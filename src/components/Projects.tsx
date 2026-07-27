@@ -193,6 +193,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
   };
 
   const [isFetchingAll, setIsFetchingAll] = useState(false);
+  const [fetchProgress, setFetchProgress] = useState<{name: string, current: number, total: number} | null>(null);
 
   const handleForceAudit = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -208,14 +209,18 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
     setIsFetchingAll(true);
     try {
       const activeProjects = projects.filter(p => !p.ignored && p.git?.isRepo);
+      let current = 1;
       for (const p of activeProjects) {
+        setFetchProgress({ name: p.name, current, total: activeProjects.length });
         await fetch(`/api/projects/${p.id}/git-fetch`, { method: 'POST' });
+        current++;
       }
       await fetchProjects();
     } catch (err) {
       console.error(err);
     } finally {
       setIsFetchingAll(false);
+      setFetchProgress(null);
     }
   };
 

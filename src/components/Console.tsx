@@ -237,28 +237,28 @@ export function Console() {
                   </div>
                 )}
                 
-                {log.status === "error" && log.errorText && !debugMode && (
+                {(log.status === "error" && log.errorText && !debugMode) ? (
                   <div className="text-xs text-red-400 mt-1 pl-2 border-l-2 border-red-500/50 bg-red-500/10 p-2 rounded break-all">
                     {log.errorText}
                   </div>
-                )}
+                ) : null}
                 
-                {debugMode && log.status !== "running" && (
+                {(debugMode && log.status !== "running") ? (
                   <div className="mt-1 flex flex-col gap-1 w-full max-w-full overflow-hidden">
-                    {log.outText && (
+                    {log.outText ? (
                       <div className="text-[10px] text-green-300/80 bg-green-500/10 border-l-2 border-green-500/30 p-2 rounded overflow-x-auto whitespace-pre-wrap break-words w-full">
                         <span className="font-bold block mb-1">STDOUT :</span>
                         {log.outText}
                       </div>
-                    )}
-                    {log.errorText && (
+                    ) : null}
+                    {log.errorText ? (
                       <div className="text-[10px] text-red-300/80 bg-red-500/10 border-l-2 border-red-500/30 p-2 rounded overflow-x-auto whitespace-pre-wrap break-words w-full">
                         <span className="font-bold block mb-1">STDERR :</span>
                         {log.errorText}
                       </div>
-                    )}
+                    ) : null}
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           ))

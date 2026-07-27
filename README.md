@@ -53,6 +53,22 @@ L'application sera accessible sur `http://localhost:3000` (ou le port configuré
 
 ---
 
+## 📡 Intégration CI (Ingest API)
+
+Aegis permet de stocker les rapports de vulnérabilités générés par vos pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) pour les centraliser sur le dashboard. 
+
+Pour cela, envoyez la sortie standard (`stdout`) de votre outil d'audit (`npm audit --json`, etc.) à l'API d'ingestion en spécifiant le paramètre `sha` pour lier le rapport à un commit précis.
+
+**Exemple d'appel cURL :**
+```bash
+curl -X POST "http://aegis-server/api/ingest/mon-projet-slug?sha=VOTRE_HASH_DE_COMMIT" \
+     -H "Content-Type: application/json" \
+     --data-binary @rapport-audit.json
+```
+*Note : Le paramètre `sha` est primordial pour que les développeurs retrouvent la révision exacte du code liée aux vulnérabilités identifiées.*
+
+---
+
 ## 🔐 Philosophie
 
 Aegis a été créé pour transformer l'analyse des dépendances — souvent vue comme une corvée génératrice de bruit — en une expérience visuelle, centralisée et engageante. Notre but : réduire la charge cognitive des ingénieurs sécurité.

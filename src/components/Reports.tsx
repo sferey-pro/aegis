@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Calendar, Shield, Activity, Trash2, RefreshCw, ChevronLeft, ChevronRight, Eye, X, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
+import { buildCvssTooltip } from '../lib/cvss';
 
 export function Reports() {
   const [reports, setReports] = useState<any[]>([]);
@@ -286,7 +287,17 @@ export function Reports() {
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-mono px-2 py-1 bg-green-500/20 text-green-400 rounded">{v.projectName}</span>
                           <span className="font-bold">{v.package}</span>
-                          <span className="text-muted-foreground text-sm truncate max-w-[300px]">{v.title}</span>
+                          <span className="text-muted-foreground text-sm truncate max-w-[300px]">
+                            {v.title}
+                            {v.cvssVector && (
+                              <span 
+                                className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help"
+                                title={buildCvssTooltip(v.cvssVector)}
+                              >
+                                {v.cvssVector}
+                              </span>
+                            )}
+                          </span>
                         </div>
                         {v.cve && <span className="text-xs font-mono text-muted-foreground">{v.cve}</span>}
                       </div>
@@ -306,7 +317,17 @@ export function Reports() {
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-mono px-2 py-1 bg-red-500/20 text-red-400 rounded">{v.projectName}</span>
                           <span className="font-bold">{v.package}</span>
-                          <span className="text-muted-foreground text-sm truncate max-w-[300px]">{v.title}</span>
+                          <span className="text-muted-foreground text-sm truncate max-w-[300px]">
+                            {v.title}
+                            {v.cvssVector && (
+                              <span 
+                                className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help"
+                                title={buildCvssTooltip(v.cvssVector)}
+                              >
+                                {v.cvssVector}
+                              </span>
+                            )}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 mt-2 md:mt-0">
                           {v.severity === 'critical' && <span className="text-[10px] uppercase font-bold text-red-500 px-2 py-0.5 bg-red-500/10 rounded">Critique</span>}

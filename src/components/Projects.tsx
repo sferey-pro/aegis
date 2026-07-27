@@ -675,11 +675,11 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
 
       {isFetchingAll && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center flex-col gap-6 bg-background/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-secondary/20 blur-[100px] rounded-full pointer-events-none"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-cyan-500/20 blur-[100px] rounded-full pointer-events-none"></div>
           
-          <div className="relative flex items-center justify-center w-24 h-24 rounded-full bg-secondary/10 border border-secondary/20 shadow-2xl z-10">
-            <div className="absolute inset-0 border-[3px] border-secondary/20 border-t-secondary rounded-full animate-spin"></div>
-            <CloudDownload className="w-10 h-10 text-secondary" />
+          <div className="relative flex items-center justify-center w-28 h-28 rounded-full bg-cyan-500/10 neon-glow shadow-2xl shadow-cyan-500/20 z-10">
+            <div className="absolute inset-0 border-[4px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin"></div>
+            <CloudDownload className="w-12 h-12 text-cyan-400" />
           </div>
           
           <div className="z-10 flex flex-col items-center gap-2">

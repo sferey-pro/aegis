@@ -608,7 +608,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 )}
               </div>
 
-              {p.git?.isRepo && (
+              {p.git?.isRepo ? (
                 <div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Branche</span>
@@ -647,6 +647,18 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                       )}
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">
+                  <span className="text-muted-foreground italic">Dépôt Non-Git</span>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); fetchProjects(); }}
+                    className="p-1 hover:bg-white/10 text-muted-foreground hover:text-white rounded transition-colors flex items-center gap-1"
+                    title="Re-détecter le dépôt Git"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Détecter
+                  </button>
                 </div>
               )}
 
@@ -747,7 +759,16 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground italic">Non-Git</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground italic">Non-Git</span>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); fetchProjects(); }}
+                              className="p-1 text-muted-foreground hover:text-white transition-colors rounded hover:bg-white/10" 
+                              title="Re-détecter le dépôt Git"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                            </button>
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>

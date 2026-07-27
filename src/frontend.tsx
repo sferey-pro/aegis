@@ -9,11 +9,14 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { App } from "./App";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 const elem = document.getElementById("root")!;
 const app = (
   <StrictMode>
-    <App />
+    <TooltipProvider delayDuration={200}>
+      <App />
+    </TooltipProvider>
   </StrictMode>
 );
 

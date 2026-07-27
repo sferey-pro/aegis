@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2, Edit2, Globe } from 'lucide-react';
+import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2, Edit2, Globe, ChevronRight, ShieldAlert, Server } from 'lucide-react';
 import { buildCvssTooltip } from '../lib/cvss';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-500 border-red-500/20',
@@ -352,12 +353,16 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                           <p className="text-sm text-muted-foreground">
                             {cveObj.title} {cveObj.versionRange && <span className="font-mono">({cveObj.versionRange})</span>}
                             {cveObj.cvssVector && (
-                              <span 
-                                className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help"
-                                title={buildCvssTooltip(cveObj.cvssVector)}
-                              >
-                                {cveObj.cvssVector}
-                              </span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help">
+                                    {cveObj.cvssVector}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 text-gray-300 shadow-xl max-w-[400px]">
+                                  {buildCvssTooltip(cveObj.cvssVector)}
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                           </p>
                           {cveObj.link && (

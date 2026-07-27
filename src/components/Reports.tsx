@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Calendar, Shield, Activity, Trash2, RefreshCw, ChevronLeft, ChevronRight, Eye, X, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 import { buildCvssTooltip } from '../lib/cvss';
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 export function Reports() {
   const [reports, setReports] = useState<any[]>([]);
@@ -290,12 +291,16 @@ export function Reports() {
                           <span className="text-muted-foreground text-sm truncate max-w-[300px]">
                             {v.title}
                             {v.cvssVector && (
-                              <span 
-                                className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help"
-                                title={buildCvssTooltip(v.cvssVector)}
-                              >
-                                {v.cvssVector}
-                              </span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help">
+                                    {v.cvssVector}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 text-gray-300 shadow-xl max-w-[400px]">
+                                  {buildCvssTooltip(v.cvssVector)}
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                           </span>
                         </div>
@@ -320,12 +325,16 @@ export function Reports() {
                           <span className="text-muted-foreground text-sm truncate max-w-[300px]">
                             {v.title}
                             {v.cvssVector && (
-                              <span 
-                                className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help"
-                                title={buildCvssTooltip(v.cvssVector)}
-                              >
-                                {v.cvssVector}
-                              </span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help">
+                                    {v.cvssVector}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 text-gray-300 shadow-xl max-w-[400px]">
+                                  {buildCvssTooltip(v.cvssVector)}
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                           </span>
                         </div>

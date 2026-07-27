@@ -35,10 +35,10 @@ export function App() {
     try {
       let res;
       if (initial) {
-        // Au démarrage, on force un temps d'attente d'au moins 2s pour que l'animation soit fluide
+        // Au démarrage, on force un temps d'attente d'au moins 1s pour que l'animation soit fluide
         [res] = await Promise.all([
           fetch('/api/stats'),
-          new Promise(resolve => setTimeout(resolve, 2000))
+          new Promise(resolve => setTimeout(resolve, 1000))
         ]);
       } else {
         res = await fetch('/api/stats');

@@ -4,6 +4,7 @@ import { getGitInfo, expandPath } from "../git";
 import { getProjectById, type Project } from "../../db/projects";
 import { getLatestRun, addRun, type Run } from "../../db/runs";
 import { parseAuditOutput } from "../parsers";
+import type { Severity } from "../parsers/types";
 import { getDb } from "../../db";
 import { emitConsoleStart, emitConsoleEnd, projectContext } from "../console";
 
@@ -142,8 +143,19 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
         cve: v.cve,
         link: v.link
       });
+      
+      let firstSeenAt = new Date().toISOString();
+      if (lastRun && lastRun.status !== "error") {
+        const key = `${v.package}::${v.cve || v.title}`;
+        const oldVuln = lastRun.vulnerabilities.find((ov: any) => `${ov.package}::${ov.cve || ov.title}` === key);
+        if (oldVuln && oldVuln.firstSeenAt) {
+          firstSeenAt = oldVuln.firstSeenAt;
+        }
+      }
+
       return {
         ...v,
+        firstSeenAt,
         fixedIn: res.fixedIn,
         // Override severity if github gave us a valid one, else keep the original
         severity: res.severity !== "unknown" ? res.severity : v.severity,
@@ -237,8 +249,20 @@ export async function ingestAudit(projectId: number, stdout: string, commitSha: 
       cve: v.cve,
       link: v.link
     });
+
+    let firstSeenAt = new Date().toISOString();
+    const lastRun = getLatestRun(projectId);
+    if (lastRun && lastRun.status !== "error") {
+      const key = `${v.package}::${v.cve || v.title}`;
+      const oldVuln = lastRun.vulnerabilities.find((ov: any) => `${ov.package}::${ov.cve || ov.title}` === key);
+      if (oldVuln && oldVuln.firstSeenAt) {
+        firstSeenAt = oldVuln.firstSeenAt;
+      }
+    }
+
     return {
       ...v,
+      firstSeenAt,
       fixedIn: res.fixedIn,
       severity: res.severity !== "unknown" ? res.severity : v.severity,
       link: res.html_url || v.link,

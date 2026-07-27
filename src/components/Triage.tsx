@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2, Edit2, Globe, ChevronRight, ShieldAlert, Server } from 'lucide-react';
+import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2, Edit2, Globe, ChevronRight, ShieldAlert, Server, Clock } from 'lucide-react';
 import { buildCvssTooltip } from '../lib/cvss';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
@@ -93,10 +93,14 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
             cves: [],
             worstSeverity: occ.severity,
             pendingCount: 0,
-            hasConfirmed: false
+            hasConfirmed: false,
+            maxAgeInDays: 0
           });
         }
-        const g = map.get(key);
+        const g = map.get(key)!;
+        if (occ.ageInDays && occ.ageInDays > g.maxAgeInDays) {
+          g.maxAgeInDays = occ.ageInDays;
+        }
         if (SEV_ORDER[occ.severity] > SEV_ORDER[g.worstSeverity]) {
           g.worstSeverity = occ.severity;
         }
@@ -113,7 +117,9 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
           link: occ.link,
           status: occ.status,
           note: occ.note,
-          cvssVector: occ.cvssVector
+          cvssVector: occ.cvssVector,
+          ageInDays: occ.ageInDays,
+          firstSeenAt: occ.firstSeenAt
         });
       });
     });
@@ -282,6 +288,15 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                             <RefreshCw className="w-3 h-3 animate-spin" /> {group.pendingCount} en attente
                           </span>
                         )}
+                        {group.maxAgeInDays > 0 && (
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 border ${
+                            (group.worstSeverity === 'critical' && group.maxAgeInDays >= 7) || (group.worstSeverity === 'high' && group.maxAgeInDays >= 30)
+                            ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse'
+                            : 'bg-white/5 text-muted-foreground border-white/10'
+                          }`} title="SLA : Âge de la vulnérabilité">
+                            <Clock className="w-3 h-3" /> {group.maxAgeInDays}j
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
                         Projet : <span className="font-semibold text-foreground">{group.projectName}</span>
@@ -363,6 +378,11 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                                   {buildCvssTooltip(cveObj.cvssVector)}
                                 </TooltipContent>
                               </Tooltip>
+                            )}
+                            {cveObj.ageInDays > 0 && (
+                               <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground" title={`Première détection: ${new Date(cveObj.firstSeenAt).toLocaleString()}`}>
+                                <Clock className="w-3 h-3 inline mr-1" />{cveObj.ageInDays}j
+                               </span>
                             )}
                           </p>
                           {cveObj.link && (

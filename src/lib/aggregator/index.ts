@@ -26,6 +26,8 @@ export interface CveOccurrence {
   note: string;
   isGlobal?: boolean;
   cvssVector?: string | null;
+  firstSeenAt?: string;
+  ageInDays?: number;
 }
 
 export interface CveGroup {
@@ -34,6 +36,7 @@ export interface CveGroup {
   worst: Severity;
   occurrences: CveOccurrence[];
   cvssVector?: string | null;
+  maxAgeInDays?: number;
 }
 
 export function buildCveGroups(): CveGroup[] {
@@ -91,7 +94,9 @@ export function buildCveGroups(): CveGroup[] {
         status,
         note,
         isGlobal: ann ? ann.project_id === -1 : false,
-        cvssVector: vuln.cvssVector || null
+        cvssVector: vuln.cvssVector || null,
+        firstSeenAt: vuln.firstSeenAt,
+        ageInDays: vuln.firstSeenAt ? Math.floor((Date.now() - new Date(vuln.firstSeenAt).getTime()) / (1000 * 3600 * 24)) : 0
       };
 
       if (!groups.has(groupKey)) {
@@ -100,13 +105,17 @@ export function buildCveGroups(): CveGroup[] {
           ref,
           worst: vuln.severity,
           occurrences: [occurrence],
-          cvssVector: vuln.cvssVector || null
+          cvssVector: vuln.cvssVector || null,
+          maxAgeInDays: occurrence.ageInDays || 0
         });
       } else {
         const existingGroup = groups.get(groupKey)!;
         existingGroup.occurrences.push(occurrence);
         if (SEV_ORDER[vuln.severity] < SEV_ORDER[existingGroup.worst]) {
           existingGroup.worst = vuln.severity;
+        }
+        if (occurrence.ageInDays && occurrence.ageInDays > (existingGroup.maxAgeInDays || 0)) {
+          existingGroup.maxAgeInDays = occurrence.ageInDays;
         }
         if (!existingGroup.cvssVector && vuln.cvssVector) {
           existingGroup.cvssVector = vuln.cvssVector;

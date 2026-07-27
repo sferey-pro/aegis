@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2, Clock, Play } from 'lucide-react';
+import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2, Clock, Play, LayoutGrid, List } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
@@ -15,6 +15,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
   const [detectedToolName, setDetectedToolName] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const formRef = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -260,6 +261,22 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
           <p className="text-muted-foreground mt-1">Gérez les dépôts surveillés par Aegis.</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex bg-background/50 border border-border/50 rounded-lg p-1">
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}
+              title="Vue Grille"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}
+              title="Vue Tableau"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
           <button 
             onClick={handleFetchAll}
             disabled={isFetchingAll || projects.length === 0}
@@ -500,7 +517,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             <p className="text-muted-foreground">Ajoutez votre premier projet pour commencer l'audit.</p>
           </div>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map((p, index) => {
             const hasCritical = p.lastRun?.counts?.critical > 0;
@@ -568,7 +585,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               {!p.is_remote && (
                 <div className="flex items-center gap-1 mt-0">
                   <span className="text-xs text-muted-foreground">Local</span>
-                  <Info className="w-3 h-3 text-muted-foreground/50 cursor-help" title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || 'Racine'}`} />
+                  <span title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || 'Racine'}`} className="cursor-help inline-flex"><Info className="w-3 h-3 text-muted-foreground/50" /></span>
                 </div>
               )}
 
@@ -606,7 +623,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   <div className="flex flex-col gap-1 items-end">
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Actions</span>
                     <div className="flex items-center gap-1.5">
-                      {p.git.dirty && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" title="Arbre de travail sale (modifications non commitées)" />}
+                      {p.git.dirty && <span title="Arbre de travail sale (modifications non commitées)" className="inline-flex"><AlertTriangle className="w-3.5 h-3.5 text-yellow-500" /></span>}
                       {p.git.behind > 0 && (
                         <span className="text-red-400 font-bold flex items-center gap-0.5" title={`${p.git.behind} commits de retard`}>
                           <ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
@@ -670,6 +687,90 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             </div>
             );
           })}
+        </div>
+      ) : (
+        <div className="glass-panel rounded-xl overflow-hidden backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg shadow-black/20">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="px-6 py-4 font-semibold">Projet</th>
+                  <th className="px-6 py-4 font-semibold">Tags & Santé</th>
+                  <th className="px-6 py-4 font-semibold">Git Status</th>
+                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map(p => {
+                  const hasCritical = p.lastRun?.counts?.critical > 0;
+                  const hasNoCves = p.lastRun && Object.values(p.lastRun.counts).reduce((a: any, b: any) => a + b, 0) === 0;
+                  return (
+                    <tr 
+                      key={p.id} 
+                      className={`group hover:bg-white/[0.02] transition-colors cursor-pointer ${p.ignored ? 'opacity-50 grayscale' : ''}`}
+                      onClick={() => onViewTriage && onViewTriage(p.id)}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : (hasNoCves ? 'text-green-500' : (hasCritical ? 'text-red-500' : 'text-primary'))}`} />
+                          <div className="flex flex-col">
+                            <span className="font-bold">{p.name}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase">{p.tool} • {p.is_remote ? 'Remote (CI)' : 'Local'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-2 items-start">
+                          <div className="flex flex-wrap gap-1">
+                            {p.tags?.map((tag: string, i: number) => (
+                              <span key={i} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                          {hasNoCves && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 border border-green-500/30">Sain</span>}
+                          {hasCritical && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/30">Critique</span>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {p.git?.isRepo ? (
+                          <div className="flex items-center gap-3 text-xs">
+                            <div className="flex items-center gap-1 font-mono text-orange-400">
+                              <GitBranch className="w-3 h-3" />
+                              <span className="truncate max-w-[80px]" title={p.git.branch || 'detached'}>{p.git.branch || 'detached'}</span>
+                            </div>
+                            {p.git.dirty && <span title="Arbre de travail sale" className="inline-flex"><AlertTriangle className="w-3.5 h-3.5 text-yellow-500" /></span>}
+                            {p.git.behind > 0 && (
+                              <span className="text-red-400 font-bold flex items-center gap-0.5" title={`${p.git.behind} commits de retard`}>
+                                <ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Non-Git</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                        {p.git?.isRepo && (
+                          <>
+                            <button onClick={(e) => handleFetch(p.id, e)} className="p-1.5 text-muted-foreground hover:text-white transition-colors rounded-md hover:bg-white/10" title="Git Fetch"><CloudDownload className="w-3.5 h-3.5" /></button>
+                            {p.git.behind > 0 && (
+                              <button onClick={(e) => handlePull(p.id, e)} className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors font-bold text-[10px] uppercase mx-1">Pull</button>
+                            )}
+                          </>
+                        )}
+                        {!p.is_remote && (
+                          <button onClick={(e) => handleForceAudit(p.id, e)} className="p-1.5 text-muted-foreground hover:text-green-400 transition-colors rounded-md hover:bg-green-400/10" title="Forcer un audit"><Play className="w-3.5 h-3.5" /></button>
+                        )}
+                        <button onClick={(e) => handleEdit(p, e)} className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"><Edit2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => handleDelete(p.id, e)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

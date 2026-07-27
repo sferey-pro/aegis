@@ -37,6 +37,7 @@ Rédigez un rapport structuré contenant :
 3. **Exploitabilité** : Un attaquant peut-il contrôler les entrées jusqu'à cette fonction ?
 4. **Conclusion** : `[ EXPLOITABLE | NON EXPLOITABLE | INCERTAIN ]`
 5. **Recommandation** : Action immédiate à prendre (Mise à jour urgente, mitigation temporaire, ou acceptation du risque).
+6. **Bloc JIRA (Raison / Justification)** : Rédigez un court paragraphe (3-4 phrases maximum) formaté proprement (sans markdown complexe, prêt à être copié-collé) destiné à remplir le champ "Justification" d'un ticket Jira. Ce bloc doit expliquer clairement pourquoi un correctif est exigé (si exploitable) ou pourquoi le ticket peut être clôturé sans action (si faux positif / non accessible).
 
 ---
 

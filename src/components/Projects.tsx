@@ -11,6 +11,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
 
   const [isAdding, setIsAdding] = useState(false);
   const [detectStatus, setDetectStatus] = useState<'idle' | 'detecting' | 'success' | 'error'>('idle');
+  const [detectingId, setDetectingId] = useState<number | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
   const [detectedToolName, setDetectedToolName] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -170,6 +171,22 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
       fetchProjects();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDetectGit = async (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setDetectingId(id);
+    try {
+      const res = await fetch(`/api/projects/${id}`);
+      if (res.ok) {
+        const updatedProject = await res.json();
+        setProjects(prev => prev.map(p => p.id === id ? updatedProject : p));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDetectingId(null);
     }
   };
 
@@ -652,12 +669,13 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 <div className="flex items-center justify-between mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">
                   <span className="text-muted-foreground italic">Dépôt Non-Git</span>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); fetchProjects(); }}
-                    className="p-1 hover:bg-white/10 text-muted-foreground hover:text-white rounded transition-colors flex items-center gap-1"
+                    onClick={(e) => handleDetectGit(p.id, e)}
+                    disabled={detectingId === p.id}
+                    className="p-1 hover:bg-white/10 text-muted-foreground hover:text-white rounded transition-colors flex items-center gap-1 disabled:opacity-50"
                     title="Re-détecter le dépôt Git"
                   >
-                    <RefreshCw className="w-3 h-3" />
-                    Détecter
+                    <RefreshCw className={`w-3 h-3 ${detectingId === p.id ? 'animate-spin text-primary' : ''}`} />
+                    {detectingId === p.id ? 'Détection...' : 'Détecter'}
                   </button>
                 </div>
               )}
@@ -762,11 +780,12 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-muted-foreground italic">Non-Git</span>
                             <button 
-                              onClick={(e) => { e.stopPropagation(); fetchProjects(); }}
-                              className="p-1 text-muted-foreground hover:text-white transition-colors rounded hover:bg-white/10" 
+                              onClick={(e) => handleDetectGit(p.id, e)}
+                              disabled={detectingId === p.id}
+                              className="p-1 text-muted-foreground hover:text-white transition-colors rounded hover:bg-white/10 disabled:opacity-50" 
                               title="Re-détecter le dépôt Git"
                             >
-                              <RefreshCw className="w-3 h-3" />
+                              <RefreshCw className={`w-3 h-3 ${detectingId === p.id ? 'animate-spin text-primary' : ''}`} />
                             </button>
                           </div>
                         )}

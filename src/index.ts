@@ -243,6 +243,19 @@ const server = serve({
     },
     
     "/api/projects/:id": {
+      async GET(req) {
+        const id = parseInt(req.params.id);
+        const p = listProjects().find(p => p.id === id);
+        if (!p) return Response.json({ error: "Not found" }, { status: 404 });
+        let git = { isRepo: false };
+        try {
+          git = await getGitInfo(p.path);
+        } catch (e) {
+          console.error(`Git error on ${p.path}:`, e);
+        }
+        const run = getLatestRun(p.id);
+        return Response.json({ ...p, git, lastRun: run });
+      },
       async PUT(req) {
         const id = parseInt(req.params.id);
         const body = await req.json();

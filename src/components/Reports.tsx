@@ -50,9 +50,9 @@ export function Reports() {
         <button 
           onClick={fetchReports}
           disabled={isFetching}
-          className="p-2 rounded hover:bg-white/5 transition-colors disabled:opacity-50"
+          className="group p-2 rounded hover:bg-white/5 transition-all duration-300 active:scale-95 disabled:opacity-50"
         >
-          <RefreshCw className={`w-5 h-5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-5 h-5 text-muted-foreground transition-transform duration-500 group-hover:rotate-180 ${isFetching ? 'animate-spin' : ''}`} />
         </button>
       </div>
 

@@ -9,6 +9,7 @@ export interface Vulnerability {
   versionRange: string | null;
   fixedIn?: string | null;
   abandoned?: boolean;
+  cvssVector?: string | null;
 }
 
 export interface ParseResult {

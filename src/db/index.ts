@@ -62,6 +62,11 @@ function initDb(database: Database) {
     database.exec(`ALTER TABLE projects ADD COLUMN is_remote BOOLEAN DEFAULT 0;`);
   } catch (e) {}
 
+  try {
+    database.exec(`ALTER TABLE advisory_cache ADD COLUMN html_url TEXT;`);
+    database.exec(`ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT;`);
+  } catch (e) {}
+
   // Populate missing slugs
   try {
     database.exec(`

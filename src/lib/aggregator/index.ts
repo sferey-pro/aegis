@@ -25,6 +25,7 @@ export interface CveOccurrence {
   status: string;
   note: string;
   isGlobal?: boolean;
+  cvssVector?: string | null;
 }
 
 export interface CveGroup {
@@ -32,6 +33,7 @@ export interface CveGroup {
   ref: string | null; // L'identifiant affichable (CVE) ou null
   worst: Severity;
   occurrences: CveOccurrence[];
+  cvssVector?: string | null;
 }
 
 export function buildCveGroups(): CveGroup[] {
@@ -88,7 +90,8 @@ export function buildCveGroups(): CveGroup[] {
         link: vuln.link || null,
         status,
         note,
-        isGlobal: ann ? ann.project_id === -1 : false
+        isGlobal: ann ? ann.project_id === -1 : false,
+        cvssVector: vuln.cvssVector || null
       };
 
       if (!groups.has(groupKey)) {
@@ -96,13 +99,17 @@ export function buildCveGroups(): CveGroup[] {
           cve: groupKey,
           ref,
           worst: vuln.severity,
-          occurrences: [occurrence]
+          occurrences: [occurrence],
+          cvssVector: vuln.cvssVector || null
         });
       } else {
-        const group = groups.get(groupKey)!;
-        group.occurrences.push(occurrence);
-        if (SEV_ORDER[vuln.severity] < SEV_ORDER[group.worst]) {
-          group.worst = vuln.severity;
+        const existingGroup = groups.get(groupKey)!;
+        existingGroup.occurrences.push(occurrence);
+        if (SEV_ORDER[vuln.severity] < SEV_ORDER[existingGroup.worst]) {
+          existingGroup.worst = vuln.severity;
+        }
+        if (!existingGroup.cvssVector && vuln.cvssVector) {
+          existingGroup.cvssVector = vuln.cvssVector;
         }
       }
     }

@@ -146,7 +146,9 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
         ...v,
         fixedIn: res.fixedIn,
         // Override severity if github gave us a valid one, else keep the original
-        severity: res.severity !== "unknown" ? res.severity : v.severity
+        severity: res.severity !== "unknown" ? res.severity : v.severity,
+        link: res.html_url || v.link,
+        cvssVector: res.cvss_vector || v.cvssVector || null
       };
     }));
 
@@ -238,7 +240,9 @@ export async function ingestAudit(projectId: number, stdout: string, commitSha: 
     return {
       ...v,
       fixedIn: res.fixedIn,
-      severity: res.severity !== "unknown" ? res.severity : v.severity
+      severity: res.severity !== "unknown" ? res.severity : v.severity,
+      link: res.html_url || v.link,
+      cvssVector: res.cvss_vector || v.cvssVector || null
     };
   }));
 

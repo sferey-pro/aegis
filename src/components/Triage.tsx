@@ -110,7 +110,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
           fixedIn: occ.fixedIn,
           link: occ.link,
           status: occ.status,
-          note: occ.note
+          note: occ.note,
+          cvssVector: occ.cvssVector
         });
       });
     });
@@ -349,6 +350,11 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                           </h4>
                           <p className="text-sm text-muted-foreground">
                             {cveObj.title} {cveObj.versionRange && <span className="font-mono">({cveObj.versionRange})</span>}
+                            {cveObj.cvssVector && (
+                              <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground">
+                                {cveObj.cvssVector}
+                              </span>
+                            )}
                           </p>
                           {cveObj.link && (
                             <a href={cveObj.link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline flex items-center gap-1 mt-1">

@@ -64,6 +64,7 @@ export function App() {
       const total = projectsToAudit.length;
       let totalVulns = 0;
       let counts = { critical: 0, high: 0, moderate: 0, low: 0, info: 0, unknown: 0 };
+      const reportDetails: any[] = [];
 
       for (const p of projectsToAudit) {
         setAuditProgress({ current, total, name: p.name });
@@ -78,6 +79,14 @@ export function App() {
            counts.low += auditData.run.counts.low || 0;
            counts.info += auditData.run.counts.info || 0;
            counts.unknown += auditData.run.counts.unknown || 0;
+           
+           if (auditData.run.vulnerabilities && auditData.run.vulnerabilities.length > 0) {
+             reportDetails.push({
+               projectId: p.id,
+               projectName: p.name,
+               vulns: auditData.run.vulnerabilities
+             });
+           }
         }
         
         current++;
@@ -89,7 +98,8 @@ export function App() {
         body: JSON.stringify({
            projects_audited: projectsToAudit.length,
            total_vulnerabilities: totalVulns,
-           counts: counts
+           counts: counts,
+           details: reportDetails
         })
       });
       const generatedReport = await reportRes.json();

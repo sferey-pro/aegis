@@ -145,7 +145,15 @@ function initDb(database: Database) {
       projects_audited INTEGER NOT NULL,
       total_vulnerabilities INTEGER NOT NULL,
       counts JSON NOT NULL,
+      details JSON DEFAULT '[]',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  
+  // Migration pour ajouter details
+  try {
+    db.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
+  } catch (e) {
+    // La colonne existe déjà
+  }
 }

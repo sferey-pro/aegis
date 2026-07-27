@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Calendar, Shield, Activity, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Calendar, Shield, Activity, Trash2, RefreshCw, ChevronLeft, ChevronRight, Eye, X, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 
 export function Reports() {
@@ -11,6 +11,54 @@ export function Reports() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Diff state
+  const [selectedReportIndex, setSelectedReportIndex] = useState<number | null>(null);
+  const [diffData, setDiffData] = useState<{ newVulns: any[], fixedVulns: any[], unchangedVulns: any[] } | null>(null);
+
+  const handleViewDiff = (index: number) => {
+    const currentReport = reports[index];
+    const prevReport = index < reports.length - 1 ? reports[index + 1] : null;
+
+    const currentVulns = new Map();
+    if (currentReport.details) {
+      currentReport.details.forEach((d: any) => {
+        if (d.vulns) {
+          d.vulns.forEach((v: any) => {
+            const key = `${d.projectId}-${v.package}-${v.cve || v.title}`;
+            currentVulns.set(key, { ...v, projectName: d.projectName });
+          });
+        }
+      });
+    }
+
+    const prevVulns = new Map();
+    if (prevReport && prevReport.details) {
+      prevReport.details.forEach((d: any) => {
+        if (d.vulns) {
+          d.vulns.forEach((v: any) => {
+            const key = `${d.projectId}-${v.package}-${v.cve || v.title}`;
+            prevVulns.set(key, { ...v, projectName: d.projectName });
+          });
+        }
+      });
+    }
+
+    const newVulns: any[] = [];
+    const unchangedVulns: any[] = [];
+    currentVulns.forEach((v, k) => {
+      if (!prevVulns.has(k)) newVulns.push(v);
+      else unchangedVulns.push(v);
+    });
+
+    const fixedVulns: any[] = [];
+    prevVulns.forEach((v, k) => {
+      if (!currentVulns.has(k)) fixedVulns.push(v);
+    });
+
+    setDiffData({ newVulns, fixedVulns, unchangedVulns });
+    setSelectedReportIndex(index);
+  };
 
   const fetchReports = async () => {
     setIsFetching(true);
@@ -136,7 +184,14 @@ export function Reports() {
                           {r.total_vulnerabilities === 0 && <span className="text-xs text-muted-foreground">Aucune faille détectée</span>}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => handleViewDiff(reports.indexOf(r))}
+                          className="p-2 text-muted-foreground hover:text-blue-400 transition-all rounded-md hover:bg-blue-400/10 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          title="Voir les détails et le comparatif (Diff)"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         <button 
                           onClick={() => handleDelete(r.id)}
                           className="p-2 text-muted-foreground hover:text-destructive transition-all rounded-md hover:bg-destructive/10 opacity-0 group-hover:opacity-100 focus:opacity-100"
@@ -190,6 +245,110 @@ export function Reports() {
         onConfirm={confirmDelete}
         onCancel={() => setReportToDelete(null)}
       />
+
+      {selectedReportIndex !== null && diffData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedReportIndex(null)}>
+          <div className="glass-panel w-full max-w-4xl p-6 rounded-2xl flex flex-col gap-6 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-4 border-b border-white/10">
+              <div>
+                <h2 className="text-2xl font-bold font-heading">Détails du Rapport</h2>
+                <p className="text-muted-foreground text-sm mt-1">Comparaison avec le rapport précédent (N-1)</p>
+              </div>
+              <button onClick={() => setSelectedReportIndex(null)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-6 pr-2">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex flex-col gap-1">
+                  <span className="text-red-400 font-bold flex items-center gap-2"><ArrowUpRight className="w-4 h-4" /> Nouvelles failles</span>
+                  <span className="text-3xl font-light text-red-500">{diffData.newVulns.length}</span>
+                </div>
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex flex-col gap-1">
+                  <span className="text-green-400 font-bold flex items-center gap-2"><ArrowDownRight className="w-4 h-4" /> Failles corrigées</span>
+                  <span className="text-3xl font-light text-green-500">{diffData.fixedVulns.length}</span>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-1">
+                  <span className="text-muted-foreground font-bold flex items-center gap-2"><Minus className="w-4 h-4" /> Inchangées</span>
+                  <span className="text-3xl font-light text-white">{diffData.unchangedVulns.length}</span>
+                </div>
+              </div>
+
+              {diffData.fixedVulns.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-green-400 mb-3 flex items-center gap-2">
+                    <Shield className="w-5 h-5" /> Failles corrigées depuis le dernier rapport
+                  </h3>
+                  <div className="flex flex-col gap-2">
+                    {diffData.fixedVulns.map((v, i) => (
+                      <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg bg-green-500/5 border border-green-500/10">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-mono px-2 py-1 bg-green-500/20 text-green-400 rounded">{v.projectName}</span>
+                          <span className="font-bold">{v.package}</span>
+                          <span className="text-muted-foreground text-sm truncate max-w-[300px]">{v.title}</span>
+                        </div>
+                        {v.cve && <span className="text-xs font-mono text-muted-foreground">{v.cve}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {diffData.newVulns.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-red-400 mb-3 flex items-center gap-2">
+                    <Activity className="w-5 h-5" /> Nouvelles failles détectées
+                  </h3>
+                  <div className="flex flex-col gap-2">
+                    {diffData.newVulns.map((v, i) => (
+                      <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-mono px-2 py-1 bg-red-500/20 text-red-400 rounded">{v.projectName}</span>
+                          <span className="font-bold">{v.package}</span>
+                          <span className="text-muted-foreground text-sm truncate max-w-[300px]">{v.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 md:mt-0">
+                          {v.severity === 'critical' && <span className="text-[10px] uppercase font-bold text-red-500 px-2 py-0.5 bg-red-500/10 rounded">Critique</span>}
+                          {v.severity === 'high' && <span className="text-[10px] uppercase font-bold text-orange-500 px-2 py-0.5 bg-orange-500/10 rounded">Haut</span>}
+                          {v.severity === 'moderate' && <span className="text-[10px] uppercase font-bold text-yellow-500 px-2 py-0.5 bg-yellow-500/10 rounded">Modéré</span>}
+                          {v.cve && <span className="text-xs font-mono text-muted-foreground">{v.cve}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {diffData.unchangedVulns.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-bold text-muted-foreground mb-3 flex items-center gap-2">
+                    <Minus className="w-5 h-5" /> Failles persistantes
+                  </h3>
+                  <div className="flex flex-col gap-2">
+                    {diffData.unchangedVulns.slice(0, 50).map((v, i) => (
+                      <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 bg-white/10 rounded text-muted-foreground">{v.projectName}</span>
+                          <span className="text-sm font-semibold">{v.package}</span>
+                        </div>
+                        {v.cve && <span className="text-[10px] font-mono text-muted-foreground">{v.cve}</span>}
+                      </div>
+                    ))}
+                    {diffData.unchangedVulns.length > 50 && (
+                      <p className="text-xs text-center text-muted-foreground p-2">... et {diffData.unchangedVulns.length - 50} autres non affichées</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {diffData.newVulns.length === 0 && diffData.fixedVulns.length === 0 && diffData.unchangedVulns.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">Aucune vulnérabilité trouvée dans ce rapport.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

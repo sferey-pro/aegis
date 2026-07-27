@@ -29,7 +29,7 @@ describe("Parser: Composer", () => {
     const res = parseComposer(JSON.stringify(input));
     expect(res.total).toBe(1);
     
-    const vuln = res.vulnerabilities[0];
+    const vuln = res.vulnerabilities[0]!;
     expect(vuln.package).toBe("vendor/pkg");
     expect(vuln.severity).toBe("critical");
     expect(vuln.title).toBe("SQL Injection");

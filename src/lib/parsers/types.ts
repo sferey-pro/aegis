@@ -10,6 +10,8 @@ export interface Vulnerability {
   fixedIn?: string | null;
   abandoned?: boolean;
   cvssVector?: string | null;
+  firstSeenAt?: string | null;
+  ageInDays?: number;
 }
 
 export interface ParseResult {

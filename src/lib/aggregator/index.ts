@@ -26,7 +26,7 @@ export interface CveOccurrence {
   note: string;
   isGlobal?: boolean;
   cvssVector?: string | null;
-  firstSeenAt?: string;
+  firstSeenAt?: string | null;
   ageInDays?: number;
 }
 

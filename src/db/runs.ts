@@ -1,4 +1,5 @@
 import { getDb } from "./index";
+import type { Vulnerability } from "../lib/parsers/types";
 
 export type RunStatus = "ok" | "vulnerable" | "error";
 
@@ -17,7 +18,7 @@ export interface Run {
   status: RunStatus;
   total: number;
   counts: RunCounts;
-  vulnerabilities: any[];
+  vulnerabilities: Vulnerability[];
   command: string | null;
   commit_sha: string | null;
   error: string | null;

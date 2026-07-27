@@ -1,5 +1,5 @@
 import { getDb } from "./index";
-import { RunCounts } from "./runs";
+import type { RunCounts } from "./runs";
 
 export interface Report {
   id: number;

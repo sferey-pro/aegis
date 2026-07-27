@@ -131,11 +131,11 @@ const server = serve({
         
         if (occurrences.length === 0) return Response.json({ error: "Non trouvé" }, { status: 404 });
         
-        const projectName = occurrences[0].projectName;
+        const projectName = occurrences[0]!.projectName;
         const title = `[Aegis] Remédiation ${packageName} - ${projectName}`;
         
         let md = `# ${title}\n\n`;
-        md += `**Projet:** ${projectName} (${occurrences[0].tool})\n`;
+        md += `**Projet:** ${projectName} (${occurrences[0]!.tool})\n`;
         md += `**Package:** \`${packageName}\`\n\n`;
         md += `## Vulnérabilités (${occurrences.length})\n\n`;
         
@@ -220,7 +220,7 @@ const server = serve({
         const exec = async () => {
           while (i < projects.length) {
             const index = i++;
-            const p = projects[index];
+            const p = projects[index]!;
             let git = { isRepo: false };
             try {
               git = await getGitInfo(p.path);

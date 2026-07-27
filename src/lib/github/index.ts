@@ -15,14 +15,14 @@ export interface AdvisoryKey {
 export function keyFrom(cve?: string | null, link?: string | null): AdvisoryKey | null {
   if (link) {
     const match = link.match(GHSA_REGEX);
-    if (match) return { kind: "ghsa", id: match[1].toUpperCase() };
+    if (match) return { kind: "ghsa", id: match[1]!.toUpperCase() };
   }
   if (cve) {
     const matchGH = cve.match(GHSA_REGEX);
-    if (matchGH) return { kind: "ghsa", id: matchGH[1].toUpperCase() };
+    if (matchGH) return { kind: "ghsa", id: matchGH[1]!.toUpperCase() };
     
     const matchCVE = cve.match(CVE_REGEX);
-    if (matchCVE) return { kind: "cve", id: matchCVE[1].toUpperCase() };
+    if (matchCVE) return { kind: "cve", id: matchCVE[1]!.toUpperCase() };
   }
   return null;
 }

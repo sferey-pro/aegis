@@ -29,7 +29,7 @@ describe("Parser: Yarn", () => {
     const res = parseYarn(input);
     expect(res.total).toBe(1);
     
-    const vuln = res.vulnerabilities[0];
+    const vuln = res.vulnerabilities[0]!;
     expect(vuln.package).toBe("lodash");
     expect(vuln.severity).toBe("high");
     expect(vuln.title).toBe("Prototype Pollution");

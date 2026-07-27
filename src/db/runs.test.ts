@@ -48,8 +48,8 @@ describe("Database: Runs", () => {
     const runs = getRunsForProject(projectId);
     expect(runs.length).toBe(2);
     // The second added should be the latest
-    expect(runs[0].status).toBe("ok");
-    expect(runs[1].status).toBe("error");
+    expect(runs[0]!.status).toBe("ok");
+    expect(runs[1]!.status).toBe("error");
   });
 
   test("can delete a run", () => {
@@ -64,12 +64,12 @@ describe("Database: Runs", () => {
     const history = getGlobalHistory(7);
     expect(history.length).toBe(7);
     const today = history[history.length - 1];
-    expect(today.critical).toBe(1);
-    expect(today.high).toBe(2);
+    expect(today!.critical).toBe(1);
+    expect(today!.high).toBe(2);
 
     const historyHourly = getGlobalHistory(1);
     expect(historyHourly.length).toBe(24);
     const thisHour = historyHourly[historyHourly.length - 1];
-    expect(thisHour.critical).toBe(1);
+    expect(thisHour!.critical).toBe(1);
   });
 });

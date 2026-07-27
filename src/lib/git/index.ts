@@ -100,8 +100,8 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
         // Output format: "<behind>\t<ahead>" (left is upstream, right is HEAD)
         const parts = counts.split("\t");
         if (parts.length === 2) {
-          info.behind = parseInt(parts[0], 10) || 0;
-          info.ahead = parseInt(parts[1], 10) || 0;
+          info.behind = parseInt(parts[0]!, 10) || 0;
+          info.ahead = parseInt(parts[1]!, 10) || 0;
         }
       }
     }

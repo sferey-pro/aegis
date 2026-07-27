@@ -28,7 +28,7 @@ export function emitConsoleStart(event: Omit<ConsoleEvent, "id" | "project" | "p
 
 export function emitConsoleEnd(id: number, event: Omit<ConsoleEvent, "id" | "project" | "phase" | "cmd" | "cwd" | "label"> & Partial<ConsoleEvent>): void {
   const ctx = projectContext.getStore();
-  const fullEvent: ConsoleEvent = { ...event, phase: "end", id, project: ctx?.project };
+  const fullEvent = { ...event, phase: "end" as const, id, project: ctx?.project } as ConsoleEvent;
   broadcast(fullEvent);
 }
 

@@ -44,8 +44,8 @@ describe("Database: Projects", () => {
 
     const list = listProjects();
     expect(list.length).toBe(2);
-    expect(list[0].name).toBe("App 2");
-    expect(list[1].name).toBe("App 1");
+    expect(list[0]!.name).toBe("App 2");
+    expect(list[1]!.name).toBe("App 1");
   });
 
   test("can update a project", () => {

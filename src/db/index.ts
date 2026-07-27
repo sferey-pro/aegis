@@ -157,7 +157,7 @@ function initDb(database: Database) {
   
   // Migration pour ajouter details
   try {
-    db.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
+    db!.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
   } catch (e) {
     // La colonne existe déjà
   }

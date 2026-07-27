@@ -101,7 +101,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         if (occ.ageInDays && occ.ageInDays > g.maxAgeInDays) {
           g.maxAgeInDays = occ.ageInDays;
         }
-        if (SEV_ORDER[occ.severity] > SEV_ORDER[g.worstSeverity]) {
+        if ((SEV_ORDER[occ.severity] ?? -1) > (SEV_ORDER[g.worstSeverity] ?? -1)) {
           g.worstSeverity = occ.severity;
         }
         if (occ.status === 'pending') g.pendingCount++;

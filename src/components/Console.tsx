@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Maximize2, Minimize2, X, Folder, Globe, Loader2, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { Terminal, Maximize2, Minimize2, X, Folder, Globe, Loader2, CheckCircle, XCircle, Trash2, AlertTriangle } from 'lucide-react';
 
 interface ConsoleEvent {
   id: number;
@@ -10,6 +10,7 @@ interface ConsoleEvent {
   project?: string;
   exitCode?: number;
   ms?: number;
+  outText?: string;
   errorText?: string;
 }
 
@@ -23,12 +24,14 @@ interface LogEntry {
   exitCode?: number;
   ms?: number;
   startTime: number;
+  outText?: string;
   errorText?: string;
 }
 
 export function Console() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [activeTab, setActiveTab] = useState<string>('Global');
   
@@ -56,7 +59,7 @@ export function Console() {
               cwd: data.cwd || "",
               label: data.label || "unknown",
               project: data.project,
-              status: "running",
+              status: "running" as const,
               startTime: Date.now()
             }].slice(-200); // Keep last 200 logs
           } else {
@@ -67,6 +70,7 @@ export function Console() {
                   status: data.exitCode === 0 ? "success" : "error",
                   exitCode: data.exitCode,
                   ms: data.ms,
+                  outText: data.outText,
                   errorText: data.errorText
                 };
               }
@@ -95,7 +99,7 @@ export function Console() {
         logsEndRef.current?.scrollIntoView();
       }
     }
-  }, [logs, isOpen, activeTab]);
+  }, [logs, isOpen, activeTab, debugMode]);
 
   const runningCount = logs.filter(l => l.status === "running").length;
   
@@ -134,6 +138,13 @@ export function Console() {
           <span className="font-semibold text-xs tracking-wider">AEGIS LIVE CONSOLE</span>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setDebugMode(!debugMode)} 
+            className={`transition-colors ${debugMode ? 'text-primary' : 'text-muted-foreground hover:text-white'}`}
+            title="Mode Debug (Affiche stdout et stderr)"
+          >
+            <AlertTriangle className="w-4 h-4" />
+          </button>
           <button 
             onClick={() => setLogs([])} 
             className="text-muted-foreground hover:text-white transition-colors"
@@ -225,9 +236,27 @@ export function Console() {
                     {log.cwd}
                   </div>
                 )}
-                {log.status === "error" && log.errorText && (
+                
+                {log.status === "error" && log.errorText && !debugMode && (
                   <div className="text-xs text-red-400 mt-1 pl-2 border-l-2 border-red-500/50 bg-red-500/10 p-2 rounded break-all">
                     {log.errorText}
+                  </div>
+                )}
+                
+                {debugMode && log.status !== "running" && (
+                  <div className="mt-1 flex flex-col gap-1 w-full max-w-full overflow-hidden">
+                    {log.outText && (
+                      <div className="text-[10px] text-green-300/80 bg-green-500/10 border-l-2 border-green-500/30 p-2 rounded overflow-x-auto whitespace-pre-wrap break-words w-full">
+                        <span className="font-bold block mb-1">STDOUT :</span>
+                        {log.outText}
+                      </div>
+                    )}
+                    {log.errorText && (
+                      <div className="text-[10px] text-red-300/80 bg-red-500/10 border-l-2 border-red-500/30 p-2 rounded overflow-x-auto whitespace-pre-wrap break-words w-full">
+                        <span className="font-bold block mb-1">STDERR :</span>
+                        {log.errorText}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -45,13 +45,14 @@ async function runGit(args: string[], cwd: string, tolerateFailure = false): Pro
     cwd,
     env: GIT_ENV,
     stdout: "pipe",
-    stderr: "ignore",
+    stderr: "pipe",
   });
   
   const stdout = await new Response(proc.stdout).text();
+  const stderr = await new Response(proc.stderr).text();
   const exitCode = await proc.exited;
   
-  emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+  emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime, outText: stdout.trim(), errorText: stderr.trim() });
 
   if (exitCode !== 0 && !tolerateFailure) {
     throw new Error(`Git command failed with code ${exitCode}`);

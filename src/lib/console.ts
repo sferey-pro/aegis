@@ -9,6 +9,7 @@ export interface ConsoleEvent {
   project?: string;
   exitCode?: number;
   ms?: number;
+  outText?: string;
   errorText?: string;
 }
 

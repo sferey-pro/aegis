@@ -342,6 +342,17 @@ const server = serve({
       }
     },
 
+    "/api/advisories/cache": {
+      async DELETE() {
+        try {
+          getDb().query("DELETE FROM advisory_cache").run();
+          return Response.json({ success: true });
+        } catch (e: any) {
+          return Response.json({ success: false, error: e.message }, { status: 500 });
+        }
+      }
+    },
+
     "/api/settings": {
       async GET() {
         return Response.json(getAllSettings());

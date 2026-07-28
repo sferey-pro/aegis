@@ -22,6 +22,9 @@ export function Settings() {
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupMessage, setBackupMessage] = useState<{text: string, type: 'success'|'error'} | null>(null);
 
+  const [clearCacheLoading, setClearCacheLoading] = useState(false);
+  const [clearCacheMessage, setClearCacheMessage] = useState<{text: string, type: 'success'|'error'} | null>(null);
+
   useEffect(() => {
     fetch('/api/settings')
       .then(r => r.json())
@@ -125,6 +128,46 @@ export function Settings() {
                   {settings.GITHUB_RL_RESET && (
                     <span>Reset : {new Date(Number(settings.GITHUB_RL_RESET) * 1000).toLocaleString('fr-FR')}</span>
                   )}
+                </div>
+              )}
+
+
+              <div className="mt-4 flex items-center justify-between bg-black/20 p-4 rounded-xl border border-white/5">
+                <div>
+                  <h4 className="font-bold text-sm">Cache GitHub Advisory (GHSA)</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Vider le cache force l'application à re-télécharger les informations des CVEs depuis GitHub lors du prochain audit.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setClearCacheLoading(true);
+                    setClearCacheMessage(null);
+                    try {
+                      const res = await fetch('/api/advisories/cache', { method: 'DELETE' });
+                      const data = await res.json();
+                      if (data.success) {
+                        setClearCacheMessage({ text: "Cache GHSA vidé avec succès", type: "success" });
+                      } else {
+                        setClearCacheMessage({ text: data.error || "Erreur lors du nettoyage du cache", type: "error" });
+                      }
+                    } catch (e: any) {
+                      setClearCacheMessage({ text: e.message, type: "error" });
+                    } finally {
+                      setClearCacheLoading(false);
+                      setTimeout(() => setClearCacheMessage(null), 5000);
+                    }
+                  }}
+                  disabled={clearCacheLoading}
+                  className="px-4 py-2 text-sm font-medium rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors disabled:opacity-50"
+                >
+                  {clearCacheLoading ? "Nettoyage..." : "Vider le cache"}
+                </button>
+              </div>
+              {clearCacheMessage && (
+                <div className={`text-sm px-3 py-2 rounded-md ${clearCacheMessage.type === 'success' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                  {clearCacheMessage.text}
                 </div>
               )}
             </div>

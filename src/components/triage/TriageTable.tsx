@@ -33,10 +33,10 @@ export function TriageTable({
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
             <tr className="border-b border-white/10 hover:bg-transparent">
-              <th className="px-6 py-4 sticky left-0 bg-black/40 backdrop-blur z-10 border-r border-white/10 min-w-[300px] font-semibold">Cible (Package & Projet)</th>
-              <th className="px-6 py-4 text-center font-semibold">Impact & SLA</th>
-              <th className="px-6 py-4 text-center font-semibold">Patch Recommandé</th>
-              <th className="px-6 py-4 text-right font-semibold">Actions</th>
+              <th className="px-6 py-3 sticky left-0 bg-black/40 backdrop-blur z-10 border-r border-white/10 min-w-[300px] font-semibold">Cible (Package & Projet)</th>
+              <th className="px-6 py-3 text-center font-semibold">Impact & SLA</th>
+              <th className="px-6 py-3 text-center font-semibold">Patch Recommandé</th>
+              <th className="px-6 py-3 text-right font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -47,7 +47,7 @@ export function TriageTable({
                     className={`cursor-pointer transition-colors border-white/5 hover:bg-white/[0.02] ${group.hasConfirmed ? 'bg-red-950/20' : ''}`}
                     onClick={() => setSelectedGroup(group)}
                   >
-                    <td className="px-6 py-4 sticky left-0 bg-white/5 backdrop-blur z-10 border-r border-white/10 whitespace-nowrap">
+                    <td className="px-4 md:px-6 py-2.5 sticky left-0 bg-white/5 backdrop-blur z-10 border-r border-white/10 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className={`p-1.5 rounded-lg border ${group.hasConfirmed ? 'bg-red-500/20 border-red-500 text-red-500' : SEVERITY_COLORS[group.worstSeverity]} shadow-sm`}>
                           {group.hasConfirmed ? <AlertOctagon className="w-5 h-5 text-red-500 animate-pulse" /> : SEVERITY_ICONS[group.worstSeverity]}
@@ -76,7 +76,7 @@ export function TriageTable({
                       </div>
                     </td>
                     
-                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                    <td className="px-4 md:px-6 py-2.5 text-center whitespace-nowrap">
                       <div className="flex flex-col items-center gap-2">
                         <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black/20 border border-white/5 rounded-md text-xs shadow-inner">
                           <span className="font-bold flex items-center gap-1.5 text-foreground/90"><Shield className="w-3.5 h-3.5 text-muted-foreground" /> {group.cves.length}</span>
@@ -99,7 +99,7 @@ export function TriageTable({
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-center whitespace-nowrap">
+                    <td className="px-4 md:px-6 py-2.5 text-center whitespace-nowrap">
                       <div className="flex flex-col items-center justify-center h-full">
                         {group.targetPatch ? (
                           <span className="font-mono text-xs font-bold text-green-400 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20 shadow-sm flex items-center gap-1">
@@ -110,7 +110,7 @@ export function TriageTable({
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                    <td className="px-4 md:px-6 py-2.5 text-right whitespace-nowrap">
                       <button 
                         onClick={(e) => createTicket(e, group)}
                         className="px-2.5 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors inline-flex items-center gap-2 text-xs font-semibold"
@@ -134,7 +134,7 @@ export function TriageTable({
           {(totalPages > 1 || totalItems > 10) && (
             <tfoot className="border-t border-white/10 bg-black/20">
               <tr>
-                <td colSpan={4} className="px-6 py-4">
+                <td colSpan={4} className="px-6 py-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <span className="text-sm text-muted-foreground">

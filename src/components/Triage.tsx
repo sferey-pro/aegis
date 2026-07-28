@@ -576,21 +576,14 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                     >
                       <Check className="w-3.5 h-3.5" /> Confirmé
                     </button>
-                    <button 
-                      onClick={() => { updateStatus(cveObj.cve, selectedGroup.projectId, 'ignored'); setSelectedGroup(null); }}
-                      className={`px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${cveObj.status === 'ignored' && !cveObj.isGlobal ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'text-muted-foreground bg-white/5 hover:bg-orange-500/10 hover:text-orange-400'}`}
-                      title="Faux positif pour ce projet"
-                    >
-                      <X className="w-3.5 h-3.5" /> Faux positif
-                    </button>
-                    <button 
-                      onClick={() => { updateStatus(cveObj.cve, -1, 'ignored', 'Faux positif global'); setSelectedGroup(null); }}
-                      className={`px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${cveObj.status === 'ignored' && cveObj.isGlobal ? 'bg-orange-500/30 text-orange-400 border border-orange-500/50' : 'text-muted-foreground bg-white/5 hover:bg-orange-500/10 hover:text-orange-400'}`}
-                      title="Ignorer cette CVE sur TOUS les projets"
-                    >
-                      <Globe className="w-3.5 h-3.5" /> Global
-                    </button>
-                  </div>
+                      <button 
+                        onClick={() => { updateStatus(cveObj.cve, selectedGroup.projectId, 'ignored'); setSelectedGroup(null); }}
+                        className={`px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${cveObj.status === 'ignored' && !cveObj.isGlobal ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'text-muted-foreground bg-white/5 hover:bg-orange-500/10 hover:text-orange-400'}`}
+                        title="Faux positif pour ce projet"
+                      >
+                        <X className="w-3.5 h-3.5" /> Faux positif
+                      </button>
+                    </div>
                   
                   {cveObj.note && (
                     <div className="text-sm text-muted-foreground bg-black/40 p-3 rounded-lg border border-white/5 relative group mt-2">

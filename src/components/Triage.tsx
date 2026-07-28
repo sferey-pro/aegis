@@ -292,6 +292,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         updateStatus={updateStatus}
         handleConfirmCve={handleConfirmCve}
         setToast={setToast}
+        tickets={tickets}
+        jiraBaseUrl={jiraBaseUrl}
       />
 
       <TicketModal 

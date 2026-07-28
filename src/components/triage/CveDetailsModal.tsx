@@ -9,13 +9,17 @@ export function CveDetailsModal({
   setSelectedGroup,
   updateStatus,
   handleConfirmCve,
-  setToast
+  setToast,
+  tickets,
+  jiraBaseUrl
 }: {
   selectedGroup: any;
   setSelectedGroup: (group: any | null) => void;
   updateStatus: (cve: string, projectId: number, newStatus: string, note?: string) => Promise<void>;
   handleConfirmCve: (cve: string, projectId: number, initialReason?: string) => void;
   setToast: (toast: any) => void;
+  tickets: Record<string, any>;
+  jiraBaseUrl: string;
 }) {
   if (!selectedGroup) return null;
 
@@ -24,9 +28,22 @@ export function CveDetailsModal({
       <div className="w-full max-w-5xl max-h-[90vh] bg-background/95 backdrop-blur-xl border border-border/50 rounded-2xl flex flex-col shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-border/50 flex items-center justify-between bg-black/20">
           <div>
-            <h3 className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
-              {selectedGroup.package}
-            </h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
+                {selectedGroup.package}
+              </h3>
+              {tickets[selectedGroup.key] && (
+                <a 
+                  href={`${jiraBaseUrl}${tickets[selectedGroup.key].url}`} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors text-xs font-bold flex items-center gap-1.5"
+                >
+                  <LinkIcon className="w-3 h-3" />
+                  Ticket Jira : {tickets[selectedGroup.key].url}
+                </a>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground mt-1">
               Projet : <span className="font-semibold text-foreground">{selectedGroup.projectName}</span>
             </p>

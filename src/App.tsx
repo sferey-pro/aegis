@@ -14,6 +14,7 @@ import { Overview } from './components/overview/Overview';
 interface Stats {
   monitoredProjects: number;
   criticalVulnerabilities: number;
+  pendingCves?: number;
   lastSync: string | null;
   healthGrade?: string;
   topProjects?: Array<{ id: number; name: string; critical: number; high: number }>;
@@ -175,6 +176,7 @@ export function App() {
           setTriageCveFilter={setTriageCveFilter}
           handleRunAudit={handleRunAudit}
           auditing={auditing}
+          pendingCves={stats?.pendingCves}
         />
 
         <div className="pt-[88px] flex-1 flex flex-col w-full">

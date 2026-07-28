@@ -11,11 +11,14 @@ export const statsRoutes = {
       let criticalCount = 0;
       let highCount = 0;
       let moderateCount = 0;
+      let pendingCves = 0;
 
       for (const g of groups) {
         if (g.worst === 'critical') criticalCount++;
         else if (g.worst === 'high') highCount++;
         else if (g.worst === 'moderate') moderateCount++;
+        
+        pendingCves += g.occurrences.filter(o => o.status === 'pending').length;
       }
 
       let lastSync: string | null = null;
@@ -61,6 +64,7 @@ export const statsRoutes = {
       return Response.json({
         monitoredProjects: projects.length,
         criticalVulnerabilities: criticalCount,
+        pendingCves,
         lastSync,
         healthGrade,
         topProjects,

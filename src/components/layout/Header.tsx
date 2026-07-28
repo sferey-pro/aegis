@@ -7,7 +7,8 @@ export function Header({
   setTriageProjectId,
   setTriageCveFilter,
   handleRunAudit,
-  auditing
+  auditing,
+  pendingCves
 }: {
   currentTab: string;
   setCurrentTab: (tab: any) => void;
@@ -15,6 +16,7 @@ export function Header({
   setTriageCveFilter: (cve: string | null) => void;
   handleRunAudit: () => void;
   auditing: boolean;
+  pendingCves?: number;
 }) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/50 shadow-sm flex items-center justify-between py-4 px-6 md:px-12 w-full">
@@ -43,10 +45,15 @@ export function Header({
           </button>
           <button 
             onClick={() => { setTriageProjectId(null); setTriageCveFilter(null); setCurrentTab('triage'); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === 'triage' ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+            className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === 'triage' ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
             <AlertOctagon className="w-4 h-4" />
             CVEs
+            {(pendingCves !== undefined && pendingCves > 0) && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-background animate-in zoom-in">
+                {pendingCves}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => setCurrentTab('reports')}

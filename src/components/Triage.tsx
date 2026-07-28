@@ -47,7 +47,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
   const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; cve: string; projectId: number; reason: string } | null>(null);
   const [toast, setToast] = useState<{ isOpen: boolean; title: string; message: React.ReactNode; type: 'success' | 'error' | 'info' } | null>(null);
@@ -88,10 +88,6 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
     fetchTickets();
     fetchSettings();
   }, []);
-
-  const toggleExpand = (key: string) => {
-    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-  };
 
   const packageGroups = React.useMemo(() => {
     const map = new Map<string, any>();
@@ -287,31 +283,26 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
       ) : (
         <div className="flex flex-col gap-4">
           <div className="glass-panel rounded-xl overflow-hidden border border-border/50">
-            <Table>
-              <TableHeader className="bg-black/20">
-                <TableRow className="border-border/50 hover:bg-transparent">
-                  <TableHead className="w-[50px]"></TableHead>
-                  <TableHead>Sévérité / Package</TableHead>
-                  <TableHead>Projet</TableHead>
-                  <TableHead className="text-center">Vuln. (Attente)</TableHead>
-                  <TableHead className="text-center">SLA Âge</TableHead>
-                  <TableHead className="text-center">Patch Cible</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedGroups.map((group) => {
-                  const isExpanded = expanded[group.key];
+            <div className="w-full overflow-x-auto pb-2">
+              <Table className="min-w-[900px]">
+                <TableHeader className="bg-black/20">
+                  <TableRow className="border-border/50 hover:bg-transparent">
+                    <TableHead className="sticky left-0 bg-background/95 backdrop-blur z-10 border-r border-border/50 min-w-[250px]">Sévérité / Package</TableHead>
+                    <TableHead>Projet</TableHead>
+                    <TableHead className="text-center">Vuln. (Attente)</TableHead>
+                    <TableHead className="text-center">Statut / Résolution</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedGroups.map((group) => {
                   return (
                     <React.Fragment key={group.key}>
                       <TableRow 
                         className={`cursor-pointer transition-colors border-border/50 hover:bg-white/5 ${group.hasConfirmed ? 'bg-red-950/20' : ''}`}
-                        onClick={() => toggleExpand(group.key)}
+                        onClick={() => setSelectedGroup(group)}
                       >
-                        <TableCell>
-                          {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                        </TableCell>
-                        <TableCell>
+                        <TableCell className="sticky left-0 bg-background/95 backdrop-blur z-10 border-r border-border/50">
                           <div className="flex items-center gap-3">
                             <div className={`p-1.5 rounded-lg border ${group.hasConfirmed ? 'bg-red-500/20 border-red-500 text-red-500' : SEVERITY_COLORS[group.worstSeverity]}`}>
                               {group.hasConfirmed ? <AlertOctagon className="w-4 h-4 text-red-500 animate-pulse" /> : SEVERITY_ICONS[group.worstSeverity]}
@@ -342,28 +333,38 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <span className="font-bold">{group.cves.length}</span>
+                          <div className="inline-flex items-center gap-2 px-2 py-1 bg-white/5 border border-white/10 rounded-md text-xs">
+                            <span className="font-bold flex items-center gap-1"><Shield className="w-3 h-3 text-muted-foreground" /> {group.cves.length}</span>
                             {group.pendingCount > 0 && (
-                              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30 flex items-center gap-1">
-                                <RefreshCw className="w-2.5 h-2.5" /> {group.pendingCount}
-                              </span>
+                              <>
+                                <span className="w-px h-3 bg-white/20"></span>
+                                <span className="text-primary font-medium flex items-center gap-1">
+                                  <RefreshCw className="w-3 h-3" /> {group.pendingCount}
+                                </span>
+                              </>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          {group.maxAgeInDays !== undefined ? (
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium items-center gap-1 border ${
-                              (group.worstSeverity === 'critical' && group.maxAgeInDays >= 7) || (group.worstSeverity === 'high' && group.maxAgeInDays >= 30)
-                              ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse'
-                              : 'bg-white/5 text-muted-foreground border-white/10'
-                            }`} title="SLA : Âge de la vulnérabilité">
-                              <Clock className="w-3 h-3" /> {group.maxAgeInDays}j
-                            </span>
-                          ) : <span className="text-muted-foreground text-xs">-</span>}
-                        </TableCell>
-                        <TableCell className="text-center font-mono text-sm text-green-400">
-                          {group.targetPatch || <span className="text-muted-foreground text-xs">-</span>}
+                          <div className="flex flex-col items-center gap-1">
+                            {group.maxAgeInDays !== undefined ? (
+                              <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase items-center gap-1 border ${
+                                (group.worstSeverity === 'critical' && group.maxAgeInDays >= 7) || (group.worstSeverity === 'high' && group.maxAgeInDays >= 30)
+                                ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse'
+                                : 'bg-white/5 text-muted-foreground border-white/10'
+                              }`} title="SLA : Âge de la vulnérabilité">
+                                <Clock className="w-3 h-3" /> SLA {group.maxAgeInDays}j
+                              </span>
+                            ) : <span className="text-muted-foreground text-xs">-</span>}
+                            
+                            {group.targetPatch ? (
+                              <span className="font-mono text-[10px] text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-400/20">
+                                ↳ {group.targetPatch}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-[10px]">Aucun patch</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <button 
@@ -382,162 +383,12 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                           )}
                         </TableCell>
                       </TableRow>
-                      
-                      {isExpanded && (
-                        <TableRow className="border-border/50 hover:bg-transparent">
-                          <TableCell colSpan={7} className="p-0 border-b border-border/50 bg-black/40">
-                            <div className="p-4 flex flex-col gap-2">
-                              {group.cves.map((cveObj: any, i: number) => (
-                      <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg bg-card/40 border border-border/50">
-                        
-                        <div className="flex flex-col gap-1 flex-1">
-                          <h4 className="font-bold text-foreground flex items-center gap-2">
-                            {cveObj.ref}
-                            <span className={`px-2 py-0.5 rounded text-xs uppercase border ${SEVERITY_COLORS[cveObj.severity]}`}>
-                              {cveObj.severity}
-                            </span>
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {cveObj.title} {cveObj.versionRange && <span className="font-mono">({cveObj.versionRange})</span>}
-                            {cveObj.cvssVector && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help">
-                                    {cveObj.cvssVector}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent side="right" className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 text-gray-300 shadow-xl max-w-[400px]">
-                                  {buildCvssTooltip(cveObj.cvssVector)}
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            {cveObj.ageInDays !== undefined && (
-                               <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground" title={cveObj.publishedAt ? `Publiée le: ${new Date(cveObj.publishedAt).toLocaleString()}` : `Première détection par Aegis: ${new Date(cveObj.firstSeenAt).toLocaleString()}`}>
-                                <Clock className="w-3 h-3 inline mr-1" />{cveObj.ageInDays}j
-                               </span>
-                            )}
-                          </p>
-                          {cveObj.link && (
-                            <div className="flex items-center gap-4 mt-2">
-                              <a href={cveObj.link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline flex items-center gap-1">
-                                <LinkIcon className="w-3 h-3" /> Lire l'avis de sécurité
-                              </a>
-                              <button 
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    const res = await fetch('/api/advisories/sync', {
-                                      method: 'POST',
-                                      body: JSON.stringify({ cve: cveObj.cve, link: cveObj.link })
-                                    });
-                                    const data = await res.json();
-                                    
-                                    if (data.success && data.advisory) {
-                                      const fixes = data.advisory.fixes || {};
-                                      const patches = Object.entries(fixes)
-                                        .filter(([k]) => k.includes(group.package))
-                                        .flatMap(([_, v]: any) => v)
-                                        .map((v: any) => v.patched)
-                                        .filter(Boolean);
-                                      
-                                      const patchStr = patches.length > 0 ? Array.from(new Set(patches)).join(", ") : "Aucun";
-                                      
-                                      setToast({
-                                        isOpen: true,
-                                        type: 'success',
-                                        title: `${cveObj.ref || cveObj.cve} mise à jour`,
-                                        message: (
-                                          <div className="flex flex-col gap-1 mt-1">
-                                            <span><strong>Package :</strong> {group.package}</span>
-                                            <span><strong>Correctif(s) :</strong> <span className="font-mono text-green-400">{patchStr}</span></span>
-                                            <span><strong>Sévérité :</strong> <span className="uppercase">{data.advisory.severity}</span></span>
-                                          </div>
-                                        )
-                                      });
-                                      setTimeout(() => setToast(null), 8000);
-                                    } else {
-                                      setToast({
-                                        isOpen: true,
-                                        type: 'error',
-                                        title: 'Échec de synchronisation',
-                                        message: data.error || 'Impossible de récupérer la CVE.'
-                                      });
-                                      setTimeout(() => setToast(null), 5000);
-                                    }
-                                  } catch (err: any) {
-                                    setToast({ isOpen: true, type: 'error', title: 'Erreur', message: err.message });
-                                    setTimeout(() => setToast(null), 5000);
-                                  }
-                                }}
-                                className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 border border-border/50 bg-black/20 px-2 py-1 rounded transition-colors"
-                              >
-                                <RefreshCw className="w-3 h-3" /> Sync GHAD
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col gap-2 md:items-end">
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => updateStatus(cveObj.cve, group.projectId, 'pending')}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${cveObj.status === 'pending' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/50'}`}
-                            >
-                              À traiter
-                            </button>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleConfirmCve(cveObj.cve, group.projectId, cveObj.note || ''); }}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'confirmed' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'text-muted-foreground hover:bg-red-500/10 hover:text-red-400'}`}
-                            >
-                              <Check className="w-3 h-3" /> Confirmé
-                            </button>
-                            <button 
-                              onClick={() => updateStatus(cveObj.cve, group.projectId, 'ignored')}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'ignored' && !cveObj.isGlobal ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'text-muted-foreground hover:bg-orange-500/10 hover:text-orange-400'}`}
-                              title="Faux positif pour ce projet"
-                            >
-                              <X className="w-3 h-3" /> Faux positif
-                            </button>
-                            <button 
-                              onClick={() => updateStatus(cveObj.cve, -1, 'ignored', 'Faux positif global')}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${cveObj.status === 'ignored' && cveObj.isGlobal ? 'bg-orange-500/30 text-orange-400 border border-orange-500/50' : 'text-muted-foreground hover:bg-orange-500/10 hover:text-orange-400'}`}
-                              title="Ignorer cette CVE sur TOUS les projets"
-                            >
-                              <Globe className="w-3 h-3" /> Faux positif global
-                            </button>
-                          </div>
-                          
-                          {cveObj.fixedIn && (
-                            <p className="text-xs text-green-400 mt-1">
-                              Correction dispo : {cveObj.fixedIn}
-                            </p>
-                          )}
-                          {cveObj.note && (
-                            <div className="text-xs text-muted-foreground mt-2 bg-black/30 p-2.5 rounded border border-white/5 relative group">
-                              <span className="font-semibold block mb-0.5 text-foreground/80">Raison / Note :</span>
-                              <p className="pr-6 whitespace-pre-wrap">{cveObj.note}</p>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleConfirmCve(cveObj.cve, group.projectId, cveObj.note); }}
-                                className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-white"
-                                title="Modifier la note"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                      </div>
-                              ))}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
                     </React.Fragment>
                   );
                 })}
               </TableBody>
             </Table>
+            </div>
           </div>
           
           {(totalPages > 1 || packageGroups.length > 10) && (
@@ -592,12 +443,173 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         </div>
       )}
 
-      {/* Ticket Modal */}
-      {ticketModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="glass-panel w-full max-w-3xl rounded-2xl p-6 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold font-heading flex items-center gap-2">
+        </div>
+      )}
+
+      {/* Side Drawer for CVE Details */}
+      {selectedGroup && (
+        <div className="fixed inset-0 z-50 flex items-start justify-end p-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedGroup(null)}>
+          <div className="w-full max-w-lg h-full bg-background/95 backdrop-blur-xl border-l border-border/50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-border/50 flex items-center justify-between bg-black/20">
+              <div>
+                <h3 className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
+                  {selectedGroup.package}
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Projet : <span className="font-semibold text-foreground">{selectedGroup.projectName}</span>
+                </p>
+              </div>
+              <button onClick={() => setSelectedGroup(null)} className="p-2 rounded-full hover:bg-white/10 text-muted-foreground transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+              {selectedGroup.cves.map((cveObj: any, i: number) => (
+                <div key={i} className="flex flex-col gap-4 p-5 rounded-xl bg-card/40 border border-border/50 shadow-sm relative overflow-hidden">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <h4 className="font-bold text-lg text-foreground flex items-center gap-2">
+                        {cveObj.ref}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${SEVERITY_COLORS[cveObj.severity]}`}>
+                          {cveObj.severity}
+                        </span>
+                      </h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {cveObj.title} {cveObj.versionRange && <span className="font-mono bg-white/5 px-1 rounded">({cveObj.versionRange})</span>}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 text-xs items-center">
+                    {cveObj.cvssVector && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="font-mono px-2 py-1 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help">
+                            CVSS: {cveObj.cvssVector}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 text-gray-300 shadow-xl max-w-[400px]">
+                          {buildCvssTooltip(cveObj.cvssVector)}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    {cveObj.ageInDays !== undefined && (
+                        <span className="font-mono px-2 py-1 rounded bg-white/5 border border-white/10 text-muted-foreground flex items-center gap-1" title={cveObj.publishedAt ? `Publiée le: ${new Date(cveObj.publishedAt).toLocaleString()}` : `Première détection: ${new Date(cveObj.firstSeenAt).toLocaleString()}`}>
+                        <Clock className="w-3 h-3" /> SLA {cveObj.ageInDays}j
+                        </span>
+                    )}
+                    {cveObj.fixedIn && (
+                      <span className="font-mono px-2 py-1 rounded bg-green-500/10 text-green-400 border border-green-500/20">
+                        Patch : {cveObj.fixedIn}
+                      </span>
+                    )}
+                  </div>
+
+                  {cveObj.link && (
+                    <div className="flex items-center gap-3 mt-1">
+                      <a href={cveObj.link} target="_blank" rel="noreferrer" className="text-sm text-blue-400 hover:underline flex items-center gap-1.5 font-medium">
+                        <LinkIcon className="w-3.5 h-3.5" /> Avis de sécurité
+                      </a>
+                      <span className="w-1 h-1 rounded-full bg-white/20"></span>
+                      <button 
+                        onClick={async (e) => {
+                          try {
+                            const res = await fetch('/api/advisories/sync', {
+                              method: 'POST',
+                              body: JSON.stringify({ cve: cveObj.cve, link: cveObj.link })
+                            });
+                            const data = await res.json();
+                            
+                            if (data.success && data.advisory) {
+                              const fixes = data.advisory.fixes || {};
+                              const patches = Object.entries(fixes)
+                                .filter(([k]) => k.includes(selectedGroup.package))
+                                .flatMap(([_, v]: any) => v)
+                                .map((v: any) => v.patched)
+                                .filter(Boolean);
+                              
+                              const patchStr = patches.length > 0 ? Array.from(new Set(patches)).join(", ") : "Aucun";
+                              
+                              setToast({
+                                isOpen: true,
+                                type: 'success',
+                                title: `${cveObj.ref || cveObj.cve} mise à jour`,
+                                message: (
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    <span><strong>Package :</strong> {selectedGroup.package}</span>
+                                    <span><strong>Correctif(s) :</strong> <span className="font-mono text-green-400">{patchStr}</span></span>
+                                    <span><strong>Sévérité :</strong> <span className="uppercase">{data.advisory.severity}</span></span>
+                                  </div>
+                                )
+                              });
+                              setTimeout(() => setToast(null), 8000);
+                            } else {
+                              setToast({ isOpen: true, type: 'error', title: 'Échec', message: data.error || 'Erreur inconnue' });
+                              setTimeout(() => setToast(null), 5000);
+                            }
+                          } catch (err: any) {
+                            setToast({ isOpen: true, type: 'error', title: 'Erreur', message: err.message });
+                            setTimeout(() => setToast(null), 5000);
+                          }
+                        }}
+                        className="text-sm text-muted-foreground hover:text-white flex items-center gap-1.5 transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Forcer maj
+                      </button>
+                    </div>
+                  )}
+
+                  <hr className="border-border/50 my-2" />
+                  
+                  <div className="flex flex-wrap gap-2">
+                    <button 
+                      onClick={() => { updateStatus(cveObj.cve, selectedGroup.projectId, 'pending'); setSelectedGroup(null); }}
+                      className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${cveObj.status === 'pending' ? 'bg-secondary text-foreground' : 'text-muted-foreground bg-white/5 hover:bg-secondary/80'}`}
+                    >
+                      À traiter
+                    </button>
+                    <button 
+                      onClick={() => { handleConfirmCve(cveObj.cve, selectedGroup.projectId, cveObj.note || ''); setSelectedGroup(null); }}
+                      className={`px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${cveObj.status === 'confirmed' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'text-muted-foreground bg-white/5 hover:bg-red-500/10 hover:text-red-400'}`}
+                    >
+                      <Check className="w-3.5 h-3.5" /> Confirmé
+                    </button>
+                    <button 
+                      onClick={() => { updateStatus(cveObj.cve, selectedGroup.projectId, 'ignored'); setSelectedGroup(null); }}
+                      className={`px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${cveObj.status === 'ignored' && !cveObj.isGlobal ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'text-muted-foreground bg-white/5 hover:bg-orange-500/10 hover:text-orange-400'}`}
+                      title="Faux positif pour ce projet"
+                    >
+                      <X className="w-3.5 h-3.5" /> Faux positif
+                    </button>
+                    <button 
+                      onClick={() => { updateStatus(cveObj.cve, -1, 'ignored', 'Faux positif global'); setSelectedGroup(null); }}
+                      className={`px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${cveObj.status === 'ignored' && cveObj.isGlobal ? 'bg-orange-500/30 text-orange-400 border border-orange-500/50' : 'text-muted-foreground bg-white/5 hover:bg-orange-500/10 hover:text-orange-400'}`}
+                      title="Ignorer cette CVE sur TOUS les projets"
+                    >
+                      <Globe className="w-3.5 h-3.5" /> Global
+                    </button>
+                  </div>
+                  
+                  {cveObj.note && (
+                    <div className="text-sm text-muted-foreground bg-black/40 p-3 rounded-lg border border-white/5 relative group mt-2">
+                      <span className="font-semibold block mb-1 text-foreground/80">Raison / Note :</span>
+                      <p className="pr-8 whitespace-pre-wrap leading-relaxed">{cveObj.note}</p>
+                      <button 
+                        onClick={() => { handleConfirmCve(cveObj.cve, selectedGroup.projectId, cveObj.note); setSelectedGroup(null); }}
+                        className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-white"
+                        title="Modifier la note"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
                 <FileText className="w-5 h-5 text-blue-400" />
                 Ticket Jira (Markdown)
               </h3>

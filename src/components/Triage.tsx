@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, Shield, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon, FileText, Copy, CheckCircle2, Edit2, Globe, ChevronRight, ShieldAlert, Server, Clock } from 'lucide-react';
 import { buildCvssTooltip } from '../lib/cvss';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-500 border-red-500/20',
@@ -23,11 +24,28 @@ const SEVERITY_ICONS: Record<string, React.ReactNode> = {
 
 const SEV_ORDER: Record<string, number> = { critical: 4, high: 3, moderate: 2, low: 1, info: 0, unknown: -1 };
 
+function compareVersions(v1: string, v2: string): number {
+  if (!v1) return -1;
+  if (!v2) return 1;
+  const p1 = v1.replace(/^[^\d]+/, '').split('.').map(Number);
+  const p2 = v2.replace(/^[^\d]+/, '').split('.').map(Number);
+  const len = Math.max(p1.length, p2.length);
+  for (let i = 0; i < len; i++) {
+    const num1 = p1[i] || 0;
+    const num2 = p2[i] || 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
+}
+
 export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { projectId?: number | null, onClearProject?: () => void, cveFilter?: string | null, onClearCve?: () => void }) {
   const [cves, setCves] = useState<any[]>([]);
   const [tickets, setTickets] = useState<Record<string, any>>({});
   const [jiraBaseUrl, setJiraBaseUrl] = useState('');
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; cve: string; projectId: number; reason: string } | null>(null);
@@ -94,10 +112,14 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
             worstSeverity: occ.severity,
             pendingCount: 0,
             hasConfirmed: false,
-            maxAgeInDays: 0
+            maxAgeInDays: 0,
+            targetPatch: null as string | null
           });
         }
         const g = map.get(key)!;
+        if (occ.fixedIn && (!g.targetPatch || compareVersions(occ.fixedIn, g.targetPatch) > 0)) {
+          g.targetPatch = occ.fixedIn;
+        }
         if (occ.ageInDays && occ.ageInDays > g.maxAgeInDays) {
           g.maxAgeInDays = occ.ageInDays;
         }
@@ -127,6 +149,13 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
       .filter(g => g.cves.length > 0)
       .sort((a, b) => b.projectName.localeCompare(a.projectName));
   }, [cves, projectId, cveFilter, hideProcessed]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [cves, projectId, cveFilter, hideProcessed]);
+
+  const totalPages = Math.ceil(packageGroups.length / ITEMS_PER_PAGE);
+  const paginatedGroups = packageGroups.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const updateStatus = async (cve: string, projectId: number, newStatus: string, note?: string) => {
     try {
@@ -255,107 +284,108 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {packageGroups.map((group) => {
-            const isExpanded = expanded[group.key];
-            
-            return (
-              <div key={group.key} className={`glass-panel rounded-xl overflow-hidden border transition-colors ${group.hasConfirmed ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)] bg-red-950/20' : (group.pendingCount > 0 ? 'border-primary/30' : 'border-border/50')}`}>
-                
-                {/* Header = Package + Project */}
-                <div 
-                  className="p-5 cursor-pointer hover:bg-white/5 transition-colors flex items-center justify-between gap-4"
-                  onClick={() => toggleExpand(group.key)}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg border ${group.hasConfirmed ? 'bg-red-500/20 border-red-500 text-red-500' : SEVERITY_COLORS[group.worstSeverity]}`}>
-                      {group.hasConfirmed ? <AlertOctagon className="w-5 h-5 text-red-500 animate-pulse" /> : SEVERITY_ICONS[group.worstSeverity]}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <h3 className={`font-bold text-lg font-mono ${group.hasConfirmed ? 'text-red-400' : 'text-foreground'}`}>{group.package}</h3>
-                        {!group.hasConfirmed && (
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase border ${SEVERITY_COLORS[group.worstSeverity]}`}>
-                            {group.worstSeverity}
-                          </span>
-                        )}
-                        {group.hasConfirmed && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border border-red-500/50 bg-red-500/20 text-red-400 animate-pulse">
-                            Urgent à sécuriser
-                          </span>
-                        )}
-                        {group.pendingCount > 0 && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30 flex items-center gap-1">
-                            <RefreshCw className="w-3 h-3 animate-spin" /> {group.pendingCount} en attente
-                          </span>
-                        )}
-                        {group.maxAgeInDays > 0 && (
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 border ${
-                            (group.worstSeverity === 'critical' && group.maxAgeInDays >= 7) || (group.worstSeverity === 'high' && group.maxAgeInDays >= 30)
-                            ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse'
-                            : 'bg-white/5 text-muted-foreground border-white/10'
-                          }`} title="SLA : Âge de la vulnérabilité">
-                            <Clock className="w-3 h-3" /> {group.maxAgeInDays}j
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
-                        Projet : <span className="font-semibold text-foreground">{group.projectName}</span>
-                        <span className="px-2 py-0.5 text-[10px] rounded bg-secondary uppercase">{group.tool}</span>
-                      </p>
-                      
-                      {/* Ligne Ticket Jira Associé */}
-                      <div className="flex items-center gap-2 mt-3" onClick={e => e.stopPropagation()}>
-                        {tickets[group.key] ? (
-                          <div className="flex items-center gap-2 text-sm bg-blue-500/10 text-blue-400 px-3 py-1.5 rounded-lg border border-blue-500/20">
-                            <LinkIcon className="w-3.5 h-3.5" />
-                            <a href={`${jiraBaseUrl}${tickets[group.key].url}`} target="_blank" rel="noreferrer" className="font-semibold hover:underline">
-                              {tickets[group.key].url}
-                            </a>
-                            <button onClick={() => unlinkTicket(group.projectId, group.package)} className="ml-2 hover:text-red-400">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                            {group.cves.some((c: any) => !tickets[group.key].cves.includes(c.cve)) && (
-                              <span className="flex items-center gap-1 text-orange-400 ml-2" title="De nouvelles failles sont apparues depuis l'association de ce ticket !">
-                                <AlertTriangle className="w-4 h-4" /> Nouvelle CVE !
+          <div className="glass-panel rounded-xl overflow-hidden border border-border/50">
+            <Table>
+              <TableHeader className="bg-black/20">
+                <TableRow className="border-border/50 hover:bg-transparent">
+                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead>Sévérité / Package</TableHead>
+                  <TableHead>Projet</TableHead>
+                  <TableHead className="text-center">Vuln. (Attente)</TableHead>
+                  <TableHead className="text-center">SLA Âge</TableHead>
+                  <TableHead className="text-center">Patch Cible</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedGroups.map((group) => {
+                  const isExpanded = expanded[group.key];
+                  return (
+                    <React.Fragment key={group.key}>
+                      <TableRow 
+                        className={`cursor-pointer transition-colors border-border/50 hover:bg-white/5 ${group.hasConfirmed ? 'bg-red-950/20' : ''}`}
+                        onClick={() => toggleExpand(group.key)}
+                      >
+                        <TableCell>
+                          {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className={`p-1.5 rounded-lg border ${group.hasConfirmed ? 'bg-red-500/20 border-red-500 text-red-500' : SEVERITY_COLORS[group.worstSeverity]}`}>
+                              {group.hasConfirmed ? <AlertOctagon className="w-4 h-4 text-red-500 animate-pulse" /> : SEVERITY_ICONS[group.worstSeverity]}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className={`font-bold font-mono ${group.hasConfirmed ? 'text-red-400' : 'text-foreground'}`}>
+                                {group.package}
+                              </span>
+                              <div className="flex items-center gap-2 mt-1">
+                                {!group.hasConfirmed && (
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${SEVERITY_COLORS[group.worstSeverity]}`}>
+                                    {group.worstSeverity}
+                                  </span>
+                                )}
+                                {group.hasConfirmed && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border border-red-500/50 bg-red-500/20 text-red-400 animate-pulse">
+                                    Urgent
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-semibold text-sm">{group.projectName}</span>
+                            <span className="px-1.5 py-0.5 w-fit text-[9px] rounded bg-secondary uppercase">{group.tool}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="font-bold">{group.cves.length}</span>
+                            {group.pendingCount > 0 && (
+                              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30 flex items-center gap-1">
+                                <RefreshCw className="w-2.5 h-2.5 animate-spin" /> {group.pendingCount}
                               </span>
                             )}
                           </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <input 
-                              type="text" 
-                              placeholder="Associer Ticket (ex: SEC-123) + Entrée"
-                              className="bg-black/40 border border-border/50 rounded-md px-3 py-1.5 text-xs outline-none focus:border-blue-500 font-mono w-64"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  linkTicket(group.projectId, group.package, e.currentTarget.value, group.cves.map((c:any) => c.cve));
-                                }
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <button 
-                      onClick={(e) => createTicket(e, group.projectId, group.package)}
-                      className="px-3 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors flex items-center gap-2 text-sm font-semibold"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Ticket Jira
-                    </button>
-                    {isExpanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
-                  </div>
-                </div>
-
-                {/* Expanded Details = CVEs */}
-                {isExpanded && (
-                  <div className="p-5 border-t border-border/50 bg-black/20">
-                    <h4 className="font-semibold text-sm mb-3">CVEs détectées sur ce package :</h4>
-                    <div className="flex flex-col gap-2">
-                      {group.cves.map((cveObj: any, i: number) => (
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {group.maxAgeInDays > 0 ? (
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium items-center gap-1 border ${
+                              (group.worstSeverity === 'critical' && group.maxAgeInDays >= 7) || (group.worstSeverity === 'high' && group.maxAgeInDays >= 30)
+                              ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse'
+                              : 'bg-white/5 text-muted-foreground border-white/10'
+                            }`} title="SLA : Âge de la vulnérabilité">
+                              <Clock className="w-3 h-3" /> {group.maxAgeInDays}j
+                            </span>
+                          ) : <span className="text-muted-foreground text-xs">-</span>}
+                        </TableCell>
+                        <TableCell className="text-center font-mono text-sm text-green-400">
+                          {group.targetPatch || <span className="text-muted-foreground text-xs">-</span>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <button 
+                            onClick={(e) => createTicket(e, group.projectId, group.package)}
+                            className="px-2.5 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors inline-flex items-center gap-2 text-xs font-semibold"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            Ticket
+                          </button>
+                          {tickets[group.key] && (
+                            <div className="mt-2 text-xs flex justify-end">
+                              <a href={`${jiraBaseUrl}${tickets[group.key].url}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline" onClick={e => e.stopPropagation()}>
+                                {tickets[group.key].url}
+                              </a>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      
+                      {isExpanded && (
+                        <TableRow className="border-border/50 hover:bg-transparent">
+                          <TableCell colSpan={7} className="p-0 border-b border-border/50 bg-black/40">
+                            <div className="p-4 flex flex-col gap-2">
+                              {group.cves.map((cveObj: any, i: number) => (
                       <div key={i} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg bg-card/40 border border-border/50">
                         
                         <div className="flex flex-col gap-1 flex-1">
@@ -443,14 +473,52 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                         </div>
 
                       </div>
-                    ))}
-                    </div>
-                  </div>
-                )}
-
+                              ))}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between glass-panel px-6 py-4 rounded-xl border border-border/50">
+              <span className="text-sm text-muted-foreground">
+                Affichage {((page - 1) * ITEMS_PER_PAGE) + 1} à {Math.min(page * ITEMS_PER_PAGE, packageGroups.length)} sur {packageGroups.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                >
+                  Précédent
+                </button>
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPage(i + 1)}
+                      className={`w-8 h-8 rounded flex items-center justify-center text-sm font-medium transition-colors ${page === i + 1 ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'}`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                >
+                  Suivant
+                </button>
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
 

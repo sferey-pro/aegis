@@ -28,6 +28,7 @@ export interface CveOccurrence {
   cvssVector?: string | null;
   firstSeenAt?: string | null;
   ageInDays?: number;
+  publishedAt?: string;
 }
 
 export interface CveGroup {

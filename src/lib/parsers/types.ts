@@ -11,6 +11,7 @@ export interface Vulnerability {
   abandoned?: boolean;
   cvssVector?: string | null;
   firstSeenAt?: string | null;
+  publishedAt?: string;
   ageInDays?: number;
 }
 

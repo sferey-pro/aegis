@@ -128,10 +128,10 @@ export function Reports() {
           <button 
             onClick={fetchReports}
             disabled={isFetching}
-            className="group flex items-center gap-2 px-3 py-2 rounded hover:bg-white/5 transition-all duration-300 active:scale-95 disabled:opacity-50"
+            className={`group flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold transition-all duration-300 ${isFetching ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-secondary/50 border-white/5 text-muted-foreground hover:bg-white/10 hover:border-white/10 hover:text-foreground active:scale-95'}`}
           >
-            {isFetching && <span className="text-sm text-muted-foreground font-medium animate-pulse">Actualisation...</span>}
-            <RefreshCw className={`w-5 h-5 text-muted-foreground transition-transform duration-500 group-hover:rotate-180 ${isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 transition-transform duration-500 ${isFetching ? 'animate-spin text-primary' : 'group-hover:rotate-180'}`} />
+            {isFetching ? 'Actualisation...' : 'Actualiser'}
           </button>
         </div>
       </div>

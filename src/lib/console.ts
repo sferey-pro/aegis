@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { getSetting } from "../db/settings";
 
 export interface ConsoleEvent {
   id: number;
@@ -42,6 +43,9 @@ export function emitConsoleEnd(id: number, event: Omit<ConsoleEvent, "id" | "pro
 }
 
 function broadcast(event: ConsoleEvent) {
+  if (getSetting('DISABLE_CONSOLE', 'false') === 'true') {
+    return;
+  }
   const payload = `data: ${JSON.stringify(event)}\n\n`;
   for (const client of clients) {
     try {

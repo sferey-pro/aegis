@@ -45,6 +45,10 @@ export function Console() {
     const evtSource = new EventSource("/api/console");
     
     evtSource.onmessage = (event) => {
+      if (event.data === ": disabled") {
+        evtSource.close();
+        return;
+      }
       // Ignore ping and connected messages
       if (event.data === ": ping" || event.data === ": connected") return;
       

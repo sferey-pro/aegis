@@ -11,7 +11,8 @@ export function Settings() {
     JIRA_API_KEY: '',
     GITHUB_RL_LIMIT: '',
     GITHUB_RL_REMAINING: '',
-    GITHUB_RL_RESET: ''
+    GITHUB_RL_RESET: '',
+    DISABLE_CONSOLE: 'false'
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,7 +34,8 @@ export function Settings() {
           JIRA_API_KEY: data.JIRA_API_KEY || '',
           GITHUB_RL_LIMIT: data.GITHUB_RL_LIMIT || '',
           GITHUB_RL_REMAINING: data.GITHUB_RL_REMAINING || '',
-          GITHUB_RL_RESET: data.GITHUB_RL_RESET || ''
+          GITHUB_RL_RESET: data.GITHUB_RL_RESET || '',
+          DISABLE_CONSOLE: data.DISABLE_CONSOLE || 'false'
         });
         setLoading(false);
       });
@@ -142,6 +144,34 @@ export function Settings() {
                 min="0"
                 step="1"
               />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-lg font-bold">Options Globales</label>
+              
+              <label className="flex items-center gap-3 cursor-pointer mt-2 group">
+                <input 
+                  type="checkbox" 
+                  checked={settings.CRITICAL_ONLY === 'true'}
+                  onChange={e => setSettings({...settings, CRITICAL_ONLY: e.target.checked ? 'true' : 'false'})}
+                  className="w-5 h-5 rounded border-border bg-black/40 text-primary focus:ring-primary focus:ring-offset-background"
+                />
+                <span className="text-sm font-medium group-hover:text-white transition-colors">
+                  Mode Silencieux (N'afficher que les CVEs Critical/High)
+                </span>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer mt-2 group">
+                <input 
+                  type="checkbox" 
+                  checked={settings.DISABLE_CONSOLE === 'true'}
+                  onChange={e => setSettings({...settings, DISABLE_CONSOLE: e.target.checked ? 'true' : 'false'})}
+                  className="w-5 h-5 rounded border-border bg-black/40 text-primary focus:ring-primary focus:ring-offset-background"
+                />
+                <span className="text-sm font-medium group-hover:text-white transition-colors">
+                  Désactiver la Console (Coupe le broadcast SSE et allège les performances frontend)
+                </span>
+              </label>
             </div>
 
             <div className="flex flex-col gap-2">

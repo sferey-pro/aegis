@@ -27,6 +27,10 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
   useEffect(() => {
     const evtSource = new EventSource('/api/console');
     evtSource.addEventListener('message', (event) => {
+      if (event.data === ": disabled") {
+        evtSource.close();
+        return;
+      }
       try {
         const data = JSON.parse(event.data);
         if (data.phase === "start" && data.project) {

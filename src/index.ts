@@ -24,6 +24,21 @@ const server = serve({
 
     "/api/console": {
       async GET() {
+        const { getSetting } = await import("./db/settings");
+        if (getSetting('DISABLE_CONSOLE', 'false') === 'true') {
+          return new Response(new ReadableStream({
+            start(controller) {
+              controller.enqueue(`: disabled\n\n`);
+              controller.close();
+            }
+          }), {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              "Connection": "keep-alive"
+            }
+          });
+        }
         return new Response(new ReadableStream({
           start(controller) {
             addConsoleClient(controller as any);
@@ -319,8 +334,8 @@ const server = serve({
         try {
           const { cve, link } = await req.json();
           const { syncAdvisory } = await import("./lib/github");
-          const ok = await syncAdvisory(cve, link);
-          return Response.json({ success: ok });
+          const advisory = await syncAdvisory(cve, link);
+          return Response.json({ success: !!advisory, advisory });
         } catch (e: any) {
           return Response.json({ success: false, error: e.message }, { status: 500 });
         }

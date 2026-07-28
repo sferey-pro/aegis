@@ -141,7 +141,9 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
         tool: project.tool,
         package: v.package,
         cve: v.cve,
-        link: v.link
+        link: v.link,
+        versionRange: v.versionRange,
+        originalFixedIn: v.fixedIn
       });
       
       let firstSeenAt = new Date().toISOString();
@@ -247,7 +249,9 @@ export async function ingestAudit(projectId: number, stdout: string, commitSha: 
       tool: project.tool,
       package: v.package,
       cve: v.cve,
-      link: v.link
+      link: v.link,
+      versionRange: v.versionRange,
+      originalFixedIn: v.fixedIn
     });
 
     let firstSeenAt = new Date().toISOString();

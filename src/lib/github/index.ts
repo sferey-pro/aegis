@@ -29,7 +29,7 @@ export function keyFrom(cve?: string | null, link?: string | null): AdvisoryKey 
 
 export interface CachedAdvisory {
   severity: string;
-  fixes: Record<string, string | null>;
+  fixes: Record<string, Array<{ range: string, patched: string | null }> | string | null>;
   html_url?: string | null;
   cvss_vector?: string | null;
 }
@@ -46,7 +46,7 @@ export function getCachedAdvisory(id: string): CachedAdvisory | null {
   };
 }
 
-export function putCachedAdvisory(id: string, severity: string, fixes: Record<string, string | null>, html_url?: string | null, cvss_vector?: string | null) {
+export function putCachedAdvisory(id: string, severity: string, fixes: Record<string, any>, html_url?: string | null, cvss_vector?: string | null) {
   const db = getDb();
   db.query(`
     INSERT INTO advisory_cache (id, severity, fixes, html_url, cvss_vector, fetched_at)
@@ -122,7 +122,7 @@ async function fetchAdvisory(key: AdvisoryKey): Promise<{ advisory: CachedAdviso
     }
 
     const severity = normSeverity(data.severity);
-    const fixes: Record<string, string | null> = {};
+    const fixes: Record<string, Array<{ range: string, patched: string | null }>> = {};
 
     if (Array.isArray(data.vulnerabilities)) {
       for (const v of data.vulnerabilities) {
@@ -132,7 +132,11 @@ async function fetchAdvisory(key: AdvisoryKey): Promise<{ advisory: CachedAdviso
           if (eco === "packagist") eco = "composer"; // normalization to match our mapEcosystem
           
           const k = `${eco}:${v.package.name}`;
-          fixes[k] = v.first_patched_version ? v.first_patched_version.trim() : null;
+          if (!fixes[k]) fixes[k] = [];
+          fixes[k].push({
+            range: v.vulnerable_version_range || "",
+            patched: v.first_patched_version ? v.first_patched_version.trim() : null
+          });
         }
       }
     }
@@ -147,18 +151,42 @@ async function fetchAdvisory(key: AdvisoryKey): Promise<{ advisory: CachedAdviso
   }
 }
 
-export async function resolveFixedVersion(params: { tool: ProjectTool, package: string, cve?: string | null, link?: string | null }): Promise<ResolveResult> {
+function matchBestFix(fixesList: any, versionRange?: string | null, originalFixedIn?: string | null): string | null {
+  if (!fixesList) return originalFixedIn || null;
+  if (typeof fixesList === 'string') return fixesList;
+  if (!Array.isArray(fixesList) || fixesList.length === 0) return originalFixedIn || null;
+  
+  if (fixesList.length === 1) return fixesList[0].patched || originalFixedIn || null;
+
+  if (versionRange) {
+    const exact = fixesList.find(f => f.range === versionRange);
+    if (exact && exact.patched) return exact.patched;
+
+    const majors = new Set(Array.from(versionRange.matchAll(/\b(\d+)\./g)).map(m => m[1]));
+    for (const f of fixesList) {
+      if (f.patched) {
+        const patchMajor = f.patched.split('.')[0];
+        if (majors.has(patchMajor)) return f.patched;
+      }
+    }
+  }
+
+  // Fallback: pick the first one or original
+  return fixesList[0].patched || originalFixedIn || null;
+}
+
+export async function resolveFixedVersion(params: { tool: ProjectTool, package: string, cve?: string | null, link?: string | null, versionRange?: string | null, originalFixedIn?: string | null }): Promise<ResolveResult> {
   const key = keyFrom(params.cve, params.link);
   
   if (!key) {
-    return { fixedIn: null, rateLimited: false, resolvable: false, severity: "unknown" };
+    return { fixedIn: params.originalFixedIn || null, rateLimited: false, resolvable: false, severity: "unknown" };
   }
 
   const cached = getCachedAdvisory(key.id);
   if (cached) {
     const ecoKey = `${mapEcosystem(params.tool)}:${params.package}`;
     return {
-      fixedIn: cached.fixes[ecoKey] || null,
+      fixedIn: matchBestFix(cached.fixes[ecoKey], params.versionRange, params.originalFixedIn),
       rateLimited: false,
       resolvable: true,
       severity: cached.severity,
@@ -178,7 +206,7 @@ export async function resolveFixedVersion(params: { tool: ProjectTool, package: 
     putCachedAdvisory(key.id, res.advisory.severity, res.advisory.fixes, res.advisory.html_url, res.advisory.cvss_vector);
     
     return {
-      fixedIn: res.advisory.fixes[ecoKey] || null,
+      fixedIn: matchBestFix(res.advisory.fixes[ecoKey], params.versionRange, params.originalFixedIn),
       rateLimited: false,
       resolvable: true,
       severity: res.advisory.severity,

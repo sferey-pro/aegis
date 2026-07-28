@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Shield, RefreshCw, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
+import { X, Shield, RefreshCw, CheckCircle2, AlertTriangle, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SEV_ORDER, compareVersions } from './triage/constants';
 import { TriageTable } from './triage/TriageTable';
 import { CveDetailsModal } from './triage/CveDetailsModal';
@@ -175,7 +175,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   };
 
   return (
-    <div className="flex-1 w-full max-w-[1600px] px-4 md:px-8 mx-auto mt-8 z-10">
+    <div className="flex-1 w-full max-w-[1600px] px-4 md:px-8 mx-auto mt-8 z-10 animate-in fade-in duration-500">
       
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -235,50 +235,27 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
           />
           
           {(totalPages > 1 || packageGroups.length > 10) && (
-            <div className="flex items-center justify-between glass-panel px-6 py-4 rounded-xl border border-border/50">
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">
-                  Affichage {((page - 1) * itemsPerPage) + (packageGroups.length > 0 ? 1 : 0)} à {Math.min(page * itemsPerPage, packageGroups.length)} sur {packageGroups.length}
-                </span>
-                <select 
-                  className="bg-black/60 border border-border/50 rounded-md px-2 py-1 text-sm outline-none focus:border-primary font-mono text-foreground cursor-pointer"
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setPage(1);
-                  }}
-                >
-                  <option className="bg-gray-900 text-white" value={10}>10 par page</option>
-                  <option className="bg-gray-900 text-white" value={20}>20 par page</option>
-                  <option className="bg-gray-900 text-white" value={50}>50 par page</option>
-                  <option className="bg-gray-900 text-white" value={100}>100 par page</option>
-                </select>
-              </div>
+            <div className="flex items-center justify-between px-2 mt-2">
+              <span className="text-sm text-muted-foreground">
+                Affichage de {Math.min(((page - 1) * itemsPerPage) + 1, packageGroups.length)} à {Math.min(page * itemsPerPage, packageGroups.length)} sur {packageGroups.length} packages
+              </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-3 py-1.5 rounded bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                  className="p-1.5 rounded-lg border border-border/50 bg-background/50 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
                 >
-                  Précédent
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className="flex gap-1">
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPage(i + 1)}
-                      className={`w-8 h-8 rounded flex items-center justify-center text-sm font-medium transition-colors ${page === i + 1 ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary'}`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
+                <span className="text-sm font-medium px-2">
+                  Page {page} / {totalPages}
+                </span>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-3 py-1.5 rounded bg-secondary hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                  className="p-1.5 rounded-lg border border-border/50 bg-background/50 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
                 >
-                  Suivant
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
             </div>

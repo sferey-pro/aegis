@@ -138,6 +138,9 @@ function initDb(database: Database) {
       id TEXT PRIMARY KEY,
       severity TEXT,
       fixes JSON,
+      html_url TEXT,
+      cvss_vector TEXT,
+      published_at DATETIME,
       fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -159,6 +162,19 @@ function initDb(database: Database) {
   try {
     db!.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
   } catch (e) {
-    // La colonne existe déjà
+    // La colonne existe probablement déjà
   }
+
+  // Migration pour ajouter published_at, html_url, cvss_vector à advisory_cache
+  try {
+    db!.query("ALTER TABLE advisory_cache ADD COLUMN published_at DATETIME").run();
+  } catch (e) {
+    // La colonne existe probablement déjà
+  }
+  try {
+    db!.query("ALTER TABLE advisory_cache ADD COLUMN html_url TEXT").run();
+  } catch (e) {}
+  try {
+    db!.query("ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT").run();
+  } catch (e) {}
 }

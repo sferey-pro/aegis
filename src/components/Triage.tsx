@@ -3,6 +3,7 @@ import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, S
 import { buildCvssTooltip } from '../lib/cvss';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { AlertDialog } from './ConfirmDialog';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-500 border-red-500/20',
@@ -49,6 +50,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; cve: string; projectId: number; reason: string } | null>(null);
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
   const [hideProcessed, setHideProcessed] = useState(false);
 
   const fetchCves = async () => {
@@ -428,7 +430,11 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                                       method: 'POST',
                                       body: JSON.stringify({ cve: cveObj.cve, link: cveObj.link })
                                     });
-                                    alert("Cache GHAD vidé pour cette vulnérabilité. Veuillez relancer l'audit du projet pour récupérer les dernières informations.");
+                                    setAlertModal({
+                                      isOpen: true,
+                                      title: "Synchronisation réussie",
+                                      message: "Cache GHAD vidé pour cette vulnérabilité.\n\nVeuillez relancer l'audit du projet pour récupérer les dernières informations."
+                                    });
                                   } catch (err) {}
                                 }}
                                 className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 border border-border/50 bg-black/20 px-2 py-1 rounded transition-colors"
@@ -641,6 +647,13 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
           </form>
         </div>
       )}
+
+      <AlertDialog 
+        isOpen={alertModal.isOpen}
+        title={alertModal.title}
+        message={alertModal.message}
+        onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

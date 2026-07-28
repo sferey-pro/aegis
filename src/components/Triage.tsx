@@ -528,6 +528,9 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                               
                               const patchStr = patches.length > 0 ? Array.from(new Set(patches)).join(", ") : "Aucun";
                               
+                              const publishedDate = data.advisory.published_at ? new Date(data.advisory.published_at) : (cveObj.firstSeenAt ? new Date(cveObj.firstSeenAt) : new Date());
+                              const ageInDays = Math.floor((Date.now() - publishedDate.getTime()) / (1000 * 3600 * 24));
+                              
                               setToast({
                                 isOpen: true,
                                 type: 'success',
@@ -537,6 +540,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                                     <span><strong>Package :</strong> {selectedGroup.package}</span>
                                     <span><strong>Correctif(s) :</strong> <span className="font-mono text-green-400">{patchStr}</span></span>
                                     <span><strong>Sévérité :</strong> <span className="uppercase">{data.advisory.severity}</span></span>
+                                    <span><strong>Âge (SLA) :</strong> <span className="font-mono text-orange-400">{ageInDays}j</span></span>
                                   </div>
                                 )
                               });

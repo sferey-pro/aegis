@@ -17,6 +17,35 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
   const [editingId, setEditingId] = useState<number | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [auditState, setAuditState] = useState<Record<number, string>>({});
+  const projectsRef = useRef<any[]>([]);
+  
+  useEffect(() => {
+    projectsRef.current = projects;
+  }, [projects]);
+
+  useEffect(() => {
+    const evtSource = new EventSource('/api/console');
+    evtSource.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.phase === "start" && data.project) {
+          let msg = "Analyse en cours...";
+          if (data.label === "git") msg = "Opération Git...";
+          if (data.label === "github") msg = "Recherche correctifs GitHub...";
+          if (data.label === "audit") msg = `Audit ${data.cmd.split(' ')[0]}...`;
+          
+          setAuditState(prev => {
+            const p = projectsRef.current.find((proj: any) => proj.name === data.project);
+            if (p) return { ...prev, [p.id]: msg };
+            return prev;
+          });
+        }
+      } catch (e) {}
+    });
+    return () => evtSource.close();
+  }, []);
+
   const formRef = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -137,7 +166,13 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
       }
 
       if (shouldAudit && createdProjectId) {
-        fetch(`/api/projects/${createdProjectId}/audit`, { method: 'POST' }).catch(console.error);
+        setAuditState(prev => ({ ...prev, [createdProjectId]: "Démarrage..." }));
+        fetch(`/api/projects/${createdProjectId}/audit`, { method: 'POST' })
+          .then(() => fetchProjects())
+          .catch(console.error)
+          .finally(() => {
+            setAuditState(prev => { const n = {...prev}; delete n[createdProjectId]; return n; });
+          });
       }
     } catch (err) {
       console.error(err);
@@ -215,11 +250,14 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
 
   const handleForceAudit = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    setAuditState(prev => ({ ...prev, [id]: "Démarrage..." }));
     try {
       await fetch(`/api/projects/${id}/audit?force=true`, { method: 'POST' });
       await fetchProjects();
     } catch (err) {
       console.error("Failed to force audit", err);
+    } finally {
+      setAuditState(prev => { const n = {...prev}; delete n[id]; return n; });
     }
   };
 
@@ -542,7 +580,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             return (
             <div 
               key={p.id} 
-              className={`group glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-500 animate-in slide-in-from-bottom-4 fade-in ${
+              className={`group glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-500 animate-in slide-in-from-bottom-4 fade-in relative overflow-hidden ${
                 p.ignored ? 'opacity-50 grayscale' : 
                 hasCritical ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)] bg-red-500/5 cursor-pointer hover:-translate-y-1' :
                 'hover:-translate-y-1 hover:border-white/20 hover:shadow-xl hover:shadow-primary/5 cursor-pointer bg-background/40 backdrop-blur-md'
@@ -553,6 +591,13 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               }}
             >
               
+              {auditState[p.id] && (
+                <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-[2px] flex items-center justify-center flex-col gap-2 rounded-xl">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <span className="text-xs font-semibold text-white animate-pulse">{auditState[p.id]}</span>
+                </div>
+              )}
+
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : (hasNoCves ? 'text-green-500' : (hasCritical ? 'text-red-500' : 'text-primary'))}`} />

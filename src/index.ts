@@ -301,7 +301,12 @@ const server = serve({
         const url = new URL(req.url);
         const force = url.searchParams.get("force") === "true";
         try {
-          const res = await runAudit(id, force);
+          const { getProjectById } = await import("./db/projects");
+          const project = getProjectById(id);
+          if (!project) return Response.json({ success: false, error: "Not found" }, { status: 404 });
+
+          const { projectContext } = await import("./lib/console");
+          const res = await projectContext.run({ project: project.name }, () => runAudit(id, force));
           return Response.json({ success: true, ...res });
         } catch (e: any) {
           return Response.json({ success: false, error: e.message }, { status: 500 });

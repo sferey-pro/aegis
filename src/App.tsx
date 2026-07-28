@@ -27,6 +27,26 @@ export function App() {
   const [triageCveFilter, setTriageCveFilter] = useState<string | null>(null);
   const [reportModal, setReportModal] = useState<any | null>(null);
 
+  const [loadingMessage, setLoadingMessage] = useState("Connexion à la base de données...");
+
+  useEffect(() => {
+    const messages = [
+      "Connexion à la base de données locale...",
+      "Récupération des statistiques globales...",
+      "Compilation des projets surveillés...",
+      "Préparation de l'interface Aegis..."
+    ];
+    let step = 0;
+    const interval = setInterval(() => {
+      step++;
+      if (step < messages.length) {
+        setLoadingMessage(messages[step]);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     fetchStats(true);
   }, []);
@@ -140,7 +160,7 @@ export function App() {
             <h1 className="text-3xl font-bold font-heading text-gradient">AEGIS</h1>
             <div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              {loading ? "Initialisation du bouclier..." : (
+              {loading ? loadingMessage : (
                 auditProgress 
                   ? `Analyse du projet ${auditProgress.name} .... ${auditProgress.current}/${auditProgress.total}`
                   : "Démarrage de l'audit global..."

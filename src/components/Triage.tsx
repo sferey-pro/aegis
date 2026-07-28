@@ -433,7 +433,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                                     setAlertModal({
                                       isOpen: true,
                                       title: "Synchronisation réussie",
-                                      message: "Cache GHAD vidé pour cette vulnérabilité.\n\nVeuillez relancer l'audit du projet pour récupérer les dernières informations."
+                                      message: "Les dernières informations ont été récupérées depuis GitHub.\n\nVeuillez relancer l'audit de ce projet pour mettre à jour l'affichage avec le nouveau correctif."
                                     });
                                   } catch (err) {}
                                 }}

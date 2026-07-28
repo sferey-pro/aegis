@@ -8,7 +8,10 @@ export function Settings() {
     AUDIT_MAX_AGE_HOURS: '24',
     CRITICAL_ONLY: 'false',
     JIRA_BASE_URL: 'https://mon-entreprise.atlassian.net/browse/',
-    JIRA_API_KEY: ''
+    JIRA_API_KEY: '',
+    GITHUB_RL_LIMIT: '',
+    GITHUB_RL_REMAINING: '',
+    GITHUB_RL_RESET: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -27,7 +30,10 @@ export function Settings() {
           AUDIT_MAX_AGE_HOURS: data.AUDIT_MAX_AGE_HOURS || '24',
           CRITICAL_ONLY: data.CRITICAL_ONLY || 'false',
           JIRA_BASE_URL: data.JIRA_BASE_URL || 'https://mon-entreprise.atlassian.net/browse/',
-          JIRA_API_KEY: data.JIRA_API_KEY || ''
+          JIRA_API_KEY: data.JIRA_API_KEY || '',
+          GITHUB_RL_LIMIT: data.GITHUB_RL_LIMIT || '',
+          GITHUB_RL_REMAINING: data.GITHUB_RL_REMAINING || '',
+          GITHUB_RL_RESET: data.GITHUB_RL_RESET || ''
         });
         setLoading(false);
       });
@@ -107,6 +113,18 @@ export function Settings() {
                 className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors font-mono"
                 placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
               />
+              {settings.GITHUB_RL_LIMIT && (
+                <div className="mt-2 text-xs flex gap-4 text-muted-foreground bg-black/20 p-2.5 rounded-lg border border-white/5 w-fit">
+                  <span>
+                    Quota API GitHub : <strong className={Number(settings.GITHUB_RL_REMAINING) === 0 ? "text-red-400" : "text-green-400"}>
+                      {settings.GITHUB_RL_REMAINING} / {settings.GITHUB_RL_LIMIT}
+                    </strong>
+                  </span>
+                  {settings.GITHUB_RL_RESET && (
+                    <span>Reset : {new Date(Number(settings.GITHUB_RL_RESET) * 1000).toLocaleString('fr-FR')}</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <hr className="border-border" />

@@ -102,8 +102,18 @@ async function fetchAdvisory(key: AdvisoryKey): Promise<{ advisory: CachedAdviso
   try {
     const res = await fetch(url, { headers });
     const exitCode = res.status;
-    
-    if (res.status === 429 || (res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0")) {
+    const limit = res.headers.get("x-ratelimit-limit");
+    const remaining = res.headers.get("x-ratelimit-remaining");
+    const reset = res.headers.get("x-ratelimit-reset");
+
+    if (limit) {
+      const { setSetting } = await import("../../db/settings");
+      setSetting("GITHUB_RL_LIMIT", limit);
+      setSetting("GITHUB_RL_REMAINING", remaining || "0");
+      setSetting("GITHUB_RL_RESET", reset || "0");
+    }
+
+    if (res.status === 429 || (res.status === 403 && remaining === "0")) {
       emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
       return { advisory: null, rateLimited: true };
     }
@@ -216,4 +226,19 @@ export async function resolveFixedVersion(params: { tool: ProjectTool, package: 
   }
 
   return { fixedIn: null, rateLimited: false, resolvable: true, severity: "unknown" };
+}
+
+export async function syncAdvisory(cve?: string | null, link?: string | null): Promise<boolean> {
+  const key = keyFrom(cve, link);
+  if (!key) return false;
+  
+  const db = getDb();
+  db.query('DELETE FROM advisory_cache WHERE id = ?').run(key.id);
+  
+  const { advisory, rateLimited } = await fetchAdvisory(key);
+  if (advisory) {
+    putCachedAdvisory(key.id, advisory.severity, advisory.fixes, advisory.html_url, advisory.cvss_vector);
+    return true;
+  }
+  return false;
 }

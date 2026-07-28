@@ -34,6 +34,7 @@ export function Console() {
   const [debugMode, setDebugMode] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [activeTab, setActiveTab] = useState<string>('Global');
+  const [isDisabled, setIsDisabled] = useState<boolean>(false);
   
   const logsEndRef = useRef<HTMLDivElement>(null);
   
@@ -46,6 +47,7 @@ export function Console() {
     
     evtSource.onmessage = (event) => {
       if (event.data === ": disabled") {
+        setIsDisabled(true);
         evtSource.close();
         return;
       }
@@ -197,7 +199,15 @@ export function Console() {
 
       {/* Logs Viewport */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#0a0a0a]">
-        {filteredLogs.length === 0 ? (
+        {isDisabled ? (
+          <div className="text-muted-foreground/50 h-full flex flex-col gap-4 items-center justify-center text-center">
+            <Terminal className="w-12 h-12 opacity-50" />
+            <div>
+              <p className="font-semibold text-lg text-foreground">Console Live Désactivée</p>
+              <p>Pour préserver les performances, vous pouvez la réactiver depuis les paramètres.</p>
+            </div>
+          </div>
+        ) : filteredLogs.length === 0 ? (
           <div className="text-muted-foreground/50 h-full flex items-center justify-center italic">
             En attente de commandes réseau ou audit...
           </div>

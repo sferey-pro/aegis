@@ -28,6 +28,17 @@ export function App() {
   const [reportModal, setReportModal] = useState<any | null>(null);
 
   const [loadingMessage, setLoadingMessage] = useState("Connexion à la base de données...");
+  const [auditMessageIndex, setAuditMessageIndex] = useState(0);
+
+  useEffect(() => {
+    if (!auditing) return;
+    let step = 0;
+    const interval = setInterval(() => {
+      step = (step + 1) % 4;
+      setAuditMessageIndex(step);
+    }, 800);
+    return () => clearInterval(interval);
+  }, [auditing]);
 
   useEffect(() => {
     const messages = [
@@ -162,7 +173,7 @@ export function App() {
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
               {loading ? loadingMessage : (
                 auditProgress 
-                  ? `Analyse du projet ${auditProgress.name} .... ${auditProgress.current}/${auditProgress.total}`
+                  ? `${["Scan des dépendances", "Recherche GHSA", "Calcul de la criticité", "Génération des patchs"][auditMessageIndex]} de ${auditProgress.name} .... ${auditProgress.current}/${auditProgress.total}`
                   : "Démarrage de l'audit global..."
               )}
             </div>

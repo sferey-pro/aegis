@@ -32,37 +32,41 @@ export interface CachedAdvisory {
   fixes: Record<string, Array<{ range: string, patched: string | null }> | string | null>;
   html_url?: string | null;
   cvss_vector?: string | null;
+  published_at?: string | null;
 }
 
 export function getCachedAdvisory(id: string): CachedAdvisory | null {
   const db = getDb();
-  const row = db.query(`SELECT severity, fixes, html_url, cvss_vector FROM advisory_cache WHERE id = ?`).get(id) as any;
+  const row = db.query(`SELECT severity, fixes, html_url, cvss_vector, published_at FROM advisory_cache WHERE id = ?`).get(id) as any;
   if (!row) return null;
   return {
     severity: row.severity,
     fixes: typeof row.fixes === 'string' ? JSON.parse(row.fixes) : (row.fixes || {}),
     html_url: row.html_url,
-    cvss_vector: row.cvss_vector
+    cvss_vector: row.cvss_vector,
+    published_at: row.published_at
   };
 }
 
-export function putCachedAdvisory(id: string, severity: string, fixes: Record<string, any>, html_url?: string | null, cvss_vector?: string | null) {
+export function putCachedAdvisory(id: string, severity: string, fixes: Record<string, any>, html_url?: string | null, cvss_vector?: string | null, published_at?: string | null) {
   const db = getDb();
   db.query(`
-    INSERT INTO advisory_cache (id, severity, fixes, html_url, cvss_vector, fetched_at)
-    VALUES ($id, $severity, $fixes, $html_url, $cvss_vector, CURRENT_TIMESTAMP)
+    INSERT INTO advisory_cache (id, severity, fixes, html_url, cvss_vector, published_at, fetched_at)
+    VALUES ($id, $severity, $fixes, $html_url, $cvss_vector, $published_at, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       severity = excluded.severity,
       fixes = excluded.fixes,
       html_url = excluded.html_url,
       cvss_vector = excluded.cvss_vector,
+      published_at = excluded.published_at,
       fetched_at = CURRENT_TIMESTAMP
   `).run({
     $id: id,
     $severity: severity,
     $fixes: JSON.stringify(fixes),
     $html_url: html_url || null,
-    $cvss_vector: cvss_vector || null
+    $cvss_vector: cvss_vector || null,
+    $published_at: published_at || null
   });
 }
 
@@ -77,6 +81,7 @@ export interface ResolveResult {
   severity: string;
   html_url?: string | null;
   cvss_vector?: string | null;
+  published_at?: string | null;
 }
 
 async function fetchAdvisory(key: AdvisoryKey): Promise<{ advisory: CachedAdvisory | null, rateLimited: boolean }> {
@@ -153,8 +158,9 @@ async function fetchAdvisory(key: AdvisoryKey): Promise<{ advisory: CachedAdviso
 
     const html_url = data.html_url || null;
     const cvss_vector = data.cvss?.vector_string || null;
+    const published_at = data.published_at || null;
 
-    return { advisory: { severity, fixes, html_url, cvss_vector }, rateLimited: false };
+    return { advisory: { severity, fixes, html_url, cvss_vector, published_at }, rateLimited: false };
   } catch (e) {
     emitConsoleEnd(eventId, { exitCode: 0, ms: Date.now() - startTime });
     return { advisory: null, rateLimited: false };
@@ -201,7 +207,8 @@ export async function resolveFixedVersion(params: { tool: ProjectTool, package: 
       resolvable: true,
       severity: cached.severity,
       html_url: cached.html_url,
-      cvss_vector: cached.cvss_vector
+      cvss_vector: cached.cvss_vector,
+      published_at: cached.published_at
     };
   }
 
@@ -213,7 +220,7 @@ export async function resolveFixedVersion(params: { tool: ProjectTool, package: 
   }
 
   if (res.advisory) {
-    putCachedAdvisory(key.id, res.advisory.severity, res.advisory.fixes, res.advisory.html_url, res.advisory.cvss_vector);
+    putCachedAdvisory(key.id, res.advisory.severity, res.advisory.fixes, res.advisory.html_url, res.advisory.cvss_vector, res.advisory.published_at);
     
     return {
       fixedIn: matchBestFix(res.advisory.fixes[ecoKey], params.versionRange, params.originalFixedIn),
@@ -221,24 +228,25 @@ export async function resolveFixedVersion(params: { tool: ProjectTool, package: 
       resolvable: true,
       severity: res.advisory.severity,
       html_url: res.advisory.html_url,
-      cvss_vector: res.advisory.cvss_vector
+      cvss_vector: res.advisory.cvss_vector,
+      published_at: res.advisory.published_at
     };
   }
 
   return { fixedIn: null, rateLimited: false, resolvable: true, severity: "unknown" };
 }
 
-export async function syncAdvisory(cve?: string | null, link?: string | null): Promise<boolean> {
+export async function syncAdvisory(cve?: string | null, link?: string | null): Promise<CachedAdvisory | null> {
   const key = keyFrom(cve, link);
-  if (!key) return false;
+  if (!key) return null;
   
   const db = getDb();
   db.query('DELETE FROM advisory_cache WHERE id = ?').run(key.id);
   
   const { advisory, rateLimited } = await fetchAdvisory(key);
   if (advisory) {
-    putCachedAdvisory(key.id, advisory.severity, advisory.fixes, advisory.html_url, advisory.cvss_vector);
-    return true;
+    putCachedAdvisory(key.id, advisory.severity, advisory.fixes, advisory.html_url, advisory.cvss_vector, advisory.published_at);
+    return advisory;
   }
-  return false;
+  return null;
 }

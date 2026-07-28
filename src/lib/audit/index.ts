@@ -158,6 +158,7 @@ export async function runAudit(projectId: number, force = false): Promise<{ run:
       return {
         ...v,
         firstSeenAt,
+        publishedAt: res.published_at || null,
         fixedIn: res.fixedIn,
         // Override severity if github gave us a valid one, else keep the original
         severity: res.severity !== "unknown" ? res.severity : v.severity,
@@ -267,6 +268,7 @@ export async function ingestAudit(projectId: number, stdout: string, commitSha: 
     return {
       ...v,
       firstSeenAt,
+      publishedAt: res.published_at || null,
       fixedIn: res.fixedIn,
       severity: res.severity !== "unknown" ? res.severity : v.severity,
       link: res.html_url || v.link,

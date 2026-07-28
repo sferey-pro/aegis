@@ -95,8 +95,10 @@ export function buildCveGroups(): CveGroup[] {
         note,
         isGlobal: ann ? ann.project_id === -1 : false,
         cvssVector: vuln.cvssVector || null,
+        publishedAt: vuln.publishedAt,
         firstSeenAt: vuln.firstSeenAt,
-        ageInDays: vuln.firstSeenAt ? Math.floor((Date.now() - new Date(vuln.firstSeenAt).getTime()) / (1000 * 3600 * 24)) : 0
+        ageInDays: vuln.publishedAt ? Math.floor((Date.now() - new Date(vuln.publishedAt).getTime()) / (1000 * 3600 * 24)) : 
+                   (vuln.firstSeenAt ? Math.floor((Date.now() - new Date(vuln.firstSeenAt).getTime()) / (1000 * 3600 * 24)) : 0)
       };
 
       if (!groups.has(groupKey)) {

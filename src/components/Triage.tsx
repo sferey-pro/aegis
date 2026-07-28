@@ -412,7 +412,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                               </Tooltip>
                             )}
                             {cveObj.ageInDays !== undefined && (
-                               <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground" title={`Première détection: ${new Date(cveObj.firstSeenAt).toLocaleString()}`}>
+                               <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground" title={cveObj.publishedAt ? `Publiée le: ${new Date(cveObj.publishedAt).toLocaleString()}` : `Première détection par Aegis: ${new Date(cveObj.firstSeenAt).toLocaleString()}`}>
                                 <Clock className="w-3 h-3 inline mr-1" />{cveObj.ageInDays}j
                                </span>
                             )}

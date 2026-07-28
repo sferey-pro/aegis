@@ -45,7 +45,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   const [jiraBaseUrl, setJiraBaseUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; cve: string; projectId: number; reason: string } | null>(null);
@@ -154,8 +154,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
     setPage(1);
   }, [cves, projectId, cveFilter, hideProcessed]);
 
-  const totalPages = Math.ceil(packageGroups.length / ITEMS_PER_PAGE);
-  const paginatedGroups = packageGroups.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(packageGroups.length / itemsPerPage);
+  const paginatedGroups = packageGroups.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   const updateStatus = async (cve: string, projectId: number, newStatus: string, note?: string) => {
     try {
@@ -485,11 +485,26 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
             </Table>
           </div>
           
-          {totalPages > 1 && (
+          {(totalPages > 1 || packageGroups.length > 10) && (
             <div className="flex items-center justify-between glass-panel px-6 py-4 rounded-xl border border-border/50">
-              <span className="text-sm text-muted-foreground">
-                Affichage {((page - 1) * ITEMS_PER_PAGE) + 1} à {Math.min(page * ITEMS_PER_PAGE, packageGroups.length)} sur {packageGroups.length}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground">
+                  Affichage {((page - 1) * itemsPerPage) + (packageGroups.length > 0 ? 1 : 0)} à {Math.min(page * itemsPerPage, packageGroups.length)} sur {packageGroups.length}
+                </span>
+                <select 
+                  className="bg-black/40 border border-border/50 rounded-md px-2 py-1 text-sm outline-none focus:border-blue-500 font-mono text-muted-foreground cursor-pointer"
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  <option value={10}>10 par page</option>
+                  <option value={20}>20 par page</option>
+                  <option value={50}>50 par page</option>
+                  <option value={100}>100 par page</option>
+                </select>
+              </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}

@@ -443,13 +443,10 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         </div>
       )}
 
-        </div>
-      )}
-
-      {/* Side Drawer for CVE Details */}
+      {/* Modal for CVE Details */}
       {selectedGroup && (
-        <div className="fixed inset-0 z-50 flex items-start justify-end p-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedGroup(null)}>
-          <div className="w-full max-w-lg h-full bg-background/95 backdrop-blur-xl border-l border-border/50 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedGroup(null)}>
+          <div className="w-full max-w-5xl max-h-[90vh] bg-background/95 backdrop-blur-xl border border-border/50 rounded-2xl flex flex-col shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-border/50 flex items-center justify-between bg-black/20">
               <div>
                 <h3 className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
@@ -463,10 +460,10 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+            <div className="flex-1 overflow-y-auto p-6 bg-black/10">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {selectedGroup.cves.map((cveObj: any, i: number) => (
-                <div key={i} className="flex flex-col gap-4 p-5 rounded-xl bg-card/40 border border-border/50 shadow-sm relative overflow-hidden">
+                <div key={i} className="flex flex-col gap-4 p-5 rounded-xl bg-card/40 border border-border/50 shadow-sm relative overflow-hidden hover:bg-card/60 transition-colors">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex flex-col gap-1.5 flex-1">
                       <h4 className="font-bold text-lg text-foreground flex items-center gap-2">
@@ -606,9 +603,9 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                   )}
                 </div>
               ))}
+              </div>
             </div>
           </div>
-        </div>
         </div>
       )}
 

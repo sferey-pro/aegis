@@ -17,26 +17,26 @@ export function TriageTable({
   jiraBaseUrl: string;
 }) {
   return (
-    <div className="glass-panel rounded-xl overflow-hidden border border-border/50">
+    <div className="glass-panel rounded-xl overflow-hidden backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg shadow-black/20">
       <div className="w-full overflow-x-auto pb-2">
         <Table className="min-w-[900px]">
-          <TableHeader className="bg-black/20">
-            <TableRow className="border-border/50 hover:bg-transparent">
-              <TableHead className="sticky left-0 bg-background/95 backdrop-blur z-10 border-r border-border/50 min-w-[300px]">Cible (Package & Projet)</TableHead>
-              <TableHead className="text-center">Impact & SLA</TableHead>
-              <TableHead className="text-center">Patch Recommandé</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+          <TableHeader className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
+            <TableRow className="border-b border-white/10 hover:bg-transparent">
+              <TableHead className="sticky left-0 bg-black/40 backdrop-blur z-10 border-r border-white/10 min-w-[300px] font-semibold">Cible (Package & Projet)</TableHead>
+              <TableHead className="text-center font-semibold">Impact & SLA</TableHead>
+              <TableHead className="text-center font-semibold">Patch Recommandé</TableHead>
+              <TableHead className="text-right font-semibold">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className="divide-y divide-white/5">
             {paginatedGroups.map((group) => {
               return (
                 <React.Fragment key={group.key}>
                   <TableRow 
-                    className={`cursor-pointer transition-colors border-border/50 hover:bg-white/5 ${group.hasConfirmed ? 'bg-red-950/20' : ''}`}
+                    className={`cursor-pointer transition-colors border-white/5 hover:bg-white/[0.02] ${group.hasConfirmed ? 'bg-red-950/20' : ''}`}
                     onClick={() => setSelectedGroup(group)}
                   >
-                    <TableCell className="sticky left-0 bg-background/95 backdrop-blur z-10 border-r border-border/50">
+                    <TableCell className="sticky left-0 bg-white/5 backdrop-blur z-10 border-r border-white/10">
                       <div className="flex items-center gap-3">
                         <div className={`p-1.5 rounded-lg border ${group.hasConfirmed ? 'bg-red-500/20 border-red-500 text-red-500' : SEVERITY_COLORS[group.worstSeverity]} shadow-sm`}>
                           {group.hasConfirmed ? <AlertOctagon className="w-5 h-5 text-red-500 animate-pulse" /> : SEVERITY_ICONS[group.worstSeverity]}

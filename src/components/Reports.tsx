@@ -9,6 +9,8 @@ export function Reports() {
   const [loading, setLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<number | null>(null);
+  const [selectedReports, setSelectedReports] = useState<number[]>([]);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -72,6 +74,9 @@ export function Reports() {
       if (currentPage > Math.ceil(data.length / itemsPerPage)) {
         setCurrentPage(1);
       }
+      // Remove deleted reports from selection
+      const allIds = data.map((r: any) => r.id);
+      setSelectedReports(prev => prev.filter(id => allIds.includes(id)));
     } catch (e) {
       console.error(e);
     } finally {
@@ -110,13 +115,24 @@ export function Reports() {
           <h2 className="text-3xl font-bold font-heading">Rapports d'Audit</h2>
           <p className="text-muted-foreground mt-1">Consultez l'historique des audits globaux de votre écosystème.</p>
         </div>
-        <button 
-          onClick={fetchReports}
-          disabled={isFetching}
-          className="group p-2 rounded hover:bg-white/5 transition-all duration-300 active:scale-95 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-5 h-5 text-muted-foreground transition-transform duration-500 group-hover:rotate-180 ${isFetching ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-4">
+          {selectedReports.length > 0 && (
+            <button
+              onClick={() => setBulkDeleteModalOpen(true)}
+              className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors rounded-lg flex items-center gap-2 text-sm font-semibold animate-in fade-in zoom-in"
+            >
+              <Trash2 className="w-4 h-4" />
+              Supprimer ({selectedReports.length})
+            </button>
+          )}
+          <button 
+            onClick={fetchReports}
+            disabled={isFetching}
+            className="group p-2 rounded hover:bg-white/5 transition-all duration-300 active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-5 h-5 text-muted-foreground transition-transform duration-500 group-hover:rotate-180 ${isFetching ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -138,6 +154,22 @@ export function Reports() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
+                    <th className="px-6 py-4 font-semibold w-12">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-white/20 bg-black/20 accent-primary cursor-pointer w-4 h-4"
+                        checked={currentReports.length > 0 && currentReports.every((r: any) => selectedReports.includes(r.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const newIds = currentReports.map((r: any) => r.id).filter((id: number) => !selectedReports.includes(id));
+                            setSelectedReports([...selectedReports, ...newIds]);
+                          } else {
+                            const pageIds = currentReports.map((r: any) => r.id);
+                            setSelectedReports(selectedReports.filter(id => !pageIds.includes(id)));
+                          }
+                        }}
+                      />
+                    </th>
                     <th className="px-6 py-4 font-semibold">Date</th>
                     <th className="px-6 py-4 font-semibold">Projets</th>
                     <th className="px-6 py-4 font-semibold">Vulnérabilités</th>
@@ -147,7 +179,21 @@ export function Reports() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {currentReports.map((r: any) => (
-                    <tr key={r.id} className="group hover:bg-white/[0.02] transition-colors">
+                    <tr key={r.id} className={`group transition-colors ${selectedReports.includes(r.id) ? 'bg-primary/5' : 'hover:bg-white/[0.02]'}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-white/20 bg-black/20 accent-primary cursor-pointer w-4 h-4"
+                          checked={selectedReports.includes(r.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedReports([...selectedReports, r.id]);
+                            } else {
+                              setSelectedReports(selectedReports.filter(id => id !== r.id));
+                            }
+                          }}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-primary/10 rounded-lg text-primary">
@@ -239,13 +285,33 @@ export function Reports() {
         </div>
       )}
 
-      <ConfirmDialog
+      <ConfirmDialog 
         isOpen={reportToDelete !== null}
         title="Supprimer le rapport"
-        message="Voulez-vous vraiment supprimer ce rapport d'audit ?"
+        message="Êtes-vous sûr de vouloir supprimer ce rapport d'audit ? L'historique associé sera perdu."
         confirmText="Supprimer"
         onConfirm={confirmDelete}
         onCancel={() => setReportToDelete(null)}
+      />
+
+      <ConfirmDialog 
+        isOpen={bulkDeleteModalOpen}
+        title="Suppression groupée"
+        message={`Êtes-vous sûr de vouloir supprimer ${selectedReports.length} rapport(s) d'audit ? Cette action est irréversible et supprimera l'historique associé.`}
+        confirmText="Supprimer"
+        onConfirm={async () => {
+          try {
+            setLoading(true);
+            setBulkDeleteModalOpen(false);
+            await Promise.all(selectedReports.map(id => fetch(`/api/reports/${id}`, { method: 'DELETE' })));
+            setSelectedReports([]);
+            fetchReports();
+          } catch (e) {
+            console.error(e);
+            setLoading(false);
+          }
+        }}
+        onCancel={() => setBulkDeleteModalOpen(false)}
       />
 
       {selectedReportIndex !== null && diffData && (

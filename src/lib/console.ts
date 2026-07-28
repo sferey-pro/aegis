@@ -29,6 +29,15 @@ export function emitConsoleStart(event: Omit<ConsoleEvent, "id" | "project" | "p
 export function emitConsoleEnd(id: number, event: Omit<ConsoleEvent, "id" | "project" | "phase" | "cmd" | "cwd" | "label"> & Partial<ConsoleEvent>): void {
   const ctx = projectContext.getStore();
   const fullEvent = { ...event, phase: "end" as const, id, project: ctx?.project } as ConsoleEvent;
+  
+  // Truncate large outputs to prevent massive JSON stringify overhead and UI slowdowns
+  if (fullEvent.outText && fullEvent.outText.length > 3000) {
+    fullEvent.outText = fullEvent.outText.substring(0, 3000) + '\n... [TRUNCATED]';
+  }
+  if (fullEvent.errorText && fullEvent.errorText.length > 3000) {
+    fullEvent.errorText = fullEvent.errorText.substring(0, 3000) + '\n... [TRUNCATED]';
+  }
+  
   broadcast(fullEvent);
 }
 

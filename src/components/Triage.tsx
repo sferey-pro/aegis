@@ -232,7 +232,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   };
 
   return (
-    <div className="flex-1 w-full max-w-[1600px] px-4 md:px-8 mx-auto mt-8 z-10 animate-in fade-in duration-500">
+    <div className="flex-1 w-full max-w-[1600px] px-4 md:px-8 mx-auto mt-8 z-10">
       
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -446,8 +446,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
 
       {/* Modal for CVE Details */}
       {selectedGroup && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedGroup(null)}>
-          <div className="w-full max-w-5xl max-h-[90vh] bg-background/95 backdrop-blur-xl border border-border/50 rounded-2xl flex flex-col shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedGroup(null)}>
+          <div className="w-full max-w-5xl max-h-[90vh] bg-background/95 backdrop-blur-xl border border-border/50 rounded-2xl flex flex-col shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b border-border/50 flex items-center justify-between bg-black/20">
               <div>
                 <h3 className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
@@ -613,8 +613,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
 
       {/* Ticket Modal */}
       {ticketModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="glass-panel w-full max-w-3xl rounded-2xl p-6 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="glass-panel w-full max-w-3xl rounded-2xl p-6 flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold font-heading flex items-center gap-2">
                 <FileText className="w-5 h-5 text-blue-400" />
@@ -653,8 +653,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
 
       {/* Confirm Reason Modal */}
       {confirmModal?.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setConfirmModal(null)}>
-          <form onSubmit={submitConfirm} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-lg rounded-2xl p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setConfirmModal(null)}>
+          <form onSubmit={submitConfirm} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-lg rounded-2xl p-6 flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
                 <AlertOctagon className="w-5 h-5 text-red-500" />
@@ -700,11 +700,11 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
       )}
 
       {toast?.isOpen && (
-        <div className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border shadow-2xl flex flex-col gap-2 animate-in slide-in-from-bottom-6 fade-in duration-300 ${
+        <div className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border shadow-2xl flex flex-col gap-2 glass-panel ${
           toast.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
           toast.type === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
           'bg-blue-500/10 border-blue-500/30 text-blue-400'
-        } glass-panel`}>
+        }`}>
           <div className="flex justify-between items-start">
             <h4 className="font-bold flex items-center gap-2">
               {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : toast.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <Info className="w-5 h-5" />}

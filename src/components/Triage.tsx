@@ -346,7 +346,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                             <span className="font-bold">{group.cves.length}</span>
                             {group.pendingCount > 0 && (
                               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30 flex items-center gap-1">
-                                <RefreshCw className="w-2.5 h-2.5 animate-spin" /> {group.pendingCount}
+                                <RefreshCw className="w-2.5 h-2.5" /> {group.pendingCount}
                               </span>
                             )}
                           </div>

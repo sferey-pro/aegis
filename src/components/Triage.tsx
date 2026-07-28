@@ -350,7 +350,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          {group.maxAgeInDays > 0 ? (
+                          {group.maxAgeInDays !== undefined ? (
                             <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium items-center gap-1 border ${
                               (group.worstSeverity === 'critical' && group.maxAgeInDays >= 7) || (group.worstSeverity === 'high' && group.maxAgeInDays >= 30)
                               ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse'
@@ -409,16 +409,33 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                                 </TooltipContent>
                               </Tooltip>
                             )}
-                            {cveObj.ageInDays > 0 && (
+                            {cveObj.ageInDays !== undefined && (
                                <span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground" title={`Première détection: ${new Date(cveObj.firstSeenAt).toLocaleString()}`}>
                                 <Clock className="w-3 h-3 inline mr-1" />{cveObj.ageInDays}j
                                </span>
                             )}
                           </p>
                           {cveObj.link && (
-                            <a href={cveObj.link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline flex items-center gap-1 mt-1">
-                              <LinkIcon className="w-3 h-3" /> Lire l'avis de sécurité
-                            </a>
+                            <div className="flex items-center gap-4 mt-2">
+                              <a href={cveObj.link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline flex items-center gap-1">
+                                <LinkIcon className="w-3 h-3" /> Lire l'avis de sécurité
+                              </a>
+                              <button 
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await fetch('/api/advisories/sync', {
+                                      method: 'POST',
+                                      body: JSON.stringify({ cve: cveObj.cve, link: cveObj.link })
+                                    });
+                                    alert("Cache GHAD vidé pour cette vulnérabilité. Veuillez relancer l'audit du projet pour récupérer les dernières informations.");
+                                  } catch (err) {}
+                                }}
+                                className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 border border-border/50 bg-black/20 px-2 py-1 rounded transition-colors"
+                              >
+                                <RefreshCw className="w-3 h-3" /> Sync GHAD
+                              </button>
+                            </div>
                           )}
                         </div>
 

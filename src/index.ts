@@ -314,6 +314,23 @@ const server = serve({
       }
     },
 
+    "/api/advisories/sync": {
+      async POST(req) {
+        try {
+          const { cve, link } = await req.json();
+          const { keyFrom } = await import("./lib/github");
+          const key = keyFrom(cve, link);
+          if (key) {
+            const { getDb } = await import("./db");
+            getDb().query('DELETE FROM advisory_cache WHERE id = ?').run(key.id);
+          }
+          return Response.json({ success: true });
+        } catch (e: any) {
+          return Response.json({ success: false, error: e.message }, { status: 500 });
+        }
+      }
+    },
+
     "/api/settings": {
       async GET() {
         return Response.json(getAllSettings());

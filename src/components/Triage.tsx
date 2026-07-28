@@ -399,17 +399,17 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                   Affichage {((page - 1) * itemsPerPage) + (packageGroups.length > 0 ? 1 : 0)} à {Math.min(page * itemsPerPage, packageGroups.length)} sur {packageGroups.length}
                 </span>
                 <select 
-                  className="bg-black/40 border border-border/50 rounded-md px-2 py-1 text-sm outline-none focus:border-blue-500 font-mono text-muted-foreground cursor-pointer"
+                  className="bg-black/60 border border-border/50 rounded-md px-2 py-1 text-sm outline-none focus:border-primary font-mono text-foreground cursor-pointer"
                   value={itemsPerPage}
                   onChange={(e) => {
                     setItemsPerPage(Number(e.target.value));
                     setPage(1);
                   }}
                 >
-                  <option value={10}>10 par page</option>
-                  <option value={20}>20 par page</option>
-                  <option value={50}>50 par page</option>
-                  <option value={100}>100 par page</option>
+                  <option className="bg-gray-900 text-white" value={10}>10 par page</option>
+                  <option className="bg-gray-900 text-white" value={20}>20 par page</option>
+                  <option className="bg-gray-900 text-white" value={50}>50 par page</option>
+                  <option className="bg-gray-900 text-white" value={100}>100 par page</option>
                 </select>
               </div>
               <div className="flex items-center gap-2">

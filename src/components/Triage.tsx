@@ -291,6 +291,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                     <TableHead className="sticky left-0 bg-background/95 backdrop-blur z-10 border-r border-border/50 min-w-[250px]">Sévérité / Package</TableHead>
                     <TableHead>Projet</TableHead>
                     <TableHead className="text-center">Vuln. (Attente)</TableHead>
+                    <TableHead className="text-center">SLA (Âge)</TableHead>
                     <TableHead className="text-center">Statut / Résolution</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -347,16 +348,17 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                            group.maxAgeInDays > 30 ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 
+                            group.maxAgeInDays > 15 ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50' : 
+                            'bg-green-500/20 text-green-400 border border-green-500/50'
+                          }`}>
+                            {group.maxAgeInDays > 0 ? `${group.maxAgeInDays}j` : 'Nouveau'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
                           <div className="flex flex-col items-center gap-1">
-                            {group.maxAgeInDays !== undefined ? (
-                              <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase items-center gap-1 border ${
-                                (group.worstSeverity === 'critical' && group.maxAgeInDays >= 7) || (group.worstSeverity === 'high' && group.maxAgeInDays >= 30)
-                                ? 'bg-red-500/20 text-red-400 border-red-500/50 animate-pulse'
-                                : 'bg-white/5 text-muted-foreground border-white/10'
-                              }`} title="SLA : Âge de la vulnérabilité">
-                                <Clock className="w-3 h-3" /> SLA {group.maxAgeInDays}j
-                              </span>
-                            ) : <span className="text-muted-foreground text-xs">-</span>}
+
                             
                             {group.targetPatch ? (
                               <span className="font-mono text-[10px] text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-400/20">

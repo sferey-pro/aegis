@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Loader2 } from 'lucide-react';
+import { Shield, Loader2, LayoutDashboard, FolderGit2, AlertOctagon, FileBarChart, Terminal, Settings } from 'lucide-react';
 
 export function Header({
   currentTab,
@@ -26,38 +26,52 @@ export function Header({
           <h1 className="text-2xl font-bold font-heading">Aegis</h1>
         </div>
       
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1.5 p-1.5 bg-black/20 backdrop-blur-md border border-white/5 rounded-2xl shadow-inner">
           <button 
             onClick={() => setCurrentTab('overview')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'overview' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === 'overview' ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
+            <LayoutDashboard className="w-4 h-4" />
             Vue d'ensemble
           </button>
           <button 
             onClick={() => setCurrentTab('projects')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'projects' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === 'projects' ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
+            <FolderGit2 className="w-4 h-4" />
             Projets
           </button>
           <button 
             onClick={() => { setTriageProjectId(null); setTriageCveFilter(null); setCurrentTab('triage'); }}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'triage' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === 'triage' ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
+            <AlertOctagon className="w-4 h-4" />
             CVEs
           </button>
           <button 
             onClick={() => setCurrentTab('reports')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'reports' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === 'reports' ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
+            <FileBarChart className="w-4 h-4" />
             Rapports
           </button>
           <button 
             onClick={() => setCurrentTab('prompts')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${currentTab === 'prompts' ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === 'prompts' ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
           >
+            <Terminal className="w-4 h-4" />
             Prompts
           </button>
-          <button onClick={() => setCurrentTab('settings')} className={`${currentTab === 'settings' ? 'text-foreground font-semibold' : 'hover:text-foreground'} transition-colors whitespace-nowrap ml-4`}>Paramètres</button>
+          
+          <div className="w-px h-6 bg-white/10 mx-1"></div>
+          
+          <button 
+            onClick={() => setCurrentTab('settings')}
+            className={`flex items-center justify-center p-2 rounded-xl transition-all duration-300 ${currentTab === 'settings' ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]' : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'}`}
+            title="Paramètres"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
         </nav>
         
         <button 

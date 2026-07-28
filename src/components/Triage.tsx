@@ -609,7 +609,15 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
             </div>
           </div>
         </div>
+        </div>
       )}
+
+      {/* Ticket Modal */}
+      {ticketModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="glass-panel w-full max-w-3xl rounded-2xl p-6 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold font-heading flex items-center gap-2">
                 <FileText className="w-5 h-5 text-blue-400" />
                 Ticket Jira (Markdown)
               </h3>

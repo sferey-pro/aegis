@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { Shield, Activity, Database, GitBranch, ArrowRight, Loader2, AlertOctagon, AlertTriangle } from 'lucide-react';
-import { Projects } from './components/Projects';
-import { Settings } from './components/Settings';
-import { Triage } from './components/Triage';
 import { Console } from './components/Console';
-import { HistoryChart } from './components/HistoryChart';
-import { Reports } from './components/Reports';
-import { PromptsLibrary } from './components/PromptsLibrary';
+
+const Projects = lazy(() => import('./components/Projects').then(m => ({ default: m.Projects })));
+const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const Triage = lazy(() => import('./components/Triage').then(m => ({ default: m.Triage })));
+const HistoryChart = lazy(() => import('./components/HistoryChart').then(m => ({ default: m.HistoryChart })));
+const Reports = lazy(() => import('./components/Reports').then(m => ({ default: m.Reports })));
+const PromptsLibrary = lazy(() => import('./components/PromptsLibrary').then(m => ({ default: m.PromptsLibrary })));
 
 interface Stats {
   monitoredProjects: number;
@@ -333,16 +334,20 @@ export function App() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] bg-primary/5 blur-[100px] rounded-full z-0 pointer-events-none"></div>
 
 
-          <HistoryChart />
+          <Suspense fallback={<div className="flex items-center justify-center h-32"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>}>
+            <HistoryChart />
+          </Suspense>
 
         </main>
       )}
 
-      {currentTab === 'projects' && <Projects onViewTriage={(id) => { setTriageProjectId(id); setCurrentTab('triage'); }} />}
-      {currentTab === 'triage' && <Triage projectId={triageProjectId} cveFilter={triageCveFilter} onClearProject={() => setTriageProjectId(null)} onClearCve={() => setTriageCveFilter(null)} />}
-      {currentTab === 'reports' && <Reports />}
-      {currentTab === 'prompts' && <PromptsLibrary />}
-      {currentTab === 'settings' && <Settings />}
+      <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>}>
+        {currentTab === 'projects' && <Projects onViewTriage={(id) => { setTriageProjectId(id); setCurrentTab('triage'); }} />}
+        {currentTab === 'triage' && <Triage projectId={triageProjectId} cveFilter={triageCveFilter} onClearProject={() => setTriageProjectId(null)} onClearCve={() => setTriageCveFilter(null)} />}
+        {currentTab === 'reports' && <Reports />}
+        {currentTab === 'prompts' && <PromptsLibrary />}
+        {currentTab === 'settings' && <Settings />}
+      </Suspense>
       </div>
 
       {/* Report Modal */}

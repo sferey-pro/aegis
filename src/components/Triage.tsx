@@ -175,7 +175,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   };
 
   return (
-    <div className="flex-1 w-full max-w-[1600px] px-4 md:px-8 mx-auto mt-8 z-10 animate-in fade-in duration-500">
+    <div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10 animate-in fade-in duration-500">
       
       <div className="flex items-center justify-between mb-8">
         <div>

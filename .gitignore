@@ -33,3 +33,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 *.sqlite*
+
+# local temporary and database files
+*.db
+errors*.txt
+test_run.json

@@ -232,34 +232,14 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
             createTicket={createTicket}
             tickets={tickets}
             jiraBaseUrl={jiraBaseUrl}
+            page={page}
+            setPage={setPage}
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            totalItems={packageGroups.length}
           />
           
-          {(totalPages > 1 || packageGroups.length > 10) && (
-            <div className="flex items-center justify-between px-2 mt-2">
-              <span className="text-sm text-muted-foreground">
-                Affichage de {Math.min(((page - 1) * itemsPerPage) + 1, packageGroups.length)} à {Math.min(page * itemsPerPage, packageGroups.length)} sur {packageGroups.length} packages
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="p-1.5 rounded-lg border border-border/50 bg-background/50 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <span className="text-sm font-medium px-2">
-                  Page {page} / {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="p-1.5 rounded-lg border border-border/50 bg-background/50 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, RefreshCw, AlertOctagon, FileText } from 'lucide-react';
+import { Shield, RefreshCw, AlertOctagon, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SEVERITY_COLORS, SEVERITY_ICONS } from './constants';
 
 export function TriageTable({
@@ -7,13 +7,25 @@ export function TriageTable({
   setSelectedGroup,
   createTicket,
   tickets,
-  jiraBaseUrl
+  jiraBaseUrl,
+  page,
+  setPage,
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  totalItems
 }: {
   paginatedGroups: any[];
   setSelectedGroup: (group: any) => void;
   createTicket: (e: React.MouseEvent, group: any) => void;
   tickets: Record<string, any>;
   jiraBaseUrl: string;
+  page: number;
+  setPage: (p: number | ((prev: number) => number)) => void;
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (n: number) => void;
+  totalItems: number;
 }) {
   return (
     <div className="glass-panel rounded-xl overflow-hidden backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg shadow-black/20">
@@ -119,6 +131,53 @@ export function TriageTable({
               );
             })}
           </tbody>
+          {(totalPages > 1 || totalItems > 10) && (
+            <tfoot className="border-t border-white/10 bg-black/20">
+              <tr>
+                <td colSpan={4} className="px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-muted-foreground">
+                        Affichage de {Math.min(((page - 1) * itemsPerPage) + 1, totalItems)} à {Math.min(page * itemsPerPage, totalItems)} sur {totalItems} packages
+                      </span>
+                      <select 
+                        className="bg-black/60 border border-white/10 rounded-md px-2 py-1 text-sm outline-none focus:border-primary font-mono text-foreground cursor-pointer"
+                        value={itemsPerPage}
+                        onChange={(e) => {
+                          setItemsPerPage(Number(e.target.value));
+                          setPage(1);
+                        }}
+                      >
+                        <option className="bg-gray-900 text-white" value={10}>10 par page</option>
+                        <option className="bg-gray-900 text-white" value={20}>20 par page</option>
+                        <option className="bg-gray-900 text-white" value={50}>50 par page</option>
+                        <option className="bg-gray-900 text-white" value={100}>100 par page</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="p-1.5 rounded-lg border border-white/10 bg-black/40 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <span className="text-sm font-medium px-2">
+                        Page {page} / {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                        disabled={page === totalPages}
+                        className="p-1.5 rounded-lg border border-white/10 bg-black/40 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

@@ -13,11 +13,9 @@ import { TooltipProvider } from "./components/ui/tooltip";
 
 const elem = document.getElementById("root")!;
 const app = (
-  <StrictMode>
-    <TooltipProvider delayDuration={200}>
-      <App />
-    </TooltipProvider>
-  </StrictMode>
+  <TooltipProvider delayDuration={200}>
+    <App />
+  </TooltipProvider>
 );
 
 // https://bun.com/docs/bundler/hot-reloading#import-meta-hot-data

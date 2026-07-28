@@ -22,11 +22,9 @@ export function TriageTable({
         <Table className="min-w-[900px]">
           <TableHeader className="bg-black/20">
             <TableRow className="border-border/50 hover:bg-transparent">
-              <TableHead className="sticky left-0 bg-background/95 backdrop-blur z-10 border-r border-border/50 min-w-[250px]">Sévérité / Package</TableHead>
-              <TableHead>Projet</TableHead>
-              <TableHead className="text-center">Vuln. (Attente)</TableHead>
-              <TableHead className="text-center">SLA (Âge)</TableHead>
-              <TableHead className="text-center">Statut / Résolution</TableHead>
+              <TableHead className="sticky left-0 bg-background/95 backdrop-blur z-10 border-r border-border/50 min-w-[300px]">Cible (Package & Projet)</TableHead>
+              <TableHead className="text-center">Impact & SLA</TableHead>
+              <TableHead className="text-center">Patch Recommandé</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -40,14 +38,14 @@ export function TriageTable({
                   >
                     <TableCell className="sticky left-0 bg-background/95 backdrop-blur z-10 border-r border-border/50">
                       <div className="flex items-center gap-3">
-                        <div className={`p-1.5 rounded-lg border ${group.hasConfirmed ? 'bg-red-500/20 border-red-500 text-red-500' : SEVERITY_COLORS[group.worstSeverity]}`}>
-                          {group.hasConfirmed ? <AlertOctagon className="w-4 h-4 text-red-500 animate-pulse" /> : SEVERITY_ICONS[group.worstSeverity]}
+                        <div className={`p-1.5 rounded-lg border ${group.hasConfirmed ? 'bg-red-500/20 border-red-500 text-red-500' : SEVERITY_COLORS[group.worstSeverity]} shadow-sm`}>
+                          {group.hasConfirmed ? <AlertOctagon className="w-5 h-5 text-red-500 animate-pulse" /> : SEVERITY_ICONS[group.worstSeverity]}
                         </div>
                         <div className="flex flex-col">
-                          <span className={`font-bold font-mono ${group.hasConfirmed ? 'text-red-400' : 'text-foreground'}`}>
-                            {group.package}
-                          </span>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-bold font-mono text-sm ${group.hasConfirmed ? 'text-red-400' : 'text-foreground'}`}>
+                              {group.package}
+                            </span>
                             {!group.hasConfirmed && (
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase border ${SEVERITY_COLORS[group.worstSeverity]}`}>
                                 {group.worstSeverity}
@@ -59,45 +57,45 @@ export function TriageTable({
                               </span>
                             )}
                           </div>
+                          <div className="flex items-center gap-2 mt-1 opacity-80">
+                            <span className="font-medium text-xs text-muted-foreground">{group.projectName}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-secondary/50 text-[9px] uppercase font-mono text-muted-foreground border border-white/5">{group.tool}</span>
+                          </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold text-sm">{group.projectName}</span>
-                        <span className="px-1.5 py-0.5 w-fit text-[9px] rounded bg-secondary uppercase">{group.tool}</span>
+                    
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black/20 border border-white/5 rounded-md text-xs shadow-inner">
+                          <span className="font-bold flex items-center gap-1.5 text-foreground/90"><Shield className="w-3.5 h-3.5 text-muted-foreground" /> {group.cves.length}</span>
+                          {group.pendingCount > 0 && (
+                            <>
+                              <span className="w-px h-3 bg-white/20"></span>
+                              <span className="text-primary font-medium flex items-center gap-1.5">
+                                <RefreshCw className="w-3.5 h-3.5" /> {group.pendingCount}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${
+                          group.maxAgeInDays > 30 ? 'bg-red-500/10 text-red-400 border border-red-500/30' : 
+                          group.maxAgeInDays > 15 ? 'bg-orange-500/10 text-orange-400 border border-orange-500/30' : 
+                          'bg-green-500/10 text-green-400 border border-green-500/30'
+                        }`}>
+                          SLA : {group.maxAgeInDays > 0 ? `${group.maxAgeInDays}j` : 'Nouveau'}
+                        </span>
                       </div>
                     </TableCell>
+
                     <TableCell className="text-center">
-                      <div className="inline-flex items-center gap-2 px-2 py-1 bg-white/5 border border-white/10 rounded-md text-xs">
-                        <span className="font-bold flex items-center gap-1"><Shield className="w-3 h-3 text-muted-foreground" /> {group.cves.length}</span>
-                        {group.pendingCount > 0 && (
-                          <>
-                            <span className="w-px h-3 bg-white/20"></span>
-                            <span className="text-primary font-medium flex items-center gap-1">
-                              <RefreshCw className="w-3 h-3" /> {group.pendingCount}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        group.maxAgeInDays > 30 ? 'bg-red-500/20 text-red-400 border border-red-500/50' : 
-                        group.maxAgeInDays > 15 ? 'bg-orange-500/20 text-orange-400 border border-orange-500/50' : 
-                        'bg-green-500/20 text-green-400 border border-green-500/50'
-                      }`}>
-                        {group.maxAgeInDays > 0 ? `${group.maxAgeInDays}j` : 'Nouveau'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="flex flex-col items-center justify-center h-full">
                         {group.targetPatch ? (
-                          <span className="font-mono text-[10px] text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-400/20">
+                          <span className="font-mono text-xs font-bold text-green-400 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20 shadow-sm flex items-center gap-1">
                             ↳ {group.targetPatch}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground text-[10px]">Aucun patch</span>
+                          <span className="text-muted-foreground/50 text-xs italic px-2 py-1 bg-white/5 rounded-md border border-white/5">Aucun patch</span>
                         )}
                       </div>
                     </TableCell>

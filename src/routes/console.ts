@@ -7,7 +7,7 @@ export const consoleRoutes = {
       if (getSetting('DISABLE_CONSOLE', 'false') === 'true') {
         return new Response(new ReadableStream({
           start(controller) {
-            controller.enqueue(`: disabled\n\n`);
+            controller.enqueue(`data: : disabled\n\n`);
             controller.close();
           }
         }), {

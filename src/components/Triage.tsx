@@ -3,7 +3,7 @@ import { AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Check, X, S
 import { buildCvssTooltip } from '../lib/cvss';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { AlertDialog } from './ConfirmDialog';
+
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'bg-red-500/10 text-red-500 border-red-500/20',
@@ -50,7 +50,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; cve: string; projectId: number; reason: string } | null>(null);
-  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string }>({ isOpen: false, title: '', message: '' });
+  const [toast, setToast] = useState<{ isOpen: boolean; title: string; message: React.ReactNode; type: 'success' | 'error' | 'info' } | null>(null);
   const [hideProcessed, setHideProcessed] = useState(false);
 
   const fetchCves = async () => {
@@ -426,16 +426,48 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   try {
-                                    await fetch('/api/advisories/sync', {
+                                    const res = await fetch('/api/advisories/sync', {
                                       method: 'POST',
                                       body: JSON.stringify({ cve: cveObj.cve, link: cveObj.link })
                                     });
-                                    setAlertModal({
-                                      isOpen: true,
-                                      title: "Synchronisation réussie",
-                                      message: "Les dernières informations ont été récupérées depuis GitHub.\n\nVeuillez relancer l'audit de ce projet pour mettre à jour l'affichage avec le nouveau correctif."
-                                    });
-                                  } catch (err) {}
+                                    const data = await res.json();
+                                    
+                                    if (data.success && data.advisory) {
+                                      const fixes = data.advisory.fixes || {};
+                                      const patches = Object.entries(fixes)
+                                        .filter(([k]) => k.includes(group.package))
+                                        .flatMap(([_, v]: any) => v)
+                                        .map((v: any) => v.patched)
+                                        .filter(Boolean);
+                                      
+                                      const patchStr = patches.length > 0 ? Array.from(new Set(patches)).join(", ") : "Aucun";
+                                      
+                                      setToast({
+                                        isOpen: true,
+                                        type: 'success',
+                                        title: `${cveObj.ref || cveObj.cve} mise à jour`,
+                                        message: (
+                                          <div className="flex flex-col gap-1 mt-1">
+                                            <span><strong>Package :</strong> {group.package}</span>
+                                            <span><strong>Correctif(s) :</strong> <span className="font-mono text-green-400">{patchStr}</span></span>
+                                            <span><strong>Sévérité :</strong> <span className="uppercase">{data.advisory.severity}</span></span>
+                                          </div>
+                                        )
+                                      });
+                                      setTimeout(() => setToast(null), 8000);
+                                    } else {
+                                      setToast({
+                                        isOpen: true,
+                                        type: 'error',
+                                        title: 'Échec de synchronisation',
+                                        message: data.error || 'Impossible de récupérer la CVE.'
+                                      });
+                                      setTimeout(() => setToast(null), 5000);
+                                    }
+                                  } catch (err: any) {
+                                    setToast({ isOpen: true, type: 'error', title: 'Erreur', message: err.message });
+                                    setTimeout(() => setToast(null), 5000);
+                                  }
                                 }}
                                 className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 border border-border/50 bg-black/20 px-2 py-1 rounded transition-colors"
                               >
@@ -648,12 +680,22 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         </div>
       )}
 
-      <AlertDialog 
-        isOpen={alertModal.isOpen}
-        title={alertModal.title}
-        message={alertModal.message}
-        onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
-      />
+      {toast?.isOpen && (
+        <div className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border shadow-2xl flex flex-col gap-2 animate-in slide-in-from-bottom-6 fade-in duration-300 ${
+          toast.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
+          toast.type === 'error' ? 'bg-red-500/10 border-red-500/30 text-red-400' :
+          'bg-blue-500/10 border-blue-500/30 text-blue-400'
+        } glass-panel`}>
+          <div className="flex justify-between items-start">
+            <h4 className="font-bold flex items-center gap-2">
+              {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : toast.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+              {toast.title}
+            </h4>
+            <button onClick={() => setToast(null)} className="text-current opacity-70 hover:opacity-100 transition-opacity"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="text-sm opacity-90 mt-1">{toast.message}</div>
+        </div>
+      )}
     </div>
   );
 }

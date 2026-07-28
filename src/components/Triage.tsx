@@ -139,7 +139,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
           note: occ.note,
           cvssVector: occ.cvssVector,
           ageInDays: occ.ageInDays,
-          firstSeenAt: occ.firstSeenAt
+          firstSeenAt: occ.firstSeenAt,
+          publishedAt: occ.publishedAt
         });
       });
     });
@@ -492,7 +493,11 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
                       </Tooltip>
                     )}
                     {cveObj.ageInDays !== undefined && (
-                        <span className="font-mono px-2 py-1 rounded bg-white/5 border border-white/10 text-muted-foreground flex items-center gap-1" title={cveObj.publishedAt ? `Publiée le: ${new Date(cveObj.publishedAt).toLocaleString()}` : `Première détection: ${new Date(cveObj.firstSeenAt).toLocaleString()}`}>
+                        <span className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${
+                          cveObj.ageInDays > 30 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
+                          cveObj.ageInDays > 15 ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 
+                          'bg-white/5 text-muted-foreground border-white/10'
+                        }`} title={cveObj.publishedAt ? `Publiée le: ${new Date(cveObj.publishedAt).toLocaleString()}` : (cveObj.firstSeenAt ? `Première détection: ${new Date(cveObj.firstSeenAt).toLocaleString()}` : "Âge SLA")}>
                         <Clock className="w-3 h-3" /> SLA {cveObj.ageInDays}j
                         </span>
                     )}

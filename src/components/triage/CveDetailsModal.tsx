@@ -34,7 +34,7 @@ export function CveDetailsModal({
               </h3>
               {tickets[selectedGroup.key] && (
                 <a 
-                  href={`${jiraBaseUrl}${tickets[selectedGroup.key].url}`} 
+                  href={`${jiraBaseUrl.replace(/\/$/, '')}/browse/${tickets[selectedGroup.key].url}`} 
                   target="_blank" 
                   rel="noreferrer" 
                   className="px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors text-xs font-bold flex items-center gap-1.5"

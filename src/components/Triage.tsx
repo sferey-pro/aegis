@@ -14,7 +14,7 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
-  const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean }>({ isOpen: false, md: '', copied: false });
+  const [ticketModal, setTicketModal] = useState<{ isOpen: boolean; md: string; copied: boolean; group?: any }>({ isOpen: false, md: '', copied: false });
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; cve: string; projectId: number; reason: string } | null>(null);
   const [toast, setToast] = useState<{ isOpen: boolean; title: string; message: React.ReactNode; type: 'success' | 'error' | 'info' } | null>(null);
   const [hideProcessed, setHideProcessed] = useState(false);
@@ -153,16 +153,16 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
     setConfirmModal(null);
   };
 
-  const createTicket = async (e: React.MouseEvent, projectId: number, packageName: string) => {
+  const createTicket = async (e: React.MouseEvent, group: any) => {
     e.stopPropagation();
     try {
       const res = await fetch('/api/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, packageName })
+        body: JSON.stringify({ projectId: group.projectId, packageName: group.package })
       });
       const data = await res.json();
-      setTicketModal({ isOpen: true, md: data.markdown, copied: false });
+      setTicketModal({ isOpen: true, md: data.markdown, copied: false, group });
     } catch (err) {
       console.error(err);
     }
@@ -300,6 +300,8 @@ export function Triage({ projectId, onClearProject, cveFilter, onClearCve }: { p
         ticketModal={ticketModal}
         setTicketModal={setTicketModal}
         copyToClipboard={copyToClipboard}
+        setToast={setToast}
+        fetchTickets={fetchTickets}
       />
 
       <ConfirmReasonModal 

@@ -62,5 +62,55 @@ export const ticketsRoutes = {
       deleteTicket(projectId, packageName);
       return Response.json({ success: true });
     }
+  },
+  "/api/tickets/create": {
+    async POST(req: Request) {
+      const { projectId, packageName, cves, description } = await req.json();
+      const { getSetting } = await import("../db/settings");
+      const { saveTicket } = await import("../db/tickets");
+
+      const baseUrl = getSetting('JIRA_BASE_URL', '');
+      const user = getSetting('JIRA_USER', '');
+      const apiKey = getSetting('JIRA_API_KEY', '');
+      const project = getSetting('JIRA_PROJECT', '');
+      const component = getSetting('JIRA_COMPONENT', '');
+
+      if (!user || !apiKey || !project) {
+        return Response.json({ error: "Veuillez configurer l'utilisateur, la clé d'API et le projet Jira dans les Paramètres." }, { status: 400 });
+      }
+
+      const issueData: any = {
+        fields: {
+          project: { key: project },
+          summary: `[Aegis] Remédiation ${packageName}`,
+          description: description,
+          issuetype: { name: "Task" }
+        }
+      };
+
+      if (component) {
+        issueData.fields.components = [{ id: component }];
+      }
+
+      const auth = Buffer.from(`${user}:${apiKey}`).toString('base64');
+      const response = await fetch(`${baseUrl}/rest/api/2/issue`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(issueData)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return Response.json({ error: `Erreur Jira: ${response.status} ${errorText}` }, { status: response.status });
+      }
+
+      const data = await response.json();
+      saveTicket(projectId, packageName, data.key, cves);
+      
+      return Response.json({ success: true, ticketRef: data.key });
+    }
   }
 };

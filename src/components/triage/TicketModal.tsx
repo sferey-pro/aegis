@@ -1,15 +1,26 @@
-import React from 'react';
-import { X, FileText, CheckCircle2, Copy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, FileText, CheckCircle2, Copy, Send, RefreshCw } from 'lucide-react';
 
 export function TicketModal({
   ticketModal,
   setTicketModal,
-  copyToClipboard
+  copyToClipboard,
+  setToast,
+  fetchTickets
 }: {
-  ticketModal: { isOpen: boolean; md: string; copied: boolean };
+  ticketModal: { isOpen: boolean; md: string; copied: boolean; group?: any };
   setTicketModal: (val: any) => void;
   copyToClipboard: () => void;
+  setToast: (toast: any) => void;
+  fetchTickets: () => void;
 }) {
+  const [content, setContent] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (ticketModal.isOpen) setContent(ticketModal.md);
+  }, [ticketModal.isOpen, ticketModal.md]);
+
   if (!ticketModal.isOpen) return null;
 
   return (
@@ -28,9 +39,11 @@ export function TicketModal({
           </button>
         </div>
         
-        <div className="flex-1 overflow-auto bg-black/50 rounded-xl border border-white/5 p-4 relative font-mono text-sm text-gray-300 whitespace-pre-wrap select-all">
-          {ticketModal.md}
-        </div>
+        <textarea 
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="flex-1 w-full overflow-auto bg-black/50 rounded-xl border border-white/5 p-4 relative font-mono text-sm text-gray-300 whitespace-pre-wrap outline-none focus:border-blue-500/50 transition-colors min-h-[400px]"
+        />
 
         <div className="flex justify-end gap-3 mt-6">
           <button 
@@ -40,11 +53,50 @@ export function TicketModal({
             Fermer
           </button>
           <button 
-            onClick={copyToClipboard}
-            className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-500 transition-colors flex items-center gap-2"
+            onClick={() => {
+              setTicketModal({ ...ticketModal, md: content });
+              setTimeout(copyToClipboard, 0);
+            }}
+            className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors flex items-center gap-2"
           >
             {ticketModal.copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            {ticketModal.copied ? "Copié !" : "Copier le texte"}
+            {ticketModal.copied ? "Copié !" : "Copier"}
+          </button>
+          
+          <button 
+            onClick={async () => {
+              if (!ticketModal.group) return;
+              setCreating(true);
+              try {
+                const res = await fetch('/api/tickets/create', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    projectId: ticketModal.group.projectId,
+                    packageName: ticketModal.group.package,
+                    cves: ticketModal.group.cves.map((c: any) => c.cve),
+                    description: content
+                  })
+                });
+                const data = await res.json();
+                if (data.success) {
+                  setToast({ isOpen: true, type: 'success', title: 'Ticket Jira créé', message: `Le ticket ${data.ticketRef} a été créé avec succès.` });
+                  fetchTickets();
+                  setTicketModal({ ...ticketModal, isOpen: false });
+                } else {
+                  setToast({ isOpen: true, type: 'error', title: 'Erreur', message: data.error || 'Erreur lors de la création du ticket.' });
+                }
+              } catch (err: any) {
+                setToast({ isOpen: true, type: 'error', title: 'Erreur', message: err.message });
+              } finally {
+                setCreating(false);
+              }
+            }}
+            disabled={creating}
+            className="px-5 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-500 transition-colors flex items-center gap-2 font-medium disabled:opacity-50"
+          >
+            {creating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Créer dans Jira
           </button>
         </div>
       </div>

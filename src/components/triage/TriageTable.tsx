@@ -12,7 +12,7 @@ export function TriageTable({
 }: {
   paginatedGroups: any[];
   setSelectedGroup: (group: any) => void;
-  createTicket: (e: React.MouseEvent, projectId: number, packageName: string) => void;
+  createTicket: (e: React.MouseEvent, group: any) => void;
   tickets: Record<string, any>;
   jiraBaseUrl: string;
 }) {
@@ -101,7 +101,7 @@ export function TriageTable({
                     </TableCell>
                     <TableCell className="text-right">
                       <button 
-                        onClick={(e) => createTicket(e, group.projectId, group.package)}
+                        onClick={(e) => createTicket(e, group)}
                         className="px-2.5 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors inline-flex items-center gap-2 text-xs font-semibold"
                       >
                         <FileText className="w-3.5 h-3.5" />
@@ -109,7 +109,7 @@ export function TriageTable({
                       </button>
                       {tickets[group.key] && (
                         <div className="mt-2 text-xs flex justify-end">
-                          <a href={`${jiraBaseUrl}${tickets[group.key].url}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline" onClick={e => e.stopPropagation()}>
+                          <a href={`${jiraBaseUrl.replace(/\/$/, '')}/browse/${tickets[group.key].url}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline" onClick={e => e.stopPropagation()}>
                             {tickets[group.key].url}
                           </a>
                         </div>

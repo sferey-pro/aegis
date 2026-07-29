@@ -17,7 +17,7 @@ import { auditRoutes } from "./routes/audit";
 // Ensure DB is initialized before starting
 getDb();
 
-const server = serve({
+export const server = serve({
   port: process.env.PORT ? parseInt(process.env.PORT) : 3001,
   routes: {
     ...consoleRoutes,

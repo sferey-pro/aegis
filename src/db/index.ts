@@ -123,6 +123,18 @@ function initDb(database: Database) {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS cve_occurrences (
+      project_id    INTEGER NOT NULL,
+      package       TEXT NOT NULL,
+      cve           TEXT NOT NULL,
+      first_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_baseline   BOOLEAN DEFAULT 0,
+      exposure_start DATETIME,
+      resolved_at   DATETIME,
+      PRIMARY KEY (project_id, package, cve),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,

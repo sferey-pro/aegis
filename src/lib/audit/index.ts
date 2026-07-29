@@ -1,12 +1,68 @@
 import { resolve } from "node:path";
 import { spawn } from "bun";
 import { getDb } from "../../db";
+import { ensureOccurrences } from "../../db/occurrences";
 import { getProjectById, type Project } from "../../db/projects";
 import { addRun, getLatestRun, type Run } from "../../db/runs";
 import { emitConsoleEnd, emitConsoleStart, projectContext } from "../console";
 import { expandPath, getGitInfo } from "../git";
 import { parseAuditOutput } from "../parsers";
 import type { Severity } from "../parsers/types";
+
+async function enhanceVulnerabilities(
+	projectId: number,
+	tool: any,
+	parsedVulns: any[],
+	isBaseline: boolean
+) {
+	const { resolveFixedVersion } = await import("../github");
+	
+	// Ensure occurrences to freeze first_seen_at
+	const occurrencesMap = ensureOccurrences(projectId, parsedVulns, isBaseline);
+
+	const enhancedVulns = await Promise.all(
+		parsedVulns.map(async (v: any) => {
+			const res = await resolveFixedVersion({
+				tool: tool,
+				package: v.package,
+				cve: v.cve,
+				link: v.link,
+				versionRange: v.versionRange,
+				originalFixedIn: v.fixedIn,
+			});
+
+			const key = `${v.package}::${v.cve || v.package}`;
+			const firstSeenAt = occurrencesMap.get(key) || new Date().toISOString();
+
+			return {
+				...v,
+				firstSeenAt,
+				publishedAt: res.published_at || null,
+				fixedIn: res.fixedIn,
+				severity: res.severity !== "unknown" ? res.severity : v.severity,
+				link: res.html_url || v.link,
+				cvssVector: res.cvss_vector || v.cvssVector || null,
+			};
+		}),
+	);
+
+	const counts = {
+		critical: 0,
+		high: 0,
+		moderate: 0,
+		low: 0,
+		info: 0,
+		unknown: 0,
+	};
+	for (const v of enhancedVulns) {
+		const sev = (v.severity || "unknown") as Severity;
+		if (sev in counts) counts[sev]++;
+		else counts.unknown++;
+	}
+
+	return { enhancedVulns, counts };
+}
+
 
 function getAuditMaxAgeHours(): number {
 	const db = getDb();
@@ -176,55 +232,13 @@ export async function runAudit(
 		try {
 			const parsed = parseAuditOutput(project.tool, stdout);
 
-			const { resolveFixedVersion } = await import("../github");
-			const enhancedVulns = await Promise.all(
-				parsed.vulnerabilities.map(async (v: any) => {
-					const res = await resolveFixedVersion({
-						tool: project.tool,
-						package: v.package,
-						cve: v.cve,
-						link: v.link,
-						versionRange: v.versionRange,
-						originalFixedIn: v.fixedIn,
-					});
-
-					let firstSeenAt = new Date().toISOString();
-					if (lastRun && lastRun.status !== "error") {
-						const key = `${v.package}::${v.cve || v.title}`;
-						const oldVuln = lastRun.vulnerabilities.find(
-							(ov: any) => `${ov.package}::${ov.cve || ov.title}` === key,
-						);
-						if (oldVuln && oldVuln.firstSeenAt) {
-							firstSeenAt = oldVuln.firstSeenAt;
-						}
-					}
-
-					return {
-						...v,
-						firstSeenAt,
-						publishedAt: res.published_at || null,
-						fixedIn: res.fixedIn,
-						// Override severity if github gave us a valid one, else keep the original
-						severity: res.severity !== "unknown" ? res.severity : v.severity,
-						link: res.html_url || v.link,
-						cvssVector: res.cvss_vector || v.cvssVector || null,
-					};
-				}),
+			const isBaseline = !lastRun;
+			const { enhancedVulns, counts } = await enhanceVulnerabilities(
+				projectId,
+				project.tool,
+				parsed.vulnerabilities,
+				isBaseline
 			);
-
-			const counts = {
-				critical: 0,
-				high: 0,
-				moderate: 0,
-				low: 0,
-				info: 0,
-				unknown: 0,
-			};
-			for (const v of enhancedVulns) {
-				const sev = v.severity || "unknown";
-				if (sev in counts) counts[sev as keyof typeof counts]++;
-				else counts.unknown++;
-			}
 
 			const successRun = addRun({
 				project_id: projectId,
@@ -320,53 +334,15 @@ export async function ingestAudit(
 	const { parseAuditOutput } = await import("../parsers");
 	const parsed = parseAuditOutput(project.tool, stdout);
 
-	const { resolveFixedVersion } = await import("../github");
-	const enhancedVulns = await Promise.all(
-		parsed.vulnerabilities.map(async (v: any) => {
-			const res = await resolveFixedVersion({
-				tool: project.tool,
-				package: v.package,
-				cve: v.cve,
-				link: v.link,
-				versionRange: v.versionRange,
-				originalFixedIn: v.fixedIn,
-			});
+	const lastRun = getLatestRun(projectId);
+	const isBaseline = !lastRun;
 
-			let firstSeenAt = new Date().toISOString();
-			const lastRun = getLatestRun(projectId);
-			if (lastRun && lastRun.status !== "error") {
-				const key = `${v.package}::${v.cve || v.title}`;
-				const oldVuln = lastRun.vulnerabilities.find(
-					(ov: any) => `${ov.package}::${ov.cve || ov.title}` === key,
-				);
-				if (oldVuln && oldVuln.firstSeenAt) {
-					firstSeenAt = oldVuln.firstSeenAt;
-				}
-			}
-
-			return {
-				...v,
-				firstSeenAt,
-				publishedAt: res.published_at || null,
-				fixedIn: res.fixedIn,
-				severity: res.severity !== "unknown" ? res.severity : v.severity,
-				link: res.html_url || v.link,
-				cvssVector: res.cvss_vector || v.cvssVector || null,
-			};
-		}),
+	const { enhancedVulns, counts: finalCounts } = await enhanceVulnerabilities(
+		projectId,
+		project.tool,
+		parsed.vulnerabilities,
+		isBaseline
 	);
-
-	const finalCounts = {
-		critical: 0,
-		high: 0,
-		moderate: 0,
-		low: 0,
-		info: 0,
-		unknown: 0,
-	};
-	for (const v of enhancedVulns) {
-		finalCounts[v.severity as Severity]++;
-	}
 
 	const run = addRun({
 		project_id: projectId,

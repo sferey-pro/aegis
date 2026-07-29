@@ -32,6 +32,7 @@ export interface CveOccurrence {
 	firstSeenAt?: string | null;
 	ageInDays?: number;
 	publishedAt?: string;
+	isBaseline?: boolean;
 }
 
 export interface CveGroup {
@@ -41,6 +42,8 @@ export interface CveGroup {
 	occurrences: CveOccurrence[];
 	cvssVector?: string | null;
 	maxAgeInDays?: number;
+	hasBaseline?: boolean;
+	hasNetDiscovery?: boolean;
 }
 
 export function buildCveGroups(): CveGroup[] {
@@ -104,7 +107,8 @@ export function buildCveGroups(): CveGroup[] {
 				cvssVector: vuln.cvssVector || null,
 				publishedAt: vuln.publishedAt,
 				firstSeenAt: vuln.firstSeenAt,
-				ageInDays: vuln.publishedAt
+				isBaseline: vuln.isBaseline,
+				ageInDays: (vuln.isBaseline && vuln.publishedAt)
 					? Math.floor(
 							(Date.now() - new Date(vuln.publishedAt).getTime()) /
 								(1000 * 3600 * 24),
@@ -125,6 +129,8 @@ export function buildCveGroups(): CveGroup[] {
 					occurrences: [occurrence],
 					cvssVector: vuln.cvssVector || null,
 					maxAgeInDays: occurrence.ageInDays || 0,
+					hasBaseline: !!occurrence.isBaseline,
+					hasNetDiscovery: !occurrence.isBaseline,
 				});
 			} else {
 				const existingGroup = groups.get(groupKey)!;
@@ -140,6 +146,11 @@ export function buildCveGroups(): CveGroup[] {
 				}
 				if (!existingGroup.cvssVector && vuln.cvssVector) {
 					existingGroup.cvssVector = vuln.cvssVector;
+				}
+				if (occurrence.isBaseline) {
+					existingGroup.hasBaseline = true;
+				} else {
+					existingGroup.hasNetDiscovery = true;
 				}
 			}
 		}

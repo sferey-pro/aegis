@@ -25,15 +25,15 @@ export function ensureOccurrences(
 
 	const rows = db
 		.query(
-			`SELECT package, cve, first_seen_at FROM cve_occurrences WHERE project_id = ?`,
+			`SELECT package, cve, first_seen_at, is_baseline FROM cve_occurrences WHERE project_id = ?`,
 		)
-		.all(projectId) as { package: string; cve: string; first_seen_at: string }[];
+		.all(projectId) as { package: string; cve: string; first_seen_at: string; is_baseline: number }[];
 
-	const map = new Map<string, string>();
+	const map = new Map<string, { firstSeenAt: string; isBaseline: boolean }>();
 	for (const row of rows) {
 		// SQLite CURRENT_TIMESTAMP is UTC 'YYYY-MM-DD HH:MM:SS'. We append 'Z' for ISO parsing.
 		const isoDate = row.first_seen_at.replace(" ", "T") + "Z";
-		map.set(`${row.package}::${row.cve}`, isoDate);
+		map.set(`${row.package}::${row.cve}`, { firstSeenAt: isoDate, isBaseline: row.is_baseline === 1 });
 	}
 	return map;
 }

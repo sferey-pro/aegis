@@ -120,20 +120,26 @@ export function TriageTable({
 														</>
 													)}
 												</div>
-												<span
-													className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${
-														group.maxAgeInDays > 30
-															? "bg-red-500/10 text-red-400 border border-red-500/30"
-															: group.maxAgeInDays > 15
-																? "bg-orange-500/10 text-orange-400 border border-orange-500/30"
-																: "bg-green-500/10 text-green-400 border border-green-500/30"
-													}`}
-												>
-													SLA :{" "}
-													{group.maxAgeInDays > 0
-														? `${group.maxAgeInDays}j`
-														: "Nouveau"}
-												</span>
+												<div className="flex flex-col items-center gap-1">
+													{group.hasBaseline && (
+														<span className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 bg-purple-500/10 text-purple-400 border border-purple-500/30">
+															Dette: {group.maxAgeInDays > 0 ? `${group.maxAgeInDays}j` : "Nouveau"}
+														</span>
+													)}
+													{group.hasNetDiscovery && (
+														<span
+															className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${
+																group.maxAgeInDays > 30
+																	? "bg-red-500/10 text-red-400 border border-red-500/30"
+																	: group.maxAgeInDays > 15
+																		? "bg-orange-500/10 text-orange-400 border border-orange-500/30"
+																		: "bg-green-500/10 text-green-400 border border-green-500/30"
+															}`}
+														>
+															SLA: {group.maxAgeInDays > 0 ? `${group.maxAgeInDays}j` : "Nouveau"}
+														</span>
+													)}
+												</div>
 											</div>
 										</td>
 

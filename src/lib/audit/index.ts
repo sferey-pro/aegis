@@ -32,11 +32,12 @@ async function enhanceVulnerabilities(
 			});
 
 			const key = `${v.package}::${v.cve || v.package}`;
-			const firstSeenAt = occurrencesMap.get(key) || new Date().toISOString();
+			const occ = occurrencesMap.get(key) || { firstSeenAt: new Date().toISOString(), isBaseline: isBaseline };
 
 			return {
 				...v,
-				firstSeenAt,
+				firstSeenAt: occ.firstSeenAt,
+				isBaseline: occ.isBaseline,
 				publishedAt: res.published_at || null,
 				fixedIn: res.fixedIn,
 				severity: res.severity !== "unknown" ? res.severity : v.severity,

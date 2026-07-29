@@ -1,27 +1,47 @@
-import { describe, it, expect, beforeAll } from "bun:test";
-import * as http from "node:http";
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 
-const BASE_URL = "http://localhost:3001";
 
-function request(path: string, options: http.RequestOptions = {}, body?: any): Promise<{ status: number; data: any }> {
-  return new Promise((resolve, reject) => {
-    const req = http.request(BASE_URL + path, options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => { data += chunk; });
-      res.on("end", () => {
-        try {
-          resolve({ status: res.statusCode || 500, data: data ? JSON.parse(data) : null });
-        } catch (e) {
-          resolve({ status: res.statusCode || 500, data });
-        }
-      });
-    });
-    req.on("error", reject);
-    if (body) {
-      req.write(JSON.stringify(body));
-    }
-    req.end();
-  });
+import { statsRoutes } from "../../src/routes/stats";
+import { projectsRoutes } from "../../src/routes/projects";
+import { cvesRoutes } from "../../src/routes/cves";
+
+const routes: any = {
+  ...statsRoutes,
+  ...projectsRoutes,
+  ...cvesRoutes
+};
+
+async function request(path: string, options: RequestInit = {}, body?: any): Promise<{ status: number; data: any }> {
+  let routeKey = path;
+  let params: any = {};
+  
+  // Simple dynamic route matching for /api/projects/:id
+  const parts = path.split("/");
+  if (parts.length === 4 && parts[1] === "api" && parts[2] === "projects") {
+    routeKey = "/api/projects/:id";
+    params = { id: parts[3] };
+  }
+
+  const method = options.method || "GET";
+  const handler = routes[routeKey]?.[method];
+  
+  if (!handler) {
+    return { status: 404, data: null };
+  }
+
+  const req: any = {
+    params,
+    url: "http://localhost" + path,
+    json: async () => body
+  };
+
+  const res = await handler(req);
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (e) {}
+
+  return { status: res.status || 200, data };
 }
 
 describe("Aegis Functional API Tests", () => {

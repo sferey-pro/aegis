@@ -5,7 +5,6 @@
  * It is included in `src/index.html`.
  */
 
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { App } from "./App";
@@ -13,9 +12,9 @@ import { TooltipProvider } from "./components/ui/tooltip";
 
 const elem = document.getElementById("root")!;
 const app = (
-  <TooltipProvider delayDuration={200}>
-    <App />
-  </TooltipProvider>
+	<TooltipProvider delayDuration={200}>
+		<App />
+	</TooltipProvider>
 );
 
 // https://bun.com/docs/bundler/hot-reloading#import-meta-hot-data

@@ -590,7 +590,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 'hover:-translate-y-1 hover:border-white/20 hover:shadow-xl hover:shadow-primary/5 cursor-pointer bg-background/40 backdrop-blur-md'
               }`}
               style={{ animationDelay: `${(index % 20) * 50}ms`, animationFillMode: 'backwards' }}
-              onClick={(e) => {
+              onClick={() => {
                 if (onViewTriage) onViewTriage(p.id);
               }}
             >

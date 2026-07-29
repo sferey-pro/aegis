@@ -7,37 +7,37 @@ let db: Database | null = null;
  * Implémente la connexion paresseuse (lazy load) comme requis dans CONTEXT.md
  */
 export function getDb(): Database {
-  if (!db) {
-    const dbPath = process.env.DB_PATH || "audit.sqlite";
-    db = new Database(dbPath, { create: true });
-    
-    // Activation du mode WAL pour de meilleures performances (fortement recommandé avec SQLite)
-    db.exec("PRAGMA journal_mode = WAL;");
-    db.exec("PRAGMA busy_timeout = 5000;");
-    
-    // Activer les clés étrangères
-    db.exec("PRAGMA foreign_keys = ON;");
-    
-    initDb(db);
-  }
-  return db;
+	if (!db) {
+		const dbPath = process.env.DB_PATH || "audit.sqlite";
+		db = new Database(dbPath, { create: true });
+
+		// Activation du mode WAL pour de meilleures performances (fortement recommandé avec SQLite)
+		db.exec("PRAGMA journal_mode = WAL;");
+		db.exec("PRAGMA busy_timeout = 5000;");
+
+		// Activer les clés étrangères
+		db.exec("PRAGMA foreign_keys = ON;");
+
+		initDb(db);
+	}
+	return db;
 }
 
 /**
  * Ferme la connexion courante, utile pour les tests ou la restauration de snapshots
  */
 export function closeDb() {
-  if (db) {
-    db.close();
-    db = null;
-  }
+	if (db) {
+		db.close();
+		db = null;
+	}
 }
 
 /**
  * Crée les tables nécessaires si elles n'existent pas
  */
 function initDb(database: Database) {
-  database.exec(`
+	database.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -52,33 +52,37 @@ function initDb(database: Database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  
-  try {
-    database.exec(`ALTER TABLE projects ADD COLUMN slug TEXT;`);
-    database.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);`);
-  } catch (e) {}
-  
-  try {
-    database.exec(`ALTER TABLE projects ADD COLUMN is_remote BOOLEAN DEFAULT 0;`);
-  } catch (e) {}
 
-  try {
-    database.exec(`ALTER TABLE advisory_cache ADD COLUMN html_url TEXT;`);
-    database.exec(`ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT;`);
-  } catch (e) {}
+	try {
+		database.exec(`ALTER TABLE projects ADD COLUMN slug TEXT;`);
+		database.exec(
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);`,
+		);
+	} catch (e) {}
 
-  // Populate missing slugs
-  try {
-    database.exec(`
+	try {
+		database.exec(
+			`ALTER TABLE projects ADD COLUMN is_remote BOOLEAN DEFAULT 0;`,
+		);
+	} catch (e) {}
+
+	try {
+		database.exec(`ALTER TABLE advisory_cache ADD COLUMN html_url TEXT;`);
+		database.exec(`ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT;`);
+	} catch (e) {}
+
+	// Populate missing slugs
+	try {
+		database.exec(`
       UPDATE projects 
       SET slug = lower(replace(name, ' ', '-')) || '-' || id 
       WHERE slug IS NULL;
     `);
-  } catch (e) {
-    console.error("Error populating slugs:", e);
-  }
+	} catch (e) {
+		console.error("Error populating slugs:", e);
+	}
 
-  database.exec(`
+	database.exec(`
     CREATE TABLE IF NOT EXISTS runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       project_id INTEGER NOT NULL,
@@ -157,24 +161,26 @@ function initDb(database: Database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  
-  // Migration pour ajouter details
-  try {
-    db!.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
-  } catch (e) {
-    // La colonne existe probablement déjà
-  }
 
-  // Migration pour ajouter published_at, html_url, cvss_vector à advisory_cache
-  try {
-    db!.query("ALTER TABLE advisory_cache ADD COLUMN published_at DATETIME").run();
-  } catch (e) {
-    // La colonne existe probablement déjà
-  }
-  try {
-    db!.query("ALTER TABLE advisory_cache ADD COLUMN html_url TEXT").run();
-  } catch (e) {}
-  try {
-    db!.query("ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT").run();
-  } catch (e) {}
+	// Migration pour ajouter details
+	try {
+		db!.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
+	} catch (e) {
+		// La colonne existe probablement déjà
+	}
+
+	// Migration pour ajouter published_at, html_url, cvss_vector à advisory_cache
+	try {
+		db!
+			.query("ALTER TABLE advisory_cache ADD COLUMN published_at DATETIME")
+			.run();
+	} catch (e) {
+		// La colonne existe probablement déjà
+	}
+	try {
+		db!.query("ALTER TABLE advisory_cache ADD COLUMN html_url TEXT").run();
+	} catch (e) {}
+	try {
+		db!.query("ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT").run();
+	} catch (e) {}
 }

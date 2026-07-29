@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile, mkdir, cp } from "fs/promises";
+import { cp, mkdir, readFile, writeFile } from "fs/promises";
 import { marked } from "marked";
 import path from "path";
 
@@ -53,34 +53,43 @@ const TEMPLATE = `<!DOCTYPE html>
 </html>`;
 
 async function buildDocs() {
-  const docsDir = path.join(process.cwd(), "docs");
-  await mkdir(docsDir, { recursive: true });
+	const docsDir = path.join(process.cwd(), "docs");
+	await mkdir(docsDir, { recursive: true });
 
-  const files = ["DOCUMENTATION.md", "CONTEXT.md", "README.md", "TESTING.md", "UPGRADE.md"];
+	const files = [
+		"DOCUMENTATION.md",
+		"CONTEXT.md",
+		"README.md",
+		"TESTING.md",
+		"UPGRADE.md",
+	];
 
-  for (const file of files) {
-    try {
-      const content = await readFile(path.join(process.cwd(), file), "utf-8");
-      const htmlContent = await marked.parse(content);
-      const title = file.replace(".md", "");
-      
-      const finalHtml = TEMPLATE
-        .replace("{{TITLE}}", title + " - Aegis Docs")
-        .replace("{{CONTENT}}", htmlContent);
+	for (const file of files) {
+		try {
+			const content = await readFile(path.join(process.cwd(), file), "utf-8");
+			const htmlContent = await marked.parse(content);
+			const title = file.replace(".md", "");
 
-      await writeFile(path.join(docsDir, title + ".html"), finalHtml);
-      console.log(`✅ Generated docs/${title}.html`);
-    } catch (e) {
-      console.error(`Failed to generate ${file}:`, e);
-    }
-  }
+			const finalHtml = TEMPLATE.replace(
+				"{{TITLE}}",
+				title + " - Aegis Docs",
+			).replace("{{CONTENT}}", htmlContent);
 
-  try {
-    await cp(path.join(process.cwd(), "assets"), path.join(docsDir, "assets"), { recursive: true });
-    console.log("✅ Copied assets folder to docs/assets");
-  } catch (e) {
-    console.log("ℹ️ No assets folder found or failed to copy");
-  }
+			await writeFile(path.join(docsDir, title + ".html"), finalHtml);
+			console.log(`✅ Generated docs/${title}.html`);
+		} catch (e) {
+			console.error(`Failed to generate ${file}:`, e);
+		}
+	}
+
+	try {
+		await cp(path.join(process.cwd(), "assets"), path.join(docsDir, "assets"), {
+			recursive: true,
+		});
+		console.log("✅ Copied assets folder to docs/assets");
+	} catch (e) {
+		console.log("ℹ️ No assets folder found or failed to copy");
+	}
 }
 
 buildDocs();

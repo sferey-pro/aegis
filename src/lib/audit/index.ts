@@ -1,308 +1,401 @@
-import { spawn } from "bun";
 import { resolve } from "node:path";
-import { getGitInfo, expandPath } from "../git";
+import { spawn } from "bun";
+import { getDb } from "../../db";
 import { getProjectById, type Project } from "../../db/projects";
-import { getLatestRun, addRun, type Run } from "../../db/runs";
+import { addRun, getLatestRun, type Run } from "../../db/runs";
+import { emitConsoleEnd, emitConsoleStart, projectContext } from "../console";
+import { expandPath, getGitInfo } from "../git";
 import { parseAuditOutput } from "../parsers";
 import type { Severity } from "../parsers/types";
-import { getDb } from "../../db";
-import { emitConsoleStart, emitConsoleEnd, projectContext } from "../console";
 
 function getAuditMaxAgeHours(): number {
-  const db = getDb();
-  const row = db.query(`SELECT value FROM settings WHERE key = 'AUDIT_MAX_AGE_HOURS'`).get() as any;
-  if (!row) return 24;
-  const val = parseFloat(row.value);
-  if (isNaN(val)) return 24;
-  return val;
+	const db = getDb();
+	const row = db
+		.query(`SELECT value FROM settings WHERE key = 'AUDIT_MAX_AGE_HOURS'`)
+		.get() as any;
+	if (!row) return 24;
+	const val = parseFloat(row.value);
+	if (isNaN(val)) return 24;
+	return val;
 }
 
 function isFresh(ranAtStr: string, maxAgeHours: number): boolean {
-  if (maxAgeHours < 0) return false;
-  if (maxAgeHours === 0) return true;
-  
-  const ranAt = new Date(ranAtStr + "Z"); // SQLite CURRENT_TIMESTAMP is UTC
-  if (isNaN(ranAt.getTime())) return true; // Date illisible -> on garde frais par sécurité
-  
-  const now = new Date();
-  const diffHours = (now.getTime() - ranAt.getTime()) / (1000 * 60 * 60);
-  return diffHours <= maxAgeHours;
+	if (maxAgeHours < 0) return false;
+	if (maxAgeHours === 0) return true;
+
+	const ranAt = new Date(ranAtStr + "Z"); // SQLite CURRENT_TIMESTAMP is UTC
+	if (isNaN(ranAt.getTime())) return true; // Date illisible -> on garde frais par sécurité
+
+	const now = new Date();
+	const diffHours = (now.getTime() - ranAt.getTime()) / (1000 * 60 * 60);
+	return diffHours <= maxAgeHours;
 }
 
 export function getAuditTarget(project: Project): string {
-  const root = expandPath(project.path);
-  if (!project.audit_path) return root;
-  
-  // Si le chemin commence par / ou ~, c'est un chemin absolu à part entière
-  if (project.audit_path.startsWith("/") || project.audit_path.startsWith("~")) {
-    return expandPath(project.audit_path);
-  }
-  
-  // Sinon, c'est relatif à la racine Git (root)
-  return resolve(root, project.audit_path);
+	const root = expandPath(project.path);
+	if (!project.audit_path) return root;
+
+	// Si le chemin commence par / ou ~, c'est un chemin absolu à part entière
+	if (
+		project.audit_path.startsWith("/") ||
+		project.audit_path.startsWith("~")
+	) {
+		return expandPath(project.audit_path);
+	}
+
+	// Sinon, c'est relatif à la racine Git (root)
+	return resolve(root, project.audit_path);
 }
 
-export async function runAudit(projectId: number, force = false): Promise<{ run: Run | null, deduped: boolean, newCves: any[] }> {
-  const project = getProjectById(projectId);
-  if (!project) throw new Error("Projet introuvable");
+export async function runAudit(
+	projectId: number,
+	force = false,
+): Promise<{ run: Run | null; deduped: boolean; newCves: any[] }> {
+	const project = getProjectById(projectId);
+	if (!project) throw new Error("Projet introuvable");
 
-  return projectContext.run({ project: project.name }, async () => {
-    const cwd = getAuditTarget(project);
-    
-    // 1. Lire l'état git
-  const gitInfo = await getGitInfo(project.path); // gitInfo sur la racine git
+	return projectContext.run({ project: project.name }, async () => {
+		const cwd = getAuditTarget(project);
 
-  // 2. Chercher le dernier run
-  const lastRun = getLatestRun(projectId);
-  
-  // 3. Déduplication
-  if (!force && !gitInfo.dirty && gitInfo.sha && lastRun && lastRun.status !== "error" && lastRun.commit_sha === gitInfo.sha) {
-    const maxAge = getAuditMaxAgeHours();
-    if (isFresh(lastRun.ran_at, maxAge)) {
-      return { run: lastRun, deduped: true, newCves: [] }; // Dédupliqué !
-    }
-  }
+		// 1. Lire l'état git
+		const gitInfo = await getGitInfo(project.path); // gitInfo sur la racine git
 
-  // 4. Lancement de l'audit
-  let commandStr = "";
-  let args: string[] = [];
-  
-  if (project.tool === "npm") { args = ["npm", "audit", "--json"]; }
-  else if (project.tool === "yarn") { args = ["yarn", "audit", "--json"]; }
-  else if (project.tool === "bun") { args = ["bun", "audit", "--json"]; }
-  else if (project.tool === "composer") { args = ["composer", "audit", "--format=json", "--locked", "--no-interaction"]; }
+		// 2. Chercher le dernier run
+		const lastRun = getLatestRun(projectId);
 
-  commandStr = args.join(" ");
-  const startTime = Date.now();
-  
-  const eventId = emitConsoleStart({ cmd: commandStr, cwd, label: "audit" });
-  
-  let stdout = "";
-  let stderr = "";
-  let exitCode = 1;
-  let systemError = null;
+		// 3. Déduplication
+		if (
+			!force &&
+			!gitInfo.dirty &&
+			gitInfo.sha &&
+			lastRun &&
+			lastRun.status !== "error" &&
+			lastRun.commit_sha === gitInfo.sha
+		) {
+			const maxAge = getAuditMaxAgeHours();
+			if (isFresh(lastRun.ran_at, maxAge)) {
+				return { run: lastRun, deduped: true, newCves: [] }; // Dédupliqué !
+			}
+		}
 
-  try {
-    const proc = spawn(args, {
-      cwd,
-      env: { ...process.env, NO_COLOR: "1" },
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const [stdoutText, stderrText] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text()
-    ]);
-    stdout = stdoutText;
-    stderr = stderrText;
-    exitCode = await proc.exited;
-  } catch (err: any) {
-    systemError = err.message;
-  }
+		// 4. Lancement de l'audit
+		let commandStr = "";
+		let args: string[] = [];
 
-  const duration_ms = Date.now() - startTime;
-  
-  const errorOutput = systemError || (exitCode !== 0 ? stderr : undefined);
-  emitConsoleEnd(eventId, { exitCode, ms: duration_ms, errorText: errorOutput?.trim() });
+		if (project.tool === "npm") {
+			args = ["npm", "audit", "--json"];
+		} else if (project.tool === "yarn") {
+			args = ["yarn", "audit", "--json"];
+		} else if (project.tool === "bun") {
+			args = ["bun", "audit", "--json"];
+		} else if (project.tool === "composer") {
+			args = [
+				"composer",
+				"audit",
+				"--format=json",
+				"--locked",
+				"--no-interaction",
+			];
+		}
 
-  if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
-    let errMsg = systemError ? `Erreur système: ${systemError}` : (stderr.trim() || `${project.tool}: aucune sortie (exit ${exitCode})`);
-    
-    // Format de l'erreur multi-ligne
-    const errorBody = [
-      errMsg,
-      `cwd: ${cwd}`,
-      `exit: ${exitCode}`,
-      stderr,
-      stdout
-    ].filter(Boolean).join("\n");
+		commandStr = args.join(" ");
+		const startTime = Date.now();
 
-    const errRun = addRun({
-      project_id: projectId,
-      status: "error",
-      total: 0,
-      counts: { critical:0, high:0, moderate:0, low:0, info:0, unknown:0 },
-      vulnerabilities: [],
-      command: commandStr,
-      commit_sha: gitInfo.sha,
-      error: errorBody,
-      duration_ms
-    });
-    return { run: errRun, deduped: false, newCves: [] };
-  }
+		const eventId = emitConsoleStart({ cmd: commandStr, cwd, label: "audit" });
 
-  // Parsing
-  try {
-    const parsed = parseAuditOutput(project.tool, stdout);
-    
-    const { resolveFixedVersion } = await import("../github");
-    const enhancedVulns = await Promise.all(parsed.vulnerabilities.map(async (v: any) => {
-      const res = await resolveFixedVersion({
-        tool: project.tool,
-        package: v.package,
-        cve: v.cve,
-        link: v.link,
-        versionRange: v.versionRange,
-        originalFixedIn: v.fixedIn
-      });
-      
-      let firstSeenAt = new Date().toISOString();
-      if (lastRun && lastRun.status !== "error") {
-        const key = `${v.package}::${v.cve || v.title}`;
-        const oldVuln = lastRun.vulnerabilities.find((ov: any) => `${ov.package}::${ov.cve || ov.title}` === key);
-        if (oldVuln && oldVuln.firstSeenAt) {
-          firstSeenAt = oldVuln.firstSeenAt;
-        }
-      }
+		let stdout = "";
+		let stderr = "";
+		let exitCode = 1;
+		let systemError = null;
 
-      return {
-        ...v,
-        firstSeenAt,
-        publishedAt: res.published_at || null,
-        fixedIn: res.fixedIn,
-        // Override severity if github gave us a valid one, else keep the original
-        severity: res.severity !== "unknown" ? res.severity : v.severity,
-        link: res.html_url || v.link,
-        cvssVector: res.cvss_vector || v.cvssVector || null
-      };
-    }));
+		try {
+			const proc = spawn(args, {
+				cwd,
+				env: { ...process.env, NO_COLOR: "1" },
+				stdout: "pipe",
+				stderr: "pipe",
+			});
+			const [stdoutText, stderrText] = await Promise.all([
+				new Response(proc.stdout).text(),
+				new Response(proc.stderr).text(),
+			]);
+			stdout = stdoutText;
+			stderr = stderrText;
+			exitCode = await proc.exited;
+		} catch (err: any) {
+			systemError = err.message;
+		}
 
-    const counts = { critical: 0, high: 0, moderate: 0, low: 0, info: 0, unknown: 0 };
-    for (const v of enhancedVulns) {
-      const sev = v.severity || "unknown";
-      if (sev in counts) counts[sev as keyof typeof counts]++;
-      else counts.unknown++;
-    }
+		const duration_ms = Date.now() - startTime;
 
-    const successRun = addRun({
-      project_id: projectId,
-      status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
-      total: enhancedVulns.length,
-      counts: counts as any,
-      vulnerabilities: enhancedVulns,
-      command: commandStr,
-      commit_sha: gitInfo.sha,
-      error: null,
-      duration_ms
-    });
+		const errorOutput = systemError || (exitCode !== 0 ? stderr : undefined);
+		emitConsoleEnd(eventId, {
+			exitCode,
+			ms: duration_ms,
+			errorText: errorOutput?.trim(),
+		});
 
-    // Calculer newCves par rapport à l'ancien run valide
-    const newCves = [];
-    if (lastRun && lastRun.status !== "error") {
-      const oldSet = new Set(lastRun.vulnerabilities.map((v: any) => `${v.package}::${v.cve || v.title}`));
-      for (const v of enhancedVulns) {
-        const key = `${v.package}::${v.cve || v.title}`;
-        if (!oldSet.has(key)) {
-          newCves.push({ ref: v.cve || v.package, package: v.package, severity: v.severity });
-        }
-      }
-    } else {
-      // Premier run ou précédent en erreur -> toutes les failles trouvées sont considérées "nouvelles"
-      for (const v of enhancedVulns) {
-        newCves.push({ ref: v.cve || v.package, package: v.package, severity: v.severity });
-      }
-    }
+		if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
+			const errMsg = systemError
+				? `Erreur système: ${systemError}`
+				: stderr.trim() || `${project.tool}: aucune sortie (exit ${exitCode})`;
 
-    return { run: successRun, deduped: false, newCves };
+			// Format de l'erreur multi-ligne
+			const errorBody = [
+				errMsg,
+				`cwd: ${cwd}`,
+				`exit: ${exitCode}`,
+				stderr,
+				stdout,
+			]
+				.filter(Boolean)
+				.join("\n");
 
-  } catch (err: any) {
-    const errorBody = [
-      err.message,
-      `cwd: ${cwd}`,
-      `exit: ${exitCode}`,
-      stderr,
-      stdout
-    ].filter(Boolean).join("\n");
+			const errRun = addRun({
+				project_id: projectId,
+				status: "error",
+				total: 0,
+				counts: {
+					critical: 0,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 0,
+					unknown: 0,
+				},
+				vulnerabilities: [],
+				command: commandStr,
+				commit_sha: gitInfo.sha,
+				error: errorBody,
+				duration_ms,
+			});
+			return { run: errRun, deduped: false, newCves: [] };
+		}
 
-    const parseErrRun = addRun({
-      project_id: projectId,
-      status: "error",
-      total: 0,
-      counts: { critical:0, high:0, moderate:0, low:0, info:0, unknown:0 },
-      vulnerabilities: [],
-      command: commandStr,
-      commit_sha: gitInfo.sha,
-      error: errorBody,
-      duration_ms
-    });
-    return { run: parseErrRun, deduped: false, newCves: [] };
-  }
-  });
+		// Parsing
+		try {
+			const parsed = parseAuditOutput(project.tool, stdout);
+
+			const { resolveFixedVersion } = await import("../github");
+			const enhancedVulns = await Promise.all(
+				parsed.vulnerabilities.map(async (v: any) => {
+					const res = await resolveFixedVersion({
+						tool: project.tool,
+						package: v.package,
+						cve: v.cve,
+						link: v.link,
+						versionRange: v.versionRange,
+						originalFixedIn: v.fixedIn,
+					});
+
+					let firstSeenAt = new Date().toISOString();
+					if (lastRun && lastRun.status !== "error") {
+						const key = `${v.package}::${v.cve || v.title}`;
+						const oldVuln = lastRun.vulnerabilities.find(
+							(ov: any) => `${ov.package}::${ov.cve || ov.title}` === key,
+						);
+						if (oldVuln && oldVuln.firstSeenAt) {
+							firstSeenAt = oldVuln.firstSeenAt;
+						}
+					}
+
+					return {
+						...v,
+						firstSeenAt,
+						publishedAt: res.published_at || null,
+						fixedIn: res.fixedIn,
+						// Override severity if github gave us a valid one, else keep the original
+						severity: res.severity !== "unknown" ? res.severity : v.severity,
+						link: res.html_url || v.link,
+						cvssVector: res.cvss_vector || v.cvssVector || null,
+					};
+				}),
+			);
+
+			const counts = {
+				critical: 0,
+				high: 0,
+				moderate: 0,
+				low: 0,
+				info: 0,
+				unknown: 0,
+			};
+			for (const v of enhancedVulns) {
+				const sev = v.severity || "unknown";
+				if (sev in counts) counts[sev as keyof typeof counts]++;
+				else counts.unknown++;
+			}
+
+			const successRun = addRun({
+				project_id: projectId,
+				status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
+				total: enhancedVulns.length,
+				counts: counts as any,
+				vulnerabilities: enhancedVulns,
+				command: commandStr,
+				commit_sha: gitInfo.sha,
+				error: null,
+				duration_ms,
+			});
+
+			// Calculer newCves par rapport à l'ancien run valide
+			const newCves = [];
+			if (lastRun && lastRun.status !== "error") {
+				const oldSet = new Set(
+					lastRun.vulnerabilities.map(
+						(v: any) => `${v.package}::${v.cve || v.title}`,
+					),
+				);
+				for (const v of enhancedVulns) {
+					const key = `${v.package}::${v.cve || v.title}`;
+					if (!oldSet.has(key)) {
+						newCves.push({
+							ref: v.cve || v.package,
+							package: v.package,
+							severity: v.severity,
+						});
+					}
+				}
+			} else {
+				// Premier run ou précédent en erreur -> toutes les failles trouvées sont considérées "nouvelles"
+				for (const v of enhancedVulns) {
+					newCves.push({
+						ref: v.cve || v.package,
+						package: v.package,
+						severity: v.severity,
+					});
+				}
+			}
+
+			return { run: successRun, deduped: false, newCves };
+		} catch (err: any) {
+			const errorBody = [
+				err.message,
+				`cwd: ${cwd}`,
+				`exit: ${exitCode}`,
+				stderr,
+				stdout,
+			]
+				.filter(Boolean)
+				.join("\n");
+
+			const parseErrRun = addRun({
+				project_id: projectId,
+				status: "error",
+				total: 0,
+				counts: {
+					critical: 0,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 0,
+					unknown: 0,
+				},
+				vulnerabilities: [],
+				command: commandStr,
+				commit_sha: gitInfo.sha,
+				error: errorBody,
+				duration_ms,
+			});
+			return { run: parseErrRun, deduped: false, newCves: [] };
+		}
+	});
 }
 
-export async function ingestAudit(projectId: number, stdout: string, commitSha: string = ""): Promise<{ run: Run | null, newCves: any[] }> {
-  const project = getProjectById(projectId);
-  if (!project) throw new Error("Projet introuvable");
+export async function ingestAudit(
+	projectId: number,
+	stdout: string,
+	commitSha: string = "",
+): Promise<{ run: Run | null; newCves: any[] }> {
+	const project = getProjectById(projectId);
+	if (!project) throw new Error("Projet introuvable");
 
-  let commandStr = `ci-ingest ${project.tool}`;
-  
-  if (stdout.trim() === "") {
-    throw new Error("Payload vide");
-  }
+	const commandStr = `ci-ingest ${project.tool}`;
 
-  // Parsing
-  const { parseAuditOutput } = await import("../parsers");
-  const parsed = parseAuditOutput(project.tool, stdout);
-  
-  const { resolveFixedVersion } = await import("../github");
-  const enhancedVulns = await Promise.all(parsed.vulnerabilities.map(async (v: any) => {
-    const res = await resolveFixedVersion({
-      tool: project.tool,
-      package: v.package,
-      cve: v.cve,
-      link: v.link,
-      versionRange: v.versionRange,
-      originalFixedIn: v.fixedIn
-    });
+	if (stdout.trim() === "") {
+		throw new Error("Payload vide");
+	}
 
-    let firstSeenAt = new Date().toISOString();
-    const lastRun = getLatestRun(projectId);
-    if (lastRun && lastRun.status !== "error") {
-      const key = `${v.package}::${v.cve || v.title}`;
-      const oldVuln = lastRun.vulnerabilities.find((ov: any) => `${ov.package}::${ov.cve || ov.title}` === key);
-      if (oldVuln && oldVuln.firstSeenAt) {
-        firstSeenAt = oldVuln.firstSeenAt;
-      }
-    }
+	// Parsing
+	const { parseAuditOutput } = await import("../parsers");
+	const parsed = parseAuditOutput(project.tool, stdout);
 
-    return {
-      ...v,
-      firstSeenAt,
-      publishedAt: res.published_at || null,
-      fixedIn: res.fixedIn,
-      severity: res.severity !== "unknown" ? res.severity : v.severity,
-      link: res.html_url || v.link,
-      cvssVector: res.cvss_vector || v.cvssVector || null
-    };
-  }));
+	const { resolveFixedVersion } = await import("../github");
+	const enhancedVulns = await Promise.all(
+		parsed.vulnerabilities.map(async (v: any) => {
+			const res = await resolveFixedVersion({
+				tool: project.tool,
+				package: v.package,
+				cve: v.cve,
+				link: v.link,
+				versionRange: v.versionRange,
+				originalFixedIn: v.fixedIn,
+			});
 
-  const finalCounts = { critical:0, high:0, moderate:0, low:0, info:0, unknown:0 };
-  for (const v of enhancedVulns) {
-    finalCounts[v.severity as Severity]++;
-  }
+			let firstSeenAt = new Date().toISOString();
+			const lastRun = getLatestRun(projectId);
+			if (lastRun && lastRun.status !== "error") {
+				const key = `${v.package}::${v.cve || v.title}`;
+				const oldVuln = lastRun.vulnerabilities.find(
+					(ov: any) => `${ov.package}::${ov.cve || ov.title}` === key,
+				);
+				if (oldVuln && oldVuln.firstSeenAt) {
+					firstSeenAt = oldVuln.firstSeenAt;
+				}
+			}
 
-  const run = addRun({
-    project_id: projectId,
-    status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
-    total: enhancedVulns.length,
-    counts: finalCounts,
-    vulnerabilities: enhancedVulns,
-    command: commandStr,
-    commit_sha: commitSha,
-    error: null,
-    duration_ms: 0
-  });
+			return {
+				...v,
+				firstSeenAt,
+				publishedAt: res.published_at || null,
+				fixedIn: res.fixedIn,
+				severity: res.severity !== "unknown" ? res.severity : v.severity,
+				link: res.html_url || v.link,
+				cvssVector: res.cvss_vector || v.cvssVector || null,
+			};
+		}),
+	);
 
-  const { buildCveGroups } = await import("../aggregator");
-  const groups = buildCveGroups();
-  
-  const newCves = [];
-  const projectGroups = groups.filter(g => g.occurrences.some(o => o.projectId === projectId));
-  for (const g of projectGroups) {
-    if (g.occurrences.some(o => o.projectId === projectId && o.status === 'pending')) {
-      newCves.push(g);
-    }
-  }
+	const finalCounts = {
+		critical: 0,
+		high: 0,
+		moderate: 0,
+		low: 0,
+		info: 0,
+		unknown: 0,
+	};
+	for (const v of enhancedVulns) {
+		finalCounts[v.severity as Severity]++;
+	}
 
-  return { run, newCves };
+	const run = addRun({
+		project_id: projectId,
+		status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
+		total: enhancedVulns.length,
+		counts: finalCounts,
+		vulnerabilities: enhancedVulns,
+		command: commandStr,
+		commit_sha: commitSha,
+		error: null,
+		duration_ms: 0,
+	});
+
+	const { buildCveGroups } = await import("../aggregator");
+	const groups = buildCveGroups();
+
+	const newCves = [];
+	const projectGroups = groups.filter((g) =>
+		g.occurrences.some((o) => o.projectId === projectId),
+	);
+	for (const g of projectGroups) {
+		if (
+			g.occurrences.some(
+				(o) => o.projectId === projectId && o.status === "pending",
+			)
+		) {
+			newCves.push(g);
+		}
+	}
+
+	return { run, newCves };
 }

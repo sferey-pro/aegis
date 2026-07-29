@@ -38,14 +38,14 @@ Finies les lignes de terminal illisibles ! Avec Aegis, repérez instantanément 
 ## ⚙️ Installation & Démarrage
 
 ```bash
-# 1. Cloner le projet (si applicable)
+# 📦 1. Cloner le projet (si applicable)
 git clone https://github.com/votre-org/aegis.git
 cd aegis
 
-# 2. Installer les dépendances via Bun
+# 📥 2. Installer les dépendances via Bun
 bun install
 
-# 3. Lancer le serveur de développement (Backend + Frontend)
+# 🚀 3. Lancer le serveur de développement (Backend + Frontend)
 bun dev
 ```
 

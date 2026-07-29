@@ -17,7 +17,7 @@ Pour chaque projet on déclare un chemin (racine git), éventuellement un sous-d
 
 ---
 
-# 1. Gestion des projets
+# 📁 1. Gestion des projets
 
 ## But
 Déclarer, modifier, supprimer et organiser les projets à auditer. Le catalogue des projets est la source de vérité pour tous les autres écrans (tableau de bord, CVE, tickets, historique).
@@ -100,7 +100,7 @@ Deux projets sont doublons s'ils ont la **même clé de cible d'audit résolue**
 
 ---
 
-# 2. Exécution des audits
+# ⚡ 2. Exécution des audits
 
 ## But
 Lancer à la demande l'analyse de vulnérabilités d'un projet en exécutant l'outil adapté sur son lockfile, puis persister un rapport normalisé. Optimisé par déduplication commit + fenêtre de fraîcheur ; signale les nouvelles CVE ; transforme tout échec en erreur explicite et traçable. Mode « Tout auditer » = enchaînement parallèle borné.
@@ -160,7 +160,7 @@ Orchestré **côté client** (aucun endpoint batch). Un appel d'audit par projet
 
 ---
 
-# 3. Parsing & normalisation des rapports
+# 🧹 3. Parsing & normalisation des rapports
 
 ## Objectif
 Transformer la sortie brute (JSON / NDJSON) de chaque outil en une **liste unifiée** `Vulnerability[]`, puis produire `counts` (par sévérité) + `total`. Résultat = `{ vulnerabilities, counts, total, command }`. Pipeline : parsing spécifique → déduplication → tri pire-sévérité d'abord → comptage. Aucun enrichissement réseau ici.
@@ -207,7 +207,7 @@ Sections vides/absentes → liste vide, counts à 0. Valeur non-tableau ignorée
 
 ---
 
-# 4. Historique des audits & évolution des CVE
+# 📈 4. Historique des audits & évolution des CVE
 
 ## Objet
 Chaque audit produit un **run** durable. L'accumulation donne : l'historique par projet, le dernier état connu, l'évolution globale dans le temps, et le calcul des nouvelles CVE.
@@ -260,7 +260,7 @@ Aucun run → vides. Projet ignoré → absent de la série globale (historique 
 
 ---
 
-# 5. Intégration Git
+# 🌿 5. Intégration Git
 
 ## Vue d'ensemble
 Chaque projet est associé à un dépôt git (racine = `path`, `~` expansé). L'app calcule un état git **live** et fournit trois actions réseau : fetch par projet, fetch global, pull par projet. Toutes les commandes via sous-processus sans shell, sortie capturée + diffusée sur la console. Env fixé :
@@ -310,7 +310,7 @@ Chemin inexistant (détecté avant toute commande). Non-repo. Detached HEAD (`br
 
 ---
 
-# 6. Connecteur GitHub Advisory Database
+# 🐙 6. Connecteur GitHub Advisory Database
 
 ## But
 Compléter à la demande deux infos que les outils ne donnent pas (ou mal) : (1) la **sévérité** manquante (`unknown`), (2) la **version corrigée** (`first_patched_version`, absente pour composer/bun). Service auxiliaire : ne lance jamais d'audit, ne modifie pas les runs ; alimente le champ `fixed_in` d'une annotation.
@@ -354,7 +354,7 @@ Route : body `{cve, projectId, package, tool, link?}` ; validation `cve`+`packag
 
 ---
 
-# 7. Agrégation des CVE & triage référent sécurité
+# 🛡️ 7. Agrégation des CVE & triage référent sécurité
 
 ## Objectif métier
 Vue consolidée de toutes les CVE/avis détectés sur l'ensemble des projets, permettant au référent de **juger projet par projet si une vulnérabilité est un risque réel** (le code vulnérable est-il atteignable ?), de documenter sa décision et de renseigner la version corrigée. Décisions **persistantes**, survivent aux réaudits.
@@ -392,7 +392,7 @@ Projet ignoré / dernier run en erreur / aucun run → absent de l'agrégation (
 
 ---
 
-# 8. Tickets Jira (préparation de remédiation)
+# 🎫 8. Tickets Jira (préparation de remédiation)
 
 ## Objet
 Transformer les CVE agrégées en unités de travail prêtes pour Jira : un contenu markdown copiable par unité, et un lien Jira persistant avec détection des dérives. **Source** = agrégat CVE (`GET /api/cves`). **Unité de travail = (projet, package)** : toutes les CVE frappant ce package dans ce projet dans le même ticket.
@@ -437,7 +437,7 @@ Aucune donnée d'audit → aucun ticket. Filtre atteignables sans CVE confirmée
 
 ---
 
-# 9. Tags (catalogue et filtrage)
+# 🏷️ 9. Tags (catalogue et filtrage)
 
 ## Modèle
 **Table `tags`** : `id`, `name` (**UNIQUE**, non vide), `color` (palette, défaut `indigo`), `created_at`. **Palette fixe** (8 valeurs) : `indigo · sky · emerald · amber · rose · violet · teal · orange`. Couleur hors palette → `indigo`. Affectation aux projets = **liste de noms** (`projects.tags`, JSON), normalisée à chaque écriture (trim, exclusion vides, dédup, ordre préservé). Pas d'intégrité référentielle stricte (un projet peut porter un nom hors catalogue, ex. après import).
@@ -453,7 +453,7 @@ Sélection `selectedTags`. Aucun tag → tous. Sinon **logique OU** : projet ret
 
 ---
 
-# 10. Bibliothèque de prompts IA
+# 🤖 10. Bibliothèque de prompts IA
 
 ## But
 Stocker et réutiliser des prompts IA (textes réutilisables), indépendants des projets et audits. Bibliothèque persistante, CRUD, transportable via export/import.
@@ -476,7 +476,7 @@ Export : `{title, body, tags}` uniquement (pas `id`/`created_at`). Import : **d�
 
 ---
 
-# 11. Console live des commandes
+# 📟 11. Console live des commandes
 
 ## But
 Diffuser en **temps réel** vers les navigateurs connectés la trace de **toutes les commandes externes** (audits, git, GitHub). Flux **purement volatile** (aucune persistance) : un client ne voit que les commandes émises **à partir** de sa connexion (pas de rejeu). La persistance des résultats d'audit relève de la table `runs`.
@@ -513,7 +513,7 @@ Client déconnecté → retiré + ping arrêté ; envoi échoué → retrait sil
 
 ---
 
-# 12. Sauvegarde, restauration & réglages
+# 💾 12. Sauvegarde, restauration & réglages
 
 ## Vue d'ensemble : deux niveaux
 

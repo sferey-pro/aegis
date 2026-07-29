@@ -29,7 +29,8 @@ bun test --watch
 
 3. **Composants Frontend (React)** :
    - Tests de rendu conditionnel (ex: afficher le badge Critique en rouge).
-   - Validation des interactions utilisateurs.
+   - Validation des interactions utilisateurs (pagination, changement du nombre d'éléments par page, tri).
+   - Vérification de l'ergonomie et du comportement responsive des tableaux (overflow horizontal, colonnes sticky).
 
 ## Bonnes Pratiques
 - Les fichiers de tests doivent se trouver à côté des fichiers testés ou dans un dossier `__tests__`.

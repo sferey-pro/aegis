@@ -8,6 +8,15 @@ import { getLatestRun } from "../db/runs";
 import { runAudit } from "../lib/audit";
 import { getGitInfo, gitFetch, gitPull } from "../lib/git";
 
+function isPathAllowed(targetPath: string) {
+	const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
+	if (!allowedRootsStr) return true;
+	const nodePath = require("node:path");
+	const allowedRoots = allowedRootsStr.split(",").map(r => nodePath.resolve(r.trim()));
+	const absolutePath = nodePath.resolve(targetPath);
+	return allowedRoots.some((root: string) => absolutePath === root || absolutePath.startsWith(root + nodePath.sep));
+}
+
 export const projectsRoutes = {
 	"/api/projects/detect": {
 		async POST(req: Request) {
@@ -21,6 +30,10 @@ export const projectsRoutes = {
 				const expanded = expandPath(path);
 				const safeAuditPath = (audit_path || "").replace(/^\/+/, "");
 				const fullPath = nodePath.resolve(expanded, safeAuditPath);
+
+				if (!isPathAllowed(fullPath)) {
+					return Response.json({ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" }, { status: 403 });
+				}
 
 				if (fs.existsSync(nodePath.join(fullPath, "composer.lock")))
 					tool = "composer";
@@ -69,6 +82,17 @@ export const projectsRoutes = {
 		},
 		async POST(req: Request) {
 			const body = await req.json();
+			const nodePath = await import("node:path");
+			const { expandPath } = await import("../lib/git");
+			
+			const expanded = expandPath(body.path);
+			const safeAuditPath = (body.audit_path || "").replace(/^\/+/, "");
+			const fullPath = nodePath.resolve(expanded, safeAuditPath);
+
+			if (!isPathAllowed(fullPath)) {
+				return Response.json({ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" }, { status: 403 });
+			}
+
 			const project = createProject(body);
 			return Response.json(project);
 		},

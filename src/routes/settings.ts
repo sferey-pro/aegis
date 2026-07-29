@@ -17,9 +17,14 @@ export const settingsRoutes = {
 
 	"/api/config/export": {
 		async GET() {
+			const settings = getAllSettings();
+			const safeSettings = { ...settings };
+			if (safeSettings.GITHUB_TOKEN) safeSettings.GITHUB_TOKEN = "***";
+			if (safeSettings.JIRA_API_KEY) safeSettings.JIRA_API_KEY = "***";
+
 			return Response.json({
 				projects: listProjects(),
-				settings: getAllSettings(),
+				settings: safeSettings,
 				annotations: getAllAnnotations(),
 			});
 		},
@@ -28,7 +33,15 @@ export const settingsRoutes = {
 	"/api/config/import": {
 		async POST(req: Request) {
 			const body = await req.json();
-			if (body.settings) setAllSettings(body.settings);
+			if (body.settings) {
+				const newSettings = { ...body.settings };
+				for (const key of Object.keys(newSettings)) {
+					if (newSettings[key] === "***") {
+						delete newSettings[key];
+					}
+				}
+				setAllSettings(newSettings);
+			}
 			return Response.json({
 				success: true,
 				message: "Paramètres importés avec succès.",

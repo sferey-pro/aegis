@@ -1,5 +1,6 @@
 import { getProjectBySlug, listProjects } from "../db/projects";
 import { ingestAudit, runAudit } from "../lib/audit";
+import { timingSafeEqual } from "node:crypto";
 
 export const auditRoutes = {
 	"/api/audit/run": {
@@ -20,6 +21,15 @@ export const auditRoutes = {
 
 	"/api/ingest/:slug": {
 		async POST(req: any) {
+			const expectedToken = process.env.AEGIS_INGEST_TOKEN;
+			if (!expectedToken) {
+				return Response.json({ error: "Configuration manquante: AEGIS_INGEST_TOKEN" }, { status: 500 });
+			}
+			const tokenHeader = req.headers.get("X-Aegis-Token") || "";
+			if (tokenHeader.length !== expectedToken.length || !timingSafeEqual(Buffer.from(tokenHeader), Buffer.from(expectedToken))) {
+				return Response.json({ error: "Non autorisé" }, { status: 401 });
+			}
+
 			const slug = req.params.slug;
 			const project = getProjectBySlug(slug);
 

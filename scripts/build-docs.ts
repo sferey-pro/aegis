@@ -1,4 +1,4 @@
-import { readdir, readFile, writeFile, mkdir } from "fs/promises";
+import { readdir, readFile, writeFile, mkdir, cp } from "fs/promises";
 import { marked } from "marked";
 import path from "path";
 
@@ -73,6 +73,13 @@ async function buildDocs() {
     } catch (e) {
       console.error(`Failed to generate ${file}:`, e);
     }
+  }
+
+  try {
+    await cp(path.join(process.cwd(), "assets"), path.join(docsDir, "assets"), { recursive: true });
+    console.log("✅ Copied assets folder to docs/assets");
+  } catch (e) {
+    console.log("ℹ️ No assets folder found or failed to copy");
   }
 }
 

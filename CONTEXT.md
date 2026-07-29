@@ -561,8 +561,11 @@ Endpoint `POST /api/snapshots/restore {file}` → `{ok:true, snapshots}` ; corps
   5. **tickets** — relink par `path` ; upsert `(project_id, package)` ; path inconnu / package vide ignorés.
   Puis `scheduleBackup`. Réponse `{tagsAdded, projectsAdded, annotationsAdded, promptsAdded, ticketsAdded}`. Corps non-JSON → 400 « JSON invalide ».
 
-## Réglage — fraîcheur des audits (`audit_max_age_hours`)
-Table `settings` (clé/valeur). `GET /api/settings` → `{auditMaxAgeHours}` (défaut env `AUDIT_MAX_AGE_HOURS` ou 24). `PUT {auditMaxAgeHours}` → validation nombre fini **et ≥ -1** (sinon 400 « Durée invalide (≥ -1) »). Sémantique `> 0` / `0` / `-1` : voir §2 (`isFresh`).
+## Réglages (`settings`)
+Table `settings` (clé/valeur). `GET /api/settings` → `{auditMaxAgeHours, JIRA_BASE_URL, DISABLE_CONSOLE}`. `PUT` met à jour l'ensemble. 
+- `auditMaxAgeHours` : validation nombre fini **et ≥ -1** (sinon 400 « Durée invalide »). Sémantique `> 0` / `0` / `-1` : voir §2 (`isFresh`).
+- `JIRA_BASE_URL` : URL de base pour la génération des liens Jira des tickets (ex. `https://mon-jira.atlassian.net`).
+- `DISABLE_CONSOLE` : `true`/`false`. Si `true`, le broadcast SSE de la console est désactivé côté serveur (le flux n'émet plus).
 
 ## Variables d'environnement
 
@@ -597,6 +600,7 @@ Table `settings` (clé/valeur). `GET /api/settings` → `{auditMaxAgeHours}` (d�
 | POST | `/api/detect` | auto-détection des lockfiles `{path, auditPath?}` |
 | DELETE | `/api/runs/:id` | supprimer un run |
 | GET | `/api/history-global` | série temporelle globale par jour |
+| GET | `/api/stats` | aggrégation des statistiques globales (grade, risques, `pendingCves`) |
 | GET | `/api/cves` | CVE agrégées par référence + annotation |
 | POST | `/api/annotations` | upsert triage `{cve, projectId, status, note, fixedIn}` |
 | POST | `/api/annotations/fetch-fix` | version corrigée d'UNE CVE via GitHub (429 si rate-limit) |

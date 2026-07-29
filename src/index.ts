@@ -1,5 +1,5 @@
 import { serve } from "bun";
-import { getDb } from "./db";
+import { getDb, closeDb } from "./db";
 import index from "./index.html";
 import { annotationsRoutes } from "./routes/annotations";
 import { auditRoutes } from "./routes/audit";
@@ -43,3 +43,15 @@ export const server = serve({
 });
 
 console.log(`🚀 Server running at ${server.url}`);
+
+process.on("SIGINT", () => {
+	console.log("Shutting down... (SIGINT)");
+	closeDb();
+	process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+	console.log("Shutting down... (SIGTERM)");
+	closeDb();
+	process.exit(0);
+});

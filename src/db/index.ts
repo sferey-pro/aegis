@@ -13,6 +13,8 @@ export function getDb(): Database {
 
 		// Activation du mode WAL pour de meilleures performances (fortement recommandé avec SQLite)
 		db.exec("PRAGMA journal_mode = WAL;");
+		db.exec("PRAGMA synchronous = NORMAL;");
+		db.exec("PRAGMA wal_autocheckpoint = 500;");
 		db.exec("PRAGMA busy_timeout = 5000;");
 
 		// Activer les clés étrangères

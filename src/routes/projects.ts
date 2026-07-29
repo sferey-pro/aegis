@@ -5,7 +5,7 @@ import {
 	updateProject,
 } from "../db/projects";
 import { getLatestRun } from "../db/runs";
-import { runAudit } from "../lib/audit";
+import { runSingleAudit } from "../lib/audit/queue";
 import { getGitInfo, gitFetch, gitPull } from "../lib/git";
 
 function isPathAllowed(targetPath: string) {
@@ -173,7 +173,7 @@ export const projectsRoutes = {
 
 				const { projectContext } = await import("../lib/console");
 				const res = await projectContext.run({ project: project.name }, () =>
-					runAudit(id, force),
+					runSingleAudit(id, force),
 				);
 				return Response.json({ success: true, ...res });
 			} catch (e: any) {

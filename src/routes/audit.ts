@@ -1,21 +1,24 @@
 import { getProjectBySlug, listProjects } from "../db/projects";
-import { ingestAudit, runAudit } from "../lib/audit";
+import { ingestAudit } from "../lib/audit";
+import { enqueueGlobalAudit, getAuditStatus } from "../lib/audit/queue";
 import { timingSafeEqual } from "node:crypto";
 
 export const auditRoutes = {
 	"/api/audit/run": {
 		async POST() {
 			const projects = listProjects().filter((p) => !p.ignored);
-			setTimeout(async () => {
-				for (const p of projects) {
-					try {
-						await runAudit(p.id);
-					} catch (e) {
-						console.error(`Audit background fail for ${p.id}`, e);
-					}
-				}
-			}, 0);
-			return Response.json({ status: "started", count: projects.length });
+			try {
+				enqueueGlobalAudit(projects.map(p => p.id));
+				return Response.json({ status: "started", count: projects.length });
+			} catch (e: any) {
+				return Response.json({ error: e.message }, { status: 429 });
+			}
+		},
+	},
+
+	"/api/audit/status": {
+		async GET() {
+			return Response.json(getAuditStatus());
 		},
 	},
 

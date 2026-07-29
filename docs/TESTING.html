@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TESTING - Aegis Docs</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --text: #f8fafc;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      background-color: var(--bg);
+      color: var(--text);
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1, h2, h3, h4, h5 { border-bottom: 1px solid var(--border); padding-bottom: 0.3em; margin-top: 1.5em; }
+    code { background: #1e293b; padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+    pre { background: #1e293b; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; }
+    blockquote { border-left: 4px solid var(--accent); margin: 0; padding-left: 1rem; color: #cbd5e1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem; text-align: left; }
+    th { background: #1e293b; }
+    .nav { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+    .nav a { margin-right: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="CONTEXT.html">Spécifications</a>
+    <a href="TESTING.html">Tests</a>
+    <a href="UPGRADE.html">Évolutions</a>
+    <a href="README.html">Accueil</a>
+  </div>
+  <div class="content">
+    <h1>Stratégie de Test - myDefender (Audit Aggregator)</h1>
+<h2>Règle d&#39;Or</h2>
+<blockquote>
+<p><strong>Chaque fonctionnalité ajoutée ou modifiée DOIT être couverte par un test automatisé.</strong></p>
+</blockquote>
+<h2>Outils Utilisés</h2>
+<p>Nous utilisons le runner de tests natif de <strong>Bun</strong> (<code>bun test</code>). Il est extrêmement rapide, compatible avec l&#39;API Jest (<code>describe</code>, <code>test</code>, <code>expect</code>), et permet de tester aussi bien le code backend (API, SQLite, interactions Git) que le code frontend (React).</p>
+<h3>Exécution des tests</h3>
+<p>Pour lancer l&#39;ensemble des tests du projet :</p>
+<pre><code class="language-bash">bun test
+</code></pre>
+<p>Pour un rechargement à chaud pendant le développement (mode watch) :</p>
+<pre><code class="language-bash">bun test --watch
+</code></pre>
+<h2>Couverture Attendue</h2>
+<ol>
+<li><p><strong>Logique Métier (Backend)</strong> :</p>
+<ul>
+<li>Algorithmes de tri et de déduplication des CVE.</li>
+<li>Parsing des rapports d&#39;audit (<code>npm audit</code>, <code>composer audit</code>, etc.).</li>
+<li>Interactions avec la base de données SQLite (écriture, lecture, migrations).</li>
+<li>Règles métier du triage et de l&#39;historique.</li>
+</ul>
+</li>
+<li><p><strong>Endpoints API</strong> :</p>
+<ul>
+<li>Tester la validation des requêtes HTTP (codes 400, 404, etc.).</li>
+<li>Tester les réponses formatées en JSON (codes 200, 201, 204).</li>
+</ul>
+</li>
+<li><p><strong>Composants Frontend (React)</strong> :</p>
+<ul>
+<li>Tests de rendu conditionnel (ex: afficher le badge Critique en rouge).</li>
+<li>Validation des interactions utilisateurs (pagination, changement du nombre d&#39;éléments par page, tri).</li>
+<li>Vérification de l&#39;ergonomie et du comportement responsive des tableaux (overflow horizontal, colonnes sticky).</li>
+</ul>
+</li>
+</ol>
+<h2>Bonnes Pratiques</h2>
+<ul>
+<li>Les fichiers de tests doivent se trouver à côté des fichiers testés ou dans un dossier <code>__tests__</code>.</li>
+<li>Leurs noms doivent se terminer par <code>.test.ts</code> ou <code>.test.tsx</code>.</li>
+<li>Toute Pull Request ou modification doit valider la suite de tests existante ET inclure les nouveaux tests de la fonctionnalité associée.</li>
+</ul>
+
+  </div>
+</body>
+</html>

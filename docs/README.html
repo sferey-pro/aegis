@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>README - Aegis Docs</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --text: #f8fafc;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      background-color: var(--bg);
+      color: var(--text);
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1, h2, h3, h4, h5 { border-bottom: 1px solid var(--border); padding-bottom: 0.3em; margin-top: 1.5em; }
+    code { background: #1e293b; padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+    pre { background: #1e293b; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; }
+    blockquote { border-left: 4px solid var(--accent); margin: 0; padding-left: 1rem; color: #cbd5e1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem; text-align: left; }
+    th { background: #1e293b; }
+    .nav { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+    .nav a { margin-right: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="CONTEXT.html">Spécifications</a>
+    <a href="TESTING.html">Tests</a>
+    <a href="UPGRADE.html">Évolutions</a>
+    <a href="README.html">Accueil</a>
+  </div>
+  <div class="content">
+    <div align="center">
+  <img src="assets/aegis_banner.jpg" alt="Aegis Logo" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
+  <h1>🛡️ Aegis</h1>
+  <p><b>Plateforme moderne et unifiée pour le scan, le triage et la gestion des vulnérabilités de dépendances.</b></p>
+</div><br /><h2>🚀 À propos</h2>
+<p><strong>Aegis</strong> est un scanner de vulnérabilités (&quot;vulnerability scanner&quot;) pensé pour les développeurs et les référents sécurité (AppSec). Conçu avec un design system ultra-premium <em>(Glassmorphism, animations fluides, dark mode natif)</em>, Aegis consolide les résultats de multiples outils d&#39;audit (<code>npm audit</code>, <code>yarn audit</code>, <code>bun audit</code>, <code>composer audit</code>) au sein d&#39;une seule interface centralisée et agréable à utiliser.</p>
+<p>Finies les lignes de terminal illisibles ! Avec Aegis, repérez instantanément les failles critiques et prenez des décisions rapides grâce au module de triage.</p>
+<hr>
+<h2>✨ Fonctionnalités Phares</h2>
+<ul>
+<li><strong>🌐 Ingénierie Glocale</strong> : Scannez vos projets locaux (par chemin de dossier) ou ingérez les rapports de vulnérabilité distants poussés par vos pipelines CI/CD.</li>
+<li><strong>🔍 Module de Triage Centralisé</strong> : Passez en revue toutes vos CVEs dans une boîte de réception type &quot;Inbox Zero&quot;. Marquez les failles comme <code>En attente</code>, <code>Confirmées</code> (Urgent), <code>Non affectées</code> (Faux positif) ou <code>Ignorées</code>.</li>
+<li><strong>📊 Tableaux de Bord &amp; Rapports</strong> : Suivez l&#39;historique de votre écosystème avec des graphiques évolutifs temporels (vue 1h, 1j, 7j, 30j...) et générez des rapports d&#39;audit globaux sur tous vos projets en un clic.</li>
+<li><strong>🎨 Design UI/UX Premium</strong> : Interface construite en React + TailwindCSS exploitant massivement les effets de flou (backdrop-blur), les animations de layout fluides, et une typographie soignée pour une expérience utilisateur sans friction.</li>
+<li><strong>🤖 Bibliothèque de Prompts</strong> : Espace dédié pour stocker vos prompts IA d&#39;aide à la remédiation de sécurité.</li>
+<li><strong>🔌 Intégration Jira (En Chantier)</strong> : Support natif prévu pour la génération automatisée de tickets Atlassian Jira directement depuis l&#39;interface de triage des CVEs.</li>
+<li><strong>🔗 GitHub Advisory Data</strong> : Enrichissement automatique des données de failles via l&#39;API GitHub Advisory.</li>
+</ul>
+<hr>
+<h2>🛠️ Stack Technique</h2>
+<ul>
+<li><strong>Moteur (Backend)</strong> : <a href="https://bun.com/">Bun</a> (Hautes performances)</li>
+<li><strong>Base de Données</strong> : SQLite (via <code>bun:sqlite</code> - léger et natif)</li>
+<li><strong>Frontend</strong> : React 18, React Router, Recharts</li>
+<li><strong>Style</strong> : TailwindCSS (Vanilla, architecture orientée Glassmorphism), Lucide React pour l&#39;iconographie</li>
+</ul>
+<hr>
+<h2>⚙️ Installation &amp; Démarrage</h2>
+<pre><code class="language-bash"># 1. Cloner le projet (si applicable)
+git clone https://github.com/votre-org/aegis.git
+cd aegis
+
+# 2. Installer les dépendances via Bun
+bun install
+
+# 3. Lancer le serveur de développement (Backend + Frontend)
+bun dev
+</code></pre>
+<p>L&#39;application sera accessible sur <code>http://localhost:3000</code> (ou le port configuré). La base de données SQLite <code>aegis.db</code> sera créée automatiquement à la racine.</p>
+<hr>
+<h2>📡 Intégration CI (Ingest API)</h2>
+<p>Aegis permet de stocker les rapports de vulnérabilités générés par vos pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) pour les centraliser sur le dashboard. </p>
+<p>Pour cela, envoyez la sortie standard (<code>stdout</code>) de votre outil d&#39;audit (<code>npm audit --json</code>, etc.) à l&#39;API d&#39;ingestion en spécifiant le paramètre <code>sha</code> pour lier le rapport à un commit précis.</p>
+<p><strong>Exemple d&#39;appel cURL :</strong></p>
+<pre><code class="language-bash">curl -X POST &quot;http://aegis-server/api/ingest/mon-projet-slug?sha=VOTRE_HASH_DE_COMMIT&quot; \
+     -H &quot;Content-Type: application/json&quot; \
+     --data-binary @rapport-audit.json
+</code></pre>
+<p><em>Note : Le paramètre <code>sha</code> est primordial pour que les développeurs retrouvent la révision exacte du code liée aux vulnérabilités identifiées.</em></p>
+<hr>
+<h2>🔐 Philosophie</h2>
+<p>Aegis a été créé pour transformer l&#39;analyse des dépendances — souvent vue comme une corvée génératrice de bruit — en une expérience visuelle, centralisée et engageante. Notre but : réduire la charge cognitive des ingénieurs sécurité.</p>
+
+  </div>
+</body>
+</html>

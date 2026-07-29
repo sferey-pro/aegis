@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CONTEXT - Aegis Docs</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --text: #f8fafc;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      background-color: var(--bg);
+      color: var(--text);
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1, h2, h3, h4, h5 { border-bottom: 1px solid var(--border); padding-bottom: 0.3em; margin-top: 1.5em; }
+    code { background: #1e293b; padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+    pre { background: #1e293b; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; }
+    blockquote { border-left: 4px solid var(--accent); margin: 0; padding-left: 1rem; color: #cbd5e1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem; text-align: left; }
+    th { background: #1e293b; }
+    .nav { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+    .nav a { margin-right: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="CONTEXT.html">Spécifications</a>
+    <a href="TESTING.html">Tests</a>
+    <a href="UPGRADE.html">Évolutions</a>
+    <a href="README.html">Accueil</a>
+  </div>
+  <div class="content">
+    <h1>PROMPT — Reconstruire « Audit Aggregator »</h1>
+<blockquote>
+<p>Ce document est une <strong>spécification fonctionnelle complète et autonome</strong>. Il décrit <em>ce que fait</em> l&#39;application, jamais <em>comment elle est présentée</em>. Aucun élément de design, d&#39;UX, de mise en page ou de couleur n&#39;y figure : uniquement des données, des règles métier, des algorithmes, des endpoints et des cas limites. Il est destiné à être utilisé comme prompt pour reconstruire l&#39;outil à l&#39;identique sur le plan fonctionnel.</p>
+</blockquote>
+<h2>Objectif de l&#39;application</h2>
+<p>Construire un outil qui <strong>agrège les rapports de vulnérabilités de dépendances</strong> (<code>composer audit</code>, <code>npm audit</code>, <code>yarn audit</code>, <code>bun audit</code>) de plusieurs projets dans un tableau de bord unique, à destination d&#39;un <strong>référent sécurité</strong>.</p>
+<p>Pour chaque projet on déclare un chemin (racine git), éventuellement un sous-dossier de lockfile, un type et un outil. L&#39;application lance les audits à la demande sur les lockfiles, persiste un historique des exécutions, agrège les CVE par référence, permet un triage sécurité par (CVE, projet), prépare des tickets de remédiation, enrichit à la demande les données manquantes via la GitHub Advisory Database, et sauvegarde/restaure l&#39;ensemble.</p>
+<h2>Contraintes techniques (fonctionnelles)</h2>
+<ul>
+<li><strong>Runtime Bun</strong> : serveur HTTP (API + statique), lancement de sous-processus <strong>sans shell</strong> (arguments passés tels quels → aucune injection possible), base de données SQLite embarquée.</li>
+<li><strong>Persistance SQLite</strong> dans un fichier (chemin configurable via <code>DB_PATH</code>, défaut <code>audit.sqlite</code>) : projets + historique complet des runs + tables auxiliaires. Migrations par <code>ALTER TABLE</code> inline. <strong>Connexion paresseuse</strong> (ouverte à la première requête, jamais au simple import d&#39;un module) afin qu&#39;aucun import ne crée le fichier de base.</li>
+<li>Toutes les commandes externes (audit + git + appels GitHub) ont leur <strong>sortie capturée</strong> (jamais renvoyée au terminal serveur) et sont <strong>diffusées en direct</strong> sur un flux console (voir §11).</li>
+<li>Aucune commande externe n&#39;est lancée via un shell.</li>
+</ul>
+<hr>
+<h1>1. Gestion des projets</h1>
+<h2>But</h2>
+<p>Déclarer, modifier, supprimer et organiser les projets à auditer. Le catalogue des projets est la source de vérité pour tous les autres écrans (tableau de bord, CVE, tickets, historique).</p>
+<h2>Données d&#39;un projet</h2>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Type</th>
+<th>Obligatoire</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>id</code></td>
+<td>entier</td>
+<td>auto</td>
+<td>Identifiant unique auto-incrémenté.</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>texte</td>
+<td>oui</td>
+<td>Nom d&#39;affichage libre.</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>texte</td>
+<td>oui</td>
+<td>Chemin de la <strong>racine git</strong>. Peut commencer par <code>~</code> (expansé vers le home).</td>
+</tr>
+<tr>
+<td><code>audit_path</code></td>
+<td>texte / null</td>
+<td>non</td>
+<td>Dossier du lockfile <strong>quand il diffère</strong> de la racine git. <code>null</code>/vide = auditer directement <code>path</code>. Absolu ou relatif à <code>path</code>. Peut commencer par <code>~</code>.</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>énum</td>
+<td>oui</td>
+<td><code>node</code> ou <code>composer</code>.</td>
+</tr>
+<tr>
+<td><code>tool</code></td>
+<td>énum</td>
+<td>oui</td>
+<td><code>npm</code>, <code>yarn</code>, <code>bun</code> ou <code>composer</code>.</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>liste de textes</td>
+<td>non</td>
+<td>Noms de tags du catalogue. Défaut = liste vide.</td>
+</tr>
+<tr>
+<td><code>ignored</code></td>
+<td>booléen</td>
+<td>non</td>
+<td>Projet EOL mis en sommeil. Défaut = <code>false</code>.</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>horodatage</td>
+<td>auto</td>
+<td>Date de création.</td>
+</tr>
+</tbody></table>
+<h2>Cible d&#39;audit résolue (notion centrale)</h2>
+<p>La <strong>cible d&#39;audit</strong> = dossier réellement audité, calculée depuis <code>path</code> + <code>audit_path</code> :</p>
+<ol>
+<li>Expanser <code>~</code> de <code>path</code> → <strong>racine git</strong>.</li>
+<li>Si <code>audit_path</code> vide/null → la cible <strong>est</strong> la racine git.</li>
+<li>Sinon expanser <code>~</code> de <code>audit_path</code> : absolu → utilisé tel quel ; relatif → <code>racine_git / audit_path</code>.</li>
+<li><strong>Clé de cible</strong> = ce chemin résolu, <code>/</code> finaux supprimés. Elle identifie l&#39;unicité d&#39;un projet.</li>
+</ol>
+<p>La racine git sert aux opérations git ; la cible d&#39;audit sert à lancer l&#39;outil d&#39;audit. Cela gère un dépôt dont le <code>.git</code> est à la racine mais le lockfile dans un sous-dossier (ex. <code>app/</code>).</p>
+<h2>Expansion du tilde</h2>
+<p><code>~</code> seul → home ; <code>~/…</code> → home + reste. Appliqué à <code>path</code> <strong>et</strong> <code>audit_path</code> au moment de résoudre (jamais stocké expansé : la valeur brute saisie est conservée).</p>
+<h2>Catalogue de lockfiles reconnus (ordre de priorité)</h2>
+<table>
+<thead>
+<tr>
+<th>Lockfile</th>
+<th>type</th>
+<th>tool</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>composer.lock</code></td>
+<td>composer</td>
+<td>composer</td>
+</tr>
+<tr>
+<td><code>package-lock.json</code></td>
+<td>node</td>
+<td>npm</td>
+</tr>
+<tr>
+<td><code>yarn.lock</code></td>
+<td>node</td>
+<td>yarn</td>
+</tr>
+<tr>
+<td><code>bun.lock</code></td>
+<td>node</td>
+<td>bun</td>
+</tr>
+<tr>
+<td><code>bun.lockb</code></td>
+<td>node</td>
+<td>bun</td>
+</tr>
+</tbody></table>
+<h2>Auto-détection des lockfiles</h2>
+<p>Sur analyse d&#39;un chemin, scanne le disque pour proposer type/outil/<code>audit_path</code> :</p>
+<ul>
+<li><strong>Si <code>audit_path</code> fourni</strong> : scanne uniquement ce dossier (résolu absolu/relatif). Chaque détection porte le <code>audit_path</code> fourni comme <code>dir</code>.</li>
+<li><strong>Sinon</strong> : scanne d&#39;abord la <strong>racine</strong> ; si ≥ 1 lockfile trouvé, renvoie ces détections (<code>dir = &quot;&quot;</code>). Sinon <strong>scan de profondeur 1</strong> : chaque sous-dossier immédiat scanné, <code>dir</code> = nom du sous-dossier.</li>
+<li><strong>Exclus du scan profondeur 1</strong> : dossiers cachés (<code>.</code>), <code>node_modules</code>, <code>vendor</code>.</li>
+<li><strong>Dédup par outil dans un même dossier</strong> : plusieurs lockfiles d&#39;un même outil (<code>bun.lock</code> + <code>bun.lockb</code>) → une seule entrée (priorité selon l&#39;ordre du catalogue).</li>
+<li>Aucune détection si le dossier n&#39;existe pas, est illisible, ou sans lockfile connu.</li>
+<li>Résultat par détection : <code>{ lockfile, type, tool, dir }</code> (<code>dir</code> relatif à la racine, <code>&quot;&quot;</code> = racine).</li>
+</ul>
+<h2>Détection de doublon (unicité par cible d&#39;audit)</h2>
+<p>Deux projets sont doublons s&#39;ils ont la <strong>même clé de cible d&#39;audit résolue</strong>. À la création : refus si un projet existant a la même cible. À la modification : même contrôle en <strong>excluant</strong> le projet édité. Comparaison sur chemin résolu (<code>~/app</code> ≡ <code>/home/user/app</code> ≡ <code>/home/user/app/</code>).</p>
+<h2>Projet ignoré (EOL)</h2>
+<p><code>ignored = true</code> → exclu des audits (individuels et « Tout auditer »), du résumé du tableau de bord, de la bannière retard git, de l&#39;agrégation CVE et de l&#39;historique global. Reste stocké, <strong>réactivable</strong> à tout moment. La (dé)marque n&#39;efface aucune donnée ni run.</p>
+<h2>Normalisation des tags</h2>
+<p>À la saisie : convertis en texte, trimés, chaînes vides retirées, dédupliqués. La suppression d&#39;un tag du catalogue le retire automatiquement de tous les projets. Les tags stockés sur un projet sont de simples noms référençant le catalogue.</p>
+<h2>Validations (corps de requête projet)</h2>
+<table>
+<thead>
+<tr>
+<th>Règle</th>
+<th>Erreur</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Corps JSON valide</td>
+<td>« JSON invalide »</td>
+</tr>
+<tr>
+<td><code>name</code> non vide (trim)</td>
+<td>« Nom requis »</td>
+</tr>
+<tr>
+<td><code>path</code> non vide (trim)</td>
+<td>« Chemin requis »</td>
+</tr>
+<tr>
+<td><code>type</code> ∈ {node, composer}</td>
+<td>« Type invalide (node|composer) »</td>
+</tr>
+<tr>
+<td><code>tool</code> ∈ {npm, yarn, bun, composer}</td>
+<td>« Outil invalide (npm|yarn|composer) »</td>
+</tr>
+</tbody></table>
+<ul>
+<li><code>audit_path</code> : trimé ; chaîne vide → <code>null</code>.</li>
+<li><code>tags</code> : accepté seulement si tableau (sinon vide), puis normalisé.</li>
+<li>Aucune validation de cohérence <code>type</code>/<code>tool</code> (ex. composer + npm accepté au parsing). Aucune vérification d&#39;existence du chemin à la création/édition (vérifiée seulement à la détection et au lancement de l&#39;audit).</li>
+</ul>
+<h2>Opérations</h2>
+<ul>
+<li><strong>Lister</strong> : tous les projets, triés par <code>created_at</code> décroissant, enrichis de leur <strong>dernier run</strong> (ou null) et de leur <strong>état git live</strong> (branche, SHA, upstream, avance/retard, dirty ; refs locales, sans réseau, calculé en parallèle).</li>
+<li><strong>Créer</strong> : parse + valide + rejette si doublon (conflit) → insère + déclenche sauvegarde config → retourne le projet.</li>
+<li><strong>Modifier</strong> : rejette si id inexistant (introuvable) ; parse + valide ; rejette si doublon en excluant l&#39;id courant ; met à jour tous les champs éditables + sauvegarde.</li>
+<li><strong>Supprimer</strong> : supprime le projet + <strong>cascade</strong> runs, annotations, tickets. Sauvegarde. Idempotent (id inexistant → pas d&#39;erreur).</li>
+<li><strong>Ignorer / réactiver</strong> : bascule <code>ignored</code> ; rejette si id inexistant ; sauvegarde.</li>
+<li><strong>Détecter</strong> : requiert <code>path</code> non vide (« Chemin requis ») ; applique l&#39;algorithme d&#39;auto-détection ; retourne <code>entries</code> (possiblement vide).</li>
+</ul>
+<hr>
+<h1>2. Exécution des audits</h1>
+<h2>But</h2>
+<p>Lancer à la demande l&#39;analyse de vulnérabilités d&#39;un projet en exécutant l&#39;outil adapté sur son lockfile, puis persister un rapport normalisé. Optimisé par déduplication commit + fenêtre de fraîcheur ; signale les nouvelles CVE ; transforme tout échec en erreur explicite et traçable. Mode « Tout auditer » = enchaînement parallèle borné.</p>
+<h2>Commandes lancées</h2>
+<p>Un seul outil par projet (champ <code>tool</code>). Commande fixe, sans shell, avec <code>NO_COLOR=1</code> (JSON sans codes ANSI).</p>
+<table>
+<thead>
+<tr>
+<th>Outil</th>
+<th>Commande exacte</th>
+<th>Lockfile requis</th>
+<th>Format</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>composer</td>
+<td><code>composer audit --format=json --locked --no-interaction</code></td>
+<td><code>composer.lock</code></td>
+<td>JSON (<code>advisories</code> + <code>abandoned</code>)</td>
+</tr>
+<tr>
+<td>npm</td>
+<td><code>npm audit --json</code></td>
+<td><code>package-lock.json</code></td>
+<td>JSON (<code>vulnerabilities</code>)</td>
+</tr>
+<tr>
+<td>yarn</td>
+<td><code>yarn audit --json</code></td>
+<td><code>yarn.lock</code></td>
+<td>NDJSON (1 objet/ligne, on lit les <code>auditAdvisory</code>)</td>
+</tr>
+<tr>
+<td>bun</td>
+<td><code>bun audit --json</code></td>
+<td><code>bun.lock</code> <strong>ou</strong> <code>bun.lockb</code></td>
+<td>JSON (objet par package ; bandeau possible → on part du 1er <code>{</code>)</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>cwd</strong> = cible d&#39;audit résolue (<code>audit_path</code> si renseigné, sinon racine git ; <code>~</code> expansé).</li>
+<li><code>--locked</code> (composer) : audite directement <code>composer.lock</code> sans exiger <code>vendor/</code>.</li>
+<li>stdout, stderr et code de sortie <strong>capturés</strong>. Chaque exécution diffusée en direct (début/fin, commande, cwd, code, durée) sur le flux console.</li>
+<li>Après parsing : vulnérabilités <strong>dédupliquées</strong> puis triées par sévérité (critique en premier). Sévérités normalisées <code>critical · high · moderate · low · info · unknown</code> ; composer <code>abandoned</code> → <code>info</code>.</li>
+<li><strong>Aucun appel réseau</strong> (GitHub) pendant l&#39;audit.</li>
+</ul>
+<h2>Déduplication + fraîcheur</h2>
+<p>Avant tout lancement, relire l&#39;état git : <code>sha</code> du HEAD et <code>dirty</code>.</p>
+<p><strong>Réutiliser le dernier rapport</strong> (aucun nouveau run, <code>deduped: true</code>) si <strong>toutes</strong> ces conditions sont réunies :</p>
+<ol>
+<li>pas de forçage (<code>?force=1</code> absent), 2. arbre <strong>propre</strong> (<code>dirty = false</code>), 3. un SHA HEAD disponible, 4. dernier run non-<code>error</code>, 5. <code>commit_sha</code> identique au HEAD courant, 6. dernier run encore <strong>frais</strong> (<code>isFresh</code>).</li>
+</ol>
+<p><strong>Fraîcheur (<code>isFresh</code>)</strong> — réglage <code>audit_max_age_hours</code> (table <code>settings</code>, défaut <code>AUDIT_MAX_AGE_HOURS</code> ou 24) :</p>
+<ul>
+<li><strong>&gt; 0</strong> : frais si le dernier run date de moins de N heures ; au-delà, réaudité même à commit inchangé (une CVE peut sortir sans changement de code).</li>
+<li><strong>= 0</strong> : jamais périmé → dédup par commit seul.</li>
+<li><strong>&lt; 0</strong> : jamais frais → toujours réaudité.</li>
+<li>Valeur non numérique / date illisible → considéré frais (sécurité).</li>
+</ul>
+<p><strong>Relance systématique</strong> (dédup court-circuitée) si : <code>?force=1</code>, arbre <strong>dirty</strong>, ou absence de SHA. S&#39;applique à l&#39;audit unitaire comme à « Tout auditer ».</p>
+<h2>Diff des nouvelles CVE (<code>newCves</code>)</h2>
+<p>À chaque run réellement exécuté (non dédupliqué), comparaison à la liste du <strong>run précédent</strong> (ignoré s&#39;il était en erreur) :</p>
+<ul>
+<li>clé = <code>package::cve</code> (repli sur <code>package::title</code> si CVE absente),</li>
+<li><code>newCves</code> = vulnérabilités du nouveau run dont la clé était absente du précédent,</li>
+<li>chaque entrée : <code>{ ref (cve sinon package), package, severity }</code>.</li>
+</ul>
+<p>Joint à la réponse de l&#39;audit ; alimente le compte-rendu de « Tout auditer » ; <strong>non persisté</strong> (recalculé à chaque run). Premier audit ou run précédent en erreur → tout est nouveau.</p>
+<h2>Sortie et erreurs</h2>
+<ul>
+<li><strong>Succès</strong> : run <code>status = vulnerable</code> si ≥ 1 vuln, sinon <code>ok</code> ; stocke <code>total</code>, <code>counts</code>, <code>vulnerabilities</code>, <code>command</code>, <code>commit_sha</code>, <code>duration_ms</code>, <code>ran_at</code>.</li>
+<li><strong>Échec</strong> : run <code>status = error</code> (total 0, compteurs à zéro, aucune vuln), <strong>toujours persisté</strong>. Champ <code>error</code> <strong>multi-ligne</strong> : (1) raison, (2) <code>cwd: &lt;chemin&gt;</code>, (3) <code>exit: &lt;code&gt;</code>, (4) puis <code>stderr</code> puis <code>stdout</code> bruts s&#39;ils apportent une info au-delà de l&#39;en-tête. <code>command</code> conserve la commande exacte tentée.</li>
+</ul>
+<h2>Cas limites</h2>
+<ul>
+<li><strong>Chemin d&#39;audit introuvable</strong> : vérifié avant lancement → erreur « Chemin introuvable: … » sans exécuter.</li>
+<li><strong>Lockfile manquant</strong> : vérifié avant lancement → erreur « Lockfile manquant: … (cherché dans <cwd>) ». Pour bun, <code>bun.lock</code> <strong>ou</strong> <code>bun.lockb</code> suffit.</li>
+<li><strong>Aucune sortie standard</strong> : erreur = stderr sinon « <outil>: aucune sortie (exit N) ».</li>
+<li><strong>JSON illisible</strong> : erreur « Sortie JSON illisible (<raison>) » avec code + stdout + stderr bruts.</li>
+<li><strong>Projet hors git / SHA indisponible</strong> : audit exécuté (pas de dédup), run avec <code>commit_sha = null</code>.</li>
+<li><strong>yarn</strong> : v1 classic (NDJSON) uniquement ; berry non supporté.</li>
+</ul>
+<h2>Mode « Tout auditer »</h2>
+<p>Orchestré <strong>côté client</strong> (aucun endpoint batch). Un appel d&#39;audit par projet, sur l&#39;ensemble des projets <strong>visibles</strong> (filtres tags/sévérité appliqués). <strong>Parallèle borné</strong> à une concurrence max de <strong>4</strong>. Mêmes règles dédup/fraîcheur/force que l&#39;unitaire. Résultats agrégés dans un compte-rendu, triés erreurs d&#39;abord puis projets avec le plus de nouvelles CVE.</p>
+<hr>
+<h1>3. Parsing &amp; normalisation des rapports</h1>
+<h2>Objectif</h2>
+<p>Transformer la sortie brute (JSON / NDJSON) de chaque outil en une <strong>liste unifiée</strong> <code>Vulnerability[]</code>, puis produire <code>counts</code> (par sévérité) + <code>total</code>. Résultat = <code>{ vulnerabilities, counts, total, command }</code>. Pipeline : parsing spécifique → déduplication → tri pire-sévérité d&#39;abord → comptage. Aucun enrichissement réseau ici.</p>
+<h2>Modèle <code>Vulnerability</code></h2>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Type</th>
+<th>Sens</th>
+<th>Présent</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>package</code></td>
+<td>string</td>
+<td>Package affecté</td>
+<td>Toujours</td>
+</tr>
+<tr>
+<td><code>severity</code></td>
+<td>Severity</td>
+<td>Sévérité normalisée</td>
+<td>Toujours</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>string</td>
+<td>Libellé de l&#39;avis (défaut <code>&quot;Advisory&quot;</code>)</td>
+<td>Toujours</td>
+</tr>
+<tr>
+<td><code>cve</code></td>
+<td>string | null</td>
+<td>CVE, ou à défaut CWE joint(s) selon l&#39;outil</td>
+<td>Toujours (peut être null)</td>
+</tr>
+<tr>
+<td><code>link</code></td>
+<td>string | null</td>
+<td>URL de l&#39;avis</td>
+<td>Toujours (peut être null)</td>
+</tr>
+<tr>
+<td><code>versionRange</code></td>
+<td>string | null</td>
+<td>Plage de versions vulnérables</td>
+<td>Toujours (peut être null)</td>
+</tr>
+<tr>
+<td><code>fixedIn</code></td>
+<td>string | null (opt)</td>
+<td>Version cible de correction</td>
+<td>npm, yarn</td>
+</tr>
+<tr>
+<td><code>abandoned</code></td>
+<td>boolean (opt)</td>
+<td>Package composer abandonné (pas une vraie faille)</td>
+<td>composer</td>
+</tr>
+</tbody></table>
+<p><code>Severity</code> = <code>critical | high | moderate | low | info | unknown</code>.</p>
+<h2>Extraction par outil</h2>
+<p><strong>composer</strong> — objet JSON à deux sections : <code>advisories</code> (indexé par package → tableau d&#39;avis) et <code>abandoned</code> (package → remplacement suggéré). Par avis : <code>package</code>←<code>packageName</code>/clé, <code>severity</code>←<code>normSeverity(severity)</code>, <code>title</code>←<code>title</code>/<code>&quot;Advisory&quot;</code>, <code>cve</code>←<code>cve</code>, <code>link</code>←<code>link</code>, <code>versionRange</code>←<code>affectedVersions</code>. Par abandonné : entrée synthétique <code>severity = info</code> (forcée), <code>abandoned = true</code>, <code>title</code> = <code>&quot;Remplacer par &lt;x&gt;&quot;</code> ou <code>&quot;Aucun remplacement suggéré&quot;</code>. Valeur non-tableau ignorée.</p>
+<p><strong>npm</strong> — objet <code>vulnerabilities</code> indexé par package (<code>name</code>, <code>severity</code>, <code>range</code>, <code>fixAvailable</code>, <code>via[]</code>). <code>via</code> mixte : chaînes = deps transitives ; objets = advisories. <code>fixedIn</code> extrait seulement si <code>fixAvailable</code> est un <strong>objet</strong> → <code>.version</code>. Cas A (aucun objet advisory) : 1 entrée, <code>title = &quot;Dépendance vulnérable via &lt;via joints&gt;&quot;</code> (ou <code>&quot;…via transitive&quot;</code>), <code>cve</code>/<code>link</code> null, <code>versionRange</code>←<code>range</code>. Cas B (≥ 1 objet advisory) : 1 entrée par advisory, <code>cve</code>←CWE joints par <code>&#39;, &#39;</code> sinon null, <code>link</code>←<code>url</code>, <code>versionRange</code>←<code>a.range</code>/<code>v.range</code>.</p>
+<p><strong>yarn classic v1</strong> — NDJSON ; on retient les objets <code>type === &quot;auditAdvisory&quot;</code> avec <code>data.advisory</code>. Lignes vides / non-JSON ignorées silencieusement. <code>package</code>←<code>module_name</code>/<code>&quot;?&quot;</code>, <code>cve</code>←<code>cves</code> joints par <code>&#39;, &#39;</code> sinon null, <code>link</code>←<code>url</code>, <code>versionRange</code>←<code>vulnerable_versions</code>, <code>fixedIn</code>←<code>patched_versions</code>. berry non géré.</p>
+<p><strong>bun</strong> — objet JSON indexé par package → tableau d&#39;avis. Un bandeau texte peut précéder → repositionner sur le 1er <code>{</code> (sinon parser le texte tel quel). <code>cve</code>←CWE joints sinon null, <code>link</code>←<code>url</code>, <code>versionRange</code>←<code>vulnerable_versions</code>. Pas de <code>fixedIn</code>. Valeur non-tableau ignorée.</p>
+<h2>Normalisation des sévérités (<code>normSeverity</code>)</h2>
+<p>Minuscules (null → &quot;&quot;), puis : <code>critical</code>→<code>critical</code>, <code>high</code>→<code>high</code>, <code>moderate</code>/<code>medium</code>→<code>moderate</code>, <code>low</code>→<code>low</code>, <code>info</code>/<code>informational</code>→<code>info</code>, <strong>toute autre / vide / null → <code>unknown</code></strong>. (composer <code>abandoned</code>→<code>info</code> forcé hors de cette fonction.)</p>
+<h2>Déduplication (<code>dedupe</code>)</h2>
+<p>Ordre d&#39;apparition conservé (1re occurrence gardée). Clé = <code>`${package}|${title}|${cve ?? &quot;&quot;}`</code>. Deux vulns identiques sur ces 3 champs = doublon, même si <code>link</code>/<code>versionRange</code>/<code>fixedIn</code>/<code>severity</code> diffèrent.</p>
+<h2>Tri</h2>
+<p><code>SEV_ORDER</code> : critical=0, high=1, moderate=2, low=3, info=4, unknown=5. Appliqué <strong>après</strong> dédup. Tri <strong>stable</strong> (pas de critère secondaire).</p>
+<h2>Comptage</h2>
+<p><code>emptyCounts()</code> = 6 sévérités à zéro. <code>tally</code> incrémente <code>counts[severity]</code>. <code>total</code> = <code>vulnerabilities.length</code> (après dédup) = somme des 6 compteurs.</p>
+<h2>Cas limites</h2>
+<p>Sections vides/absentes → liste vide, counts à 0. Valeur non-tableau ignorée. Champs manquants → défauts. CWE utilisé comme <code>cve</code> pour npm/bun. NDJSON yarn tolérant au bruit. Bandeau bun → 1er <code>{</code>.</p>
+<hr>
+<h1>4. Historique des audits &amp; évolution des CVE</h1>
+<h2>Objet</h2>
+<p>Chaque audit produit un <strong>run</strong> durable. L&#39;accumulation donne : l&#39;historique par projet, le dernier état connu, l&#39;évolution globale dans le temps, et le calcul des nouvelles CVE.</p>
+<h2>Table <code>runs</code></h2>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Type</th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>id</code></td>
+<td>entier auto</td>
+<td>identifiant</td>
+</tr>
+<tr>
+<td><code>project_id</code></td>
+<td>entier</td>
+<td>FK, <code>ON DELETE CASCADE</code></td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>texte</td>
+<td><code>ok</code> / <code>vulnerable</code> / <code>error</code></td>
+</tr>
+<tr>
+<td><code>total</code></td>
+<td>entier</td>
+<td>nb total de vulns (0 si ok/error)</td>
+</tr>
+<tr>
+<td><code>counts</code></td>
+<td>JSON</td>
+<td><code>{critical, high, moderate, low, info, unknown}</code></td>
+</tr>
+<tr>
+<td><code>vulnerabilities</code></td>
+<td>JSON</td>
+<td>liste complète des vulns</td>
+</tr>
+<tr>
+<td><code>command</code></td>
+<td>texte / null</td>
+<td>commande exacte lancée</td>
+</tr>
+<tr>
+<td><code>commit_sha</code></td>
+<td>texte / null</td>
+<td>SHA HEAD au moment du run (dédup)</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>texte / null</td>
+<td>message multi-ligne, seulement si <code>status = error</code></td>
+</tr>
+<tr>
+<td><code>duration_ms</code></td>
+<td>entier</td>
+<td>durée</td>
+</tr>
+<tr>
+<td><code>ran_at</code></td>
+<td>texte</td>
+<td>horodatage <code>datetime(&#39;now&#39;)</code> UTC</td>
+</tr>
+</tbody></table>
+<p>Append-only (jamais mis à jour ; seulement supprimable). Index <code>(project_id, ran_at DESC)</code>.</p>
+<h2>Dernier run</h2>
+<p>Run de <code>ran_at</code> le plus récent (départage par <code>id</code> desc). Représente l&#39;état courant, alimente tableau de bord / agrégation CVE / dédup. Toujours recalculé dynamiquement (pas de champ figé) : supprimer le dernier run fait remonter automatiquement le précédent.</p>
+<h2>Historique par projet</h2>
+<p><code>GET /api/projects/:id/history</code> → runs du projet, <code>ran_at DESC</code> puis <code>id DESC</code>, <strong>limité aux 30 derniers</strong>. Chaque run complet (<code>counts</code>/<code>vulnerabilities</code> désérialisés). Erreurs incluses.</p>
+<h2>Diff « nouvelles CVE »</h2>
+<p>Voir §2 (<code>newCves</code>) : comparaison au run précédent (erreur → ensemble vide → tout nouveau), clé <code>package::cve</code> (repli <code>package::title</code>). Non calculé pour un run dédupliqué (<code>deduped: true</code>).</p>
+<h2>Suppression d&#39;un run</h2>
+<p><code>DELETE /api/runs/:id</code> → 204. Le dernier run étant recalculé, supprimer le plus récent fait du précédent l&#39;état courant ; supprimer le dernier restant → projet sans état. Unitaire, sans contrainte.</p>
+<h2>Évolution globale (<code>GET /api/history-global</code>)</h2>
+<p>Reconstitue, par jour, le total agrégé de <strong>tous les projets actifs</strong>. Sortie : <code>{date: &quot;YYYY-MM-DD&quot;, counts, total}[]</code>, chronologique croissant, un point par jour ayant ≥ 1 run exploitable.</p>
+<p><strong>Entrée</strong> : tous les runs des projets <strong>non ignorés</strong> (<code>ignored = 0</code>), triés <code>ran_at</code> croissant, réduits à <code>{project_id, ran_at, status, counts}</code>.</p>
+<p><strong>Algorithme</strong> : parcours chronologique en maintenant un <strong>état par projet</strong> (map <code>project_id → counts</code>) :</p>
+<ol>
+<li>run <code>error</code> → <strong>ignoré</strong>, l&#39;état connu du projet <strong>n&#39;est pas écrasé</strong> (une erreur ne doit pas faire disparaître les vulns précédentes) ;</li>
+<li>sinon → met à jour l&#39;état du projet ;</li>
+<li>après chaque run non-erreur → somme par sévérité des états courants de <strong>tous</strong> les projets de la map, affectée au jour <code>ran_at[0:10]</code> ;</li>
+<li>plusieurs runs le même jour → <strong>dernière écriture gagnante</strong>.</li>
+</ol>
+<p><strong>Portage</strong> : l&#39;état d&#39;un projet reste dans la map et contribue aux jours suivants même sans réaudit. <code>total</code> d&#39;un point = somme des 6 sévérités.</p>
+<h2>Cas limites</h2>
+<p>Aucun run → vides. Projet ignoré → absent de la série globale (historique projet reste consultable). Runs uniquement en erreur → jamais dans la série globale. Erreur après runs valides → état conservé. Audit dédupliqué → pas de run, pas de <code>newCves</code>.</p>
+<hr>
+<h1>5. Intégration Git</h1>
+<h2>Vue d&#39;ensemble</h2>
+<p>Chaque projet est associé à un dépôt git (racine = <code>path</code>, <code>~</code> expansé). L&#39;app calcule un état git <strong>live</strong> et fournit trois actions réseau : fetch par projet, fetch global, pull par projet. Toutes les commandes via sous-processus sans shell, sortie capturée + diffusée sur la console. Env fixé :</p>
+<ul>
+<li><code>GIT_OPTIONAL_LOCKS=0</code> — aucun lock disque sur les lectures (concurrence sûre).</li>
+<li><code>GIT_TERMINAL_PROMPT=0</code> — jamais de prompt d&#39;auth bloquant (échec propre).</li>
+</ul>
+<p>Racine git = toujours <code>path</code>, jamais <code>audit_path</code>.</p>
+<h2>État git par projet (<code>GitInfo</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Type</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>isRepo</code></td>
+<td>booléen</td>
+<td>dépôt git exploitable</td>
+</tr>
+<tr>
+<td><code>branch</code></td>
+<td>string / null</td>
+<td>branche courante (<code>HEAD</code> si detached)</td>
+</tr>
+<tr>
+<td><code>sha</code></td>
+<td>string / null</td>
+<td>SHA complet HEAD (dédup audits)</td>
+</tr>
+<tr>
+<td><code>upstream</code></td>
+<td>string / null</td>
+<td>branche de suivi (<code>origin/…</code>)</td>
+</tr>
+<tr>
+<td><code>ahead</code></td>
+<td>entier</td>
+<td>commits locaux non poussés</td>
+</tr>
+<tr>
+<td><code>behind</code></td>
+<td>entier</td>
+<td>commits remote absents en local (retard)</td>
+</tr>
+<tr>
+<td><code>dirty</code></td>
+<td>booléen</td>
+<td>modifications non commitées</td>
+</tr>
+</tbody></table>
+<p><strong>Séquence <code>gitInfo</code></strong> (chemin expansé ; inexistant → non-repo immédiat, aucune commande) :</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Commande</th>
+<th>Rôle</th>
+<th>Si échec</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><code>git rev-parse --is-inside-work-tree</code></td>
+<td>est-ce un dépôt ?</td>
+<td>code≠0 ou sortie≠<code>true</code> → non-repo, <strong>stop</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>git rev-parse --abbrev-ref HEAD</code></td>
+<td>branche courante</td>
+<td><code>branch = null</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>git rev-parse HEAD</code></td>
+<td>SHA HEAD</td>
+<td><code>sha = null</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>git rev-parse --abbrev-ref --symbolic-full-name @{u}</code></td>
+<td>upstream</td>
+<td>pas d&#39;upstream → étape 5 <strong>sautée</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>git rev-list --left-right --count @{u}...HEAD</code></td>
+<td>écart vs upstream → <code>&lt;behind&gt;\t&lt;ahead&gt;</code></td>
+<td>comptes = 0</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>git status --porcelain</code></td>
+<td>arbre sale si sortie non vide</td>
+<td><code>dirty = false</code></td>
+</tr>
+</tbody></table>
+<p><strong>behind</strong> = « N de retard » (indicateur central « pas à jour »). <strong>ahead</strong> = commits locaux non poussés. <strong>dirty</strong> désactive la dédup d&#39;audit (force réaudit). <code>gitInfo</code> <strong>n&#39;exécute aucun réseau</strong> → <code>behind</code> obsolète tant qu&#39;un fetch n&#39;a pas rafraîchi les refs.</p>
+<p>Appelé : à chaque <code>GET /api/projects</code> (parallèle, tous projets), avant chaque audit (fournit <code>sha</code>+<code>dirty</code>), en fin de chaque action réseau.</p>
+<h2>MAJ par projet — fetch (<code>POST /api/projects/:id/git-fetch</code>)</h2>
+<p>Renvoie <code>{ git, log, ok }</code>. Chemin inexistant → non-repo, <code>ok:false</code>, log « chemin introuvable ». Sinon <code>git fetch --verbose</code> (réseau ; progression sur stderr → le log capture stderr puis stdout). Aucune sortie + succès → « Déjà à jour. ». Puis <strong>recompute</strong> <code>gitInfo</code>, et résumé au log si upstream (« → N commit(s) de retard sur <code>&lt;upstream&gt;</code> » ou « → à jour »). <code>ok</code> = (exit == 0). Ne modifie jamais l&#39;arbre ni la branche ; <code>behind</code> peut passer 0 → N.</p>
+<h2>MAJ globale — « Vérifier les MAJ »</h2>
+<p>Orchestrée <strong>côté client</strong> (pas d&#39;endpoint batch), un <code>git-fetch</code> par projet. Cible = projets <strong>non ignorés</strong>. <strong>Parallèle borné à 4.</strong> Progression N/M. Chaque fetch isolé (échec → <code>isRepo:false, ok:false</code>, sans interrompre). Récap final trié par retard décroissant puis nom (« N pas à jour »).</p>
+<h2>Pull par projet (<code>POST /api/projects/:id/git-pull</code>)</h2>
+<p><code>git pull --ff-only</code> — intègre les commits distants <strong>uniquement en fast-forward</strong> (aucun merge, aucun conflit possible ; refus propre si historique divergé). Log = stdout puis stderr ; échec sans message → « échec du pull (non fast-forward ?) ». Puis recompute. <code>ok</code> = (exit == 0). Succès → <code>behind</code> retombe à 0. Échec → état inchangé, message inline (2 dernières lignes, tronqué 160 caractères).</p>
+<h2>Cas limites</h2>
+<p>Chemin inexistant (détecté avant toute commande). Non-repo. Detached HEAD (<code>branch = &quot;HEAD&quot;</code>). Pas d&#39;upstream (<code>behind</code>/<code>ahead</code> = 0). Auth réseau bloquante → échec immédiat <code>ok:false</code>. Pull non fast-forward → <code>ok:false</code>, état inchangé. Fetch sans changement → « Déjà à jour. ». Batch résilient (un échec ne stoppe pas les autres).</p>
+<hr>
+<h1>6. Connecteur GitHub Advisory Database</h1>
+<h2>But</h2>
+<p>Compléter à la demande deux infos que les outils ne donnent pas (ou mal) : (1) la <strong>sévérité</strong> manquante (<code>unknown</code>), (2) la <strong>version corrigée</strong> (<code>first_patched_version</code>, absente pour composer/bun). Service auxiliaire : ne lance jamais d&#39;audit, ne modifie pas les runs ; alimente le champ <code>fixed_in</code> d&#39;une annotation.</p>
+<h2>Clé de résolution (<code>keyFrom(cve, link)</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Priorité</th>
+<th>Source</th>
+<th>Extraction</th>
+<th>Résultat</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>GHSA dans le lien</td>
+<td><code>GHSA-xxxx-xxxx-xxxx</code> (insensible casse, majusculisé)</td>
+<td><code>{kind:&quot;ghsa&quot;, id}</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>CVE dans <code>cve</code></td>
+<td><code>CVE-\d{4}-\d{4,}</code> (majusculisé)</td>
+<td><code>{kind:&quot;cve&quot;, id}</code></td>
+</tr>
+<tr>
+<td>—</td>
+<td>aucun</td>
+<td>—</td>
+<td><code>null</code> (non résolvable)</td>
+</tr>
+</tbody></table>
+<p>GHSA prime sur CVE. CWE jamais résolvable → <code>null</code>.</p>
+<h2>Endpoints GitHub</h2>
+<p>Base <code>https://api.github.com</code>, un appel par résolution : GHSA → <code>GET /advisories/{ghsa}</code> (objet) ; CVE → <code>GET /advisories?cve_id={cve}</code> (tableau → <code>data[0]</code>). En-têtes : <code>accept: application/vnd.github+json</code>, <code>user-agent: audit-aggregator</code>, <code>x-github-api-version: 2022-11-28</code>. Chaque appel signalé sur le bus (label <code>github</code>, phase start/end, code HTTP, durée).</p>
+<h2>Mapping sévérité (<code>mapSeverity</code>)</h2>
+<p><code>critical</code>/<code>high</code>/<code>moderate</code>/<code>low</code> → identiques ; toute autre / absente → <code>unknown</code>.</p>
+<h2>Version corrigée par (écosystème, package)</h2>
+<p>L&#39;avis porte <code>vulnerabilities[]</code> (une entrée par package). Construire <code>fixes</code> : clé <code>`${ecosystem}:${name}`</code>, valeur = <code>first_patched_version</code> ou <code>null</code>. Rapprochement outil → écosystème : composer→<code>composer</code>, npm/yarn/bun→<code>npm</code>. Résolution d&#39;une occurrence : chercher <code>fixes[${ECOSYSTEM[tool]}:${package}]</code> → sinon <code>null</code>.</p>
+<h2>Cache SQLite (<code>advisory_cache</code>)</h2>
+<p><code>id</code> (PK = GHSA/CVE), <code>severity</code>, <code>fixes</code> (JSON), <code>fetched_at</code>. <code>getCachedAdvisory(id)</code> → <code>{severity, fixes}</code> (fixes absent → <code>{}</code>) ou null. <code>putCachedAdvisory</code> upsert. <code>resolve(key)</code> : <strong>cache d&#39;abord</strong> (jamais rate-limité), sinon <code>fetchAdvisory</code> + mise en cache si avis obtenu. Cache par identifiant → partagé entre projets/packages.</p>
+<h2>Rate-limit</h2>
+<p>Détecté sur la réponse : <strong>HTTP 429</strong>, ou <strong>HTTP 403 + <code>x-ratelimit-remaining: 0</code></strong> → <code>rateLimited = true</code>, <strong>aucune écriture</strong>, l&#39;appelant doit <strong>s&#39;arrêter</strong>. Un 403 pour autre raison ≠ rate-limit. Réponse non-OK hors rate-limit → <code>advisory: null</code>. Exception réseau / JSON invalide → <code>advisory: null</code>, <code>rateLimited: false</code>.</p>
+<h2>Token</h2>
+<p><code>GITHUB_TOKEN</code> optionnel → en-tête <code>authorization: Bearer &lt;token&gt;</code>. Sans : ≈ 60 req/h. Avec : ≈ 5000 req/h.</p>
+<h2>Déclenchement : 100 % manuel, par CVE</h2>
+<p>Jamais pendant un audit. Seule porte : <code>resolveFixedVersion({tool, package, cve, link})</code> via <code>POST /api/annotations/fetch-fix</code>, une CVE à la fois.</p>
+<ol>
+<li><code>keyFrom</code> → <code>null</code> : <code>{fixedIn:null, rateLimited:false, resolvable:false}</code>.</li>
+<li><code>resolve</code> (cache puis réseau).</li>
+<li><code>rateLimited</code> : <code>{fixedIn:null, rateLimited:true, resolvable:true}</code>.</li>
+<li>avis obtenu : <code>fixes[…]</code> → <code>{fixedIn, rateLimited:false, resolvable:true}</code>.</li>
+</ol>
+<p>Route : body <code>{cve, projectId, package, tool, link?}</code> ; validation <code>cve</code>+<code>package</code> non vides + <code>tool</code> valide (sinon 400 « Paramètres manquants ») ; <code>rateLimited</code> → <strong>429</strong> <code>{rateLimited:true}</code> ; <code>fixedIn</code> trouvé → persistance via <code>setAnnotationFix(cve, projectId, fixedIn)</code> (met à jour seulement <code>fixed_in</code>, préserve <code>status</code>/<code>note</code>, crée l&#39;annotation en <code>pending</code> si absente) + sauvegarde ; réponse <code>{fixedIn, resolvable}</code>. La version survit aux réaudits.</p>
+<hr>
+<h1>7. Agrégation des CVE &amp; triage référent sécurité</h1>
+<h2>Objectif métier</h2>
+<p>Vue consolidée de toutes les CVE/avis détectés sur l&#39;ensemble des projets, permettant au référent de <strong>juger projet par projet si une vulnérabilité est un risque réel</strong> (le code vulnérable est-il atteignable ?), de documenter sa décision et de renseigner la version corrigée. Décisions <strong>persistantes</strong>, survivent aux réaudits.</p>
+<h2>Agrégation (<code>buildCveGroups</code>)</h2>
+<p><strong>Source</strong> : le <strong>dernier run de chaque projet</strong>. Exclus : projets ignorés, projets sans run ou dont le dernier run est en <strong>erreur</strong>.</p>
+<p><strong>Regroupement par référence</strong> : clé = identifiant CVE (<code>v.cve</code> trimé non vide) → <code>ref</code> affichable ; sinon fallback clé = <code>&quot;&lt;package&gt;: &lt;title&gt;&quot;</code>, <code>ref = null</code>.</p>
+<p><strong><code>CveGroup</code></strong> : <code>{ cve (clé), ref (string|null), worst (Severity), occurrences[] }</code>. <code>worst</code> recalculée à chaque ajout (rang le plus grave ; ordre critical→…→unknown).</p>
+<p><strong><code>CveOccurrence</code></strong> (une par projet touché) : <code>projectId</code>, <code>projectName</code>, <code>tool</code>, <code>package</code>, <code>severity</code> (pour ce projet), <code>versionRange</code>, <code>fixedIn</code>, <code>title</code>, <code>link</code>, <code>status</code> (issu de l&#39;annotation, <code>pending</code> défaut), <code>note</code> (<code>&quot;&quot;</code> défaut).</p>
+<p><strong>Dédup</strong> : une seule occurrence par (référence, projet). Même référence touchant 2× le même projet → occurrence existante conservée, <strong>seule la pire sévérité retenue</strong> ; autres champs = 1re occurrence.</p>
+<p><strong>Tri des groupes</strong> : par <code>worst</code> décroissante en gravité ; à égalité, par nombre d&#39;occurrences décroissant.</p>
+<h2>Triage (annotation)</h2>
+<p>Unité = couple <strong>(CVE, projet)</strong>, <code>UNIQUE(cve, project_id)</code>. La « CVE » stockée = la clé du groupe (potentiellement libellé fallback).</p>
+<p><strong>Table <code>annotations</code></strong> : <code>id</code>, <code>cve</code>, <code>project_id</code> (FK cascade), <code>status</code> (défaut <code>pending</code>), <code>note</code> (défaut <code>&quot;&quot;</code>), <code>fixed_in</code> (nullable, migration ALTER), <code>updated_at</code>.</p>
+<p><strong>Statuts</strong> : <code>pending</code> (À évaluer), <code>confirmed</code> (Risque confirmé — exploitable), <code>not_affected</code> (Non affecté — non atteignable), <code>ignored</code> (Ignoré). Statut hors ensemble → <code>pending</code>.</p>
+<h2>Version corrigée (<code>fixed_in</code>)</h2>
+<p>Deux voies : saisie manuelle (upsert annotation), ou résolution GitHub par CVE (§6). Persistée dans l&#39;annotation, survit aux réaudits. <strong>Override dans l&#39;agrégation</strong> : <code>fixedIn</code> occurrence = <code>annotation.fixed_in</code> en priorité, sinon <code>vuln.fixedIn</code> (outil), sinon <code>null</code>. La valeur du référent prime toujours.</p>
+<h2>Endpoints</h2>
+<ul>
+<li><code>GET /api/cves</code> → <code>CveGroup[]</code>. Aucun paramètre. Reflète derniers runs + annotations.</li>
+<li><code>POST /api/annotations</code> → upsert <code>{cve, projectId, status?, note?, fixedIn?}</code>. <code>cve</code> requis (400 « CVE requise ») ; <code>projectId</code> existant (404 « Projet introuvable ») ; <code>status</code> validé sinon <code>pending</code> ; <code>note</code> défaut <code>&quot;&quot;</code> ; <code>fixedIn</code> trimé, vide → <code>null</code>. Upsert <code>(cve, project_id)</code> (écrase les 3 champs) + sauvegarde. Retourne l&#39;annotation.</li>
+<li><code>POST /api/annotations/fetch-fix</code> → voir §6.</li>
+</ul>
+<h2>Cas limites</h2>
+<p>Projet ignoré / dernier run en erreur / aucun run → absent de l&#39;agrégation (mais annotation subsiste en base). Réaudit ne touche pas les annotations. CVE disparue → occurrence disparaît, annotation persiste (réapparaît si la CVE revient — matching par clé). Groupe sans identifiant (<code>ref = null</code>) → triable, mais résolution GitHub échoue proprement (<code>resolvable:false</code>) ; saisie manuelle possible. <code>fixedIn</code> vide en upsert → <code>null</code>. Suppression projet → annotations cascade.</p>
+<hr>
+<h1>8. Tickets Jira (préparation de remédiation)</h1>
+<h2>Objet</h2>
+<p>Transformer les CVE agrégées en unités de travail prêtes pour Jira : un contenu markdown copiable par unité, et un lien Jira persistant avec détection des dérives. <strong>Source</strong> = agrégat CVE (<code>GET /api/cves</code>). <strong>Unité de travail = (projet, package)</strong> : toutes les CVE frappant ce package dans ce projet dans le même ticket.</p>
+<h2>Constitution des tickets</h2>
+<p>Clé de regroupement = <code>projectId::package</code>. Chaque ticket porte : identité (<code>projectId</code>, <code>projectName</code>, <code>tool</code>, <code>pkg</code>), liste des CVE (ref, sévérité, statut de triage, note, lien, <code>versionRange</code>, <code>fixedIn</code>), et <strong>pire sévérité</strong> (<code>worst</code>).</p>
+<p><strong>Tri</strong> : pire sévérité d&#39;abord, puis nom de projet, puis nom de package. <strong>Classement en 2 groupes</strong> : Prioritaires (<code>worst</code> ∈ {critical, high}) vs Moins importants (moderate/low/info/unknown).</p>
+<h2>Version cible</h2>
+<p>= <strong>première <code>fixedIn</code> non vide</strong> parmi les CVE du package (ordre d&#39;insertion) ; sinon <code>null</code>. Chaque CVE conserve sa propre <code>fixedIn</code> ; la version cible d&#39;en-tête n&#39;est qu&#39;un raccourci.</p>
+<h2>Atteignabilité (dérivée du statut de triage)</h2>
+<table>
+<thead>
+<tr>
+<th>Statut</th>
+<th>Libellé</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>confirmed</code></td>
+<td>Atteignable</td>
+</tr>
+<tr>
+<td><code>not_affected</code></td>
+<td>Non atteignable</td>
+</tr>
+<tr>
+<td><code>pending</code></td>
+<td>À évaluer</td>
+</tr>
+<tr>
+<td><code>ignored</code></td>
+<td>Ignoré</td>
+</tr>
+</tbody></table>
+<h2>Filtre « Atteignables uniquement »</h2>
+<p>Actif → ne garde que les CVE <code>confirmed</code> ; tickets vides après filtrage disparaissent. Le compteur global reste celui de la liste non filtrée.</p>
+<h2>Markdown généré (« Copier le ticket »), par unité (projet·package)</h2>
+<ul>
+<li><strong>Titre</strong> : <code># [&lt;projet&gt;] Vulnérabilités &lt;package&gt;</code>.</li>
+<li><strong>Ligne méta</strong> (<code>·</code> séparateurs) : <code>**Projet:**</code>, <code>**Outil:**</code>, <code>**Package:** `&lt;pkg&gt;`</code>, <code>**Pire sévérité:**</code>, et <code>**Version cible:** `&lt;v&gt;`</code> <strong>seulement si</strong> une version cible existe.</li>
+<li>Libellés sévérité (emoji + texte) : 🔴 Critique · 🟠 Élevé · 🟡 Modéré · 🔵 Faible · ⚪ Info · ⚫ Inconnu.</li>
+<li><strong>Tableau « Prioritaires »</strong> (si ≥ 1 CVE critical/high) : colonnes <code>| CVE | Sévérité | Atteignable | Version cible | Note |</code>. CVE = <code>[ref](lien)</code> (ou <code>ref</code> seul, ou <code>[avis](lien)</code>, ou <code>—</code>). Version cible = <code>`fixedIn`</code> de <strong>cette</strong> CVE sinon <code>—</code>.</li>
+<li><strong>Tableau « Moins importants »</strong> (si ≥ 1 CVE moderate/low/info/unknown) : colonnes réduites <code>| CVE | Sévérité | Note |</code>.</li>
+<li><strong>Répartition par sévérité de chaque CVE</strong>, indépendamment du classement du ticket : un ticket prioritaire peut contenir <strong>les deux</strong> tableaux.</li>
+<li><strong>Échappement des cellules</strong> : <code>|</code> → <code>\|</code>, retours ligne → espace, trim.</li>
+</ul>
+<h2>Lien Jira persistant</h2>
+<p>Une URL par (projet, package). Table <code>tickets</code> : <code>project_id</code>, <code>package</code>, <code>url</code>, <code>cves</code> (baseline JSON), <code>updated_at</code>, <strong>UNIQUE(project_id, package)</strong>, <code>ON DELETE CASCADE</code>. <code>POST /api/tickets {projectId, package, url, cves}</code> → upsert (URL trimée), déclenche sauvegarde. <code>GET /api/tickets</code> → liste. Validation : projet existant (404), package non vide.</p>
+<h2>Warning « nouvelles CVE depuis le lien » (baseline)</h2>
+<p>À l&#39;enregistrement, stocker une <strong>baseline</strong> = références CVE actuelles du ticket. <strong>Warning</strong> (calculé seulement si une URL existe) = références actuelles absentes de la baseline → ticket « à mettre à jour » (N nouvelles CVE). Ré-enregistrer recapture la baseline → warning disparaît. Détecte les CVE <strong>ajoutées</strong>, pas les CVE disparues. Seules les références non nulles comptent.</p>
+<h2>Cas limites</h2>
+<p>Aucune donnée d&#39;audit → aucun ticket. Filtre atteignables sans CVE confirmée → aucun ticket (compteur total peut rester &gt; 0). CVE sans référence n&#39;entre jamais dans la baseline. Ticket entièrement mineur → pas de tableau prioritaire. Suppression du projet → tickets cascade. Lien non enregistré → pas de warning.</p>
+<hr>
+<h1>9. Tags (catalogue et filtrage)</h1>
+<h2>Modèle</h2>
+<p><strong>Table <code>tags</code></strong> : <code>id</code>, <code>name</code> (<strong>UNIQUE</strong>, non vide), <code>color</code> (palette, défaut <code>indigo</code>), <code>created_at</code>. <strong>Palette fixe</strong> (8 valeurs) : <code>indigo · sky · emerald · amber · rose · violet · teal · orange</code>. Couleur hors palette → <code>indigo</code>. Affectation aux projets = <strong>liste de noms</strong> (<code>projects.tags</code>, JSON), normalisée à chaque écriture (trim, exclusion vides, dédup, ordre préservé). Pas d&#39;intégrité référentielle stricte (un projet peut porter un nom hors catalogue, ex. après import).</p>
+<h2>Gestion du catalogue</h2>
+<ul>
+<li><code>GET /api/tags</code> → tous, <strong>triés par nom</strong>.</li>
+<li><code>POST /api/tags {name, color}</code> : <code>name</code> trimé, vide → 400 « Nom requis » ; couleur absente/hors palette → <code>indigo</code> ; collision UNIQUE → 400 « Tag déjà existant » ; succès 201 + sauvegarde. Dédup <strong>sensible casse/espaces internes</strong> (« web » ≠ « Web »).</li>
+<li><code>DELETE /api/tags/:id</code> : <strong>cascade fonctionnelle</strong> — retire le nom de <strong>tous les projets</strong> le référençant (lit le nom, supprime la ligne, réécrit chaque projet concerné). Id inexistant → no-op, aucun projet modifié, 204 (idempotent).</li>
+<li><strong>Pas d&#39;endpoint de modification</strong> (ni renommage ni changement couleur ; seul l&#39;import peut réintroduire).</li>
+</ul>
+<h2>Filtrage des projets (côté client)</h2>
+<p>Sélection <code>selectedTags</code>. Aucun tag → tous. Sinon <strong>logique OU</strong> : projet retenu s&#39;il a <strong>au moins un</strong> tag sélectionné (<code>selectedTags.size===0 || p.tags.some(t =&gt; selectedTags.has(t))</code>). Projet sans tag exclu dès qu&#39;un tag est sélectionné. Élargissant, jamais cumulatif ET. Cet ensemble « projets visibles » sert de périmètre à « Tout auditer ».</p>
+<hr>
+<h1>10. Bibliothèque de prompts IA</h1>
+<h2>But</h2>
+<p>Stocker et réutiliser des prompts IA (textes réutilisables), indépendants des projets et audits. Bibliothèque persistante, CRUD, transportable via export/import.</p>
+<h2>Modèle (table <code>prompts</code>)</h2>
+<p><code>id</code> (auto), <code>title</code> (<strong>obligatoire</strong>, non vide après trim), <code>body</code> (défaut <code>&quot;&quot;</code>), <code>tags</code> (liste de noms libres, JSON, défaut <code>[]</code> ; non contrainte au catalogue projets), <code>created_at</code> (auto). Lecture hydrate <code>tags</code> (JSON → tableau ; absent → <code>[]</code>).</p>
+<h2>Validation/normalisation (création et modification)</h2>
+<ol>
+<li><strong>Titre requis</strong> (trim → vide → erreur <code>Titre requis</code>). 2. Body absent → <code>&quot;&quot;</code>. 3. Tags normalisés (non-tableau → vide ; chaque élément stringifié + trimé ; vides retirés ; dédupliqués).</li>
+</ol>
+<h2>CRUD &amp; endpoints</h2>
+<ul>
+<li><code>GET /api/prompts</code> → tous, tri <strong>création décroissante</strong>.</li>
+<li><code>POST /api/prompts {title, body?, tags?}</code> → 201 (400 « Titre requis »).</li>
+<li><code>PUT /api/prompts/:id</code> → met à jour <code>title</code>/<code>body</code>/<code>tags</code> (pas <code>created_at</code>) ; 400 titre vide ; 404 « Prompt introuvable ».</li>
+<li><code>DELETE /api/prompts/:id</code> → 204 ; id inexistant sans effet, sans erreur.</li>
+<li>Toute mutation → sauvegarde config différée.</li>
+</ul>
+<h2>Export/Import</h2>
+<p>Export : <code>{title, body, tags}</code> uniquement (pas <code>id</code>/<code>created_at</code>). Import : <strong>dédup par titre</strong> (trimé ; vide ou déjà présent — préexistant ou déjà importé dans le lot — ignoré). Idempotent. Compteur <code>promptsAdded</code>.</p>
+<hr>
+<h1>11. Console live des commandes</h1>
+<h2>But</h2>
+<p>Diffuser en <strong>temps réel</strong> vers les navigateurs connectés la trace de <strong>toutes les commandes externes</strong> (audits, git, GitHub). Flux <strong>purement volatile</strong> (aucune persistance) : un client ne voit que les commandes émises <strong>à partir</strong> de sa connexion (pas de rejeu). La persistance des résultats d&#39;audit relève de la table <code>runs</code>.</p>
+<h2>Modèle d&#39;événement (<code>CmdEvent</code>)</h2>
+<p>Chaque commande produit <strong>deux</strong> événements corrélés : <code>start</code> (avant lancement) et <code>end</code> (à la fin, succès <strong>ou</strong> échec).</p>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Présence</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>id</code></td>
+<td>toujours</td>
+<td>entier de corrélation, <strong>identique</strong> start/end, séquence monotone partagée par toutes les sources</td>
+</tr>
+<tr>
+<td><code>phase</code></td>
+<td>toujours</td>
+<td><code>&quot;start&quot;</code> ou <code>&quot;end&quot;</code></td>
+</tr>
+<tr>
+<td><code>cmd</code></td>
+<td>toujours</td>
+<td>texte de la commande (<code>git rev-parse HEAD</code>, <code>npm audit --json</code>, <code>GET advisories CVE-…</code>)</td>
+</tr>
+<tr>
+<td><code>cwd</code></td>
+<td>toujours</td>
+<td>répertoire d&#39;exécution (git/audit) ou URL API (github)</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>toujours (sauf helper)</td>
+<td><code>&quot;git&quot;</code> / <code>&quot;audit&quot;</code> / <code>&quot;github&quot;</code></td>
+</tr>
+<tr>
+<td><code>project</code></td>
+<td>si contexte projet</td>
+<td>nom du projet à l&#39;origine</td>
+</tr>
+<tr>
+<td><code>exitCode</code></td>
+<td>phase <code>end</code></td>
+<td>code de sortie process (git/audit) ou <strong>code HTTP</strong> (github)</td>
+</tr>
+<tr>
+<td><code>ms</code></td>
+<td>phase <code>end</code></td>
+<td>durée ms</td>
+</tr>
+</tbody></table>
+<p>L&#39;appariement par <code>id</code> permet de dériver l&#39;état « en cours » (start reçu, end pas encore).</p>
+<h2>Transport (SSE)</h2>
+<p><code>GET /api/console</code>, <code>text/event-stream</code> (<code>no-cache</code>, <code>keep-alive</code>). <strong>Broadcast</strong> : chaque événement JSON poussé à tous les clients (<code>data: &lt;json&gt;\n\n</code>), aucun filtrage serveur. Multi-clients (ajout à l&#39;ouverture, retrait à la fermeture). À la connexion : commentaire <code>: connected</code>. <strong>Keepalive</strong> <code>: ping</code> ~25 s. Aucune persistance ni rejeu.</p>
+<h2>Tag projet automatique (contexte asynchrone)</h2>
+<p>Un stockage par contexte asynchrone porte <code>{project}</code>. Aux points d&#39;entrée liés à un projet, l&#39;exécution est <strong>enveloppée</strong> dans ce contexte (audit d&#39;un projet, calcul git par projet lors du listing, fetch, pull). Les émetteurs lisent le projet courant et le placent dans <code>project</code>. <strong>Résistant au parallélisme</strong> : plusieurs audits/opérations concurrents taguent chacun correctement leurs commandes.</p>
+<h2>Sources émettrices</h2>
+<ol>
+<li><strong>Audits</strong> — chaque sous-processus d&#39;outil (<code>label: &quot;audit&quot;</code>, cwd = dossier d&#39;audit, <code>project</code> renseigné).</li>
+<li><strong>Git</strong> — chaque commande git (<code>gitInfo</code>, <code>gitFetch</code>, <code>gitPull</code>) (<code>label: &quot;git&quot;</code>, cwd = racine git).</li>
+<li><strong>GitHub</strong> — chaque requête HTTP réelle (<code>label: &quot;github&quot;</code>, <code>cmd = &quot;GET advisories &lt;id&gt;&quot;</code>, <code>exitCode</code> = code HTTP, 0 si exception ; <code>end</code> dans un <code>finally</code>). Un résultat servi depuis le cache <strong>n&#39;émet pas</strong> d&#39;événement.</li>
+</ol>
+<h2>Cas limites</h2>
+<p>Client déconnecté → retiré + ping arrêté ; envoi échoué → retrait silencieux (un client mort ne bloque pas les autres). Hors contexte projet → événement sans <code>project</code>. Aucun client → événements produits, broadcast sans destinataire, rien mis en file. Commande en échec → <code>end</code> toujours émis (exitCode non nul). Rate-limit GitHub → start/end quand même (exitCode = 429/403).</p>
+<hr>
+<h1>12. Sauvegarde, restauration &amp; réglages</h1>
+<h2>Vue d&#39;ensemble : deux niveaux</h2>
+<table>
+<thead>
+<tr>
+<th>Niveau</th>
+<th>Contenu</th>
+<th>Format</th>
+<th>Déclencheurs</th>
+<th>Restauration</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1. Config JSON</td>
+<td>projets, tags, annotations, prompts, tickets — <strong>sans runs</strong></td>
+<td><code>.json</code></td>
+<td>chaque mutation (debounce) + démarrage + intervalle</td>
+<td>via import config (idempotent)</td>
+</tr>
+<tr>
+<td>2. Snapshot base</td>
+<td><strong>base complète</strong>, historique inclus</td>
+<td><code>.sqlite</code> (<code>VACUUM INTO</code>)</td>
+<td>démarrage + intervalle</td>
+<td>via restauration (remplace le fichier)</td>
+</tr>
+</tbody></table>
+<p>Config JSON = rejouable/idempotente (migrer, reconstruire une base propre). Snapshot <code>.sqlite</code> = image fidèle (retour arrière complet incluant l&#39;historique).</p>
+<h2>Niveau 1 — Config JSON</h2>
+<p><strong>Contenu (<code>buildConfig</code>)</strong> : <code>version: 1</code> + <code>tags</code> (<code>{name, color}</code>), <code>projects</code> (<code>{name, path, audit_path, type, tool, tags, ignored}</code>), <code>annotations</code> (<code>{path, cve, status, note, fixed_in}</code> — <code>project_id</code> remplacé par <code>path</code>, relink portable ; filtrées si <code>path</code> non résolvable), <code>prompts</code> (<code>{title, body, tags}</code>), <code>tickets</code> (<code>{path, package, url, cves}</code> — relink par <code>path</code>, filtrées si absent). <strong>Jamais</strong> de runs/historique/cache/settings.</p>
+<p><strong>Écriture (<code>writeBackup</code>)</strong> : crée <code>BACKUP_DIR</code> ; écrit <code>audit-config.latest.json</code> (toujours à jour) + <code>audit-config-YYYY-MM-DD.json</code> (un par jour). <strong>Rotation</strong> : garde les <code>BACKUP_KEEP</code> (défaut 30) datés les plus récents (tri lexicographique = chronologique) ; <code>latest</code> jamais soumis à rotation. Erreurs capturées/journalisées, sans interrompre l&#39;app.</p>
+<p><strong>Debounce mutation (<code>scheduleBackup</code>)</strong> : appelé après chaque mutation ; <strong>debounce 2 s</strong> (une rafale d&#39;imports → une seule écriture).</p>
+<p><strong>Démarrage + périodique (<code>startPeriodicBackup</code>)</strong> : au démarrage, <code>writeBackup()</code> + <code>writeDbSnapshot()</code> immédiats ; puis toutes les <code>BACKUP_INTERVAL_MIN</code> min (défaut 60). <code>≤ 0</code> désactive le périodique (le démarrage a quand même lieu).</p>
+<h2>Niveau 2 — Snapshot <code>.sqlite</code> (<code>writeDbSnapshot</code>)</h2>
+<p>Crée <code>BACKUP_DIR/db</code> ; cible <code>audit-YYYY-MM-DD.sqlite</code>. <strong><code>VACUUM INTO</code> exige une cible absente</strong> → supprimer le fichier du jour s&#39;il existe. <code>snapshotTo(target)</code> = <code>VACUUM INTO &#39;&lt;chemin&gt;&#39;</code> (copie cohérente complète ; chemin <strong>injecté en littéral</strong> avec échappement <code>&#39;</code> → <code>&#39;&#39;</code> car <code>VACUUM INTO</code> <strong>n&#39;accepte pas de binding</strong>). <strong>Rotation</strong> : garde <code>BACKUP_DB_KEEP</code> (défaut 14) snapshots.</p>
+<p><strong>Liste (<code>listSnapshots</code>)</strong> : fichiers <code>*.sqlite</code> de <code>BACKUP_DIR/db</code>, du plus récent au plus ancien. Par fichier : <code>file</code>, <code>size</code>, <code>mtime</code>, et <code>counts</code> (ouverture <strong>lecture seule</strong> + <code>COUNT(*)</code> sur projects/runs/tags/annotations/prompts). Fichier illisible → counts à 0 ; dossier absent → liste vide. Les <code>pre-restore-*.sqlite</code> apparaissent aussi.</p>
+<h2>Restauration (<code>restoreSnapshot(file)</code>)</h2>
+<ol>
+<li><strong>Anti-traversal</strong> : nom doit matcher <code>^[\w.\-]+\.sqlite$</code> et ne pas contenir <code>..</code> (sinon « Nom de snapshot invalide »).</li>
+<li>Existence source (sinon « Snapshot introuvable »).</li>
+<li><strong>Filet de sécurité</strong> : snapshot de la base <strong>actuelle</strong> → <code>pre-restore-&lt;timestamp&gt;.sqlite</code> (échec toléré si base vide/illisible).</li>
+<li><strong>Fermer la connexion</strong> (<code>closeConnection</code>).</li>
+<li><strong>Remplacer</strong> : copier le snapshot par-dessus <code>DB_PATH</code>.</li>
+<li><strong>Purger WAL/SHM</strong> (<code>-wal</code>, <code>-shm</code>) obsolètes (sinon corruption).</li>
+<li><strong>Reconnexion paresseuse</strong> : pas de réouverture immédiate — la prochaine requête rouvre la nouvelle base.</li>
+<li>Retourne <code>listSnapshots()</code>.</li>
+</ol>
+<p>Endpoint <code>POST /api/snapshots/restore {file}</code> → <code>{ok:true, snapshots}</code> ; corps sans <code>file</code> → 400 « Fichier requis » ; erreur validation/introuvable → 400.</p>
+<h2>Export / Import de config</h2>
+<ul>
+<li><code>GET /api/config/export</code> → <code>buildConfig()</code> en téléchargement (<code>audit-config.json</code>). <strong>Sans runs.</strong></li>
+<li><code>POST /api/config/import</code> (corps = format <code>buildConfig</code>, <strong>idempotent</strong>, dans l&#39;ordre) :
+  1. <strong>tags</strong> — par nom si absent ; couleur validée sinon <code>indigo</code> ; existant ignoré.
+  2. <strong>projects</strong> — <strong>dédup par cible d&#39;audit résolue</strong> ; <code>type</code>/<code>tool</code> normalisés ; nom+path obligatoires ; <code>ignored</code> réappliqué ; alimente la table <code>path → id</code>.
+  3. <strong>annotations</strong> — <strong>relink par <code>path</code></strong> → <code>project_id</code> ; path inconnu / CVE vide ignorés ; <code>status</code> validé ; upsert <code>(cve, project_id)</code>.
+  4. <strong>prompts</strong> — dédup par titre ; tags nettoyés ; existant ignoré.
+  5. <strong>tickets</strong> — relink par <code>path</code> ; upsert <code>(project_id, package)</code> ; path inconnu / package vide ignorés.
+  Puis <code>scheduleBackup</code>. Réponse <code>{tagsAdded, projectsAdded, annotationsAdded, promptsAdded, ticketsAdded}</code>. Corps non-JSON → 400 « JSON invalide ».</li>
+</ul>
+<h2>Réglages (<code>settings</code>)</h2>
+<p>Table <code>settings</code> (clé/valeur). <code>GET /api/settings</code> → <code>{auditMaxAgeHours, JIRA_BASE_URL, DISABLE_CONSOLE}</code>. <code>PUT</code> met à jour l&#39;ensemble. </p>
+<ul>
+<li><code>auditMaxAgeHours</code> : validation nombre fini <strong>et ≥ -1</strong> (sinon 400 « Durée invalide »). Sémantique <code>&gt; 0</code> / <code>0</code> / <code>-1</code> : voir §2 (<code>isFresh</code>).</li>
+<li><code>JIRA_BASE_URL</code> : URL de base pour la génération des liens Jira des tickets (ex. <code>https://mon-jira.atlassian.net</code>).</li>
+<li><code>DISABLE_CONSOLE</code> : <code>true</code>/<code>false</code>. Si <code>true</code>, le broadcast SSE de la console est désactivé côté serveur (le flux n&#39;émet plus).</li>
+</ul>
+<h2>Variables d&#39;environnement</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Défaut</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>DB_PATH</code></td>
+<td><code>audit.sqlite</code></td>
+<td>fichier de base (cible restauration + source snapshots)</td>
+</tr>
+<tr>
+<td><code>BACKUP_DIR</code></td>
+<td><code>backups</code></td>
+<td>dossier racine des sauvegardes (config à la racine, snapshots dans <code>/db</code>)</td>
+</tr>
+<tr>
+<td><code>BACKUP_KEEP</code></td>
+<td><code>30</code></td>
+<td>configs JSON datées conservées</td>
+</tr>
+<tr>
+<td><code>BACKUP_DB_KEEP</code></td>
+<td><code>14</code></td>
+<td>snapshots <code>.sqlite</code> conservés</td>
+</tr>
+<tr>
+<td><code>BACKUP_INTERVAL_MIN</code></td>
+<td><code>60</code></td>
+<td>intervalle périodique (min) ; <strong>≤ 0 désactive</strong></td>
+</tr>
+<tr>
+<td><code>AUDIT_MAX_AGE_HOURS</code></td>
+<td><code>24</code></td>
+<td>valeur par défaut de <code>audit_max_age_hours</code></td>
+</tr>
+<tr>
+<td><code>GITHUB_TOKEN</code></td>
+<td>—</td>
+<td>(optionnel) relève le quota GitHub 60→5000 req/h</td>
+</tr>
+<tr>
+<td><code>PORT</code></td>
+<td><code>3000</code></td>
+<td>port du serveur</td>
+</tr>
+</tbody></table>
+<p><code>BACKUP_KEEP</code>/<code>BACKUP_DB_KEEP</code> : <code>Number(...) || défaut</code> → valeur non numérique <strong>ou 0</strong> retombe sur le défaut.</p>
+<hr>
+<h1>Récapitulatif des endpoints API</h1>
+<table>
+<thead>
+<tr>
+<th>Méthode</th>
+<th>Route</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/projects</code></td>
+<td>projets + dernier run + git live</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/projects</code></td>
+<td>créer (409 si doublon de cible)</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/projects/:id</code></td>
+<td>modifier (409 si doublon)</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/projects/:id</code></td>
+<td>supprimer (cascade runs/annotations/tickets)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/projects/:id/ignore</code></td>
+<td>ignorer / réactiver <code>{ignored}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/projects/:id/audit</code></td>
+<td>auditer (dédup ; <code>?force=1</code>) → run + <code>newCves</code> + <code>deduped</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/projects/:id/history</code></td>
+<td>30 derniers runs</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/projects/:id/git-fetch</code></td>
+<td><code>git fetch --verbose</code> + recompute</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/projects/:id/git-pull</code></td>
+<td><code>git pull --ff-only</code> + recompute</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/detect</code></td>
+<td>auto-détection des lockfiles <code>{path, auditPath?}</code></td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/runs/:id</code></td>
+<td>supprimer un run</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/history-global</code></td>
+<td>série temporelle globale par jour</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/stats</code></td>
+<td>aggrégation des statistiques globales (grade, risques, <code>pendingCves</code>)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/cves</code></td>
+<td>CVE agrégées par référence + annotation</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/annotations</code></td>
+<td>upsert triage <code>{cve, projectId, status, note, fixedIn}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/annotations/fetch-fix</code></td>
+<td>version corrigée d&#39;UNE CVE via GitHub (429 si rate-limit)</td>
+</tr>
+<tr>
+<td>GET / POST</td>
+<td><code>/api/tickets</code></td>
+<td>lister / upsert lien Jira</td>
+</tr>
+<tr>
+<td>GET / POST</td>
+<td><code>/api/prompts</code></td>
+<td>lister / créer un prompt</td>
+</tr>
+<tr>
+<td>PUT / DELETE</td>
+<td><code>/api/prompts/:id</code></td>
+<td>modifier / supprimer un prompt</td>
+</tr>
+<tr>
+<td>GET / POST</td>
+<td><code>/api/tags</code></td>
+<td>lister / créer un tag</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/tags/:id</code></td>
+<td>supprimer un tag (cascade projets)</td>
+</tr>
+<tr>
+<td>GET / PUT</td>
+<td><code>/api/settings</code></td>
+<td>lire / modifier <code>{auditMaxAgeHours}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/snapshots</code></td>
+<td>lister les snapshots <code>.sqlite</code> + compteurs</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/snapshots/restore</code></td>
+<td>restaurer un snapshot <code>{file}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/config/export</code></td>
+<td>exporter la config JSON (sans runs)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/config/import</code></td>
+<td>importer la config (idempotent)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/console</code></td>
+<td>flux SSE temps réel des commandes (non persisté)</td>
+</tr>
+</tbody></table>
+
+  </div>
+</body>
+</html>

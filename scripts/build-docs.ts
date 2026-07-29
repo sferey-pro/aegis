@@ -40,6 +40,7 @@ const TEMPLATE = `<!DOCTYPE html>
 </head>
 <body>
   <div class="nav">
+    <a href="DOCUMENTATION.html">Documentation</a>
     <a href="CONTEXT.html">Spécifications</a>
     <a href="TESTING.html">Tests</a>
     <a href="UPGRADE.html">Évolutions</a>
@@ -55,7 +56,7 @@ async function buildDocs() {
   const docsDir = path.join(process.cwd(), "docs");
   await mkdir(docsDir, { recursive: true });
 
-  const files = ["CONTEXT.md", "README.md", "TESTING.md", "UPGRADE.md"];
+  const files = ["DOCUMENTATION.md", "CONTEXT.md", "README.md", "TESTING.md", "UPGRADE.md"];
 
   for (const file of files) {
     try {

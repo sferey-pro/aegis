@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOCUMENTATION - Aegis Docs</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --text: #f8fafc;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      background-color: var(--bg);
+      color: var(--text);
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1, h2, h3, h4, h5 { border-bottom: 1px solid var(--border); padding-bottom: 0.3em; margin-top: 1.5em; }
+    code { background: #1e293b; padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+    pre { background: #1e293b; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+    pre code { background: none; padding: 0; }
+    blockquote { border-left: 4px solid var(--accent); margin: 0; padding-left: 1rem; color: #cbd5e1; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem; text-align: left; }
+    th { background: #1e293b; }
+    .nav { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+    .nav a { margin-right: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="DOCUMENTATION.html">Documentation</a>
+    <a href="CONTEXT.html">Spécifications</a>
+    <a href="TESTING.html">Tests</a>
+    <a href="UPGRADE.html">Évolutions</a>
+    <a href="README.html">Accueil</a>
+  </div>
+  <div class="content">
+    <h1>Documentation du Projet : Aegis (Audit Aggregator)</h1>
+<h2>1. Objectif du Projet</h2>
+<p>Aegis est un outil de centralisation et de gestion des vulnérabilités de dépendances. Conçu principalement pour les <strong>référents sécurité</strong> et les <strong>Tech Leads</strong>, son objectif est d&#39;agréger les rapports d&#39;audit de sécurité générés par différents gestionnaires de paquets (<code>npm</code>, <code>yarn</code>, <code>bun</code>, <code>composer</code>) provenant de multiples projets.</p>
+<p>Plutôt que d&#39;analyser les failles projet par projet en ligne de commande, Aegis offre un tableau de bord unique pour :</p>
+<ul>
+<li>Piloter la sécurité d&#39;un écosystème logiciel complet.</li>
+<li>Prendre des décisions de triage (&quot;Vulnérabilité exploitable&quot;, &quot;Faux positif&quot;, etc.).</li>
+<li>Préparer la remédiation en générant des tickets formatés pour Jira.</li>
+</ul>
+<h2>2. Fonctionnalités Principales</h2>
+<h3>🛡️ Triage et Agrégation des Vulnérabilités (CVEs)</h3>
+<ul>
+<li><strong>Centralisation</strong> : Récupère les vulnérabilités de tous les projets surveillés.</li>
+<li><strong>Déduplication intelligente</strong> : Les vulnérabilités identiques détectées sur différents projets sont regroupées par référence (CVE/GHSA).</li>
+<li><strong>Statuts de Triage</strong> : Permet au référent de marquer une faille comme <code>Atteignable</code>, <code>Non Atteignable</code> (Non affecté) ou <code>Ignoré</code>. Ces décisions sont persistantes même lors des ré-audits.</li>
+<li><strong>Résolution Automatique</strong> : Connecteur avec la <em>GitHub Advisory Database</em> pour trouver automatiquement les correctifs manquants (<code>fixed_in</code>) et unifier les sévérités.</li>
+</ul>
+<h3>📊 Vue d&#39;Ensemble et Métriques</h3>
+<ul>
+<li><strong>Dashboard Global</strong> : Affiche une note de santé (Grade de A à F), le nombre de projets surveillés, de failles critiques, et l&#39;évolution dans le temps via des graphiques.</li>
+<li><strong>Top Risques</strong> : Identification instantanée des projets les plus à risque et des vulnérabilités les plus fréquentes dans l&#39;écosystème.</li>
+</ul>
+<h3>🎫 Intégration Jira et Remédiation</h3>
+<ul>
+<li><strong>Générateur de Tickets</strong> : Formate automatiquement un rapport Markdown contenant les CVEs critiques et moins importantes d&#39;un package donné pour le copier dans Jira.</li>
+<li><strong>Détection des Dérives</strong> : Sauvegarde un lien vers le ticket Jira associé. Si de nouvelles CVEs apparaissent sur ce package par la suite, l&#39;outil signale que le ticket Jira n&#39;est plus à jour.</li>
+<li><strong>Bibliothèque de Prompts IA</strong> : Outil intégré pour stocker des instructions types facilitant la communication de remédiation envers les développeurs.</li>
+</ul>
+<h3>⚙️ Moteur d&#39;Exécution et Console Live</h3>
+<ul>
+<li><strong>Multi-technologies</strong> : Supporte <code>npm audit</code>, <code>yarn audit</code>, <code>bun audit</code> et <code>composer audit</code>.</li>
+<li><strong>Intégration Git</strong> : Calcule en direct l&#39;avance ou le retard des dépôts locaux (<code>git fetch</code>, <code>git pull</code> intégrés).</li>
+<li><strong>Console Temps Réel (SSE)</strong> : Diffuse en direct à tous les clients connectés les commandes exécutées sur le serveur (Git, Audit, GitHub) sans bloquer l&#39;UI.</li>
+</ul>
+<h3>💾 Architecture et Sauvegarde</h3>
+<ul>
+<li><strong>Base de Données</strong> : Utilisation de SQLite embarqué, ne nécessitant aucun serveur lourd.</li>
+<li><strong>Import/Export JSON</strong> : La configuration (projets, annotations de triage, tags) est exportable et importable en un clic sous forme de fichier JSON, permettant la portabilité complète de la base de connaissances.</li>
+<li><strong>Instantanés (Snapshots)</strong> : Sauvegardes intégrales et rotatives de la base de données.</li>
+</ul>
+<hr>
+<h2>3. Endpoints de l&#39;API (Backend)</h2>
+<p>Le backend, écrit en pur <strong>Bun</strong>, expose une API REST ultra-rapide. Voici les routes principales :</p>
+<table>
+<thead>
+<tr>
+<th>Méthode</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>GET</strong></td>
+<td><code>/api/stats</code></td>
+<td>Métriques globales (health grade, vulnérabilités critiques, pending CVEs).</td>
+</tr>
+<tr>
+<td><strong>GET</strong></td>
+<td><code>/api/history-global</code></td>
+<td>Données d&#39;évolution historique pour les graphiques.</td>
+</tr>
+<tr>
+<td><strong>GET</strong></td>
+<td><code>/api/projects</code></td>
+<td>Liste des projets, enrichis avec l&#39;état Git live et le dernier rapport d&#39;audit.</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td><code>/api/projects</code></td>
+<td>Déclare un nouveau projet à surveiller.</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td><code>/api/projects/:id/audit</code></td>
+<td>Lance le processus d&#39;audit de sécurité sur un projet précis.</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td><code>/api/projects/:id/git-fetch</code></td>
+<td>Met à jour l&#39;état distant Git du projet.</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td><code>/api/detect</code></td>
+<td>Scanne un répertoire pour détecter automatiquement les lockfiles.</td>
+</tr>
+<tr>
+<td><strong>GET</strong></td>
+<td><code>/api/cves</code></td>
+<td>Récupère toutes les vulnérabilités agrégées, filtrées et triées par gravité.</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td><code>/api/annotations</code></td>
+<td>Sauvegarde la décision de triage d&#39;un référent sécurité sur une CVE.</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td><code>/api/annotations/fetch-fix</code></td>
+<td>Interroge l&#39;API GitHub pour récupérer la version corrigée d&#39;une faille.</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td><code>/api/tickets</code></td>
+<td>Associe une URL Jira à une vulnérabilité (enregistre la baseline).</td>
+</tr>
+<tr>
+<td><strong>GET</strong></td>
+<td><code>/api/console</code></td>
+<td>Route <em>Server-Sent Events</em> (SSE) streamant les logs d&#39;exécution serveur en temps réel.</td>
+</tr>
+<tr>
+<td><strong>GET</strong></td>
+<td><code>/api/config/export</code></td>
+<td>Exporte la configuration et les décisions de triage en format JSON.</td>
+</tr>
+<tr>
+<td><strong>POST</strong></td>
+<td><code>/api/config/import</code></td>
+<td>Restaure une configuration de sauvegarde JSON.</td>
+</tr>
+</tbody></table>
+
+  </div>
+</body>
+</html>

@@ -40,11 +40,43 @@ export const settingsRoutes = {
 						delete newSettings[key];
 					}
 				}
+				const { setAllSettings } = await import("../db/settings");
 				setAllSettings(newSettings);
 			}
+
+			const projectIdMap = new Map<number, number>(); // old -> new
+			if (body.projects && Array.isArray(body.projects)) {
+				const { createProject, getProjectBySlug, updateProject } = await import("../db/projects");
+				for (const p of body.projects) {
+					const existing = getProjectBySlug(p.slug);
+					if (existing) {
+						updateProject(existing.id, p);
+						projectIdMap.set(p.id, existing.id);
+					} else {
+						const newProj = createProject(p);
+						projectIdMap.set(p.id, newProj.id);
+					}
+				}
+			}
+
+			if (body.annotations && Array.isArray(body.annotations)) {
+				const { upsertAnnotation } = await import("../db/annotations");
+				for (const a of body.annotations) {
+					const mappedId = projectIdMap.get(a.project_id);
+					const targetId = a.project_id === -1 ? -1 : mappedId;
+					if (targetId !== undefined) {
+						upsertAnnotation(a.cve, targetId, {
+							status: a.status,
+							note: a.note,
+							fixedIn: a.fixed_in
+						});
+					}
+				}
+			}
+
 			return Response.json({
 				success: true,
-				message: "Paramètres importés avec succès.",
+				message: "Paramètres, projets et annotations importés avec succès.",
 			});
 		},
 	},

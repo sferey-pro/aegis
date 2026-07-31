@@ -9,10 +9,11 @@ import {
 	Settings as SettingsIcon,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { TagsManager } from "./TagsManager";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Upload } from "lucide-react";
 
 export function Settings() {
 	const [settings, setSettings] = useState({
@@ -116,6 +117,38 @@ export function Settings() {
 
 	const handleExportJSON = async () => {
 		window.open("/api/config/export", "_blank");
+	};
+
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [importLoading, setImportLoading] = useState(false);
+
+	const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		setImportLoading(true);
+		setBackupMessage(null);
+		try {
+			const text = await file.text();
+			const json = JSON.parse(text);
+
+			const res = await fetch("/api/config/import", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(json),
+			});
+			const data = await res.json();
+			if (data.success) {
+				setBackupMessage({ text: "Configuration importée avec succès. Veuillez rafraîchir la page.", type: "success" });
+			} else {
+				throw new Error(data.error || "Erreur lors de l'import");
+			}
+		} catch (err: any) {
+			setBackupMessage({ text: err.message, type: "error" });
+		} finally {
+			setImportLoading(false);
+			if (fileInputRef.current) fileInputRef.current.value = "";
+		}
 	};
 
 	const handleTestJira = async () => {
@@ -519,6 +552,15 @@ export function Settings() {
 							lisible.
 						</p>
 						<div className="flex gap-3 mt-2">
+							<input type="file" accept=".json" className="hidden" ref={fileInputRef} onChange={handleImportJSON} />
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={() => fileInputRef.current?.click()}
+								disabled={importLoading}
+							>
+								{importLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />} Importer JSON
+							</Button>
 							<Button
 								type="button"
 								variant="secondary"

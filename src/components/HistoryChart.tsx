@@ -4,11 +4,29 @@ import {
 	Area,
 	AreaChart,
 	CartesianGrid,
-	ResponsiveContainer,
-	Tooltip,
 	XAxis,
 	YAxis,
 } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "./ui/chart";
+
+const chartConfig = {
+	critical: {
+		label: "Critique",
+		color: "#ef4444",
+	},
+	high: {
+		label: "Élevé",
+		color: "#f97316",
+	},
+	moderate: {
+		label: "Modéré",
+		color: "#eab308",
+	},
+	low: {
+		label: "Faible",
+		color: "#3b82f6",
+	},
+} satisfies ChartConfig;
 
 interface HistoryPoint {
 	date: string;
@@ -54,40 +72,7 @@ export function HistoryChart() {
 		);
 	}
 
-	// Custom tooltip to look nice with dark mode
-	const CustomTooltip = ({ active, payload, label }: any) => {
-		if (active && payload && payload.length) {
-			return (
-				<div className="bg-black/90 border border-border p-4 rounded-xl shadow-xl backdrop-blur-xl">
-					<p className="font-bold mb-2 text-white">{label}</p>
-					{payload.map((entry: any, index: number) => (
-						<div
-							key={index}
-							className="flex items-center justify-between gap-4 text-sm font-medium"
-						>
-							<div className="flex items-center gap-2">
-								<div
-									className="w-3 h-3 rounded-full"
-									style={{ backgroundColor: entry.color }}
-								/>
-								<span className="capitalize" style={{ color: entry.color }}>
-									{entry.name === "critical"
-										? "Critique"
-										: entry.name === "high"
-											? "Élevé"
-											: entry.name === "moderate"
-												? "Modéré"
-												: "Faible"}
-								</span>
-							</div>
-							<span className="text-white">{entry.value}</span>
-						</div>
-					))}
-				</div>
-			);
-		}
-		return null;
-	};
+
 
 	return (
 		<div className="glass-panel w-full p-6 rounded-2xl">
@@ -117,57 +102,46 @@ export function HistoryChart() {
 			</div>
 
 			<div className="h-[300px] w-full">
-				<ResponsiveContainer width="100%" height="100%">
+				<ChartContainer config={chartConfig} className="h-full w-full">
 					<AreaChart
 						data={data}
 						margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
 					>
 						<defs>
 							<linearGradient id="colorCritical" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-								<stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+								<stop offset="5%" stopColor="var(--color-critical)" stopOpacity={0.3} />
+								<stop offset="95%" stopColor="var(--color-critical)" stopOpacity={0} />
 							</linearGradient>
 							<linearGradient id="colorHigh" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
-								<stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+								<stop offset="5%" stopColor="var(--color-high)" stopOpacity={0.3} />
+								<stop offset="95%" stopColor="var(--color-high)" stopOpacity={0} />
 							</linearGradient>
 							<linearGradient id="colorMod" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="5%" stopColor="#eab308" stopOpacity={0.3} />
-								<stop offset="95%" stopColor="#eab308" stopOpacity={0} />
+								<stop offset="5%" stopColor="var(--color-moderate)" stopOpacity={0.3} />
+								<stop offset="95%" stopColor="var(--color-moderate)" stopOpacity={0} />
 							</linearGradient>
 							<linearGradient id="colorLow" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-								<stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+								<stop offset="5%" stopColor="var(--color-low)" stopOpacity={0.3} />
+								<stop offset="95%" stopColor="var(--color-low)" stopOpacity={0} />
 							</linearGradient>
 						</defs>
-						<CartesianGrid
-							strokeDasharray="3 3"
-							stroke="#ffffff10"
-							vertical={false}
-						/>
+						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis
 							dataKey="date"
-							stroke="#ffffff50"
-							fontSize={12}
 							tickMargin={10}
 							axisLine={false}
 							tickLine={false}
 						/>
 						<YAxis
-							stroke="#ffffff50"
-							fontSize={12}
 							axisLine={false}
 							tickLine={false}
 						/>
-						<Tooltip
-							content={<CustomTooltip />}
-							cursor={{ stroke: "#ffffff20", strokeWidth: 2 }}
-						/>
+						<ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
 						<Area
 							type="monotone"
 							dataKey="critical"
 							stackId="1"
-							stroke="#ef4444"
+							stroke="var(--color-critical)"
 							fill="url(#colorCritical)"
 							strokeWidth={2}
 							isAnimationActive={false}
@@ -176,7 +150,7 @@ export function HistoryChart() {
 							type="monotone"
 							dataKey="high"
 							stackId="1"
-							stroke="#f97316"
+							stroke="var(--color-high)"
 							fill="url(#colorHigh)"
 							strokeWidth={2}
 							isAnimationActive={false}
@@ -185,7 +159,7 @@ export function HistoryChart() {
 							type="monotone"
 							dataKey="moderate"
 							stackId="1"
-							stroke="#eab308"
+							stroke="var(--color-moderate)"
 							fill="url(#colorMod)"
 							strokeWidth={2}
 							isAnimationActive={false}
@@ -194,13 +168,13 @@ export function HistoryChart() {
 							type="monotone"
 							dataKey="low"
 							stackId="1"
-							stroke="#3b82f6"
+							stroke="var(--color-low)"
 							fill="url(#colorLow)"
 							strokeWidth={2}
 							isAnimationActive={false}
 						/>
 					</AreaChart>
-				</ResponsiveContainer>
+				</ChartContainer>
 			</div>
 		</div>
 	);

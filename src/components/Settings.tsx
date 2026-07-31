@@ -183,7 +183,7 @@ export function Settings() {
 								placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
 							/>
 							{settings.GITHUB_RL_LIMIT && (
-								<div className="mt-2 text-xs flex gap-4 text-muted-foreground bg-black/20 p-2.5 rounded-lg border border-white/5 w-fit">
+								<div className="mt-2 text-xs flex gap-4 text-muted-foreground bg-black/5 dark:bg-black/20 p-2.5 rounded-lg border border-white/5 w-fit">
 									<span>
 										Quota API GitHub :{" "}
 										<strong
@@ -208,7 +208,7 @@ export function Settings() {
 								</div>
 							)}
 
-							<div className="mt-4 flex items-center justify-between bg-black/20 p-4 rounded-xl border border-white/5">
+							<div className="mt-4 flex items-center justify-between bg-black/5 dark:bg-black/20 p-4 rounded-xl border border-white/5">
 								<div>
 									<h4 className="font-bold text-sm">
 										Cache GitHub Advisory (GHSA)

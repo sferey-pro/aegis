@@ -359,7 +359,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
           <form ref={formRef} onSubmit={handleSubmit} onClick={e => e.stopPropagation()} className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar">
             <h3 className="text-xl font-bold mb-2 text-primary">{editingId ? "Modifier le Projet" : "Nouveau Projet"}</h3>
             
-            <div className="flex bg-black/20 p-1 rounded-lg border border-border/50 mb-2">
+            <div className="flex bg-black/5 dark:bg-black/20 p-1 rounded-lg border border-border/50 mb-2">
               <button
                 type="button"
                 onClick={() => setFormData({...formData, is_remote: false})}
@@ -675,7 +675,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               </div>
 
               {p.git?.isRepo ? (
-                <div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">
+                <div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-black/5 dark:bg-black/20 rounded-lg border border-border/50 text-xs">
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Branche</span>
                     <div className="flex items-center gap-1 font-mono text-orange-400">
@@ -715,7 +715,7 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between mt-2 p-2 bg-black/20 rounded-lg border border-border/50 text-xs">
+                <div className="flex items-center justify-between mt-2 p-2 bg-black/5 dark:bg-black/20 rounded-lg border border-border/50 text-xs">
                   <span className="text-muted-foreground italic">Dépôt Non-Git</span>
                   <button 
                     onClick={(e) => handleDetectGit(p.id, e)}

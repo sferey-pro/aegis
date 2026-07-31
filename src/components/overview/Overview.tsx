@@ -126,7 +126,7 @@ export function Overview({
 										setTriageProjectId(tp.id);
 										setCurrentTab("triage");
 									}}
-									className="group flex items-center justify-between bg-black/20 p-4 rounded-2xl border border-white/5 hover:bg-white/5 hover:border-white/10 cursor-pointer transition-all"
+									className="group flex items-center justify-between bg-black/5 dark:bg-black/20 p-4 rounded-2xl border border-white/5 hover:bg-white/5 hover:border-white/10 cursor-pointer transition-all"
 								>
 									<div className="flex items-center gap-4">
 										<div className="w-8 h-8 rounded-full bg-secondary text-muted-foreground flex items-center justify-center font-bold text-xs group-hover:bg-primary/20 group-hover:text-primary transition-colors">
@@ -170,7 +170,7 @@ export function Overview({
 										setTriageCveFilter(tc.cve);
 										setCurrentTab("triage");
 									}}
-									className="group flex flex-col gap-2 bg-black/20 p-4 rounded-2xl border border-white/5 hover:bg-white/5 hover:border-white/10 cursor-pointer transition-all"
+									className="group flex flex-col gap-2 bg-black/5 dark:bg-black/20 p-4 rounded-2xl border border-white/5 hover:bg-white/5 hover:border-white/10 cursor-pointer transition-all"
 								>
 									<div className="flex items-center justify-between">
 										<span className="font-mono text-sm text-primary font-semibold group-hover:underline">

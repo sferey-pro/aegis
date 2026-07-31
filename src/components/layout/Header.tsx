@@ -66,7 +66,7 @@ export function Header({
 					<h1 className="text-2xl font-bold font-heading">Aegis</h1>
 				</div>
 
-				<nav className="flex items-center gap-1.5 p-1.5 bg-black/20 backdrop-blur-md border border-white/5 rounded-2xl shadow-inner">
+				<nav className="flex items-center gap-1.5 p-1.5 bg-secondary/50 dark:bg-black/20 backdrop-blur-md border border-border dark:border-white/5 rounded-2xl shadow-inner">
 					<button
 						onClick={() => setCurrentTab("overview")}
 						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "overview" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}

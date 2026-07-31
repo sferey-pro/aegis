@@ -243,7 +243,7 @@ export function PromptsLibrary() {
 								</div>
 							</div>
 
-							<div className="text-sm mt-2 font-mono bg-black/20 p-2 rounded border border-border/50 text-muted-foreground h-[60px] overflow-hidden relative">
+							<div className="text-sm mt-2 font-mono bg-black/5 dark:bg-black/20 p-2 rounded border border-border/50 text-muted-foreground h-[60px] overflow-hidden relative">
 								{p.body}
 								<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#111] to-transparent"></div>
 							</div>

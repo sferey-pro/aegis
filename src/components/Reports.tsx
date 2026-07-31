@@ -188,7 +188,7 @@ export function Reports() {
 										<th className="px-6 py-4 font-semibold w-12">
 											<input
 												type="checkbox"
-												className="rounded border-white/20 bg-black/20 accent-primary cursor-pointer w-4 h-4"
+												className="rounded border-white/20 bg-black/5 dark:bg-black/20 accent-primary cursor-pointer w-4 h-4"
 												checked={
 													currentReports.length > 0 &&
 													currentReports.every((r: any) =>
@@ -234,7 +234,7 @@ export function Reports() {
 											<td className="px-6 py-4 whitespace-nowrap">
 												<input
 													type="checkbox"
-													className="rounded border-white/20 bg-black/20 accent-primary cursor-pointer w-4 h-4"
+													className="rounded border-white/20 bg-black/5 dark:bg-black/20 accent-primary cursor-pointer w-4 h-4"
 													checked={selectedReports.includes(r.id)}
 													onChange={(e) => {
 														if (e.target.checked) {

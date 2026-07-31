@@ -47,7 +47,7 @@ export function CveDetailsModal({
 				className="w-full max-w-4xl max-h-[90vh] bg-background/95 backdrop-blur-xl border border-border/50 rounded-2xl flex flex-col shadow-2xl overflow-hidden"
 				onClick={(e) => e.stopPropagation()}
 			>
-				<div className="p-6 border-b border-border/50 flex items-center justify-between bg-black/20">
+				<div className="p-6 border-b border-border/50 flex items-center justify-between bg-black/5 dark:bg-black/20">
 					<div>
 						<div className="flex items-center gap-4">
 							<h3 className="text-xl font-bold font-mono text-foreground flex items-center gap-3">

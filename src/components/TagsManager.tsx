@@ -73,7 +73,7 @@ export function TagsManager() {
 
 			<form
 				onSubmit={handleAdd}
-				className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6 bg-black/20 p-4 rounded-xl border border-border/50"
+				className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6 bg-black/5 dark:bg-black/20 p-4 rounded-xl border border-border/50"
 			>
 				<div className="flex flex-col flex-1 w-full gap-1">
 					<label className="text-xs font-semibold uppercase text-muted-foreground">

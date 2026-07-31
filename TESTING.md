@@ -1,4 +1,4 @@
-# 🧪 Stratégie de Test - myDefender (Audit Aggregator)
+# 🧪 Stratégie de Test - Aegis (Audit Aggregator)
 
 ## 👑 Règle d'Or
 > **Chaque fonctionnalité ajoutée ou modifiée DOIT être couverte par un test automatisé.**

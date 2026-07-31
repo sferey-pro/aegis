@@ -8,6 +8,13 @@ import {
 	YAxis,
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "./ui/chart";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "./ui/select";
 
 const chartConfig = {
 	critical: {
@@ -84,21 +91,22 @@ export function HistoryChart() {
 						confondus).
 					</p>
 				</div>
-				<div className="flex bg-black/40 border border-white/10 rounded-lg p-1 backdrop-blur-sm overflow-x-auto hide-scrollbar">
-					{[1, 7, 14, 30, 60, 90].map((d) => (
-						<button
-							key={d}
-							onClick={() => setDays(d)}
-							className={`px-3 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
-								days === d
-									? "bg-primary text-primary-foreground shadow-md"
-									: "text-muted-foreground hover:text-white hover:bg-white/5"
-							}`}
-						>
-							{d}j
-						</button>
-					))}
-				</div>
+				<Select
+					value={days.toString()}
+					onValueChange={(val) => setDays(Number.parseInt(val))}
+				>
+					<SelectTrigger className="w-[140px] h-9 rounded-xl bg-background/50 backdrop-blur-md">
+						<SelectValue placeholder="Période" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="1">1 jour</SelectItem>
+						<SelectItem value="7">7 jours</SelectItem>
+						<SelectItem value="14">14 jours</SelectItem>
+						<SelectItem value="30">30 jours</SelectItem>
+						<SelectItem value="60">60 jours</SelectItem>
+						<SelectItem value="90">90 jours</SelectItem>
+					</SelectContent>
+				</Select>
 			</div>
 
 			<div className="h-[300px] w-full">

@@ -17,6 +17,14 @@ import { useEffect, useState } from "react";
 import { buildCvssTooltip } from "../lib/cvss";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "./ui/table";
 
 export function Reports() {
 	const [reports, setReports] = useState<any[]>([]);
@@ -180,74 +188,72 @@ export function Reports() {
 				</div>
 			) : (
 				<div className="flex flex-col gap-4">
-					<div className="glass-panel rounded-xl overflow-hidden backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg shadow-black/20">
-						<div className="overflow-x-auto">
-							<table className="w-full text-left border-collapse">
-								<thead>
-									<tr className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
-										<th className="px-6 py-4 font-semibold w-12">
+					<div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
+						<Table>
+							<TableHeader>
+								<TableRow className="bg-muted/50 hover:bg-muted/50">
+									<TableHead className="w-12">
+										<input
+											type="checkbox"
+											className="rounded border-border accent-primary cursor-pointer w-4 h-4"
+											checked={
+												currentReports.length > 0 &&
+												currentReports.every((r: any) =>
+													selectedReports.includes(r.id),
+												)
+											}
+											onChange={(e) => {
+												if (e.target.checked) {
+													const newIds = currentReports
+														.map((r: any) => r.id)
+														.filter(
+															(id: number) => !selectedReports.includes(id),
+														);
+													setSelectedReports([...selectedReports, ...newIds]);
+												} else {
+													const pageIds = currentReports.map(
+														(r: any) => r.id,
+													);
+													setSelectedReports(
+														selectedReports.filter(
+															(id) => !pageIds.includes(id),
+														),
+													);
+												}
+											}}
+										/>
+									</TableHead>
+									<TableHead>Date</TableHead>
+									<TableHead>Projets</TableHead>
+									<TableHead>Vulnérabilités</TableHead>
+									<TableHead>Répartition</TableHead>
+									<TableHead className="text-right">Actions</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{currentReports.map((r: any) => (
+									<TableRow
+										key={r.id}
+										className="group"
+										data-state={selectedReports.includes(r.id) ? "selected" : undefined}
+									>
+										<TableCell>
 											<input
 												type="checkbox"
-												className="rounded border-white/20 bg-black/5 dark:bg-black/20 accent-primary cursor-pointer w-4 h-4"
-												checked={
-													currentReports.length > 0 &&
-													currentReports.every((r: any) =>
-														selectedReports.includes(r.id),
-													)
-												}
+												className="rounded border-border accent-primary cursor-pointer w-4 h-4"
+												checked={selectedReports.includes(r.id)}
 												onChange={(e) => {
 													if (e.target.checked) {
-														const newIds = currentReports
-															.map((r: any) => r.id)
-															.filter(
-																(id: number) => !selectedReports.includes(id),
-															);
-														setSelectedReports([...selectedReports, ...newIds]);
+														setSelectedReports([...selectedReports, r.id]);
 													} else {
-														const pageIds = currentReports.map(
-															(r: any) => r.id,
-														);
 														setSelectedReports(
-															selectedReports.filter(
-																(id) => !pageIds.includes(id),
-															),
+															selectedReports.filter((id) => id !== r.id),
 														);
 													}
 												}}
 											/>
-										</th>
-										<th className="px-6 py-4 font-semibold">Date</th>
-										<th className="px-6 py-4 font-semibold">Projets</th>
-										<th className="px-6 py-4 font-semibold">Vulnérabilités</th>
-										<th className="px-6 py-4 font-semibold">Répartition</th>
-										<th className="px-6 py-4 font-semibold text-right">
-											Actions
-										</th>
-									</tr>
-								</thead>
-								<tbody className="divide-y divide-white/5">
-									{currentReports.map((r: any) => (
-										<tr
-											key={r.id}
-											className={`group transition-colors ${selectedReports.includes(r.id) ? "bg-primary/5" : "hover:bg-white/[0.02]"}`}
-										>
-											<td className="px-6 py-4 whitespace-nowrap">
-												<input
-													type="checkbox"
-													className="rounded border-white/20 bg-black/5 dark:bg-black/20 accent-primary cursor-pointer w-4 h-4"
-													checked={selectedReports.includes(r.id)}
-													onChange={(e) => {
-														if (e.target.checked) {
-															setSelectedReports([...selectedReports, r.id]);
-														} else {
-															setSelectedReports(
-																selectedReports.filter((id) => id !== r.id),
-															);
-														}
-													}}
-												/>
-											</td>
-											<td className="px-6 py-4 whitespace-nowrap">
+										</TableCell>
+										<TableCell>
 												<div className="flex items-center gap-3">
 													<div className="p-2 bg-primary/10 rounded-lg text-primary">
 														<Calendar className="w-4 h-4" />
@@ -265,13 +271,13 @@ export function Reports() {
 														)}
 													</span>
 												</div>
-											</td>
-											<td className="px-6 py-4 whitespace-nowrap">
+										</TableCell>
+										<TableCell>
 												<span className="text-muted-foreground font-medium">
 													{r.projects_audited} analysés
 												</span>
-											</td>
-											<td className="px-6 py-4 whitespace-nowrap">
+										</TableCell>
+										<TableCell>
 												<div className="flex items-center gap-4">
 													<div className="flex items-center gap-1.5">
 														<Shield className="w-4 h-4 text-primary" />
@@ -288,8 +294,8 @@ export function Reports() {
 														</div>
 													)}
 												</div>
-											</td>
-											<td className="px-6 py-4">
+										</TableCell>
+										<TableCell>
 												<div className="flex flex-wrap gap-2">
 													{r.counts.high > 0 && (
 														<span className="text-xs px-2.5 py-0.5 font-medium bg-orange-500/10 text-orange-500 rounded-full border border-orange-500/20">
@@ -312,8 +318,9 @@ export function Reports() {
 														</span>
 													)}
 												</div>
-											</td>
-											<td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-1">
+										</TableCell>
+										<TableCell className="text-right">
+											<div className="flex items-center justify-end gap-1">
 												<button
 													onClick={() => handleViewDiff(reports.indexOf(r))}
 													className="p-2 text-muted-foreground hover:text-blue-400 transition-all rounded-md hover:bg-blue-400/10 opacity-0 group-hover:opacity-100 focus:opacity-100"
@@ -328,12 +335,12 @@ export function Reports() {
 												>
 													<Trash2 className="w-4 h-4" />
 												</button>
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
-						</div>
+											</div>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
 					</div>
 
 					{/* Pagination Controls */}

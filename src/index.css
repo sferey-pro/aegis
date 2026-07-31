@@ -4,7 +4,7 @@
 /* Core app styles and micro-animations */
 @layer utilities {
 	.glass-panel {
-		@apply bg-card/80 dark:bg-black/40 backdrop-blur-2xl border border-border dark:border-white/10 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)];
+		@apply bg-white/70 dark:bg-black/40 backdrop-blur-2xl border border-white/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)];
 	}
 
 	.neon-glow {
@@ -93,11 +93,11 @@ body::before {
 }
 
 ::-webkit-scrollbar-thumb {
-	@apply bg-black/15 dark:bg-white/15 border-[3px] border-background bg-clip-padding rounded-full;
+	@apply bg-slate-200/80 dark:bg-white/15 border-[3px] border-background bg-clip-padding rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	@apply bg-black/25 dark:bg-white/25;
+	@apply bg-slate-300/80 dark:bg-white/25;
 }
 
 * {

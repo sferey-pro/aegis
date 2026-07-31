@@ -4,7 +4,7 @@
 /* Core app styles and micro-animations */
 @layer utilities {
 	.glass-panel {
-		@apply bg-white/70 dark:bg-black/40 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)];
+		@apply bg-card/80 dark:bg-black/40 backdrop-blur-2xl border border-border dark:border-white/10 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)];
 	}
 
 	.neon-glow {

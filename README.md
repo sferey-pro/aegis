@@ -8,7 +8,7 @@
 
 ## 🚀 À propos
 
-**Aegis** est un scanner de vulnérabilités ("vulnerability scanner") pensé pour les développeurs et les référents sécurité (AppSec). Conçu avec un design system ultra-premium *(Glassmorphism, animations fluides, dark mode natif)*, Aegis consolide les résultats de multiples outils d'audit (`npm audit`, `yarn audit`, `bun audit`, `composer audit`) au sein d'une seule interface centralisée et agréable à utiliser.
+**Aegis** est un scanner de vulnérabilités ("vulnerability scanner") pensé pour les développeurs et les référents sécurité (AppSec). Conçu avec un design system ultra-premium *(Glassmorphism, animations fluides, support Light / Dark mode natif)*, Aegis consolide les résultats de multiples outils d'audit (`npm audit`, `yarn audit`, `bun audit`, `composer audit`) au sein d'une seule interface centralisée et agréable à utiliser.
 
 Finies les lignes de terminal illisibles ! Avec Aegis, repérez instantanément les failles critiques et prenez des décisions rapides grâce au module de triage.
 
@@ -49,7 +49,7 @@ bun install
 bun dev
 ```
 
-L'application sera accessible sur `http://localhost:3000` (ou le port configuré). La base de données SQLite `aegis.db` sera créée automatiquement à la racine.
+L'application sera accessible sur `http://localhost:3001` (ou le port configuré). La base de données SQLite `aegis.db` sera créée automatiquement à la racine.
 
 ---
 
@@ -61,8 +61,9 @@ Pour cela, envoyez la sortie standard (`stdout`) de votre outil d'audit (`npm au
 
 **Exemple d'appel cURL :**
 ```bash
-curl -X POST "http://aegis-server/api/ingest/mon-projet-slug?sha=VOTRE_HASH_DE_COMMIT" \
-     -H "Content-Type: application/json" \
+curl -X POST "http://localhost:3001/api/ingest/mon-projet-slug?sha=VOTRE_HASH_DE_COMMIT" \
+     -H "X-Aegis-Token: VOTRE_TOKEN_SECRET" \
+     -H "Content-Type: text/plain" \
      --data-binary @rapport-audit.json
 ```
 *Note : Le paramètre `sha` est primordial pour que les développeurs retrouvent la révision exacte du code liée aux vulnérabilités identifiées.*

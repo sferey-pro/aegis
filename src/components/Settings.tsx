@@ -11,6 +11,8 @@ import {
 import type React from "react";
 import { useEffect, useState } from "react";
 import { TagsManager } from "./TagsManager";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 export function Settings() {
 	const [settings, setSettings] = useState({
@@ -173,13 +175,13 @@ export function Settings() {
 								(contournement des limites de taux) et enrichir les CVEs avec
 								les scores CVSS réels.
 							</p>
-							<input
+							<Input
 								type="password"
 								value={settings.GITHUB_TOKEN}
 								onChange={(e) =>
 									setSettings({ ...settings, GITHUB_TOKEN: e.target.value })
 								}
-								className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors font-mono"
+								className="font-mono"
 								placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
 							/>
 							{settings.GITHUB_RL_LIMIT && (
@@ -218,8 +220,9 @@ export function Settings() {
 										informations des CVEs depuis GitHub lors du prochain audit.
 									</p>
 								</div>
-								<button
+								<Button
 									type="button"
+									variant="destructive"
 									onClick={async () => {
 										setClearCacheLoading(true);
 										setClearCacheMessage(null);
@@ -248,10 +251,9 @@ export function Settings() {
 										}
 									}}
 									disabled={clearCacheLoading}
-									className="px-4 py-2 text-sm font-medium rounded-md bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors disabled:opacity-50"
 								>
 									{clearCacheLoading ? "Nettoyage..." : "Vider le cache"}
-								</button>
+								</Button>
 							</div>
 							{clearCacheMessage && (
 								<div
@@ -272,7 +274,7 @@ export function Settings() {
 								Durée pendant laquelle un projet dont l'état Git n'a pas changé
 								ne sera pas ré-audité inutilement.
 							</p>
-							<input
+							<Input
 								type="number"
 								value={settings.AUDIT_MAX_AGE_HOURS}
 								onChange={(e) =>
@@ -281,7 +283,7 @@ export function Settings() {
 										AUDIT_MAX_AGE_HOURS: e.target.value,
 									})
 								}
-								className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors w-32"
+								className="w-32"
 								min="0"
 								step="1"
 							/>
@@ -331,13 +333,12 @@ export function Settings() {
 							<p className="text-sm text-muted-foreground mb-2">
 								Adresse de votre instance Jira (sans le /browse/).
 							</p>
-							<input
+							<Input
 								type="text"
 								value={settings.JIRA_BASE_URL}
 								onChange={(e) =>
 									setSettings({ ...settings, JIRA_BASE_URL: e.target.value })
 								}
-								className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
 								placeholder="https://votre-entreprise.atlassian.net"
 							/>
 						</div>
@@ -347,13 +348,12 @@ export function Settings() {
 								<label className="text-sm font-bold">
 									Utilisateur Jira (Email)
 								</label>
-								<input
+								<Input
 									type="email"
 									value={settings.JIRA_USER}
 									onChange={(e) =>
 										setSettings({ ...settings, JIRA_USER: e.target.value })
 									}
-									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
 									placeholder="jean.dupont@entreprise.com"
 								/>
 							</div>
@@ -361,13 +361,13 @@ export function Settings() {
 								<label className="text-sm font-bold">
 									Clé d'API Jira (Token)
 								</label>
-								<input
+								<Input
 									type="password"
 									value={settings.JIRA_API_KEY}
 									onChange={(e) =>
 										setSettings({ ...settings, JIRA_API_KEY: e.target.value })
 									}
-									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors font-mono"
+									className="font-mono"
 									placeholder="ATATT3xFfGF0..."
 								/>
 							</div>
@@ -378,13 +378,13 @@ export function Settings() {
 								<label className="text-sm font-bold">
 									Projet Jira (Clé ou ID)
 								</label>
-								<input
+								<Input
 									type="text"
 									value={settings.JIRA_PROJECT}
 									onChange={(e) =>
 										setSettings({ ...settings, JIRA_PROJECT: e.target.value })
 									}
-									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors uppercase"
+									className="uppercase"
 									placeholder="SEC"
 								/>
 							</div>
@@ -392,13 +392,12 @@ export function Settings() {
 								<label className="text-sm font-bold">
 									Composant Jira (Optionnel)
 								</label>
-								<input
+								<Input
 									type="text"
 									value={settings.JIRA_COMPONENT}
 									onChange={(e) =>
 										setSettings({ ...settings, JIRA_COMPONENT: e.target.value })
 									}
-									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
 									placeholder="ex: 10452"
 								/>
 							</div>
@@ -406,13 +405,12 @@ export function Settings() {
 								<label className="text-sm font-bold">
 									Type de ticket (Optionnel)
 								</label>
-								<input
+								<Input
 									type="text"
 									value={settings.JIRA_ISSUE_TYPE}
 									onChange={(e) =>
 										setSettings({ ...settings, JIRA_ISSUE_TYPE: e.target.value })
 									}
-									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
 									placeholder="Task ou Bug"
 								/>
 							</div>
@@ -420,13 +418,13 @@ export function Settings() {
 								<label className="text-sm font-bold">
 									Epic Parente (Clé)
 								</label>
-								<input
+								<Input
 									type="text"
 									value={settings.JIRA_PARENT_EPIC}
 									onChange={(e) =>
 										setSettings({ ...settings, JIRA_PARENT_EPIC: e.target.value })
 									}
-									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors uppercase"
+									className="uppercase"
 									placeholder="SEC-42"
 								/>
 								<p className="text-xs text-muted-foreground">
@@ -436,15 +434,15 @@ export function Settings() {
 						</div>
 						
 						<div className="flex items-center gap-4 mt-2">
-							<button
+							<Button
 								type="button"
+								variant="secondary"
 								onClick={handleTestJira}
 								disabled={testJiraLoading || !settings.JIRA_BASE_URL || !settings.JIRA_USER || !settings.JIRA_API_KEY}
-								className="px-4 py-2 text-sm font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center gap-2"
 							>
-								{testJiraLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+								{testJiraLoading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
 								Tester la connexion Jira
-							</button>
+							</Button>
 							{testJiraMessage && (
 								<span className={`text-sm font-medium ${testJiraMessage.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
 									{testJiraMessage.text}
@@ -459,18 +457,19 @@ export function Settings() {
 								Paramètres sauvegardés avec succès !
 							</span>
 						)}
-						<button
+						<Button
 							type="submit"
+							size="lg"
 							disabled={saving}
-							className="flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20 disabled:opacity-50"
+							className="shadow-lg shadow-primary/20"
 						>
 							{saving ? (
-								<RefreshCw className="w-5 h-5 animate-spin" />
+								<RefreshCw className="w-5 h-5 animate-spin mr-2" />
 							) : (
-								<Save className="w-5 h-5" />
+								<Save className="w-5 h-5 mr-2" />
 							)}
 							Enregistrer
-						</button>
+						</Button>
 					</div>
 				</form>
 			)}
@@ -493,20 +492,23 @@ export function Settings() {
 							Pratique avant une migration.
 						</p>
 						<div className="flex gap-3 mt-2">
-							<button
+							<Button
+								type="button"
+								variant="secondary"
 								onClick={() => handleSnapshot("create")}
 								disabled={backupLoading}
-								className="flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
 							>
 								Créer Snapshot
-							</button>
-							<button
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
 								onClick={() => handleSnapshot("restore")}
 								disabled={backupLoading}
-								className="flex items-center gap-2 px-4 py-2 rounded-md border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors"
+								className="text-red-500 border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
 							>
-								<AlertTriangle className="w-4 h-4" /> Restaurer
-							</button>
+								<AlertTriangle className="w-4 h-4 mr-2" /> Restaurer
+							</Button>
 						</div>
 					</div>
 
@@ -517,12 +519,13 @@ export function Settings() {
 							lisible.
 						</p>
 						<div className="flex gap-3 mt-2">
-							<button
+							<Button
+								type="button"
+								variant="secondary"
 								onClick={handleExportJSON}
-								className="flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
 							>
-								<Download className="w-4 h-4" /> Exporter JSON
-							</button>
+								<Download className="w-4 h-4 mr-2" /> Exporter JSON
+							</Button>
 						</div>
 					</div>
 				</div>

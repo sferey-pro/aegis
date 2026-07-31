@@ -1,6 +1,9 @@
-import { Plus, RefreshCw, Tag, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Tag, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Badge } from "./ui/badge";
 
 export function TagsManager() {
 	const [tags, setTags] = useState<
@@ -79,11 +82,9 @@ export function TagsManager() {
 					<label className="text-xs font-semibold uppercase text-muted-foreground">
 						Nom du tag
 					</label>
-					<input
-						type="text"
+					<Input
 						value={newName}
 						onChange={(e) => setNewName(e.target.value)}
-						className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
 						placeholder="Ex: API"
 						required
 					/>
@@ -116,12 +117,9 @@ export function TagsManager() {
 						))}
 					</div>
 				</div>
-				<button
-					type="submit"
-					className="mt-5 flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors w-full sm:w-auto justify-center"
-				>
-					<Plus className="w-4 h-4" /> Ajouter
-				</button>
+				<Button type="submit" className="mt-5 w-full sm:w-auto">
+					<Plus className="w-4 h-4 mr-2" /> Ajouter
+				</Button>
 			</form>
 
 			{error && (
@@ -141,9 +139,10 @@ export function TagsManager() {
 			) : (
 				<div className="flex flex-wrap gap-2">
 					{tags.map((t) => (
-						<div
+						<Badge
 							key={t.id}
-							className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground border border-border text-sm font-semibold"
+							variant="secondary"
+							className="flex items-center gap-1.5 px-3 py-1 text-sm font-semibold"
 						>
 							<span
 								className="w-2.5 h-2.5 rounded-full"
@@ -157,9 +156,9 @@ export function TagsManager() {
 								onClick={() => handleDelete(t.id)}
 								className="ml-1 text-muted-foreground hover:text-red-400 transition-colors"
 							>
-								<Trash2 className="w-3.5 h-3.5" />
+								<X className="w-3.5 h-3.5" />
 							</button>
-						</div>
+						</Badge>
 					))}
 				</div>
 			)}

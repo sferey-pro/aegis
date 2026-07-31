@@ -304,7 +304,7 @@ export function Settings() {
 									}
 									className="w-5 h-5 rounded border-border bg-black/40 text-primary focus:ring-primary focus:ring-offset-background"
 								/>
-								<span className="text-sm font-medium group-hover:text-white transition-colors">
+								<span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
 									Mode Silencieux (N'afficher que les CVEs Critical/High)
 								</span>
 							</label>
@@ -321,7 +321,7 @@ export function Settings() {
 									}
 									className="w-5 h-5 rounded border-border bg-black/40 text-primary focus:ring-primary focus:ring-offset-background"
 								/>
-								<span className="text-sm font-medium group-hover:text-white transition-colors">
+								<span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
 									Désactiver la Console (Coupe le broadcast SSE et allège les
 									performances frontend)
 								</span>

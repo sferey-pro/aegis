@@ -35,12 +35,12 @@ export function TriageTable({
 	totalItems: number;
 }) {
 	return (
-		<div className="glass-panel rounded-xl overflow-hidden backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg shadow-black/20">
+		<div className="glass-panel rounded-xl overflow-hidden">
 			<div className="w-full overflow-x-auto pb-2">
 				<table className="w-full text-left border-collapse min-w-[900px]">
-					<thead className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
-						<tr className="border-b border-white/10 hover:bg-transparent">
-							<th className="px-6 py-3 sticky left-0 bg-black/40 backdrop-blur z-10 border-r border-white/10 min-w-[300px] font-semibold">
+					<thead className="bg-black/5 dark:bg-black/40 border-b border-border dark:border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
+						<tr className="border-b border-border dark:border-white/10 hover:bg-transparent">
+							<th className="px-6 py-3 sticky left-0 bg-black/5 dark:bg-black/40 backdrop-blur z-10 border-r border-border dark:border-white/10 min-w-[300px] font-semibold">
 								Cible (Package & Projet)
 							</th>
 							<th className="px-6 py-3 text-center font-semibold">
@@ -52,15 +52,15 @@ export function TriageTable({
 							<th className="px-6 py-3 text-right font-semibold">Actions</th>
 						</tr>
 					</thead>
-					<tbody className="divide-y divide-white/5">
+					<tbody className="divide-y divide-border dark:divide-white/5">
 						{paginatedGroups.map((group) => {
 							return (
 								<React.Fragment key={group.key}>
 									<tr
-										className={`cursor-pointer transition-colors border-white/5 hover:bg-white/[0.02] ${group.hasConfirmed ? "bg-red-950/20" : ""}`}
+										className={`cursor-pointer transition-colors border-border dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/[0.02] ${group.hasConfirmed ? "bg-red-950/20" : ""}`}
 										onClick={() => setSelectedGroup(group)}
 									>
-										<td className="px-4 md:px-6 py-2.5 sticky left-0 bg-white/5 backdrop-blur z-10 border-r border-white/10 whitespace-nowrap">
+										<td className="px-4 md:px-6 py-2.5 sticky left-0 bg-white/50 dark:bg-white/5 backdrop-blur z-10 border-r border-border dark:border-white/10 whitespace-nowrap">
 											<div className="flex items-center gap-3">
 												<div
 													className={`p-1.5 rounded-lg border ${group.hasConfirmed ? "bg-red-500/20 border-red-500 text-red-500" : SEVERITY_COLORS[group.worstSeverity]} shadow-sm`}
@@ -95,7 +95,7 @@ export function TriageTable({
 														<span className="font-medium text-xs text-muted-foreground">
 															{group.projectName}
 														</span>
-														<span className="px-1.5 py-0.5 rounded bg-secondary/50 text-[9px] uppercase font-mono text-muted-foreground border border-white/5">
+														<span className="px-1.5 py-0.5 rounded bg-secondary text-[9px] uppercase font-mono text-muted-foreground border border-border dark:border-white/5">
 															{group.tool}
 														</span>
 													</div>
@@ -105,14 +105,14 @@ export function TriageTable({
 
 										<td className="px-4 md:px-6 py-2.5 text-center whitespace-nowrap">
 											<div className="flex flex-col items-center gap-2">
-												<div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black/20 border border-white/5 rounded-md text-xs shadow-inner">
+												<div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black/5 dark:bg-black/20 border border-border dark:border-white/5 rounded-md text-xs shadow-inner">
 													<span className="font-bold flex items-center gap-1.5 text-foreground/90">
 														<Shield className="w-3.5 h-3.5 text-muted-foreground" />{" "}
 														{group.cves.length}
 													</span>
 													{group.pendingCount > 0 && (
 														<>
-															<span className="w-px h-3 bg-white/20"></span>
+															<span className="w-px h-3 bg-black/20 dark:bg-white/20"></span>
 															<span className="text-primary font-medium flex items-center gap-1.5">
 																<RefreshCw className="w-3.5 h-3.5" />{" "}
 																{group.pendingCount}
@@ -150,7 +150,7 @@ export function TriageTable({
 														↳ {group.targetPatch}
 													</span>
 												) : (
-													<span className="text-muted-foreground/50 text-xs italic px-2 py-1 bg-white/5 rounded-md border border-white/5">
+													<span className="text-muted-foreground/50 text-xs italic px-2 py-1 bg-black/5 dark:bg-white/5 rounded-md border border-border dark:border-white/5">
 														Aucun patch
 													</span>
 												)}
@@ -184,7 +184,7 @@ export function TriageTable({
 						})}
 					</tbody>
 					{(totalPages > 1 || totalItems > 10) && (
-						<tfoot className="border-t border-white/10 bg-black/20">
+						<tfoot className="border-t border-border dark:border-white/10 bg-black/5 dark:bg-black/20">
 							<tr>
 								<td colSpan={4} className="px-6 py-3">
 									<div className="flex items-center justify-between">
@@ -196,23 +196,23 @@ export function TriageTable({
 												{totalItems} packages
 											</span>
 											<select
-												className="bg-black/60 border border-white/10 rounded-md px-2 py-1 text-sm outline-none focus:border-primary font-mono text-foreground cursor-pointer"
+												className="bg-background dark:bg-black/60 border border-border dark:border-white/10 rounded-md px-2 py-1 text-sm outline-none focus:border-primary font-mono text-foreground cursor-pointer"
 												value={itemsPerPage}
 												onChange={(e) => {
 													setItemsPerPage(Number(e.target.value));
 													setPage(1);
 												}}
 											>
-												<option className="bg-gray-900 text-white" value={10}>
+												<option className="bg-background text-foreground" value={10}>
 													10 par page
 												</option>
-												<option className="bg-gray-900 text-white" value={20}>
+												<option className="bg-background text-foreground" value={20}>
 													20 par page
 												</option>
-												<option className="bg-gray-900 text-white" value={50}>
+												<option className="bg-background text-foreground" value={50}>
 													50 par page
 												</option>
-												<option className="bg-gray-900 text-white" value={100}>
+												<option className="bg-background text-foreground" value={100}>
 													100 par page
 												</option>
 											</select>
@@ -221,7 +221,7 @@ export function TriageTable({
 											<button
 												onClick={() => setPage((p) => Math.max(1, p - 1))}
 												disabled={page === 1}
-												className="p-1.5 rounded-lg border border-white/10 bg-black/40 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+												className="p-1.5 rounded-lg border border-border dark:border-white/10 bg-black/5 dark:bg-black/40 text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
 											>
 												<ChevronLeft className="w-5 h-5" />
 											</button>
@@ -233,7 +233,7 @@ export function TriageTable({
 													setPage((p) => Math.min(totalPages, p + 1))
 												}
 												disabled={page === totalPages}
-												className="p-1.5 rounded-lg border border-white/10 bg-black/40 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+												className="p-1.5 rounded-lg border border-border dark:border-white/10 bg-black/5 dark:bg-black/40 text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
 											>
 												<ChevronRight className="w-5 h-5" />
 											</button>

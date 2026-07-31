@@ -46,7 +46,7 @@ interface HistoryPoint {
 export function HistoryChart() {
 	const [data, setData] = useState<HistoryPoint[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [days, setDays] = useState(30);
+	const [days, setDays] = useState(7);
 
 	useEffect(() => {
 		setLoading(true);

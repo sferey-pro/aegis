@@ -57,7 +57,7 @@ export function TriageTable({
 							return (
 								<React.Fragment key={group.key}>
 									<tr
-										className={`cursor-pointer transition-colors border-border dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/[0.02] ${group.hasConfirmed ? "bg-red-950/20" : ""}`}
+										className={`cursor-pointer transition-colors border-border dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/[0.02] ${group.hasConfirmed ? "bg-red-500/5 dark:bg-red-950/30" : ""}`}
 										onClick={() => setSelectedGroup(group)}
 									>
 										<td className="px-4 md:px-6 py-2.5 sticky left-0 bg-white/50 dark:bg-white/5 backdrop-blur z-10 border-r border-border dark:border-white/10 whitespace-nowrap">

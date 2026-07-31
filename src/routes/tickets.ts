@@ -58,7 +58,7 @@ export const ticketsRoutes = {
 		async POST(req: Request) {
 			const { projectId, packageName, ref, cves } = await req.json();
 			const { saveTicket } = await import("../db/tickets");
-			saveTicket(projectId, packageName, ref, cves);
+			saveTicket(projectId, packageName, ref, cves, null);
 			return Response.json({ success: true });
 		},
 	},
@@ -168,6 +168,19 @@ export const ticketsRoutes = {
 				issueData.fields.components = [{ id: component }];
 			}
 
+			const crypto = await import("crypto");
+			const contentHash = crypto.createHash("sha256").update(JSON.stringify(issueData)).digest("hex");
+
+			const { getTicketByHash } = await import("../db/tickets");
+			const existingTicket = getTicketByHash(contentHash);
+			
+			if (existingTicket) {
+				return Response.json(
+					{ error: `Un ticket identique existe déjà pour cette vulnérabilité (Réf: ${existingTicket.url}).` },
+					{ status: 409 }
+				);
+			}
+
 			const auth = Buffer.from(`${user}:${apiKey}`).toString("base64");
 			const response = await fetch(`${baseUrl}/rest/api/3/issue`, {
 				method: "POST",
@@ -187,7 +200,7 @@ export const ticketsRoutes = {
 			}
 
 			const data = await response.json();
-			saveTicket(projectId, packageName, data.key, cves);
+			saveTicket(projectId, packageName, data.key, cves, contentHash);
 
 			return Response.json({ success: true, ticketRef: data.key });
 		},

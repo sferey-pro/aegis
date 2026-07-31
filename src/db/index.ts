@@ -197,4 +197,7 @@ function initDb(database: Database) {
 	try {
 		db!.query("ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT").run();
 	} catch (e) {}
+	try {
+		db!.query("ALTER TABLE tickets ADD COLUMN content_hash TEXT").run();
+	} catch (e) {}
 }

@@ -7,7 +7,10 @@ import {
 	Settings,
 	Shield,
 	Terminal,
+	Sun,
+	Moon
 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export function Header({
 	currentTab,
@@ -26,6 +29,30 @@ export function Header({
 	auditing: boolean;
 	pendingCves?: number;
 }) {
+	const [theme, setTheme] = useState("light");
+
+	useEffect(() => {
+		const stored = localStorage.getItem("aegis-theme");
+		if (stored === "dark") {
+			setTheme("dark");
+			document.documentElement.classList.add("dark");
+		} else {
+			setTheme("light");
+			document.documentElement.classList.remove("dark");
+		}
+	}, []);
+
+	const toggleTheme = () => {
+		const newTheme = theme === "light" ? "dark" : "light";
+		setTheme(newTheme);
+		localStorage.setItem("aegis-theme", newTheme);
+		if (newTheme === "dark") {
+			document.documentElement.classList.add("dark");
+		} else {
+			document.documentElement.classList.remove("dark");
+		}
+	};
+
 	return (
 		<header className="fixed top-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/50 shadow-sm flex items-center justify-between py-4 px-6 md:px-12 w-full">
 			<div className="flex items-center gap-2 select-none w-full max-w-7xl mx-auto justify-between">
@@ -42,14 +69,14 @@ export function Header({
 				<nav className="flex items-center gap-1.5 p-1.5 bg-black/20 backdrop-blur-md border border-white/5 rounded-2xl shadow-inner">
 					<button
 						onClick={() => setCurrentTab("overview")}
-						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "overview" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "overview" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}
 					>
 						<LayoutDashboard className="w-4 h-4" />
 						Vue d'ensemble
 					</button>
 					<button
 						onClick={() => setCurrentTab("projects")}
-						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "projects" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "projects" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}
 					>
 						<FolderGit2 className="w-4 h-4" />
 						Projets
@@ -60,7 +87,7 @@ export function Header({
 							setTriageCveFilter(null);
 							setCurrentTab("triage");
 						}}
-						className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "triage" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+						className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "triage" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}
 					>
 						<AlertOctagon className="w-4 h-4" />
 						CVEs
@@ -72,24 +99,32 @@ export function Header({
 					</button>
 					<button
 						onClick={() => setCurrentTab("reports")}
-						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "reports" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "reports" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}
 					>
 						<FileBarChart className="w-4 h-4" />
 						Rapports
 					</button>
 					<button
 						onClick={() => setCurrentTab("prompts")}
-						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "prompts" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${currentTab === "prompts" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}
 					>
 						<Terminal className="w-4 h-4" />
 						Prompts
 					</button>
 
-					<div className="w-px h-6 bg-white/10 mx-1"></div>
+					<div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1"></div>
+
+					<button
+						onClick={toggleTheme}
+						className="flex items-center justify-center p-2 rounded-xl transition-all duration-300 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
+						title="Changer de thème"
+					>
+						{theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+					</button>
 
 					<button
 						onClick={() => setCurrentTab("settings")}
-						className={`flex items-center justify-center p-2 rounded-xl transition-all duration-300 ${currentTab === "settings" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"}`}
+						className={`flex items-center justify-center p-2 rounded-xl transition-all duration-300 ${currentTab === "settings" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}
 						title="Paramètres"
 					>
 						<Settings className="w-5 h-5" />

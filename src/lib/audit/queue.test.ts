@@ -1,6 +1,5 @@
-import { describe, expect, test, mock, beforeEach, afterEach } from "bun:test";
+import { describe, expect, test, mock, beforeEach } from "bun:test";
 import { enqueueGlobalAudit, runSingleAudit, getAuditStatus } from "./queue";
-import * as auditIndex from "./index";
 
 const mockRunAudit = mock(async (id: number, force: boolean) => {
 	// Simulate async work

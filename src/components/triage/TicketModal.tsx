@@ -1,5 +1,5 @@
 import { CheckCircle2, Copy, FileText, RefreshCw, Send, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function TicketModal({
 	ticketModal,
@@ -14,49 +14,62 @@ export function TicketModal({
 	setToast: (toast: any) => void;
 	fetchTickets: () => void;
 }) {
-	const [content, setContent] = useState("");
+	const [notes, setNotes] = useState("");
 	const [creating, setCreating] = useState(false);
-
-	useEffect(() => {
-		if (ticketModal.isOpen) setContent(ticketModal.md);
-	}, [ticketModal.isOpen, ticketModal.md]);
 
 	if (!ticketModal.isOpen) return null;
 
 	return (
 		<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-			<div className="glass-panel w-full max-w-3xl rounded-2xl p-6 flex flex-col max-h-[85vh]">
+			<div className="glass-panel w-full max-w-2xl rounded-2xl p-6 flex flex-col max-h-[85vh]">
 				<div className="flex items-center justify-between mb-4">
 					<h3 className="text-xl font-bold font-heading flex items-center gap-2">
 						<FileText className="w-5 h-5 text-blue-400" />
-						Ticket Jira (Markdown)
+						Création Ticket Jira
 					</h3>
 					<button
 						onClick={() => setTicketModal({ ...ticketModal, isOpen: false })}
-						className="p-1.5 rounded-md text-muted-foreground hover:bg-white/10 transition-colors"
+						className="p-1.5 rounded-md text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
 					>
 						<X className="w-5 h-5" />
 					</button>
 				</div>
 
-				<textarea
-					value={content}
-					onChange={(e) => setContent(e.target.value)}
-					className="flex-1 w-full overflow-auto bg-black/50 rounded-xl border border-white/5 p-4 relative font-mono text-sm text-gray-300 whitespace-pre-wrap outline-none focus:border-blue-500/50 transition-colors min-h-[400px]"
-				/>
+				<div className="text-sm text-muted-foreground mb-4">
+					Un ticket Jira va être créé pour le package <span className="font-bold text-foreground">{ticketModal.group?.package}</span> ({ticketModal.group?.cves?.length} vulnérabilités).
+				</div>
 
-				<div className="flex justify-end gap-3 mt-6">
+				<div className="flex-1 overflow-auto flex flex-col gap-4">
+					<div>
+						<label className="block text-sm font-medium mb-2">Notes additionnelles / Recommandations</label>
+						<textarea
+							value={notes}
+							onChange={(e) => setNotes(e.target.value)}
+							placeholder="Ajoutez vos recommandations pour les développeurs..."
+							className="w-full bg-black/5 dark:bg-black/50 rounded-xl border border-black/10 dark:border-white/5 p-4 relative font-sans text-sm outline-none focus:border-blue-500/50 transition-colors min-h-[120px]"
+						/>
+					</div>
+					
+					<div>
+						<label className="block text-sm font-medium mb-2">Aperçu du contenu (Markdown pour copie manuelle)</label>
+						<div className="w-full overflow-auto bg-black/5 dark:bg-black/50 rounded-xl border border-black/10 dark:border-white/5 p-4 text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-[150px]">
+							{ticketModal.md}
+						</div>
+					</div>
+				</div>
+
+				<div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border">
 					<button
 						onClick={() => setTicketModal({ ...ticketModal, isOpen: false })}
 						className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
 					>
-						Fermer
+						Annuler
 					</button>
 					<button
 						onClick={() => {
-							setTicketModal({ ...ticketModal, md: content });
 							setTimeout(copyToClipboard, 0);
 						}}
+						title="Copier le Markdown"
 						className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors flex items-center gap-2"
 					>
 						{ticketModal.copied ? (
@@ -64,7 +77,6 @@ export function TicketModal({
 						) : (
 							<Copy className="w-4 h-4" />
 						)}
-						{ticketModal.copied ? "Copié !" : "Copier"}
 					</button>
 
 					<button
@@ -79,7 +91,7 @@ export function TicketModal({
 										projectId: ticketModal.group.projectId,
 										packageName: ticketModal.group.package,
 										cves: ticketModal.group.cves.map((c: any) => c.cve),
-										description: content,
+										notes: notes,
 									}),
 								});
 								const data = await res.json();
@@ -97,8 +109,7 @@ export function TicketModal({
 										isOpen: true,
 										type: "error",
 										title: "Erreur",
-										message:
-											data.error || "Erreur lors de la création du ticket.",
+										message: data.error || "Erreur lors de la création du ticket.",
 									});
 								}
 							} catch (err: any) {
@@ -127,3 +138,4 @@ export function TicketModal({
 		</div>
 	);
 }
+

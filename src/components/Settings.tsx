@@ -22,6 +22,7 @@ export function Settings() {
 		JIRA_API_KEY: "",
 		JIRA_PROJECT: "",
 		JIRA_COMPONENT: "",
+		JIRA_ISSUE_TYPE: "Task",
 		GITHUB_RL_LIMIT: "",
 		GITHUB_RL_REMAINING: "",
 		GITHUB_RL_RESET: "",
@@ -30,6 +31,9 @@ export function Settings() {
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [saveSuccess, setSaveSuccess] = useState(false);
+
+	const [testJiraLoading, setTestJiraLoading] = useState(false);
+	const [testJiraMessage, setTestJiraMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
 	// Backup states
 	const [backupLoading, setBackupLoading] = useState(false);
@@ -58,6 +62,7 @@ export function Settings() {
 					JIRA_API_KEY: data.JIRA_API_KEY || "",
 					JIRA_PROJECT: data.JIRA_PROJECT || "",
 					JIRA_COMPONENT: data.JIRA_COMPONENT || "",
+					JIRA_ISSUE_TYPE: data.JIRA_ISSUE_TYPE || "Task",
 					GITHUB_RL_LIMIT: data.GITHUB_RL_LIMIT || "",
 					GITHUB_RL_REMAINING: data.GITHUB_RL_REMAINING || "",
 					GITHUB_RL_RESET: data.GITHUB_RL_RESET || "",
@@ -107,6 +112,32 @@ export function Settings() {
 
 	const handleExportJSON = async () => {
 		window.open("/api/config/export", "_blank");
+	};
+
+	const handleTestJira = async () => {
+		setTestJiraLoading(true);
+		setTestJiraMessage(null);
+		try {
+			const res = await fetch("/api/tickets/test-connection", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					baseUrl: settings.JIRA_BASE_URL,
+					user: settings.JIRA_USER,
+					apiKey: settings.JIRA_API_KEY
+				}),
+			});
+			const data = await res.json();
+			if (data.success) {
+				setTestJiraMessage({ text: `Connexion réussie ! (Bonjour ${data.user})`, type: "success" });
+			} else {
+				setTestJiraMessage({ text: data.error || "Erreur de connexion", type: "error" });
+			}
+		} catch (err: any) {
+			setTestJiraMessage({ text: err.message, type: "error" });
+		} finally {
+			setTestJiraLoading(false);
+		}
 	};
 
 	return (
@@ -369,6 +400,37 @@ export function Settings() {
 									placeholder="ex: 10452"
 								/>
 							</div>
+							<div className="flex flex-col gap-2">
+								<label className="text-sm font-bold">
+									Type de ticket (Optionnel)
+								</label>
+								<input
+									type="text"
+									value={settings.JIRA_ISSUE_TYPE}
+									onChange={(e) =>
+										setSettings({ ...settings, JIRA_ISSUE_TYPE: e.target.value })
+									}
+									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+									placeholder="Task ou Bug"
+								/>
+							</div>
+						</div>
+						
+						<div className="flex items-center gap-4 mt-2">
+							<button
+								type="button"
+								onClick={handleTestJira}
+								disabled={testJiraLoading || !settings.JIRA_BASE_URL || !settings.JIRA_USER || !settings.JIRA_API_KEY}
+								className="px-4 py-2 text-sm font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+							>
+								{testJiraLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+								Tester la connexion Jira
+							</button>
+							{testJiraMessage && (
+								<span className={`text-sm font-medium ${testJiraMessage.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+									{testJiraMessage.text}
+								</span>
+							)}
 						</div>
 					</div>
 

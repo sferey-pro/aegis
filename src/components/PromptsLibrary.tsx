@@ -10,6 +10,10 @@ import {
 import type React from "react";
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Badge } from "./ui/badge";
 
 export function PromptsLibrary() {
 	const [prompts, setPrompts] = useState<any[]>([]);
@@ -121,16 +125,16 @@ export function PromptsLibrary() {
 						vulnérabilités. À copier/coller.
 					</p>
 				</div>
-				<button
+				<Button
 					onClick={() => {
 						resetForm();
 						setIsAdding(true);
 					}}
-					className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+					className="shadow-lg shadow-primary/20"
 				>
-					<Plus className="w-4 h-4" />
+					<Plus className="w-4 h-4 mr-2" />
 					Nouveau Prompt
-				</button>
+				</Button>
 			</div>
 
 			{isAdding && (
@@ -149,14 +153,13 @@ export function PromptsLibrary() {
 
 						<div className="flex flex-col gap-1">
 							<label className="text-sm font-medium">Titre</label>
-							<input
+							<Input
 								required
 								type="text"
 								value={formData.title}
 								onChange={(e) =>
 									setFormData({ ...formData, title: e.target.value })
 								}
-								className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
 								placeholder="Ex: Nettoyage du cache NPM"
 							/>
 						</div>
@@ -165,13 +168,13 @@ export function PromptsLibrary() {
 							<label className="text-sm font-medium">
 								Contenu du Prompt IA
 							</label>
-							<textarea
+							<Textarea
 								required
 								value={formData.body}
 								onChange={(e) =>
 									setFormData({ ...formData, body: e.target.value })
 								}
-								className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors min-h-[150px] font-mono text-sm"
+								className="min-h-[150px] font-mono text-sm"
 								placeholder="Ex: Agis comme un expert en cybersécurité. Explique moi la faille {{cve}} sur le package {{package}}..."
 							/>
 						</div>
@@ -180,31 +183,29 @@ export function PromptsLibrary() {
 							<label className="text-sm font-medium">
 								Tags (séparés par des virgules)
 							</label>
-							<input
+							<Input
 								type="text"
 								value={formData.tags}
 								onChange={(e) =>
 									setFormData({ ...formData, tags: e.target.value })
 								}
-								className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
 								placeholder="Ex: utilitaire, npm, fix"
 							/>
 						</div>
 
 						<div className="flex justify-end gap-3 mt-4">
-							<button
+							<Button
 								type="button"
+								variant="secondary"
 								onClick={resetForm}
-								className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
 							>
 								Annuler
-							</button>
-							<button
+							</Button>
+							<Button
 								type="submit"
-								className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
 							>
 								{editingId ? "Enregistrer" : "Créer le prompt"}
-							</button>
+							</Button>
 						</div>
 					</form>
 				</div>
@@ -251,40 +252,47 @@ export function PromptsLibrary() {
 							{p.tags && p.tags.length > 0 && (
 								<div className="flex flex-wrap gap-1 mt-2">
 									{p.tags.map((tag: string, i: number) => (
-										<span
+										<Badge
 											key={i}
-											className="px-2 py-0.5 rounded flex items-center gap-1 bg-secondary text-secondary-foreground text-[10px] font-bold uppercase tracking-wider border border-border"
+											variant="secondary"
+											className="flex items-center gap-1 text-[10px] uppercase tracking-wider"
 										>
 											<Tag className="w-3 h-3" />
 											{tag}
-										</span>
+										</Badge>
 									))}
 								</div>
 							)}
 
 							<div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
-								<button
+								<Button
+									variant="secondary"
+									size="sm"
 									onClick={() => handleCopy(p.body)}
-									className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg"
+									className="text-primary hover:text-primary bg-primary/10 hover:bg-primary/20"
 								>
-									<Code className="w-4 h-4" />
+									<Code className="w-4 h-4 mr-1.5" />
 									Copier
-								</button>
+								</Button>
 								<div className="flex items-center gap-1">
-									<button
+									<Button
+										variant="ghost"
+										size="icon"
 										onClick={() => handleEdit(p)}
-										className="p-2 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"
+										className="w-8 h-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
 										title="Modifier"
 									>
 										<Edit2 className="w-4 h-4" />
-									</button>
-									<button
+									</Button>
+									<Button
+										variant="ghost"
+										size="icon"
 										onClick={() => handleDelete(p.id)}
-										className="p-2 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"
+										className="w-8 h-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
 										title="Supprimer"
 									>
 										<Trash2 className="w-4 h-4" />
-									</button>
+									</Button>
 								</div>
 							</div>
 						</div>

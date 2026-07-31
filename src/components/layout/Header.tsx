@@ -11,6 +11,7 @@ import {
 	Moon
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Button } from "../ui/button";
 
 export function Header({
 	currentTab,
@@ -114,31 +115,35 @@ export function Header({
 
 					<div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1"></div>
 
-					<button
+					<Button
+						variant="ghost"
+						size="icon"
 						onClick={toggleTheme}
-						className="flex items-center justify-center p-2 rounded-xl transition-all duration-300 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
+						className="rounded-xl text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"
 						title="Changer de thème"
 					>
 						{theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-					</button>
+					</Button>
 
-					<button
+					<Button
+						variant={currentTab === "settings" ? "default" : "ghost"}
+						size="icon"
 						onClick={() => setCurrentTab("settings")}
-						className={`flex items-center justify-center p-2 rounded-xl transition-all duration-300 ${currentTab === "settings" ? "bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}
+						className={`rounded-xl transition-all duration-300 ${currentTab === "settings" ? "shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5 hover:text-foreground"}`}
 						title="Paramètres"
 					>
 						<Settings className="w-5 h-5" />
-					</button>
+					</Button>
 				</nav>
 
-				<button
+				<Button
 					onClick={handleRunAudit}
 					disabled={auditing}
-					className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:pointer-events-none"
+					className="hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
 				>
-					{auditing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+					{auditing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
 					{auditing ? "Audit en cours..." : "Lancer l'audit global"}
-				</button>
+				</Button>
 			</div>
 		</header>
 	);

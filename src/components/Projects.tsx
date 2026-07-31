@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Shield, Folder, RefreshCw, GitBranch, CloudDownload, ArrowDownToLine, AlertTriangle, CheckCircle2, Loader2, XCircle, Copy, Check, Info, MoreHorizontal, Edit2, Clock, Play, LayoutGrid, List } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Badge } from './ui/badge';
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "./ui/table";
 
 export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void }) {
   const [projects, setProjects] = useState<any[]>([]);
@@ -320,37 +331,41 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
           <p className="text-muted-foreground mt-1">Gérez les dépôts surveillés par Aegis.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex bg-background/50 border border-border/50 rounded-lg p-1">
-            <button 
+          <div className="flex gap-1 border border-border/50 rounded-lg p-1 bg-background/50">
+            <Button 
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="icon"
+              className="w-8 h-8 rounded-sm"
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}
               title="Vue Grille"
             >
               <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button 
+            </Button>
+            <Button 
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="icon"
+              className="w-8 h-8 rounded-sm"
               onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground hover:text-foreground'}`}
               title="Vue Tableau"
             >
               <List className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
-          <button 
+          <Button 
+            variant="secondary"
             onClick={handleFetchAll}
             disabled={isFetchingAll || projects.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50"
           >
-            {isFetchingAll ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}
+            {isFetchingAll ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <CloudDownload className="w-4 h-4 mr-2" />}
             Vérifier les mises à jour Git
-          </button>
-          <button 
+          </Button>
+          <Button 
             onClick={() => { if(isAdding) resetForm(); else { resetForm(); setIsAdding(true); } }}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+            className="shadow-lg shadow-primary/20"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 mr-2" />
             {isAdding ? "Annuler" : "Ajouter un Projet"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -379,12 +394,11 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium">Nom du projet</label>
-                <input 
+                <Input 
                   required
                   type="text" 
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
                   placeholder="Ex: Mon API Node"
                 />
               </div>
@@ -422,13 +436,12 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               {!formData.is_remote && (
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-sm font-medium">Chemin absolu (Racine Git)</label>
-                  <input 
+                  <Input 
                     required={!formData.is_remote}
                     type="text" 
                     value={formData.path}
                     onChange={e => setFormData({...formData, path: e.target.value})}
                     onBlur={handleDetectTool}
-                    className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
                     placeholder="Ex: /home/user/projects/api"
                   />
                   {detectStatus === 'detecting' && <span className="text-xs text-blue-400 mt-1 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> Détection automatique...</span>}
@@ -440,12 +453,11 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               {!formData.is_remote && (
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium">Sous-dossier d'audit (Optionnel)</label>
-                  <input 
+                  <Input 
                     type="text" 
                     value={formData.audit_path}
                     onChange={e => setFormData({...formData, audit_path: e.target.value})}
                     onBlur={handleDetectTool}
-                    className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
                     placeholder="Ex: backend/src (vide si racine)"
                   />
                 </div>
@@ -498,16 +510,17 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
             </div>
 
             <div className="flex justify-end gap-3 mt-4">
-              <button 
-                type="button" 
+              <Button 
+                type="button"
+                variant="secondary"
                 onClick={resetForm}
-                className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
               >
                 Annuler
-              </button>
+              </Button>
               {!editingId && !formData.is_remote && (
-                <button 
+                <Button 
                   type="button"
+                  variant="outline"
                   onClick={(e) => {
                     if (formRef.current && !formRef.current.checkValidity()) {
                       formRef.current.reportValidity();
@@ -515,27 +528,27 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                     }
                     handleSubmit(e, true);
                   }}
-                  className="px-4 py-2 rounded-md bg-blue-500/20 text-blue-500 border border-blue-500/30 hover:bg-blue-500/40 transition-colors"
+                  className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-500"
                 >
                   Créer et Auditer
-                </button>
+                </Button>
               )}
               {formData.is_remote && !editingId && (
-                <button 
+                <Button 
                   type="submit"
-                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+                  className="shadow-lg shadow-primary/20"
                 >
                   Créer le projet CI
-                </button>
+                </Button>
               )}
               {(!formData.is_remote || editingId) && (
-                <button 
+                <Button 
                   type="submit"
                   onClick={(e) => handleSubmit(e, false)}
-                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+                  className="shadow-lg shadow-primary/20"
                 >
                   {editingId ? "Enregistrer" : "Créer sans auditer"}
-                </button>
+                </Button>
               )}
             </div>
           </form>
@@ -607,16 +620,16 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                   <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : (hasNoCves ? 'text-green-500' : (hasCritical ? 'text-red-500' : 'text-primary'))}`} />
                   <h3 className="font-bold text-lg leading-tight truncate max-w-[140px]" title={p.name}>{p.name}</h3>
                   {hasNoCves && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 border border-green-500/30 flex items-center" title="Aucune vulnérabilité détectée">
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                    <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
                       Sain
-                    </span>
+                    </Badge>
                   )}
                   {hasCritical && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/30 flex items-center" title="Vulnérabilités critiques détectées">
-                      <AlertTriangle className="w-3 h-3 mr-1" />
+                    <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-500 border-red-500/30 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
                       Critique
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 
@@ -658,9 +671,9 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
               {p.tags && p.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {p.tags.map((tag: string, i: number) => (
-                    <span key={i} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
+                    <Badge key={i} variant="secondary" className="text-[10px] uppercase tracking-wider text-primary bg-primary/10 border-primary/20">
                       {tag}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               )}
@@ -738,28 +751,34 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
                 </button>
                 <div className="flex items-center gap-1">
                   {!p.is_remote && (
-                    <button 
+                    <Button 
+                      variant="ghost"
+                      size="icon"
                       onClick={(e) => handleForceAudit(p.id, e)}
-                      className="p-1.5 text-muted-foreground hover:text-green-400 transition-colors rounded-md hover:bg-green-400/10"
+                      className="w-7 h-7 text-muted-foreground hover:text-green-400 hover:bg-green-400/10"
                       title="Forcer un audit (sans déduplication)"
                     >
                       <Play className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   )}
-                  <button 
+                  <Button
+                    variant="ghost" 
+                    size="icon"
                     onClick={(e) => handleEdit(p, e)}
-                    className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"
+                    className="w-7 h-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
                     title="Modifier"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button 
+                  </Button>
+                  <Button 
+                    variant="ghost"
+                    size="icon"
                     onClick={(e) => handleDelete(p.id, e)}
-                    className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"
+                    className="w-7 h-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     title="Supprimer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -768,98 +787,100 @@ export function Projects({ onViewTriage }: { onViewTriage?: (id: number) => void
           })}
         </div>
       ) : (
-        <div className="glass-panel rounded-xl overflow-hidden backdrop-blur-xl bg-white/5 border border-white/10 shadow-lg shadow-black/20">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-black/40 border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="px-6 py-4 font-semibold">Projet</th>
-                  <th className="px-6 py-4 font-semibold">Tags & Santé</th>
-                  <th className="px-6 py-4 font-semibold">Git Status</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map(p => {
-                  const hasCritical = p.lastRun?.counts?.critical > 0;
-                  const hasNoCves = p.lastRun && Object.values(p.lastRun.counts).reduce((a: any, b: any) => a + b, 0) === 0;
-                  return (
-                    <tr 
-                      key={p.id} 
-                      className={`group hover:bg-white/[0.02] transition-colors cursor-pointer ${p.ignored ? 'opacity-50 grayscale' : ''}`}
-                      onClick={() => onViewTriage && onViewTriage(p.id)}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : (hasNoCves ? 'text-green-500' : (hasCritical ? 'text-red-500' : 'text-primary'))}`} />
-                          <div className="flex flex-col">
-                            <span className="font-bold">{p.name}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase">{p.tool} • {p.is_remote ? 'Remote (CI)' : 'Local'}</span>
-                          </div>
+        <div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead>Projet</TableHead>
+                <TableHead>Tags & Santé</TableHead>
+                <TableHead>Git Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(filterTag ? projects.filter(p => p.tags && p.tags.includes(filterTag)) : projects).map(p => {
+                const hasCritical = p.lastRun?.counts?.critical > 0;
+                const hasNoCves = p.lastRun && Object.values(p.lastRun.counts).reduce((a: any, b: any) => a + b, 0) === 0;
+                return (
+                  <TableRow 
+                    key={p.id} 
+                    className={`group cursor-pointer ${p.ignored ? 'opacity-50 grayscale' : ''}`}
+                    onClick={() => onViewTriage && onViewTriage(p.id)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Shield className={`w-5 h-5 ${p.ignored ? 'text-muted-foreground' : (hasNoCves ? 'text-green-500' : (hasCritical ? 'text-red-500' : 'text-primary'))}`} />
+                        <div className="flex flex-col">
+                          <span className="font-bold">{p.name}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase">{p.tool} • {p.is_remote ? 'Remote (CI)' : 'Local'}</span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-2 items-start">
-                          <div className="flex flex-wrap gap-1">
-                            {p.tags?.map((tag: string, i: number) => (
-                              <span key={i} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                          {hasNoCves && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 border border-green-500/30">Sain</span>}
-                          {hasCritical && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/30">Critique</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-2 items-start">
+                        <div className="flex flex-wrap gap-1">
+                          {p.tags?.map((tag: string, i: number) => (
+                            <Badge key={i} variant="secondary" className="text-[10px] uppercase tracking-wider text-primary bg-primary/10 border-primary/20">
+                              {tag}
+                            </Badge>
+                          ))}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {p.git?.isRepo ? (
-                          <div className="flex items-center gap-3 text-xs">
-                            <div className="flex items-center gap-1 font-mono text-orange-400">
-                              <GitBranch className="w-3 h-3" />
-                              <span className="truncate max-w-[80px]" title={p.git.branch || 'detached'}>{p.git.branch || 'detached'}</span>
-                            </div>
-                            {p.git.dirty && <span title="Arbre de travail sale" className="inline-flex"><AlertTriangle className="w-3.5 h-3.5 text-yellow-500" /></span>}
-                            {p.git.behind > 0 && (
-                              <span className="text-red-400 font-bold flex items-center gap-0.5" title={`${p.git.behind} commits de retard`}>
-                                <ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
-                              </span>
-                            )}
+                        <div className="flex items-center gap-2">
+                          {hasNoCves && <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30">Sain</Badge>}
+                          {hasCritical && <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-500 border-red-500/30">Critique</Badge>}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {p.git?.isRepo ? (
+                        <div className="flex items-center gap-3 text-xs">
+                          <div className="flex items-center gap-1 font-mono text-orange-400">
+                            <GitBranch className="w-3 h-3" />
+                            <span className="truncate max-w-[80px]" title={p.git.branch || 'detached'}>{p.git.branch || 'detached'}</span>
                           </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground italic">Non-Git</span>
-                            <button 
-                              onClick={(e) => handleDetectGit(p.id, e)}
-                              disabled={detectingId === p.id}
-                              className="p-1 text-muted-foreground hover:text-white transition-colors rounded hover:bg-white/10 disabled:opacity-50" 
-                              title="Re-détecter le dépôt Git"
-                            >
-                              <RefreshCw className={`w-3 h-3 ${detectingId === p.id ? 'animate-spin text-primary' : ''}`} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                        {p.git?.isRepo && (
-                          <>
-                            <button onClick={(e) => handleFetch(p.id, e)} className="p-1.5 text-muted-foreground hover:text-white transition-colors rounded-md hover:bg-white/10" title="Git Fetch"><CloudDownload className="w-3.5 h-3.5" /></button>
-                            {p.git.behind > 0 && (
-                              <button onClick={(e) => handlePull(p.id, e)} className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors font-bold text-[10px] uppercase mx-1">Pull</button>
-                            )}
-                          </>
-                        )}
-                        {!p.is_remote && (
-                          <button onClick={(e) => handleForceAudit(p.id, e)} className="p-1.5 text-muted-foreground hover:text-green-400 transition-colors rounded-md hover:bg-green-400/10" title="Forcer un audit"><Play className="w-3.5 h-3.5" /></button>
-                        )}
-                        <button onClick={(e) => handleEdit(p, e)} className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded-md hover:bg-primary/10"><Edit2 className="w-3.5 h-3.5" /></button>
-                        <button onClick={(e) => handleDelete(p.id, e)} className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded-md hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          {p.git.dirty && <span title="Arbre de travail sale" className="inline-flex"><AlertTriangle className="w-3.5 h-3.5 text-yellow-500" /></span>}
+                          {p.git.behind > 0 && (
+                            <span className="text-red-400 font-bold flex items-center gap-0.5" title={`${p.git.behind} commits de retard`}>
+                              <ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground italic">Non-Git</span>
+                          <button 
+                            onClick={(e) => handleDetectGit(p.id, e)}
+                            disabled={detectingId === p.id}
+                            className="p-1 text-muted-foreground hover:text-white transition-colors rounded hover:bg-white/10 disabled:opacity-50" 
+                            title="Re-détecter le dépôt Git"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${detectingId === p.id ? 'animate-spin text-primary' : ''}`} />
+                          </button>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                      {p.git?.isRepo && (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={(e) => handleFetch(p.id, e)} className="w-7 h-7 text-muted-foreground hover:text-foreground" title="Git Fetch"><CloudDownload className="w-3.5 h-3.5" /></Button>
+                          {p.git.behind > 0 && (
+                            <Button variant="outline" size="sm" onClick={(e) => handlePull(p.id, e)} className="h-6 px-2 text-[10px] uppercase text-blue-400 border-blue-500/30 hover:bg-blue-500/10 mx-1">Pull</Button>
+                          )}
+                        </>
+                      )}
+                      {!p.is_remote && (
+                        <Button variant="ghost" size="icon" onClick={(e) => handleForceAudit(p.id, e)} className="w-7 h-7 text-muted-foreground hover:text-green-400 hover:bg-green-400/10" title="Forcer un audit"><Play className="w-3.5 h-3.5" /></Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={(e) => handleEdit(p, e)} className="w-7 h-7 text-muted-foreground hover:text-primary hover:bg-primary/10"><Edit2 className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="icon" onClick={(e) => handleDelete(p.id, e)} className="w-7 h-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
 

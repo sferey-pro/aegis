@@ -34,26 +34,40 @@
 }
 
 :root {
-  --background: 220 14% 96%;
+  /* Crisp, airy light mode */
+  --background: 220 33% 98%;
   --foreground: 222 47% 11%;
+  
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
+  
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
+  
   --primary: 221 83% 53%;
   --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96%;
+  
+  --secondary: 214 32% 91%;
   --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
+  
+  --muted: 214 32% 91%;
   --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96%;
+  
+  --accent: 214 32% 91%;
   --accent-foreground: 222 47% 11%;
+  
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
+  
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
   --ring: 221 83% 53%;
   --radius: 0.75rem;
+
+  --mesh-primary: 221 83% 53%;
+  --mesh-secondary: 280 80% 60%;
+  --mesh-tertiary: 190 80% 60%;
+  --mesh-opacity: 0.12;
 }
 
 .dark {
@@ -85,6 +99,11 @@
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
   --ring: 190 90% 50%;
+
+  --mesh-primary: 190 90% 50%;
+  --mesh-secondary: 280 80% 60%;
+  --mesh-tertiary: 220 90% 60%;
+  --mesh-opacity: 0.08;
 }
 
 @layer base {

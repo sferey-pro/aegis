@@ -4,7 +4,7 @@
 /* Core app styles and micro-animations */
 @layer utilities {
 	.glass-panel {
-		@apply bg-white/60 dark:bg-black/40 backdrop-blur-2xl border border-white/30 dark:border-white/10 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)];
+		@apply bg-white/70 dark:bg-black/40 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)];
 	}
 
 	.neon-glow {
@@ -46,12 +46,17 @@ body::before {
 	background:
 		radial-gradient(
 			circle at 50% 50%,
-			hsl(var(--primary) / 0.08) 0%,
-			transparent 40%
+			hsl(var(--mesh-primary) / var(--mesh-opacity)) 0%,
+			transparent 50%
 		),
 		radial-gradient(
 			circle at 80% 20%,
-			hsl(var(--primary) / 0.05) 0%,
+			hsl(var(--mesh-secondary) / var(--mesh-opacity)) 0%,
+			transparent 40%
+		),
+		radial-gradient(
+			circle at 20% 80%,
+			hsl(var(--mesh-tertiary) / var(--mesh-opacity)) 0%,
 			transparent 40%
 		);
 	animation: bgPulse 20s ease-in-out infinite alternate;

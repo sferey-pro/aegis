@@ -8,6 +8,15 @@ import {
 } from "lucide-react";
 import React from "react";
 import { SEVERITY_COLORS, SEVERITY_ICONS } from "./constants";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+	TableFooter,
+} from "../ui/table";
 
 export function TriageTable({
 	paginatedGroups,
@@ -35,32 +44,31 @@ export function TriageTable({
 	totalItems: number;
 }) {
 	return (
-		<div className="glass-panel rounded-xl overflow-hidden">
-			<div className="w-full overflow-x-auto pb-2">
-				<table className="w-full text-left border-collapse min-w-[900px]">
-					<thead className="bg-black/5 dark:bg-black/40 border-b border-border dark:border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
-						<tr className="border-b border-border dark:border-white/10 hover:bg-transparent">
-							<th className="px-6 py-3 sticky left-0 bg-black/5 dark:bg-black/40 backdrop-blur z-10 border-r border-border dark:border-white/10 min-w-[300px] font-semibold">
+		<div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
+				<Table>
+					<TableHeader>
+						<TableRow className="bg-muted/50 hover:bg-muted/50">
+							<TableHead className="min-w-[300px]">
 								Cible (Package & Projet)
-							</th>
-							<th className="px-6 py-3 text-center font-semibold">
+							</TableHead>
+							<TableHead className="text-center">
 								Impact & SLA
-							</th>
-							<th className="px-6 py-3 text-center font-semibold">
+							</TableHead>
+							<TableHead className="text-center">
 								Patch Recommandé
-							</th>
-							<th className="px-6 py-3 text-right font-semibold">Actions</th>
-						</tr>
-					</thead>
-					<tbody className="divide-y divide-border dark:divide-white/5">
+							</TableHead>
+							<TableHead className="text-right">Actions</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
 						{paginatedGroups.map((group) => {
 							return (
 								<React.Fragment key={group.key}>
-									<tr
-										className={`cursor-pointer transition-colors border-border dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/[0.02] ${group.hasConfirmed ? "bg-red-500/5 dark:bg-red-950/30" : ""}`}
+									<TableRow
+										className={`cursor-pointer ${group.hasConfirmed ? "bg-red-500/5 dark:bg-red-950/30 hover:bg-red-500/10 dark:hover:bg-red-950/40" : ""}`}
 										onClick={() => setSelectedGroup(group)}
 									>
-										<td className="px-4 md:px-6 py-2.5 sticky left-0 bg-white/50 dark:bg-white/5 backdrop-blur z-10 border-r border-border dark:border-white/10 whitespace-nowrap">
+										<TableCell className="whitespace-nowrap">
 											<div className="flex items-center gap-3">
 												<div
 													className={`p-1.5 rounded-lg border ${group.hasConfirmed ? "bg-red-500/20 border-red-500 text-red-500" : SEVERITY_COLORS[group.worstSeverity]} shadow-sm`}
@@ -101,9 +109,9 @@ export function TriageTable({
 													</div>
 												</div>
 											</div>
-										</td>
+										</TableCell>
 
-										<td className="px-4 md:px-6 py-2.5 text-center whitespace-nowrap">
+										<TableCell className="text-center whitespace-nowrap">
 											<div className="flex flex-col items-center gap-2">
 												<div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black/5 dark:bg-black/20 border border-border dark:border-white/5 rounded-md text-xs shadow-inner">
 													<span className="font-bold flex items-center gap-1.5 text-foreground/90">
@@ -141,9 +149,9 @@ export function TriageTable({
 													)}
 												</div>
 											</div>
-										</td>
+										</TableCell>
 
-										<td className="px-4 md:px-6 py-2.5 text-center whitespace-nowrap">
+										<TableCell className="text-center whitespace-nowrap">
 											<div className="flex flex-col items-center justify-center h-full">
 												{group.targetPatch ? (
 													<span className="font-mono text-xs font-bold text-green-400 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20 shadow-sm flex items-center gap-1">
@@ -155,8 +163,9 @@ export function TriageTable({
 													</span>
 												)}
 											</div>
-										</td>
-										<td className="px-4 md:px-6 py-2.5 text-right whitespace-nowrap">
+										</TableCell>
+										<TableCell className="text-right whitespace-nowrap">
+											<div className="flex flex-col items-end justify-center h-full">
 											<button
 												onClick={(e) => createTicket(e, group)}
 												className="px-2.5 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors inline-flex items-center gap-2 text-xs font-semibold"
@@ -177,16 +186,17 @@ export function TriageTable({
 													</a>
 												</div>
 											)}
-										</td>
-									</tr>
+											</div>
+										</TableCell>
+									</TableRow>
 								</React.Fragment>
 							);
 						})}
-					</tbody>
+					</TableBody>
 					{(totalPages > 1 || totalItems > 10) && (
-						<tfoot className="border-t border-border dark:border-white/10 bg-black/5 dark:bg-black/20">
-							<tr>
-								<td colSpan={4} className="px-6 py-3">
+						<TableFooter className="bg-muted/50 border-t">
+							<TableRow className="hover:bg-muted/50">
+								<TableCell colSpan={4} className="py-3">
 									<div className="flex items-center justify-between">
 										<div className="flex items-center gap-4">
 											<span className="text-sm text-muted-foreground">
@@ -239,12 +249,11 @@ export function TriageTable({
 											</button>
 										</div>
 									</div>
-								</td>
-							</tr>
-						</tfoot>
+								</TableCell>
+							</TableRow>
+						</TableFooter>
 					)}
-				</table>
-			</div>
+				</Table>
 		</div>
 	);
 }

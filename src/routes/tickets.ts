@@ -82,6 +82,7 @@ export const ticketsRoutes = {
 			const project = getSetting("JIRA_PROJECT", "");
 			const component = getSetting("JIRA_COMPONENT", "");
 			const issueType = getSetting("JIRA_ISSUE_TYPE", "Task");
+			const parentEpic = getSetting("JIRA_PARENT_EPIC", "");
 
 			if (!user || !apiKey || !project) {
 				return Response.json(
@@ -158,6 +159,10 @@ export const ticketsRoutes = {
 					issuetype: { name: issueType },
 				},
 			};
+
+			if (parentEpic) {
+				issueData.fields.parent = { key: parentEpic };
+			}
 
 			if (component) {
 				issueData.fields.components = [{ id: component }];

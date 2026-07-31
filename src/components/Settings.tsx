@@ -23,6 +23,7 @@ export function Settings() {
 		JIRA_PROJECT: "",
 		JIRA_COMPONENT: "",
 		JIRA_ISSUE_TYPE: "Task",
+		JIRA_PARENT_EPIC: "",
 		GITHUB_RL_LIMIT: "",
 		GITHUB_RL_REMAINING: "",
 		GITHUB_RL_RESET: "",
@@ -63,6 +64,7 @@ export function Settings() {
 					JIRA_PROJECT: data.JIRA_PROJECT || "",
 					JIRA_COMPONENT: data.JIRA_COMPONENT || "",
 					JIRA_ISSUE_TYPE: data.JIRA_ISSUE_TYPE || "Task",
+					JIRA_PARENT_EPIC: data.JIRA_PARENT_EPIC || "",
 					GITHUB_RL_LIMIT: data.GITHUB_RL_LIMIT || "",
 					GITHUB_RL_REMAINING: data.GITHUB_RL_REMAINING || "",
 					GITHUB_RL_RESET: data.GITHUB_RL_RESET || "",
@@ -413,6 +415,23 @@ export function Settings() {
 									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
 									placeholder="Task ou Bug"
 								/>
+							</div>
+							<div className="flex flex-col gap-2">
+								<label className="text-sm font-bold">
+									Epic Parente (Clé)
+								</label>
+								<input
+									type="text"
+									value={settings.JIRA_PARENT_EPIC}
+									onChange={(e) =>
+										setSettings({ ...settings, JIRA_PARENT_EPIC: e.target.value })
+									}
+									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors uppercase"
+									placeholder="SEC-42"
+								/>
+								<p className="text-xs text-muted-foreground">
+									Les tickets créés seront automatiquement rattachés à cette Epic.
+								</p>
 							</div>
 						</div>
 						

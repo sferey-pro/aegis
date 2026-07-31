@@ -126,11 +126,13 @@ export function CveDetailsModal({
 									{cveObj.ageInDays !== undefined && (
 										<span
 											className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${
-												cveObj.ageInDays > 30
-													? "bg-red-500/10 text-red-400 border-red-500/20"
-													: cveObj.ageInDays > 15
-														? "bg-orange-500/10 text-orange-400 border-orange-500/20"
-														: "bg-white/5 text-muted-foreground border-white/10"
+												cveObj.isBaseline
+													? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+													: cveObj.ageInDays > 30
+														? "bg-red-500/10 text-red-400 border-red-500/20"
+														: cveObj.ageInDays > 15
+															? "bg-orange-500/10 text-orange-400 border-orange-500/20"
+															: "bg-white/5 text-muted-foreground border-white/10"
 											}`}
 											title={
 												cveObj.publishedAt
@@ -140,7 +142,7 @@ export function CveDetailsModal({
 														: "Âge SLA"
 											}
 										>
-											<Clock className="w-3 h-3" /> SLA {cveObj.ageInDays}j
+											<Clock className="w-3 h-3" /> {cveObj.isBaseline ? "Dette" : "SLA"} {cveObj.ageInDays}j
 										</span>
 									)}
 									{cveObj.fixedIn && (

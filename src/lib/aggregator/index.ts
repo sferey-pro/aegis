@@ -41,7 +41,8 @@ export interface CveGroup {
 	worst: Severity;
 	occurrences: CveOccurrence[];
 	cvssVector?: string | null;
-	maxAgeInDays?: number;
+	maxBaselineAgeInDays?: number;
+	maxSlaAgeInDays?: number;
 	hasBaseline?: boolean;
 	hasNetDiscovery?: boolean;
 }
@@ -128,7 +129,8 @@ export function buildCveGroups(): CveGroup[] {
 					worst: vuln.severity,
 					occurrences: [occurrence],
 					cvssVector: vuln.cvssVector || null,
-					maxAgeInDays: occurrence.ageInDays || 0,
+					maxBaselineAgeInDays: occurrence.isBaseline ? (occurrence.ageInDays || 0) : 0,
+					maxSlaAgeInDays: !occurrence.isBaseline ? (occurrence.ageInDays || 0) : 0,
 					hasBaseline: !!occurrence.isBaseline,
 					hasNetDiscovery: !occurrence.isBaseline,
 				});
@@ -138,19 +140,21 @@ export function buildCveGroups(): CveGroup[] {
 				if (SEV_ORDER[vuln.severity] < SEV_ORDER[existingGroup.worst]) {
 					existingGroup.worst = vuln.severity;
 				}
-				if (
-					occurrence.ageInDays &&
-					occurrence.ageInDays > (existingGroup.maxAgeInDays || 0)
-				) {
-					existingGroup.maxAgeInDays = occurrence.ageInDays;
-				}
-				if (!existingGroup.cvssVector && vuln.cvssVector) {
-					existingGroup.cvssVector = vuln.cvssVector;
-				}
+				const occAge = occurrence.ageInDays || 0;
 				if (occurrence.isBaseline) {
 					existingGroup.hasBaseline = true;
+					if (occAge > (existingGroup.maxBaselineAgeInDays || 0)) {
+						existingGroup.maxBaselineAgeInDays = occAge;
+					}
 				} else {
 					existingGroup.hasNetDiscovery = true;
+					if (occAge > (existingGroup.maxSlaAgeInDays || 0)) {
+						existingGroup.maxSlaAgeInDays = occAge;
+					}
+				}
+
+				if (!existingGroup.cvssVector && vuln.cvssVector) {
+					existingGroup.cvssVector = vuln.cvssVector;
 				}
 			}
 		}

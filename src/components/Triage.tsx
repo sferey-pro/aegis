@@ -112,7 +112,10 @@ export function Triage({
 						worstSeverity: occ.severity,
 						pendingCount: 0,
 						hasConfirmed: false,
-						maxAgeInDays: 0,
+						maxBaselineAgeInDays: 0,
+						maxSlaAgeInDays: 0,
+						hasBaseline: false,
+						hasNetDiscovery: false,
 						targetPatch: null as string | null,
 					});
 				}
@@ -123,8 +126,17 @@ export function Triage({
 				) {
 					g.targetPatch = occ.fixedIn;
 				}
-				if (occ.ageInDays !== undefined && occ.ageInDays > g.maxAgeInDays) {
-					g.maxAgeInDays = occ.ageInDays;
+				const occAge = occ.ageInDays || 0;
+				if (occ.isBaseline) {
+					g.hasBaseline = true;
+					if (occAge > g.maxBaselineAgeInDays) {
+						g.maxBaselineAgeInDays = occAge;
+					}
+				} else {
+					g.hasNetDiscovery = true;
+					if (occAge > g.maxSlaAgeInDays) {
+						g.maxSlaAgeInDays = occAge;
+					}
 				}
 				if (
 					(SEV_ORDER[occ.severity] ?? -1) > (SEV_ORDER[g.worstSeverity] ?? -1)
@@ -148,6 +160,7 @@ export function Triage({
 					ageInDays: occ.ageInDays,
 					firstSeenAt: occ.firstSeenAt,
 					publishedAt: occ.publishedAt,
+					isBaseline: occ.isBaseline,
 				});
 			});
 		});

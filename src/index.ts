@@ -32,6 +32,9 @@ export const server = serve({
 		...annotationsRoutes,
 		...auditRoutes,
 
+		// Serve static assets
+		"/aegis-logo.jpg": Bun.file("src/aegis-logo.jpg"),
+
 		// Serve index.html for all unmatched routes.
 		"/*": index,
 	},

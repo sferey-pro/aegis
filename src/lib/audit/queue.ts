@@ -46,7 +46,7 @@ export async function runSingleAudit(projectId: number, force = false) {
 	}
 	isProcessing = true;
 	currentProject = projectId;
-	
+
 	try {
 		return await runAudit(projectId, force);
 	} finally {

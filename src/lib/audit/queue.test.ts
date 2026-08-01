@@ -25,14 +25,16 @@ describe("Engine: Audit Queue", () => {
 
 	test("runSingleAudit sets status and locks queue", async () => {
 		const promise = runSingleAudit(42, true);
-		
+
 		// Immediately check status
 		const status = getAuditStatus();
 		expect(status.isRunning).toBe(true);
 		expect(status.currentProject).toBe(42);
 
 		// Second call should fail
-		expect(runSingleAudit(43, false)).rejects.toThrow("Un audit est déjà en cours");
+		expect(runSingleAudit(43, false)).rejects.toThrow(
+			"Un audit est déjà en cours",
+		);
 
 		await promise;
 
@@ -54,8 +56,10 @@ describe("Engine: Audit Queue", () => {
 		expect(status.progress).toBe(0);
 
 		// Global enqueue again should fail
-		expect(() => enqueueGlobalAudit([4, 5])).toThrow("Un audit est déjà en cours");
-		
+		expect(() => enqueueGlobalAudit([4, 5])).toThrow(
+			"Un audit est déjà en cours",
+		);
+
 		// Wait for processing to finish
 		// Since enqueueGlobalAudit is fire-and-forget, we wait a bit
 		await new Promise((r) => setTimeout(r, 50));

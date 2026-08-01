@@ -211,9 +211,7 @@ export function Reports() {
 														);
 													setSelectedReports([...selectedReports, ...newIds]);
 												} else {
-													const pageIds = currentReports.map(
-														(r: any) => r.id,
-													);
+													const pageIds = currentReports.map((r: any) => r.id);
 													setSelectedReports(
 														selectedReports.filter(
 															(id) => !pageIds.includes(id),
@@ -235,7 +233,9 @@ export function Reports() {
 									<TableRow
 										key={r.id}
 										className="group"
-										data-state={selectedReports.includes(r.id) ? "selected" : undefined}
+										data-state={
+											selectedReports.includes(r.id) ? "selected" : undefined
+										}
 									>
 										<TableCell>
 											<input
@@ -254,70 +254,70 @@ export function Reports() {
 											/>
 										</TableCell>
 										<TableCell>
-												<div className="flex items-center gap-3">
-													<div className="p-2 bg-primary/10 rounded-lg text-primary">
-														<Calendar className="w-4 h-4" />
-													</div>
-													<span className="font-bold">
-														{new Date(r.created_at + "Z").toLocaleString(
-															"fr-FR",
-															{
-																day: "2-digit",
-																month: "short",
-																year: "numeric",
-																hour: "2-digit",
-																minute: "2-digit",
-															},
-														)}
+											<div className="flex items-center gap-3">
+												<div className="p-2 bg-primary/10 rounded-lg text-primary">
+													<Calendar className="w-4 h-4" />
+												</div>
+												<span className="font-bold">
+													{new Date(r.created_at + "Z").toLocaleString(
+														"fr-FR",
+														{
+															day: "2-digit",
+															month: "short",
+															year: "numeric",
+															hour: "2-digit",
+															minute: "2-digit",
+														},
+													)}
+												</span>
+											</div>
+										</TableCell>
+										<TableCell>
+											<span className="text-muted-foreground font-medium">
+												{r.projects_audited} analysés
+											</span>
+										</TableCell>
+										<TableCell>
+											<div className="flex items-center gap-4">
+												<div className="flex items-center gap-1.5">
+													<Shield className="w-4 h-4 text-primary" />
+													<span className="text-xl font-light">
+														{r.total_vulnerabilities}
 													</span>
 												</div>
-										</TableCell>
-										<TableCell>
-												<span className="text-muted-foreground font-medium">
-													{r.projects_audited} analysés
-												</span>
-										</TableCell>
-										<TableCell>
-												<div className="flex items-center gap-4">
-													<div className="flex items-center gap-1.5">
-														<Shield className="w-4 h-4 text-primary" />
-														<span className="text-xl font-light">
-															{r.total_vulnerabilities}
+												{r.counts.critical > 0 && (
+													<div className="flex items-center gap-1.5 text-red-400">
+														<Activity className="w-4 h-4" />
+														<span className="font-bold">
+															{r.counts.critical} Crit.
 														</span>
 													</div>
-													{r.counts.critical > 0 && (
-														<div className="flex items-center gap-1.5 text-red-400">
-															<Activity className="w-4 h-4" />
-															<span className="font-bold">
-																{r.counts.critical} Crit.
-															</span>
-														</div>
-													)}
-												</div>
+												)}
+											</div>
 										</TableCell>
 										<TableCell>
-												<div className="flex flex-wrap gap-2">
-													{r.counts.high > 0 && (
-														<span className="text-xs px-2.5 py-0.5 font-medium bg-orange-500/10 text-orange-500 rounded-full border border-orange-500/20">
-															{r.counts.high} Haut
-														</span>
-													)}
-													{r.counts.moderate > 0 && (
-														<span className="text-xs px-2.5 py-0.5 font-medium bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20">
-															{r.counts.moderate} Modéré
-														</span>
-													)}
-													{r.counts.low > 0 && (
-														<span className="text-xs px-2.5 py-0.5 font-medium bg-green-500/10 text-green-500 rounded-full border border-green-500/20">
-															{r.counts.low} Bas
-														</span>
-													)}
-													{r.total_vulnerabilities === 0 && (
-														<span className="text-xs text-muted-foreground">
-															Aucune faille détectée
-														</span>
-													)}
-												</div>
+											<div className="flex flex-wrap gap-2">
+												{r.counts.high > 0 && (
+													<span className="text-xs px-2.5 py-0.5 font-medium bg-orange-500/10 text-orange-500 rounded-full border border-orange-500/20">
+														{r.counts.high} Haut
+													</span>
+												)}
+												{r.counts.moderate > 0 && (
+													<span className="text-xs px-2.5 py-0.5 font-medium bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20">
+														{r.counts.moderate} Modéré
+													</span>
+												)}
+												{r.counts.low > 0 && (
+													<span className="text-xs px-2.5 py-0.5 font-medium bg-green-500/10 text-green-500 rounded-full border border-green-500/20">
+														{r.counts.low} Bas
+													</span>
+												)}
+												{r.total_vulnerabilities === 0 && (
+													<span className="text-xs text-muted-foreground">
+														Aucune faille détectée
+													</span>
+												)}
+											</div>
 										</TableCell>
 										<TableCell className="text-right">
 											<div className="flex items-center justify-end gap-1">

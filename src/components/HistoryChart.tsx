@@ -1,13 +1,12 @@
 import { Loader2, TrendingDown } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
-	Area,
-	AreaChart,
-	CartesianGrid,
-	XAxis,
-	YAxis,
-} from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "./ui/chart";
+	ChartContainer,
+	ChartTooltip,
+	ChartTooltipContent,
+	type ChartConfig,
+} from "./ui/chart";
 import {
 	Select,
 	SelectContent,
@@ -79,8 +78,6 @@ export function HistoryChart() {
 		);
 	}
 
-
-
 	return (
 		<div className="glass-panel w-full p-6 rounded-2xl">
 			<div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -117,20 +114,52 @@ export function HistoryChart() {
 					>
 						<defs>
 							<linearGradient id="colorCritical" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="5%" stopColor="var(--color-critical)" stopOpacity={0.3} />
-								<stop offset="95%" stopColor="var(--color-critical)" stopOpacity={0} />
+								<stop
+									offset="5%"
+									stopColor="var(--color-critical)"
+									stopOpacity={0.3}
+								/>
+								<stop
+									offset="95%"
+									stopColor="var(--color-critical)"
+									stopOpacity={0}
+								/>
 							</linearGradient>
 							<linearGradient id="colorHigh" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="5%" stopColor="var(--color-high)" stopOpacity={0.3} />
-								<stop offset="95%" stopColor="var(--color-high)" stopOpacity={0} />
+								<stop
+									offset="5%"
+									stopColor="var(--color-high)"
+									stopOpacity={0.3}
+								/>
+								<stop
+									offset="95%"
+									stopColor="var(--color-high)"
+									stopOpacity={0}
+								/>
 							</linearGradient>
 							<linearGradient id="colorMod" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="5%" stopColor="var(--color-moderate)" stopOpacity={0.3} />
-								<stop offset="95%" stopColor="var(--color-moderate)" stopOpacity={0} />
+								<stop
+									offset="5%"
+									stopColor="var(--color-moderate)"
+									stopOpacity={0.3}
+								/>
+								<stop
+									offset="95%"
+									stopColor="var(--color-moderate)"
+									stopOpacity={0}
+								/>
 							</linearGradient>
 							<linearGradient id="colorLow" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="5%" stopColor="var(--color-low)" stopOpacity={0.3} />
-								<stop offset="95%" stopColor="var(--color-low)" stopOpacity={0} />
+								<stop
+									offset="5%"
+									stopColor="var(--color-low)"
+									stopOpacity={0.3}
+								/>
+								<stop
+									offset="95%"
+									stopColor="var(--color-low)"
+									stopOpacity={0}
+								/>
 							</linearGradient>
 						</defs>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -140,10 +169,7 @@ export function HistoryChart() {
 							axisLine={false}
 							tickLine={false}
 						/>
-						<YAxis
-							axisLine={false}
-							tickLine={false}
-						/>
+						<YAxis axisLine={false} tickLine={false} />
 						<ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
 						<Area
 							type="monotone"

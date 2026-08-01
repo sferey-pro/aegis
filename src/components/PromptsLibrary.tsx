@@ -194,16 +194,10 @@ export function PromptsLibrary() {
 						</div>
 
 						<div className="flex justify-end gap-3 mt-4">
-							<Button
-								type="button"
-								variant="secondary"
-								onClick={resetForm}
-							>
+							<Button type="button" variant="secondary" onClick={resetForm}>
 								Annuler
 							</Button>
-							<Button
-								type="submit"
-							>
+							<Button type="submit">
 								{editingId ? "Enregistrer" : "Créer le prompt"}
 							</Button>
 						</div>

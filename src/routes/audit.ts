@@ -8,7 +8,7 @@ export const auditRoutes = {
 		async POST() {
 			const projects = listProjects().filter((p) => !p.ignored);
 			try {
-				enqueueGlobalAudit(projects.map(p => p.id));
+				enqueueGlobalAudit(projects.map((p) => p.id));
 				return Response.json({ status: "started", count: projects.length });
 			} catch (e: any) {
 				return Response.json({ error: e.message }, { status: 429 });
@@ -26,10 +26,16 @@ export const auditRoutes = {
 		async POST(req: any) {
 			const expectedToken = process.env.AEGIS_INGEST_TOKEN;
 			if (!expectedToken) {
-				return Response.json({ error: "Configuration manquante: AEGIS_INGEST_TOKEN" }, { status: 500 });
+				return Response.json(
+					{ error: "Configuration manquante: AEGIS_INGEST_TOKEN" },
+					{ status: 500 },
+				);
 			}
 			const tokenHeader = req.headers.get("X-Aegis-Token") || "";
-			if (tokenHeader.length !== expectedToken.length || !timingSafeEqual(Buffer.from(tokenHeader), Buffer.from(expectedToken))) {
+			if (
+				tokenHeader.length !== expectedToken.length ||
+				!timingSafeEqual(Buffer.from(tokenHeader), Buffer.from(expectedToken))
+			) {
 				return Response.json({ error: "Non autorisé" }, { status: 401 });
 			}
 

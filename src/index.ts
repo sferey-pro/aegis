@@ -33,7 +33,11 @@ export const server = serve({
 		...auditRoutes,
 
 		// Serve static assets
-		"/aegis-logo.jpg": Bun.file("src/aegis-logo.jpg"),
+		"/aegis-logo.jpg": {
+			GET() {
+				return new Response(Bun.file("src/aegis-logo.jpg"));
+			},
+		},
 
 		// Serve index.html for all unmatched routes.
 		"/*": index,

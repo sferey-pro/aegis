@@ -36,12 +36,18 @@ export function TicketModal({
 				</div>
 
 				<div className="text-sm text-muted-foreground mb-4">
-					Un ticket Jira va être créé pour le package <span className="font-bold text-foreground">{ticketModal.group?.package}</span> ({ticketModal.group?.cves?.length} vulnérabilités).
+					Un ticket Jira va être créé pour le package{" "}
+					<span className="font-bold text-foreground">
+						{ticketModal.group?.package}
+					</span>{" "}
+					({ticketModal.group?.cves?.length} vulnérabilités).
 				</div>
 
 				<div className="flex-1 overflow-auto flex flex-col gap-4">
 					<div>
-						<label className="block text-sm font-medium mb-2">Notes additionnelles / Recommandations</label>
+						<label className="block text-sm font-medium mb-2">
+							Notes additionnelles / Recommandations
+						</label>
 						<textarea
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
@@ -49,9 +55,11 @@ export function TicketModal({
 							className="w-full bg-black/5 dark:bg-black/50 rounded-xl border border-black/10 dark:border-white/5 p-4 relative font-sans text-sm outline-none focus:border-blue-500/50 transition-colors min-h-[120px]"
 						/>
 					</div>
-					
+
 					<div>
-						<label className="block text-sm font-medium mb-2">Aperçu du contenu (Markdown pour copie manuelle)</label>
+						<label className="block text-sm font-medium mb-2">
+							Aperçu du contenu (Markdown pour copie manuelle)
+						</label>
 						<div className="w-full overflow-auto bg-black/5 dark:bg-black/50 rounded-xl border border-black/10 dark:border-white/5 p-4 text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-[150px]">
 							{ticketModal.md}
 						</div>
@@ -109,7 +117,8 @@ export function TicketModal({
 										isOpen: true,
 										type: "error",
 										title: "Erreur",
-										message: data.error || "Erreur lors de la création du ticket.",
+										message:
+											data.error || "Erreur lors de la création du ticket.",
 									});
 								}
 							} catch (err: any) {
@@ -138,4 +147,3 @@ export function TicketModal({
 		</div>
 	);
 }
-

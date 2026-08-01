@@ -46,7 +46,9 @@ export const settingsRoutes = {
 
 			const projectIdMap = new Map<number, number>(); // old -> new
 			if (body.projects && Array.isArray(body.projects)) {
-				const { createProject, getProjectBySlug, updateProject } = await import("../db/projects");
+				const { createProject, getProjectBySlug, updateProject } = await import(
+					"../db/projects"
+				);
 				for (const p of body.projects) {
 					const existing = getProjectBySlug(p.slug);
 					if (existing) {
@@ -68,7 +70,7 @@ export const settingsRoutes = {
 						upsertAnnotation(a.cve, targetId, {
 							status: a.status,
 							note: a.note,
-							fixedIn: a.fixed_in
+							fixedIn: a.fixed_in,
 						});
 					}
 				}

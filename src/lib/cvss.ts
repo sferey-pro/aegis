@@ -95,7 +95,7 @@ const METRICS: Record<
 
 export function parseCvssVector(vector: string): Record<string, CvssMetric[]> {
 	const parts = vector.split("/");
-	
+
 	const metrics = parts.slice(1);
 
 	const groups: Record<string, CvssMetric[]> = {};

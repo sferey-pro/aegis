@@ -142,7 +142,8 @@ export function CveDetailsModal({
 														: "Âge SLA"
 											}
 										>
-											<Clock className="w-3 h-3" /> {cveObj.isBaseline ? "Dette" : "SLA"} {cveObj.ageInDays}j
+											<Clock className="w-3 h-3" />{" "}
+											{cveObj.isBaseline ? "Dette" : "SLA"} {cveObj.ageInDays}j
 										</span>
 									)}
 									{cveObj.fixedIn && (

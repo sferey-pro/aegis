@@ -37,7 +37,10 @@ export function Settings() {
 	const [saveSuccess, setSaveSuccess] = useState(false);
 
 	const [testJiraLoading, setTestJiraLoading] = useState(false);
-	const [testJiraMessage, setTestJiraMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+	const [testJiraMessage, setTestJiraMessage] = useState<{
+		text: string;
+		type: "success" | "error";
+	} | null>(null);
 
 	// Backup states
 	const [backupLoading, setBackupLoading] = useState(false);
@@ -139,7 +142,10 @@ export function Settings() {
 			});
 			const data = await res.json();
 			if (data.success) {
-				setBackupMessage({ text: "Configuration importée avec succès. Veuillez rafraîchir la page.", type: "success" });
+				setBackupMessage({
+					text: "Configuration importée avec succès. Veuillez rafraîchir la page.",
+					type: "success",
+				});
 			} else {
 				throw new Error(data.error || "Erreur lors de l'import");
 			}
@@ -161,14 +167,20 @@ export function Settings() {
 				body: JSON.stringify({
 					baseUrl: settings.JIRA_BASE_URL,
 					user: settings.JIRA_USER,
-					apiKey: settings.JIRA_API_KEY
+					apiKey: settings.JIRA_API_KEY,
 				}),
 			});
 			const data = await res.json();
 			if (data.success) {
-				setTestJiraMessage({ text: `Connexion réussie ! (Bonjour ${data.user})`, type: "success" });
+				setTestJiraMessage({
+					text: `Connexion réussie ! (Bonjour ${data.user})`,
+					type: "success",
+				});
 			} else {
-				setTestJiraMessage({ text: data.error || "Erreur de connexion", type: "error" });
+				setTestJiraMessage({
+					text: data.error || "Erreur de connexion",
+					type: "error",
+				});
 			}
 		} catch (err: any) {
 			setTestJiraMessage({ text: err.message, type: "error" });
@@ -442,42 +454,58 @@ export function Settings() {
 									type="text"
 									value={settings.JIRA_ISSUE_TYPE}
 									onChange={(e) =>
-										setSettings({ ...settings, JIRA_ISSUE_TYPE: e.target.value })
+										setSettings({
+											...settings,
+											JIRA_ISSUE_TYPE: e.target.value,
+										})
 									}
 									placeholder="Task ou Bug"
 								/>
 							</div>
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-bold">
-									Epic Parente (Clé)
-								</label>
+								<label className="text-sm font-bold">Epic Parente (Clé)</label>
 								<Input
 									type="text"
 									value={settings.JIRA_PARENT_EPIC}
 									onChange={(e) =>
-										setSettings({ ...settings, JIRA_PARENT_EPIC: e.target.value })
+										setSettings({
+											...settings,
+											JIRA_PARENT_EPIC: e.target.value,
+										})
 									}
 									className="uppercase"
 									placeholder="SEC-42"
 								/>
 								<p className="text-xs text-muted-foreground">
-									Les tickets créés seront automatiquement rattachés à cette Epic.
+									Les tickets créés seront automatiquement rattachés à cette
+									Epic.
 								</p>
 							</div>
 						</div>
-						
+
 						<div className="flex items-center gap-4 mt-2">
 							<Button
 								type="button"
 								variant="secondary"
 								onClick={handleTestJira}
-								disabled={testJiraLoading || !settings.JIRA_BASE_URL || !settings.JIRA_USER || !settings.JIRA_API_KEY}
+								disabled={
+									testJiraLoading ||
+									!settings.JIRA_BASE_URL ||
+									!settings.JIRA_USER ||
+									!settings.JIRA_API_KEY
+								}
 							>
-								{testJiraLoading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+								{testJiraLoading ? (
+									<RefreshCw className="w-4 h-4 animate-spin mr-2" />
+								) : (
+									<RefreshCw className="w-4 h-4 mr-2" />
+								)}
 								Tester la connexion Jira
 							</Button>
 							{testJiraMessage && (
-								<span className={`text-sm font-medium ${testJiraMessage.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+								<span
+									className={`text-sm font-medium ${testJiraMessage.type === "success" ? "text-green-500" : "text-red-500"}`}
+								>
 									{testJiraMessage.text}
 								</span>
 							)}
@@ -552,14 +580,25 @@ export function Settings() {
 							lisible.
 						</p>
 						<div className="flex gap-3 mt-2">
-							<input type="file" accept=".json" className="hidden" ref={fileInputRef} onChange={handleImportJSON} />
+							<input
+								type="file"
+								accept=".json"
+								className="hidden"
+								ref={fileInputRef}
+								onChange={handleImportJSON}
+							/>
 							<Button
 								type="button"
 								variant="secondary"
 								onClick={() => fileInputRef.current?.click()}
 								disabled={importLoading}
 							>
-								{importLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />} Importer JSON
+								{importLoading ? (
+									<RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+								) : (
+									<Upload className="w-4 h-4 mr-2" />
+								)}{" "}
+								Importer JSON
 							</Button>
 							<Button
 								type="button"

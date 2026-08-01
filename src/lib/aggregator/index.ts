@@ -109,17 +109,18 @@ export function buildCveGroups(): CveGroup[] {
 				publishedAt: vuln.publishedAt,
 				firstSeenAt: vuln.firstSeenAt,
 				isBaseline: vuln.isBaseline,
-				ageInDays: (vuln.isBaseline && vuln.publishedAt)
-					? Math.floor(
-							(Date.now() - new Date(vuln.publishedAt).getTime()) /
-								(1000 * 3600 * 24),
-						)
-					: vuln.firstSeenAt
+				ageInDays:
+					vuln.isBaseline && vuln.publishedAt
 						? Math.floor(
-								(Date.now() - new Date(vuln.firstSeenAt).getTime()) /
+								(Date.now() - new Date(vuln.publishedAt).getTime()) /
 									(1000 * 3600 * 24),
 							)
-						: 0,
+						: vuln.firstSeenAt
+							? Math.floor(
+									(Date.now() - new Date(vuln.firstSeenAt).getTime()) /
+										(1000 * 3600 * 24),
+								)
+							: 0,
 			};
 
 			if (!groups.has(groupKey)) {
@@ -129,8 +130,12 @@ export function buildCveGroups(): CveGroup[] {
 					worst: vuln.severity,
 					occurrences: [occurrence],
 					cvssVector: vuln.cvssVector || null,
-					maxBaselineAgeInDays: occurrence.isBaseline ? (occurrence.ageInDays || 0) : 0,
-					maxSlaAgeInDays: !occurrence.isBaseline ? (occurrence.ageInDays || 0) : 0,
+					maxBaselineAgeInDays: occurrence.isBaseline
+						? occurrence.ageInDays || 0
+						: 0,
+					maxSlaAgeInDays: !occurrence.isBaseline
+						? occurrence.ageInDays || 0
+						: 0,
 					hasBaseline: !!occurrence.isBaseline,
 					hasNetDiscovery: !occurrence.isBaseline,
 				});

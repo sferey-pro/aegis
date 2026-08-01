@@ -24,7 +24,7 @@ export function saveTicket(
 	pkg: string,
 	url: string,
 	cves: string[],
-	contentHash?: string | null
+	contentHash?: string | null,
 ) {
 	const db = getDb();
 	db.query(`
@@ -40,7 +40,9 @@ export function saveTicket(
 
 export function getTicketByHash(hash: string): Ticket | undefined {
 	const db = getDb();
-	const row = db.query(`SELECT * FROM tickets WHERE content_hash = ?`).get(hash) as any;
+	const row = db
+		.query(`SELECT * FROM tickets WHERE content_hash = ?`)
+		.get(hash) as any;
 	if (!row) return undefined;
 	return {
 		...row,

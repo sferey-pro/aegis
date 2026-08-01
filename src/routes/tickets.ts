@@ -1,5 +1,17 @@
 import { buildCveGroups } from "../lib/aggregator";
-import { doc, heading, paragraph, text, strong, table, tableRow, tableHeader, tableCell, panel, link } from "@atlaskit/adf-utils/builders";
+import {
+	doc,
+	heading,
+	paragraph,
+	text,
+	strong,
+	table,
+	tableRow,
+	tableHeader,
+	tableCell,
+	panel,
+	link,
+} from "@atlaskit/adf-utils/builders";
 
 export const ticketsRoutes = {
 	"/api/tickets": {
@@ -99,7 +111,11 @@ export const ticketsRoutes = {
 			const occurrences = [];
 			for (const g of groups) {
 				for (const occ of g.occurrences) {
-					if (occ.projectId === projectId && occ.package === packageName && cves.includes(g.cve)) {
+					if (
+						occ.projectId === projectId &&
+						occ.package === packageName &&
+						cves.includes(g.cve)
+					) {
 						occurrences.push({
 							cve: g.cve,
 							ref: g.ref,
@@ -111,7 +127,10 @@ export const ticketsRoutes = {
 			}
 
 			if (occurrences.length === 0) {
-				return Response.json({ error: "Aucune vulnérabilité trouvée pour ce package." }, { status: 404 });
+				return Response.json(
+					{ error: "Aucune vulnérabilité trouvée pour ce package." },
+					{ status: 404 },
+				);
 			}
 			const projectName = occurrences[0]!.projectName;
 			const tool = occurrences[0]!.tool;
@@ -120,7 +139,9 @@ export const ticketsRoutes = {
 			const adfDoc = doc(
 				heading({ level: 2 })(text(`Package : ${packageName}`)),
 				paragraph(
-					text("Projet affecté : "), strong(projectName), text(` (${tool})`)
+					text("Projet affecté : "),
+					strong(projectName),
+					text(` (${tool})`),
 				),
 				heading({ level: 3 })(text(`Vulnérabilités (${occurrences.length})`)),
 				table(
@@ -130,15 +151,21 @@ export const ticketsRoutes = {
 						tableHeader({})(paragraph(strong("Titre"))),
 						tableHeader({})(paragraph(strong("Correction"))),
 					]),
-					...occurrences.map(occ => 
+					...occurrences.map((occ) =>
 						tableRow([
 							tableCell({})(paragraph(text(occ.severity.toUpperCase()))),
-							tableCell({})(paragraph(occ.link ? link({ href: occ.link })(text(occ.ref || "N/A")) : text(occ.ref || "N/A"))),
+							tableCell({})(
+								paragraph(
+									occ.link
+										? link({ href: occ.link })(text(occ.ref || "N/A"))
+										: text(occ.ref || "N/A"),
+								),
+							),
 							tableCell({})(paragraph(text(occ.title || "N/A"))),
 							tableCell({})(paragraph(text(occ.fixedIn ? occ.fixedIn : "N/A"))),
-						])
-					)
-				)
+						]),
+					),
+				),
 			);
 
 			// Append notes if provided
@@ -146,8 +173,8 @@ export const ticketsRoutes = {
 				adfDoc.content.push(
 					panel({ panelType: "info" as any })(
 						paragraph(strong("Notes additionnelles / Recommandations :")),
-						paragraph(text(notes))
-					)
+						paragraph(text(notes)),
+					),
 				);
 			}
 
@@ -169,15 +196,20 @@ export const ticketsRoutes = {
 			}
 
 			const crypto = await import("crypto");
-			const contentHash = crypto.createHash("sha256").update(JSON.stringify(issueData)).digest("hex");
+			const contentHash = crypto
+				.createHash("sha256")
+				.update(JSON.stringify(issueData))
+				.digest("hex");
 
 			const { getTicketByHash } = await import("../db/tickets");
 			const existingTicket = getTicketByHash(contentHash);
-			
+
 			if (existingTicket) {
 				return Response.json(
-					{ error: `Un ticket identique existe déjà pour cette vulnérabilité (Réf: ${existingTicket.url}).` },
-					{ status: 409 }
+					{
+						error: `Un ticket identique existe déjà pour cette vulnérabilité (Réf: ${existingTicket.url}).`,
+					},
+					{ status: 409 },
 				);
 			}
 
@@ -211,7 +243,10 @@ export const ticketsRoutes = {
 			const { baseUrl, user, apiKey } = await req.json();
 
 			if (!baseUrl || !user || !apiKey) {
-				return Response.json({ error: "Paramètres manquants." }, { status: 400 });
+				return Response.json(
+					{ error: "Paramètres manquants." },
+					{ status: 400 },
+				);
 			}
 
 			const auth = Buffer.from(`${user}:${apiKey}`).toString("base64");
@@ -220,18 +255,24 @@ export const ticketsRoutes = {
 					headers: {
 						Authorization: `Basic ${auth}`,
 						"Content-Type": "application/json",
-					}
+					},
 				});
 
 				if (!response.ok) {
-					return Response.json({ success: false, error: `Statut HTTP ${response.status}` }, { status: 400 });
+					return Response.json(
+						{ success: false, error: `Statut HTTP ${response.status}` },
+						{ status: 400 },
+					);
 				}
-				
+
 				const data = await response.json();
 				return Response.json({ success: true, user: data.displayName });
 			} catch (e: any) {
-				return Response.json({ success: false, error: e.message }, { status: 400 });
+				return Response.json(
+					{ success: false, error: e.message },
+					{ status: 400 },
+				);
 			}
-		}
-	}
+		},
+	},
 };

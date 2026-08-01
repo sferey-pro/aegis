@@ -13,10 +13,10 @@ async function enhanceVulnerabilities(
 	projectId: number,
 	tool: any,
 	parsedVulns: any[],
-	isBaseline: boolean
+	isBaseline: boolean,
 ) {
 	const { resolveFixedVersion } = await import("../github");
-	
+
 	// Ensure occurrences to freeze first_seen_at
 	const occurrencesMap = ensureOccurrences(projectId, parsedVulns, isBaseline);
 
@@ -32,7 +32,10 @@ async function enhanceVulnerabilities(
 			});
 
 			const key = `${v.package}::${v.cve || v.package}`;
-			const occ = occurrencesMap.get(key) || { firstSeenAt: new Date().toISOString(), isBaseline: isBaseline };
+			const occ = occurrencesMap.get(key) || {
+				firstSeenAt: new Date().toISOString(),
+				isBaseline: isBaseline,
+			};
 
 			return {
 				...v,
@@ -63,7 +66,6 @@ async function enhanceVulnerabilities(
 
 	return { enhancedVulns, counts };
 }
-
 
 function getAuditMaxAgeHours(): number {
 	const db = getDb();
@@ -238,7 +240,7 @@ export async function runAudit(
 				projectId,
 				project.tool,
 				parsed.vulnerabilities,
-				isBaseline
+				isBaseline,
 			);
 
 			const successRun = addRun({
@@ -342,7 +344,7 @@ export async function ingestAudit(
 		projectId,
 		project.tool,
 		parsed.vulnerabilities,
-		isBaseline
+		isBaseline,
 	);
 
 	const run = addRun({

@@ -5,7 +5,6 @@ import {
 	LayoutDashboard,
 	Loader2,
 	Settings,
-	Shield,
 	Terminal,
 	Sun,
 	Moon
@@ -58,13 +57,13 @@ export function Header({
 		<header className="fixed top-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/50 shadow-sm flex items-center justify-between py-4 px-6 md:px-12 w-full">
 			<div className="flex items-center gap-2 select-none w-full max-w-7xl mx-auto justify-between">
 				<div
-					className="flex items-center gap-2 cursor-pointer"
+					className="flex items-center gap-3 cursor-pointer group"
 					onClick={() => setCurrentTab("overview")}
 				>
-					<div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 neon-glow">
-						<Shield className="w-5 h-5 text-primary" />
+					<div className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 overflow-hidden shadow-[0_0_15px_rgba(var(--primary),0.2)] group-hover:shadow-[0_0_20px_rgba(var(--primary),0.4)] transition-all">
+						<img src="/aegis-logo.jpg" alt="Aegis Logo" className="w-full h-full object-cover scale-110" />
 					</div>
-					<h1 className="text-2xl font-bold font-heading">Aegis</h1>
+					<h1 className="text-2xl font-bold font-heading tracking-tight">Aegis</h1>
 				</div>
 
 				<nav className="flex items-center gap-1.5 p-1.5 bg-secondary/50 dark:bg-black/20 backdrop-blur-md border border-border dark:border-white/5 rounded-2xl shadow-inner">

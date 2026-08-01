@@ -17,7 +17,7 @@ import { ticketsRoutes } from "./routes/tickets";
 getDb();
 
 export const server = serve({
-	port: process.env.PORT ? parseInt(process.env.PORT) : 3001,
+	port: process.env.AEGIS_PORT ? parseInt(process.env.AEGIS_PORT) : 3001,
 	hostname: process.env.HOST || "127.0.0.1",
 	routes: {
 		...consoleRoutes,

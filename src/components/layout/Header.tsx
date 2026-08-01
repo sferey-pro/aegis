@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
+import aegisLogo from "../../aegis-logo.jpg";
 
 export function Header({
 	currentTab,
@@ -61,7 +62,7 @@ export function Header({
 					onClick={() => setCurrentTab("overview")}
 				>
 					<div className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 overflow-hidden shadow-[0_0_15px_rgba(var(--primary),0.2)] group-hover:shadow-[0_0_20px_rgba(var(--primary),0.4)] transition-all">
-						<img src="/aegis-logo.jpg" alt="Aegis Logo" className="w-full h-full object-cover scale-110" />
+						<img src={aegisLogo} alt="Aegis Logo" className="w-full h-full object-cover scale-110" />
 					</div>
 					<h1 className="text-2xl font-bold font-heading tracking-tight">Aegis</h1>
 				</div>

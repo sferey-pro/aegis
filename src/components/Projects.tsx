@@ -35,7 +35,7 @@ import {
 	TableRow,
 } from "./ui/table";
 
-export function Projects({
+export const Projects = React.memo(function Projects({
 	onViewTriage,
 }: {
 	onViewTriage?: (id: number) => void;
@@ -1253,4 +1253,4 @@ export function Projects({
 			/>
 		</div>
 	);
-}
+});

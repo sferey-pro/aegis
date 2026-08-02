@@ -20,35 +20,34 @@ async function enhanceVulnerabilities(
 	// Ensure occurrences to freeze first_seen_at
 	const occurrencesMap = ensureOccurrences(projectId, parsedVulns, isBaseline);
 
-	const enhancedVulns = await Promise.all(
-		parsedVulns.map(async (v: any) => {
-			const res = await resolveFixedVersion({
-				tool: tool,
-				package: v.package,
-				cve: v.cve,
-				link: v.link,
-				versionRange: v.versionRange,
-				originalFixedIn: v.fixedIn,
-			});
+	const enhancedVulns = [];
+	for (const v of parsedVulns) {
+		const res = await resolveFixedVersion({
+			tool: tool,
+			package: v.package,
+			cve: v.cve,
+			link: v.link,
+			versionRange: v.versionRange,
+			originalFixedIn: v.fixedIn,
+		});
 
-			const key = `${v.package}::${v.cve || v.package}`;
-			const occ = occurrencesMap.get(key) || {
-				firstSeenAt: new Date().toISOString(),
-				isBaseline: isBaseline,
-			};
+		const key = `${v.package}::${v.cve || v.package}`;
+		const occ = occurrencesMap.get(key) || {
+			firstSeenAt: new Date().toISOString(),
+			isBaseline: isBaseline,
+		};
 
-			return {
-				...v,
-				firstSeenAt: occ.firstSeenAt,
-				isBaseline: occ.isBaseline,
-				publishedAt: res.published_at || null,
-				fixedIn: res.fixedIn,
-				severity: res.severity !== "unknown" ? res.severity : v.severity,
-				link: res.html_url || v.link,
-				cvssVector: res.cvss_vector || v.cvssVector || null,
-			};
-		}),
-	);
+		enhancedVulns.push({
+			...v,
+			firstSeenAt: occ.firstSeenAt,
+			isBaseline: occ.isBaseline,
+			publishedAt: res.published_at || null,
+			fixedIn: res.fixedIn,
+			severity: res.severity !== "unknown" ? res.severity : v.severity,
+			link: res.html_url || v.link,
+			cvssVector: res.cvss_vector || v.cvssVector || null,
+		});
+	}
 
 	const counts = {
 		critical: 0,

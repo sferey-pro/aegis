@@ -13,7 +13,7 @@ import { compareVersions, SEV_ORDER } from "./triage/constants";
 import { TicketModal } from "./triage/TicketModal";
 import { TriageTable } from "./triage/TriageTable";
 
-export function Triage({
+export const Triage = React.memo(function Triage({
 	projectId,
 	onClearProject,
 	cveFilter,
@@ -386,4 +386,4 @@ export function Triage({
 			)}
 		</div>
 	);
-}
+});

@@ -6,9 +6,10 @@ import {
 	GitBranch,
 	Shield,
 } from "lucide-react";
+import { memo } from "react";
 import { HistoryChart } from "../HistoryChart";
 
-export function Overview({
+export const Overview = memo(function Overview({
 	stats,
 	loading,
 	setTriageProjectId,
@@ -198,4 +199,4 @@ export function Overview({
 			<HistoryChart />
 		</main>
 	);
-}
+});

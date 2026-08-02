@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Console } from "./components/Console";
 import { GlobalLoader } from "./components/layout/GlobalLoader";
 import { Header } from "./components/layout/Header";
@@ -68,17 +68,15 @@ export function App() {
 			step++;
 			if (step < messages.length) {
 				setLoadingMessage(messages[step]!);
+			} else {
+				clearInterval(interval);
 			}
 		}, 500);
 
 		return () => clearInterval(interval);
 	}, []);
 
-	useEffect(() => {
-		fetchStats(true);
-	}, []);
-
-	const fetchStats = async (initial = false) => {
+	const fetchStats = useCallback(async (initial = false) => {
 		try {
 			let res;
 			if (initial) {
@@ -96,9 +94,13 @@ export function App() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
-	const handleRunAudit = async () => {
+	useEffect(() => {
+		fetchStats(true);
+	}, [fetchStats]);
+
+	const handleRunAudit = useCallback(async () => {
 		setAuditing(true);
 		setAuditProgress(null);
 		try {
@@ -170,7 +172,7 @@ export function App() {
 			setAuditing(false);
 			setAuditProgress(null);
 		}
-	};
+	}, [fetchStats]);
 
 	let syncDisplay = "Aucune synchronisation";
 	if (stats?.lastSync) {

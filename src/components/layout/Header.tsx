@@ -9,10 +9,10 @@ import {
 	Sun,
 	Moon,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { Button } from "../ui/button";
 
-export function Header({
+export const Header = memo(function Header({
 	currentTab,
 	setCurrentTab,
 	setTriageProjectId,
@@ -156,4 +156,4 @@ export function Header({
 			</div>
 		</header>
 	);
-}
+});

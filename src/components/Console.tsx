@@ -11,7 +11,7 @@ import {
 	X,
 	XCircle,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 interface ConsoleEvent {
 	id: number;
@@ -40,7 +40,7 @@ interface LogEntry {
 	errorText?: string;
 }
 
-export function Console() {
+export const Console = memo(function Console() {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isMaximized, setIsMaximized] = useState(false);
 	const [debugMode, setDebugMode] = useState(false);
@@ -338,4 +338,4 @@ export function Console() {
 			</div>
 		</div>
 	);
-}
+});

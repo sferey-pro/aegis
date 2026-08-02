@@ -64,9 +64,13 @@ export const projectsRoutes = {
 	"/api/projects": {
 		async GET() {
 			const projects = listProjects();
-			const limit = 4;
+			const { getLatestRunsByProjectIds } = await import("../db/runs");
+			const latestRuns = getLatestRunsByProjectIds(projects.map(p => p.id));
+			
 			const enriched = new Array(projects.length);
 			let i = 0;
+			// 4 concurrent workers for getGitInfo
+			const concurrencyLimit = 4;
 			const exec = async () => {
 				while (i < projects.length) {
 					const index = i++;
@@ -77,12 +81,11 @@ export const projectsRoutes = {
 					} catch (e) {
 						console.error(`Git error on ${p.path}:`, e);
 					}
-					const run = getLatestRun(p.id);
-					enriched[index] = { ...p, git, lastRun: run };
+					enriched[index] = { ...p, git, lastRun: latestRuns[p.id] || null };
 				}
 			};
 			await Promise.all(
-				Array.from({ length: Math.min(limit, projects.length) }).map(() =>
+				Array.from({ length: Math.min(concurrencyLimit, projects.length) }).map(() =>
 					exec(),
 				),
 			);

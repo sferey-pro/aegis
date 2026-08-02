@@ -47,6 +47,14 @@ export const server = serve({
 		hmr: true,
 		console: true,
 	},
+
+	error(err) {
+		console.error("Unhandled Route Error:", err);
+		return Response.json(
+			{ error: "Internal Server Error", details: err.message },
+			{ status: 500 }
+		);
+	},
 });
 
 console.log(`🚀 Server running at ${server.url}`);

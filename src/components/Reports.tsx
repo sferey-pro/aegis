@@ -13,7 +13,7 @@ import {
 	Trash2,
 	X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { buildCvssTooltip } from "../lib/cvss";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -26,7 +26,7 @@ import {
 	TableRow,
 } from "./ui/table";
 
-export function Reports() {
+export const Reports = memo(function Reports() {
 	const [reports, setReports] = useState<any[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [isFetching, setIsFetching] = useState(false);
@@ -623,4 +623,4 @@ export function Reports() {
 			)}
 		</div>
 	);
-}
+});

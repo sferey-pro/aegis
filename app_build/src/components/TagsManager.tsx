@@ -60,10 +60,10 @@ export function TagsManager() {
 	};
 
 	return (
-		<div className="glass-panel p-8 rounded-2xl animate-in slide-in-from-bottom-6 duration-700 delay-100 mt-8">
+		<div className="bg-card border-border p-8 rounded-2xl slide-in-from-bottom-6 delay-100 mt-8">
 			<div className="flex items-start gap-4 mb-6">
-				<div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-					<Tag className="w-6 h-6 text-indigo-500" />
+				<div className="w-12 h-12 rounded-2xl flex items-center justify-center border">
+					<Tag className="w-6 h-6" />
 				</div>
 				<div className="flex-1">
 					<h2 className="text-2xl font-bold font-heading">Tags de Projets</h2>
@@ -76,7 +76,7 @@ export function TagsManager() {
 
 			<form
 				onSubmit={handleAdd}
-				className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6 bg-black/5 dark:bg-black/20 p-4 rounded-xl border border-border/50"
+				className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6 dark:bg-black/20 p-4 rounded-xl border"
 			>
 				<div className="flex flex-col flex-1 w-full gap-1">
 					<label className="text-xs font-semibold uppercase text-muted-foreground">
@@ -108,7 +108,7 @@ export function TagsManager() {
 								key={c}
 								type="button"
 								onClick={() => setNewColor(c)}
-								className={`w-6 h-6 rounded-full transition-all ${newColor === c ? "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110" : "opacity-70 hover:opacity-100 hover:scale-110"}`}
+								className={`w-6 h-6 rounded-full ${newColor === c ? "ring-2 scale-110" : "opacity-70 "}`}
 								style={{
 									backgroundColor: `var(--color-${c}-500, var(--primary))`,
 								}}
@@ -123,17 +123,17 @@ export function TagsManager() {
 			</form>
 
 			{error && (
-				<p className="text-red-400 text-sm mb-4 bg-red-400/10 p-3 rounded-lg border border-red-400/20">
+				<p className="text-red-400 text-sm mb-4 p-3 rounded-lg border">
 					{error}
 				</p>
 			)}
 
 			{loading ? (
 				<div className="flex justify-center p-8">
-					<RefreshCw className="w-6 h-6 text-primary animate-spin" />
+					<RefreshCw className="w-6 h-6 text-primary" />
 				</div>
 			) : tags.length === 0 ? (
-				<p className="text-center text-muted-foreground p-8 bg-black/10 rounded-xl border border-border/50">
+				<p className="text-center text-muted-foreground p-8 rounded-xl border">
 					Aucun tag configuré.
 				</p>
 			) : (
@@ -154,7 +154,7 @@ export function TagsManager() {
 							<button
 								type="button"
 								onClick={() => handleDelete(t.id)}
-								className="ml-1 text-muted-foreground hover:text-red-400 transition-colors"
+								className="ml-1 text-muted-foreground"
 							>
 								<X className="w-3.5 h-3.5" />
 							</button>

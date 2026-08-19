@@ -19,20 +19,20 @@ export function ConfirmReasonModal({
 
 	return (
 		<div
-			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+			className="fixed inset-0 z-[100] flex items-center justify-center p-4"
 			onClick={() => setConfirmModal(null)}
 		>
 			<form
 				onSubmit={submitConfirm}
 				onClick={(e) => e.stopPropagation()}
-				className="glass-panel w-full max-w-lg rounded-2xl p-6 flex flex-col gap-4"
+				className="bg-card border-border w-full max-w-lg rounded-2xl p-6 flex flex-col gap-4"
 			>
 				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-						<AlertOctagon className="w-5 h-5 text-red-500" />
+					<div className="w-10 h-10 rounded-full flex items-center justify-center">
+						<AlertOctagon className="w-5 h-5" />
 					</div>
 					<div>
-						<h3 className="text-xl font-bold font-heading text-red-500">
+						<h3 className="text-xl font-bold font-heading">
 							Confirmer la faille
 						</h3>
 						<p className="text-sm text-muted-foreground">{confirmModal.cve}</p>
@@ -55,7 +55,7 @@ export function ConfirmReasonModal({
 						onChange={(e) =>
 							setConfirmModal({ ...confirmModal, reason: e.target.value })
 						}
-						className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-red-500 transition-colors min-h-[100px] text-sm"
+						className="bg-background border border-border rounded-md px-3 py-2 outline-none min-h-[100px] text-sm"
 						placeholder="Ex: Le composant est exposé sur l'interface publique, risque réel d'exploitation..."
 					/>
 				</div>
@@ -64,13 +64,13 @@ export function ConfirmReasonModal({
 					<button
 						type="button"
 						onClick={() => setConfirmModal(null)}
-						className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+						className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground"
 					>
 						Annuler
 					</button>
 					<button
 						type="submit"
-						className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-500 transition-colors"
+						className="px-4 py-2 rounded-md bg-red-600 text-white"
 					>
 						Confirmer la faille
 					</button>

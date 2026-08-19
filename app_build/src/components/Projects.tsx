@@ -399,7 +399,7 @@ export const Projects = React.memo(function Projects({
 	};
 
 	return (
-		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10 animate-in fade-in duration-500">
+		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10">
 			<div className="flex items-center justify-between mb-8">
 				<div>
 					<h2 className="text-3xl font-bold font-heading">Projets</h2>
@@ -408,7 +408,7 @@ export const Projects = React.memo(function Projects({
 					</p>
 				</div>
 				<div className="flex items-center gap-3">
-					<div className="flex gap-1 border border-border/50 rounded-lg p-1 bg-background/50">
+					<div className="flex gap-1 border rounded-lg p-1">
 						<Button
 							variant={viewMode === "grid" ? "default" : "ghost"}
 							size="icon"
@@ -434,7 +434,7 @@ export const Projects = React.memo(function Projects({
 						disabled={isFetchingAll || projects.length === 0}
 					>
 						{isFetchingAll ? (
-							<RefreshCw className="w-4 h-4 animate-spin mr-2" />
+							<RefreshCw className="w-4 h-4 mr-2" />
 						) : (
 							<CloudDownload className="w-4 h-4 mr-2" />
 						)}
@@ -448,7 +448,7 @@ export const Projects = React.memo(function Projects({
 								setIsAdding(true);
 							}
 						}}
-						className="shadow-lg shadow-primary/20"
+						className="shadow-lg"
 					>
 						<Plus className="w-4 h-4 mr-2" />
 						{isAdding ? "Annuler" : "Ajouter un Projet"}
@@ -458,24 +458,24 @@ export const Projects = React.memo(function Projects({
 
 			{isAdding && (
 				<div
-					className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+					className="fixed inset-0 z-50 flex items-center justify-center p-4"
 					onClick={resetForm}
 				>
 					<form
 						ref={formRef}
 						onSubmit={handleSubmit}
 						onClick={(e) => e.stopPropagation()}
-						className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar"
+						className="bg-card border-border w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto hide-scrollbar"
 					>
 						<h3 className="text-xl font-bold mb-2 text-primary">
 							{editingId ? "Modifier le Projet" : "Nouveau Projet"}
 						</h3>
 
-						<div className="flex bg-black/5 dark:bg-black/20 p-1 rounded-lg border border-border/50 mb-2">
+						<div className="flex dark:bg-black/20 p-1 rounded-lg border mb-2">
 							<button
 								type="button"
 								onClick={() => setFormData({ ...formData, is_remote: false })}
-								className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${!formData.is_remote ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-white/5"}`}
+								className={`flex-1 py-1.5 text-sm font-medium rounded-md ${!formData.is_remote ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground "}`}
 							>
 								Projet Local
 							</button>
@@ -484,7 +484,7 @@ export const Projects = React.memo(function Projects({
 								onClick={() =>
 									setFormData({ ...formData, is_remote: true, path: "" })
 								}
-								className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${formData.is_remote ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-white/5"}`}
+								className={`flex-1 py-1.5 text-sm font-medium rounded-md ${formData.is_remote ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground "}`}
 							>
 								Projet Distant (CI)
 							</button>
@@ -505,7 +505,7 @@ export const Projects = React.memo(function Projects({
 							</div>
 
 							<div className="flex flex-col gap-1">
-								<label className="text-sm font-medium text-blue-400 flex items-center gap-1">
+								<label className="text-sm font-medium flex items-center gap-1">
 									<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
 								</label>
 								<div className="relative">
@@ -520,7 +520,7 @@ export const Projects = React.memo(function Projects({
 														.replace(/(^-|-$)/g, "")}`
 												: "URL auto-générée"
 										}
-										className="w-full bg-black/30 border border-border/50 text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
+										className="w-full border text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
 										title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
 									/>
 									<button
@@ -543,12 +543,12 @@ export const Projects = React.memo(function Projects({
 												setTimeout(() => setCopiedSlug(null), 2000);
 											}
 										}}
-										className="absolute inset-y-0 right-0 flex items-center px-3 hover:bg-white/10 rounded-r-md transition-colors"
+										className="absolute inset-y-0 right-0 flex items-center px-3 rounded-r-md"
 									>
 										{copiedSlug === -1 ? (
-											<Check className="w-4 h-4 text-green-400" />
+											<Check className="w-4 h-4" />
 										) : (
-											<Copy className="w-4 h-4 text-muted-foreground hover:text-white" />
+											<Copy className="w-4 h-4 text-muted-foreground" />
 										)}
 									</button>
 								</div>
@@ -570,19 +570,19 @@ export const Projects = React.memo(function Projects({
 										placeholder="Ex: /home/user/projects/api"
 									/>
 									{detectStatus === "detecting" && (
-										<span className="text-xs text-blue-400 mt-1 flex items-center gap-1">
-											<Loader2 className="w-3 h-3 animate-spin" /> Détection
+										<span className="text-xs mt-1 flex items-center gap-1">
+											<Loader2 className="w-3 h-3" /> Détection
 											automatique...
 										</span>
 									)}
 									{detectStatus === "success" && (
-										<span className="text-xs text-green-400 mt-1 flex items-center gap-1">
+										<span className="text-xs mt-1 flex items-center gap-1">
 											<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
 											{detectedToolName}
 										</span>
 									)}
 									{detectStatus === "error" && (
-										<span className="text-xs text-orange-400 mt-1 flex items-center gap-1">
+										<span className="text-xs mt-1 flex items-center gap-1">
 											<XCircle className="w-3 h-3" /> Impossible de détecter
 											automatiquement (vérifiez le chemin)
 										</span>
@@ -618,7 +618,7 @@ export const Projects = React.memo(function Projects({
 											type: e.target.value === "composer" ? "composer" : "node",
 										})
 									}
-									className="bg-background border border-border rounded-md px-3 py-2 outline-none focus:border-primary transition-colors"
+									className="bg-background border border-border rounded-md px-3 py-2 outline-none"
 								>
 									<option value="npm">NPM</option>
 									<option value="yarn">Yarn</option>
@@ -653,11 +653,7 @@ export const Projects = React.memo(function Projects({
 														});
 													}
 												}}
-												className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
-													isSelected
-														? "border-primary bg-primary/20 text-primary"
-														: "border-border bg-background hover:bg-secondary text-muted-foreground"
-												}`}
+												className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${ isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground" }`}
 											>
 												<span
 													className="w-2 h-2 rounded-full inline-block mr-2"
@@ -693,13 +689,13 @@ export const Projects = React.memo(function Projects({
 										}
 										handleSubmit(e, true);
 									}}
-									className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-500"
+									className="text-blue-500"
 								>
 									Créer et Auditer
 								</Button>
 							)}
 							{formData.is_remote && !editingId && (
-								<Button type="submit" className="shadow-lg shadow-primary/20">
+								<Button type="submit" className="shadow-lg">
 									Créer le projet CI
 								</Button>
 							)}
@@ -707,7 +703,7 @@ export const Projects = React.memo(function Projects({
 								<Button
 									type="submit"
 									onClick={(e) => handleSubmit(e, false)}
-									className="shadow-lg shadow-primary/20"
+									className="shadow-lg"
 								>
 									{editingId ? "Enregistrer" : "Créer sans auditer"}
 								</Button>
@@ -718,13 +714,13 @@ export const Projects = React.memo(function Projects({
 			)}
 
 			{availableTags.length > 0 && projects.length > 0 && (
-				<div className="flex flex-wrap gap-2 mb-6 animate-in fade-in">
+				<div className="flex flex-wrap gap-2 mb-6">
 					<span className="text-sm font-semibold text-muted-foreground mr-2 self-center">
 						Filtre :
 					</span>
 					<button
 						onClick={() => setFilterTag(null)}
-						className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border transition-all ${filterTag === null ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border hover:bg-secondary"}`}
+						className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border ${filterTag === null ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border "}`}
 					>
 						Tous
 					</button>
@@ -732,7 +728,7 @@ export const Projects = React.memo(function Projects({
 						<button
 							key={t.id}
 							onClick={() => setFilterTag(t.name)}
-							className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border transition-all flex items-center gap-1.5 ${filterTag === t.name ? "bg-primary/20 text-primary border-primary" : "bg-background text-muted-foreground border-border hover:bg-secondary"}`}
+							className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border flex items-center gap-1.5 ${filterTag === t.name ? "bg-primary/20 text-primary border-primary" : "bg-background text-muted-foreground border-border "}`}
 						>
 							<span
 								className="w-2 h-2 rounded-full"
@@ -748,10 +744,10 @@ export const Projects = React.memo(function Projects({
 
 			{loading ? (
 				<div className="flex items-center justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary animate-spin" />
+					<RefreshCw className="w-8 h-8 text-primary" />
 				</div>
 			) : projects.length === 0 ? (
-				<div className="glass-panel p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
+				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
 					<Folder className="w-12 h-12 text-muted-foreground opacity-50" />
 					<div>
 						<h3 className="text-xl font-bold">Aucun projet</h3>
@@ -776,13 +772,7 @@ export const Projects = React.memo(function Projects({
 						return (
 							<div
 								key={p.id}
-								className={`group glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-500 animate-in slide-in-from-bottom-4 fade-in relative overflow-hidden ${
-									p.ignored
-										? "opacity-50 grayscale"
-										: hasCritical
-											? "border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)] bg-red-500/5 cursor-pointer hover:-translate-y-1"
-											: "hover:-translate-y-1 hover:border-white/20 hover:shadow-xl hover:shadow-primary/5 cursor-pointer bg-background/40 backdrop-blur-md"
-								}`}
+								className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${ p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-red-500/50 (239,68,68,0.2)] cursor-pointer " : "hover:-translate-y-1 cursor-pointer " }`}
 								style={{
 									animationDelay: `${(index % 20) * 50}ms`,
 									animationFillMode: "backwards",
@@ -792,9 +782,9 @@ export const Projects = React.memo(function Projects({
 								}}
 							>
 								{auditState[p.id] && (
-									<div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-[2px] flex items-center justify-center flex-col gap-2 rounded-xl">
-										<Loader2 className="w-6 h-6 animate-spin text-primary" />
-										<span className="text-xs font-semibold text-white animate-pulse">
+									<div className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl">
+										<Loader2 className="w-6 h-6 text-primary" />
+										<span className="text-xs font-semibold text-white">
 											{auditState[p.id]}
 										</span>
 									</div>
@@ -814,7 +804,7 @@ export const Projects = React.memo(function Projects({
 										{hasNoCves && (
 											<Badge
 												variant="outline"
-												className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30 flex items-center gap-1"
+												className="text-[10px] flex items-center gap-1"
 											>
 												<CheckCircle2 className="w-3 h-3" />
 												Sain
@@ -823,7 +813,7 @@ export const Projects = React.memo(function Projects({
 										{hasCritical && (
 											<Badge
 												variant="outline"
-												className="text-[10px] bg-red-500/10 text-red-500 border-red-500/30 flex items-center gap-1"
+												className="text-[10px] flex items-center gap-1"
 											>
 												<AlertTriangle className="w-3 h-3" />
 												Critique
@@ -831,15 +821,15 @@ export const Projects = React.memo(function Projects({
 										)}
 									</div>
 
-									<div className="relative group/menu">
+									<div className="relative /menu">
 										<button
-											className="p-1.5 rounded-full hover:bg-white/10 text-muted-foreground transition-colors"
+											className="p-1.5 rounded-full text-muted-foreground"
 											onClick={(e) => e.stopPropagation()}
 										>
 											<MoreHorizontal className="w-4 h-4" />
 										</button>
-										<div className="absolute right-0 top-full mt-1 w-48 bg-background/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 flex flex-col p-1">
-											<div className="px-2 py-1.5 text-xs text-muted-foreground border-b border-border/50 mb-1 flex items-center justify-between">
+										<div className="absolute right-0 top-full mt-1 w-48 border rounded-lg opacity-0 invisible -hover/menu:opacity-100 -hover/menu:visible z-50 flex flex-col p-1">
+											<div className="px-2 py-1.5 text-xs text-muted-foreground border-b mb-1 flex items-center justify-between">
 												<span>Outil d'audit</span>
 												<span className="font-bold text-foreground uppercase">
 													{p.tool}
@@ -862,12 +852,12 @@ export const Projects = React.memo(function Projects({
 													setCopiedSlug(p.id);
 													setTimeout(() => setCopiedSlug(null), 2000);
 												}}
-												className="flex items-center gap-2 text-xs px-2 py-1.5 rounded hover:bg-white/10 transition-colors text-left"
+												className="flex items-center gap-2 text-xs px-2 py-1.5 rounded text-left"
 											>
 												{copiedSlug === p.id ? (
-													<Check className="w-3.5 h-3.5 text-green-400" />
+													<Check className="w-3.5 h-3.5" />
 												) : (
-													<Copy className="w-3.5 h-3.5 text-blue-400" />
+													<Copy className="w-3.5 h-3.5" />
 												)}
 												{copiedSlug === p.id
 													? "Copié !"
@@ -895,7 +885,7 @@ export const Projects = React.memo(function Projects({
 											<Badge
 												key={i}
 												variant="secondary"
-												className="text-[10px] uppercase tracking-wider text-primary bg-primary/10 border-primary/20"
+												className="text-[10px] uppercase tracking-wider text-primary"
 											>
 												{tag}
 											</Badge>
@@ -913,12 +903,12 @@ export const Projects = React.memo(function Projects({
 								</div>
 
 								{p.git?.isRepo ? (
-									<div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-black/5 dark:bg-black/20 rounded-lg border border-border/50 text-xs">
+									<div className="grid grid-cols-2 gap-2 mt-2 p-2 dark:bg-black/20 rounded-lg border text-xs">
 										<div className="flex flex-col gap-1">
 											<span className="text-[10px] text-muted-foreground uppercase tracking-wider">
 												Branche
 											</span>
-											<div className="flex items-center gap-1 font-mono text-orange-400">
+											<div className="flex items-center gap-1 font-mono">
 												<GitBranch className="w-3 h-3" />
 												<span
 													className="truncate max-w-[80px]"
@@ -939,7 +929,7 @@ export const Projects = React.memo(function Projects({
 														title="Arbre de travail sale (modifications non commitées)"
 														className="inline-flex"
 													>
-														<AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
+														<AlertTriangle className="w-3.5 h-3.5" />
 													</span>
 												)}
 												{p.git.behind > 0 && (
@@ -953,7 +943,7 @@ export const Projects = React.memo(function Projects({
 												)}
 												<button
 													onClick={(e) => handleFetch(p.id, e)}
-													className="p-1 hover:bg-white/10 text-muted-foreground hover:text-white rounded transition-colors"
+													className="p-1 text-muted-foreground rounded"
 													title="Git Fetch"
 												>
 													<CloudDownload className="w-3.5 h-3.5" />
@@ -961,7 +951,7 @@ export const Projects = React.memo(function Projects({
 												{p.git.behind > 0 && (
 													<button
 														onClick={(e) => handlePull(p.id, e)}
-														className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 transition-colors font-bold text-[10px] uppercase"
+														className="px-1.5 py-0.5 rounded font-bold text-[10px] uppercase"
 														title="Git Pull (Fast-Forward uniquement)"
 													>
 														Pull
@@ -971,14 +961,14 @@ export const Projects = React.memo(function Projects({
 										</div>
 									</div>
 								) : (
-									<div className="flex items-center justify-between mt-2 p-2 bg-black/5 dark:bg-black/20 rounded-lg border border-border/50 text-xs">
+									<div className="flex items-center justify-between mt-2 p-2 dark:bg-black/20 rounded-lg border text-xs">
 										<span className="text-muted-foreground italic">
 											Dépôt Non-Git
 										</span>
 										<button
 											onClick={(e) => handleDetectGit(p.id, e)}
 											disabled={detectingId === p.id}
-											className="p-1 hover:bg-white/10 text-muted-foreground hover:text-white rounded transition-colors flex items-center gap-1 disabled:opacity-50"
+											className="p-1 text-muted-foreground rounded flex items-center gap-1 disabled:opacity-50"
 											title="Re-détecter le dépôt Git"
 										>
 											<RefreshCw
@@ -989,10 +979,10 @@ export const Projects = React.memo(function Projects({
 									</div>
 								)}
 
-								<div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+								<div className="flex items-center justify-between mt-auto pt-4 border-t opacity-0">
 									<button
 										onClick={(e) => toggleIgnore(p, e)}
-										className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+										className="text-xs text-muted-foreground"
 									>
 										{p.ignored ? "Réactiver" : "Ignorer le projet"}
 									</button>
@@ -1002,7 +992,7 @@ export const Projects = React.memo(function Projects({
 												variant="ghost"
 												size="icon"
 												onClick={(e) => handleForceAudit(p.id, e)}
-												className="w-7 h-7 text-muted-foreground hover:text-green-400 hover:bg-green-400/10"
+												className="w-7 h-7 text-muted-foreground"
 												title="Forcer un audit (sans déduplication)"
 											>
 												<Play className="w-3.5 h-3.5" />
@@ -1012,7 +1002,7 @@ export const Projects = React.memo(function Projects({
 											variant="ghost"
 											size="icon"
 											onClick={(e) => handleEdit(p, e)}
-											className="w-7 h-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+											className="w-7 h-7 text-muted-foreground"
 											title="Modifier"
 										>
 											<Edit2 className="w-3.5 h-3.5" />
@@ -1021,7 +1011,7 @@ export const Projects = React.memo(function Projects({
 											variant="ghost"
 											size="icon"
 											onClick={(e) => handleDelete(p.id, e)}
-											className="w-7 h-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+											className="w-7 h-7 text-muted-foreground"
 											title="Supprimer"
 										>
 											<Trash2 className="w-3.5 h-3.5" />
@@ -1033,10 +1023,10 @@ export const Projects = React.memo(function Projects({
 					})}
 				</div>
 			) : (
-				<div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
+				<div className="rounded-md border bg-card text-card-foreground overflow-hidden">
 					<Table>
 						<TableHeader>
-							<TableRow className="bg-muted/50 hover:bg-muted/50">
+							<TableRow className="bg-muted/50">
 								<TableHead>Projet</TableHead>
 								<TableHead>Tags & Santé</TableHead>
 								<TableHead>Git Status</TableHead>
@@ -1081,7 +1071,7 @@ export const Projects = React.memo(function Projects({
 														<Badge
 															key={i}
 															variant="secondary"
-															className="text-[10px] uppercase tracking-wider text-primary bg-primary/10 border-primary/20"
+															className="text-[10px] uppercase tracking-wider text-primary"
 														>
 															{tag}
 														</Badge>
@@ -1091,7 +1081,7 @@ export const Projects = React.memo(function Projects({
 													{hasNoCves && (
 														<Badge
 															variant="outline"
-															className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30"
+															className="text-[10px]"
 														>
 															Sain
 														</Badge>
@@ -1099,7 +1089,7 @@ export const Projects = React.memo(function Projects({
 													{hasCritical && (
 														<Badge
 															variant="outline"
-															className="text-[10px] bg-red-500/10 text-red-500 border-red-500/30"
+															className="text-[10px]"
 														>
 															Critique
 														</Badge>
@@ -1110,7 +1100,7 @@ export const Projects = React.memo(function Projects({
 										<TableCell>
 											{p.git?.isRepo ? (
 												<div className="flex items-center gap-3 text-xs">
-													<div className="flex items-center gap-1 font-mono text-orange-400">
+													<div className="flex items-center gap-1 font-mono">
 														<GitBranch className="w-3 h-3" />
 														<span
 															className="truncate max-w-[80px]"
@@ -1124,7 +1114,7 @@ export const Projects = React.memo(function Projects({
 															title="Arbre de travail sale"
 															className="inline-flex"
 														>
-															<AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
+															<AlertTriangle className="w-3.5 h-3.5" />
 														</span>
 													)}
 													{p.git.behind > 0 && (
@@ -1145,7 +1135,7 @@ export const Projects = React.memo(function Projects({
 													<button
 														onClick={(e) => handleDetectGit(p.id, e)}
 														disabled={detectingId === p.id}
-														className="p-1 text-muted-foreground hover:text-white transition-colors rounded hover:bg-white/10 disabled:opacity-50"
+														className="p-1 text-muted-foreground rounded disabled:opacity-50"
 														title="Re-détecter le dépôt Git"
 													>
 														<RefreshCw
@@ -1166,7 +1156,7 @@ export const Projects = React.memo(function Projects({
 															variant="ghost"
 															size="icon"
 															onClick={(e) => handleFetch(p.id, e)}
-															className="w-7 h-7 text-muted-foreground hover:text-foreground"
+															className="w-7 h-7 text-muted-foreground"
 															title="Git Fetch"
 														>
 															<CloudDownload className="w-3.5 h-3.5" />
@@ -1176,7 +1166,7 @@ export const Projects = React.memo(function Projects({
 																variant="outline"
 																size="sm"
 																onClick={(e) => handlePull(p.id, e)}
-																className="h-6 px-2 text-[10px] uppercase text-blue-400 border-blue-500/30 hover:bg-blue-500/10 mx-1"
+																className="h-6 px-2 text-[10px] uppercase mx-1"
 															>
 																Pull
 															</Button>
@@ -1188,7 +1178,7 @@ export const Projects = React.memo(function Projects({
 														variant="ghost"
 														size="icon"
 														onClick={(e) => handleForceAudit(p.id, e)}
-														className="w-7 h-7 text-muted-foreground hover:text-green-400 hover:bg-green-400/10"
+														className="w-7 h-7 text-muted-foreground"
 														title="Forcer un audit"
 													>
 														<Play className="w-3.5 h-3.5" />
@@ -1198,7 +1188,7 @@ export const Projects = React.memo(function Projects({
 													variant="ghost"
 													size="icon"
 													onClick={(e) => handleEdit(p, e)}
-													className="w-7 h-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+													className="w-7 h-7 text-muted-foreground"
 												>
 													<Edit2 className="w-3.5 h-3.5" />
 												</Button>
@@ -1206,7 +1196,7 @@ export const Projects = React.memo(function Projects({
 													variant="ghost"
 													size="icon"
 													onClick={(e) => handleDelete(p.id, e)}
-													className="w-7 h-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+													className="w-7 h-7 text-muted-foreground"
 												>
 													<Trash2 className="w-3.5 h-3.5" />
 												</Button>
@@ -1221,12 +1211,12 @@ export const Projects = React.memo(function Projects({
 			)}
 
 			{isFetchingAll && (
-				<div className="fixed inset-0 z-[100] flex items-center justify-center flex-col gap-6 bg-background/60 backdrop-blur-md animate-in fade-in duration-300">
-					<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-cyan-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+				<div className="fixed inset-0 z-[100] flex items-center justify-center flex-col gap-6">
+					<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] blur-[100px] rounded-full pointer-events-none"></div>
 
-					<div className="relative flex items-center justify-center w-28 h-28 rounded-full bg-cyan-500/10 neon-glow shadow-2xl shadow-cyan-500/20 z-10">
-						<div className="absolute inset-0 border-[4px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin"></div>
-						<CloudDownload className="w-12 h-12 text-cyan-400" />
+					<div className="relative flex items-center justify-center w-28 h-28 rounded-full neon-glow z-10">
+						<div className="absolute inset-0 border-[4px] border-t-cyan-400 rounded-full"></div>
+						<CloudDownload className="w-12 h-12" />
 					</div>
 
 					<div className="z-10 flex flex-col items-center gap-2">
@@ -1234,7 +1224,7 @@ export const Projects = React.memo(function Projects({
 							Mise à jour Git
 						</h1>
 						<div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
-							<Loader2 className="w-4 h-4 animate-spin text-secondary" />
+							<Loader2 className="w-4 h-4 text-secondary" />
 							{fetchProgress
 								? `Synchronisation du projet ${fetchProgress.name} .... ${fetchProgress.current}/${fetchProgress.total}`
 								: "Démarrage de la vérification globale..."}

@@ -35,7 +35,7 @@ export const Triage = React.memo(function Triage({
 		isOpen: boolean;
 		md: string;
 		copied: boolean;
-		group?: any;
+	 ?: any;
 	}>({ isOpen: false, md: "", copied: false });
 	const [confirmModal, setConfirmModal] = useState<{
 		isOpen: boolean;
@@ -224,19 +224,19 @@ export const Triage = React.memo(function Triage({
 		setConfirmModal(null);
 	};
 
-	const createTicket = async (e: React.MouseEvent, group: any) => {
+	const createTicket = async (e: React.MouseEvent, : any) => {
 		e.stopPropagation();
 		try {
 			const res = await fetch("/api/tickets", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					projectId: group.projectId,
-					packageName: group.package,
+					projectId: .projectId,
+					packageName: .package,
 				}),
 			});
 			const data = await res.json();
-			setTicketModal({ isOpen: true, md: data.markdown, copied: false, group });
+			setTicketModal({ isOpen: true, md: data.markdown, copied: false,  });
 		} catch (err) {
 			console.error(err);
 		}
@@ -252,18 +252,18 @@ export const Triage = React.memo(function Triage({
 	};
 
 	return (
-		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10 animate-in fade-in duration-500">
+		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10">
 			<div className="flex items-center justify-between mb-8">
 				<div>
 					<h2 className="text-3xl font-bold font-heading flex items-center gap-3">
 						CVEs
 						{projectId && (
-							<span className="text-sm font-semibold px-3 py-1 bg-primary/20 text-primary rounded-full border border-primary/30 flex items-center gap-2">
+							<span className="text-sm font-semibold px-3 py-1 text-primary rounded-full border flex items-center gap-2">
 								Filtré par projet
 								{onClearProject && (
 									<button
 										onClick={onClearProject}
-										className="hover:text-red-400 transition-colors"
+										className="hover:text-red-400"
 									>
 										<X className="w-3.5 h-3.5" />
 									</button>
@@ -271,12 +271,12 @@ export const Triage = React.memo(function Triage({
 							</span>
 						)}
 						{cveFilter && (
-							<span className="text-sm font-semibold px-3 py-1 bg-orange-500/20 text-orange-500 rounded-full border border-orange-500/30 flex items-center gap-2">
+							<span className="text-sm font-semibold px-3 py-1 rounded-full border flex items-center gap-2">
 								Filtré par CVE ({cveFilter})
 								{onClearCve && (
 									<button
 										onClick={onClearCve}
-										className="hover:text-red-400 transition-colors"
+										className="hover:text-red-400"
 									>
 										<X className="w-3.5 h-3.5" />
 									</button>
@@ -291,7 +291,7 @@ export const Triage = React.memo(function Triage({
 				</div>
 				<button
 					onClick={() => setHideProcessed(!hideProcessed)}
-					className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${hideProcessed ? "bg-primary/20 text-primary border-primary/30" : "bg-secondary text-muted-foreground border-transparent hover:bg-white/5"}`}
+					className={`px-3 py-1.5 rounded-lg text-sm font-medium border flex items-center gap-2 ${hideProcessed ? "bg-primary/20 text-primary " : "bg-secondary text-muted-foreground border-transparent "}`}
 				>
 					<CheckCircle2 className="w-4 h-4" /> Zero-Inbox (Masquer traitées)
 				</button>
@@ -299,13 +299,13 @@ export const Triage = React.memo(function Triage({
 
 			{loading ? (
 				<div className="flex justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary animate-spin" />
+					<RefreshCw className="w-8 h-8 text-primary" />
 				</div>
 			) : packageGroups.length === 0 ? (
-				<div className="glass-panel p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
-					<Shield className="w-16 h-16 text-green-500 opacity-80" />
+				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
+					<Shield className="w-16 h-16 opacity-80" />
 					<div>
-						<h3 className="text-xl font-bold text-green-500">
+						<h3 className="text-xl font-bold">
 							Aucune vulnérabilité
 						</h3>
 						<p className="text-muted-foreground">Votre écosystème est sain !</p>
@@ -355,13 +355,7 @@ export const Triage = React.memo(function Triage({
 
 			{toast?.isOpen && (
 				<div
-					className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border shadow-2xl flex flex-col gap-2 glass-panel ${
-						toast.type === "success"
-							? "bg-green-500/10 border-green-500/30 text-green-400"
-							: toast.type === "error"
-								? "bg-red-500/10 border-red-500/30 text-red-400"
-								: "bg-blue-500/10 border-blue-500/30 text-blue-400"
-					}`}
+					className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border flex flex-col gap-2 bg-card border-border ${ toast.type === "success" ? "bg-green-500/10 " : toast.type === "error" ? "bg-red-500/10 " : "bg-blue-500/10 " }`}
 				>
 					<div className="flex justify-between items-start">
 						<h4 className="font-bold flex items-center gap-2">
@@ -376,7 +370,7 @@ export const Triage = React.memo(function Triage({
 						</h4>
 						<button
 							onClick={() => setToast(null)}
-							className="text-current opacity-70 hover:opacity-100 transition-opacity"
+							className="text-current opacity-70"
 						>
 							<X className="w-5 h-5" />
 						</button>

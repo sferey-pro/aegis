@@ -137,7 +137,7 @@ export const Reports = memo(function Reports() {
 	const currentReports = reports.slice(startIndex, startIndex + itemsPerPage);
 
 	return (
-		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10 animate-in fade-in duration-500">
+		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10">
 			<div className="flex items-center justify-between mb-8">
 				<div>
 					<h2 className="text-3xl font-bold font-heading">Rapports d'Audit</h2>
@@ -149,7 +149,7 @@ export const Reports = memo(function Reports() {
 					{selectedReports.length > 0 && (
 						<button
 							onClick={() => setBulkDeleteModalOpen(true)}
-							className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors rounded-lg flex items-center gap-2 text-sm font-semibold animate-in fade-in zoom-in"
+							className="px-4 py-2 border rounded-lg flex items-center gap-2 text-sm font-semibold"
 						>
 							<Trash2 className="w-4 h-4" />
 							Supprimer ({selectedReports.length})
@@ -158,10 +158,10 @@ export const Reports = memo(function Reports() {
 					<button
 						onClick={fetchReports}
 						disabled={isFetching}
-						className={`group flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold transition-all duration-300 ${isFetching ? "bg-primary/20 border-primary/30 text-primary" : "bg-secondary/50 border-white/5 text-muted-foreground hover:bg-white/10 hover:border-white/10 hover:text-foreground active:scale-95"}`}
+						className={`group flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold ${isFetching ? "bg-primary/20 text-primary" : "bg-secondary/50 text-muted-foreground "}`}
 					>
 						<RefreshCw
-							className={`w-4 h-4 transition-transform duration-500 ${isFetching ? "animate-spin text-primary" : "group-hover:rotate-180"}`}
+							className={`w-4 h-4 ${isFetching ? "animate-spin text-primary" : "group-hover:rotate-180"}`}
 						/>
 						{isFetching ? "Actualisation..." : "Actualiser"}
 					</button>
@@ -169,15 +169,15 @@ export const Reports = memo(function Reports() {
 			</div>
 
 			{loading ? (
-				<div className="glass-panel p-12 rounded-xl flex flex-col justify-center items-center gap-4 backdrop-blur-xl bg-white/5 border border-white/10">
-					<RefreshCw className="w-8 h-8 text-primary animate-spin" />
-					<p className="text-muted-foreground font-medium animate-pulse">
+				<div className="bg-card border-border p-12 rounded-xl flex flex-col justify-center items-center gap-4 border">
+					<RefreshCw className="w-8 h-8 text-primary" />
+					<p className="text-muted-foreground font-medium">
 						Chargement de l'historique des rapports...
 					</p>
 				</div>
 			) : reports.length === 0 ? (
-				<div className="glass-panel p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4 backdrop-blur-xl bg-white/5 border border-white/10">
-					<FileText className="w-16 h-16 text-muted-foreground opacity-50 animate-pulse drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
+				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4 border">
+					<FileText className="w-16 h-16 text-muted-foreground opacity-50 (255,255,255,0.1)]" />
 					<div>
 						<h3 className="text-xl font-bold">Aucun rapport</h3>
 						<p className="text-muted-foreground mt-2">
@@ -188,10 +188,10 @@ export const Reports = memo(function Reports() {
 				</div>
 			) : (
 				<div className="flex flex-col gap-4">
-					<div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
+					<div className="rounded-md border bg-card text-card-foreground overflow-hidden">
 						<Table>
 							<TableHeader>
-								<TableRow className="bg-muted/50 hover:bg-muted/50">
+								<TableRow className="bg-muted/50">
 									<TableHead className="w-12">
 										<input
 											type="checkbox"
@@ -255,7 +255,7 @@ export const Reports = memo(function Reports() {
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center gap-3">
-												<div className="p-2 bg-primary/10 rounded-lg text-primary">
+												<div className="p-2 rounded-lg text-primary">
 													<Calendar className="w-4 h-4" />
 												</div>
 												<span className="font-bold">
@@ -286,7 +286,7 @@ export const Reports = memo(function Reports() {
 													</span>
 												</div>
 												{r.counts.critical > 0 && (
-													<div className="flex items-center gap-1.5 text-red-400">
+													<div className="flex items-center gap-1.5">
 														<Activity className="w-4 h-4" />
 														<span className="font-bold">
 															{r.counts.critical} Crit.
@@ -298,17 +298,17 @@ export const Reports = memo(function Reports() {
 										<TableCell>
 											<div className="flex flex-wrap gap-2">
 												{r.counts.high > 0 && (
-													<span className="text-xs px-2.5 py-0.5 font-medium bg-orange-500/10 text-orange-500 rounded-full border border-orange-500/20">
+													<span className="text-xs px-2.5 py-0.5 font-medium rounded-full border">
 														{r.counts.high} Haut
 													</span>
 												)}
 												{r.counts.moderate > 0 && (
-													<span className="text-xs px-2.5 py-0.5 font-medium bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20">
+													<span className="text-xs px-2.5 py-0.5 font-medium rounded-full border">
 														{r.counts.moderate} Modéré
 													</span>
 												)}
 												{r.counts.low > 0 && (
-													<span className="text-xs px-2.5 py-0.5 font-medium bg-green-500/10 text-green-500 rounded-full border border-green-500/20">
+													<span className="text-xs px-2.5 py-0.5 font-medium rounded-full border">
 														{r.counts.low} Bas
 													</span>
 												)}
@@ -323,14 +323,14 @@ export const Reports = memo(function Reports() {
 											<div className="flex items-center justify-end gap-1">
 												<button
 													onClick={() => handleViewDiff(reports.indexOf(r))}
-													className="p-2 text-muted-foreground hover:text-blue-400 transition-all rounded-md hover:bg-blue-400/10 opacity-0 group-hover:opacity-100 focus:opacity-100"
+													className="p-2 text-muted-foreground rounded-md opacity-0"
 													title="Voir les détails et le comparatif (Diff)"
 												>
 													<Eye className="w-4 h-4" />
 												</button>
 												<button
 													onClick={() => handleDelete(r.id)}
-													className="p-2 text-muted-foreground hover:text-destructive transition-all rounded-md hover:bg-destructive/10 opacity-0 group-hover:opacity-100 focus:opacity-100"
+													className="p-2 text-muted-foreground rounded-md opacity-0"
 													title="Supprimer le rapport"
 												>
 													<Trash2 className="w-4 h-4" />
@@ -355,7 +355,7 @@ export const Reports = memo(function Reports() {
 								<button
 									onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
 									disabled={currentPage === 1}
-									className="p-1.5 rounded-lg border border-border/50 bg-background/50 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+									className="p-1.5 rounded-lg border text-muted-foreground disabled:opacity-50"
 								>
 									<ChevronLeft className="w-5 h-5" />
 								</button>
@@ -367,7 +367,7 @@ export const Reports = memo(function Reports() {
 										setCurrentPage((p) => Math.min(totalPages, p + 1))
 									}
 									disabled={currentPage === totalPages}
-									className="p-1.5 rounded-lg border border-border/50 bg-background/50 text-muted-foreground hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+									className="p-1.5 rounded-lg border text-muted-foreground disabled:opacity-50"
 								>
 									<ChevronRight className="w-5 h-5" />
 								</button>
@@ -388,7 +388,7 @@ export const Reports = memo(function Reports() {
 
 			<ConfirmDialog
 				isOpen={bulkDeleteModalOpen}
-				title="Suppression groupée"
+				title="Suppression ée"
 				message={`Êtes-vous sûr de vouloir supprimer ${selectedReports.length} rapport(s) d'audit ? Cette action est irréversible et supprimera l'historique associé.`}
 				confirmText="Supprimer"
 				onConfirm={async () => {
@@ -412,14 +412,14 @@ export const Reports = memo(function Reports() {
 
 			{selectedReportIndex !== null && diffData && (
 				<div
-					className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+					className="fixed inset-0 z-50 flex items-center justify-center p-4"
 					onClick={() => setSelectedReportIndex(null)}
 				>
 					<div
-						className="glass-panel w-full max-w-4xl p-6 rounded-2xl flex flex-col gap-6 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-hidden"
+						className="bg-card border-border w-full max-w-4xl p-6 rounded-2xl flex flex-col gap-6 max-h-[90vh] overflow-hidden"
 						onClick={(e) => e.stopPropagation()}
 					>
-						<div className="flex justify-between items-center pb-4 border-b border-white/10">
+						<div className="flex justify-between items-center pb-4 border-b">
 							<div>
 								<h2 className="text-2xl font-bold font-heading">
 									Détails du Rapport
@@ -430,7 +430,7 @@ export const Reports = memo(function Reports() {
 							</div>
 							<button
 								onClick={() => setSelectedReportIndex(null)}
-								className="p-2 rounded-full hover:bg-white/10 transition-colors"
+								className="p-2 rounded-full"
 							>
 								<X className="w-5 h-5" />
 							</button>
@@ -438,23 +438,23 @@ export const Reports = memo(function Reports() {
 
 						<div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-6 pr-2">
 							<div className="grid grid-cols-3 gap-4">
-								<div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex flex-col gap-1">
+								<div className="bg-red-500/10 border rounded-xl p-4 flex flex-col gap-1">
 									<span className="text-red-400 font-bold flex items-center gap-2">
 										<ArrowUpRight className="w-4 h-4" /> Nouvelles failles
 									</span>
-									<span className="text-3xl font-light text-red-500">
+									<span className="text-3xl font-light">
 										{diffData.newVulns.length}
 									</span>
 								</div>
-								<div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex flex-col gap-1">
+								<div className="bg-green-500/10 border rounded-xl p-4 flex flex-col gap-1">
 									<span className="text-green-400 font-bold flex items-center gap-2">
 										<ArrowDownRight className="w-4 h-4" /> Failles corrigées
 									</span>
-									<span className="text-3xl font-light text-green-500">
+									<span className="text-3xl font-light">
 										{diffData.fixedVulns.length}
 									</span>
 								</div>
-								<div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-1">
+								<div className="bg-white/5 border rounded-xl p-4 flex flex-col gap-1">
 									<span className="text-muted-foreground font-bold flex items-center gap-2">
 										<Minus className="w-4 h-4" /> Inchangées
 									</span>
@@ -466,7 +466,7 @@ export const Reports = memo(function Reports() {
 
 							{diffData.fixedVulns.length > 0 && (
 								<div>
-									<h3 className="text-lg font-bold text-green-400 mb-3 flex items-center gap-2">
+									<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
 										<Shield className="w-5 h-5" /> Failles corrigées depuis le
 										dernier rapport
 									</h3>
@@ -474,10 +474,10 @@ export const Reports = memo(function Reports() {
 										{diffData.fixedVulns.map((v, i) => (
 											<div
 												key={i}
-												className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg bg-green-500/5 border border-green-500/10"
+												className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border"
 											>
 												<div className="flex items-center gap-3">
-													<span className="text-xs font-mono px-2 py-1 bg-green-500/20 text-green-400 rounded">
+													<span className="text-xs font-mono px-2 py-1 rounded">
 														{v.projectName}
 													</span>
 													<span className="font-bold">{v.package}</span>
@@ -486,13 +486,13 @@ export const Reports = memo(function Reports() {
 														{v.cvssVector && (
 															<Tooltip>
 																<TooltipTrigger asChild>
-																	<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help">
+																	<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded border text-muted-foreground cursor-help">
 																		{v.cvssVector}
 																	</span>
 																</TooltipTrigger>
 																<TooltipContent
 																	side="right"
-																	className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 text-gray-300 shadow-xl max-w-[400px]"
+																	className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 max-w-[400px]"
 																>
 																	{buildCvssTooltip(v.cvssVector)}
 																</TooltipContent>
@@ -513,17 +513,17 @@ export const Reports = memo(function Reports() {
 
 							{diffData.newVulns.length > 0 && (
 								<div>
-									<h3 className="text-lg font-bold text-red-400 mb-3 flex items-center gap-2">
+									<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
 										<Activity className="w-5 h-5" /> Nouvelles failles détectées
 									</h3>
 									<div className="flex flex-col gap-2">
 										{diffData.newVulns.map((v, i) => (
 											<div
 												key={i}
-												className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg bg-red-500/5 border border-red-500/10"
+												className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border"
 											>
 												<div className="flex items-center gap-3">
-													<span className="text-xs font-mono px-2 py-1 bg-red-500/20 text-red-400 rounded">
+													<span className="text-xs font-mono px-2 py-1 rounded">
 														{v.projectName}
 													</span>
 													<span className="font-bold">{v.package}</span>
@@ -532,13 +532,13 @@ export const Reports = memo(function Reports() {
 														{v.cvssVector && (
 															<Tooltip>
 																<TooltipTrigger asChild>
-																	<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-muted-foreground cursor-help">
+																	<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded border text-muted-foreground cursor-help">
 																		{v.cvssVector}
 																	</span>
 																</TooltipTrigger>
 																<TooltipContent
 																	side="right"
-																	className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 text-gray-300 shadow-xl max-w-[400px]"
+																	className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 max-w-[400px]"
 																>
 																	{buildCvssTooltip(v.cvssVector)}
 																</TooltipContent>
@@ -548,17 +548,17 @@ export const Reports = memo(function Reports() {
 												</div>
 												<div className="flex items-center gap-2 mt-2 md:mt-0">
 													{v.severity === "critical" && (
-														<span className="text-[10px] uppercase font-bold text-red-500 px-2 py-0.5 bg-red-500/10 rounded">
+														<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
 															Critique
 														</span>
 													)}
 													{v.severity === "high" && (
-														<span className="text-[10px] uppercase font-bold text-orange-500 px-2 py-0.5 bg-orange-500/10 rounded">
+														<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
 															Haut
 														</span>
 													)}
 													{v.severity === "moderate" && (
-														<span className="text-[10px] uppercase font-bold text-yellow-500 px-2 py-0.5 bg-yellow-500/10 rounded">
+														<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
 															Modéré
 														</span>
 													)}
@@ -583,10 +583,10 @@ export const Reports = memo(function Reports() {
 										{diffData.unchangedVulns.slice(0, 50).map((v, i) => (
 											<div
 												key={i}
-												className="flex flex-col md:flex-row md:items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5"
+												className="flex flex-col md:flex-row md:items-center justify-between p-2 rounded-lg border"
 											>
 												<div className="flex items-center gap-3">
-													<span className="text-[10px] font-mono px-1.5 py-0.5 bg-white/10 rounded text-muted-foreground">
+													<span className="text-[10px] font-mono px-1.5 py-0.5 rounded text-muted-foreground">
 														{v.projectName}
 													</span>
 													<span className="text-sm font-semibold">

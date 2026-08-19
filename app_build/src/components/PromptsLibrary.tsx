@@ -114,7 +114,7 @@ export function PromptsLibrary() {
 	};
 
 	return (
-		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10 animate-in fade-in duration-500">
+		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10">
 			<div className="flex items-center justify-between mb-8">
 				<div>
 					<h2 className="text-3xl font-bold font-heading flex items-center gap-3">
@@ -130,7 +130,7 @@ export function PromptsLibrary() {
 						resetForm();
 						setIsAdding(true);
 					}}
-					className="shadow-lg shadow-primary/20"
+					className="shadow-lg"
 				>
 					<Plus className="w-4 h-4 mr-2" />
 					Nouveau Prompt
@@ -139,13 +139,13 @@ export function PromptsLibrary() {
 
 			{isAdding && (
 				<div
-					className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+					className="fixed inset-0 z-50 flex items-center justify-center p-4"
 					onClick={resetForm}
 				>
 					<form
 						onSubmit={handleSubmit}
 						onClick={(e) => e.stopPropagation()}
-						className="glass-panel w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 border-primary/30 animate-in zoom-in-95 duration-300"
+						className="bg-card border-border w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4"
 					>
 						<h3 className="text-xl font-bold mb-2 text-primary">
 							{editingId ? "Modifier le Prompt" : "Nouveau Prompt"}
@@ -207,10 +207,10 @@ export function PromptsLibrary() {
 
 			{loading ? (
 				<div className="flex justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary animate-spin" />
+					<RefreshCw className="w-8 h-8 text-primary" />
 				</div>
 			) : prompts.length === 0 ? (
-				<div className="glass-panel p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
+				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
 					<Terminal className="w-16 h-16 text-muted-foreground opacity-50" />
 					<div>
 						<h3 className="text-xl font-bold">Aucun prompt</h3>
@@ -224,7 +224,7 @@ export function PromptsLibrary() {
 					{prompts.map((p) => (
 						<div
 							key={p.id}
-							className="glass-panel p-5 rounded-xl flex flex-col gap-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5"
+							className="bg-card border-border p-5 rounded-xl flex flex-col gap-3"
 						>
 							<div className="flex items-start justify-between">
 								<div className="flex items-center gap-2">
@@ -238,9 +238,9 @@ export function PromptsLibrary() {
 								</div>
 							</div>
 
-							<div className="text-sm mt-2 font-mono bg-black/5 dark:bg-black/20 p-2 rounded border border-border/50 text-muted-foreground h-[60px] overflow-hidden relative">
+							<div className="text-sm mt-2 font-mono dark:bg-black/20 p-2 rounded border text-muted-foreground h-[60px] overflow-hidden relative">
 								{p.body}
-								<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#111] to-transparent"></div>
+								<div className="absolute bottom-0 left-0 right-0 h-8 from-[#111]"></div>
 							</div>
 
 							{p.tags && p.tags.length > 0 && (
@@ -258,12 +258,12 @@ export function PromptsLibrary() {
 								</div>
 							)}
 
-							<div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
+							<div className="flex items-center justify-between mt-auto pt-4 border-t">
 								<Button
 									variant="secondary"
 									size="sm"
 									onClick={() => handleCopy(p.body)}
-									className="text-primary hover:text-primary bg-primary/10 hover:bg-primary/20"
+									className="text-primary"
 								>
 									<Code className="w-4 h-4 mr-1.5" />
 									Copier
@@ -273,7 +273,7 @@ export function PromptsLibrary() {
 										variant="ghost"
 										size="icon"
 										onClick={() => handleEdit(p)}
-										className="w-8 h-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+										className="w-8 h-8 text-muted-foreground"
 										title="Modifier"
 									>
 										<Edit2 className="w-4 h-4" />
@@ -282,7 +282,7 @@ export function PromptsLibrary() {
 										variant="ghost"
 										size="icon"
 										onClick={() => handleDelete(p.id)}
-										className="w-8 h-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+										className="w-8 h-8 text-muted-foreground"
 										title="Supprimer"
 									>
 										<Trash2 className="w-4 h-4" />

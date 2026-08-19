@@ -190,9 +190,9 @@ export function Settings() {
 	};
 
 	return (
-		<div className="flex-1 w-full max-w-4xl mx-auto mt-8 z-10 animate-in fade-in duration-500">
+		<div className="flex-1 w-full max-w-4xl mx-auto mt-8 z-10">
 			<div className="flex items-center gap-3 mb-8">
-				<div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+				<div className="w-10 h-10 rounded-xl flex items-center justify-center border">
 					<SettingsIcon className="w-5 h-5 text-primary" />
 				</div>
 				<div>
@@ -205,11 +205,11 @@ export function Settings() {
 
 			{loading ? (
 				<div className="flex justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary animate-spin" />
+					<RefreshCw className="w-8 h-8 text-primary" />
 				</div>
 			) : (
 				<form onSubmit={handleSave} className="space-y-6">
-					<div className="glass-panel p-6 rounded-2xl flex flex-col gap-6">
+					<div className="bg-card border-border p-6 rounded-2xl flex flex-col gap-6">
 						<div className="flex flex-col gap-2">
 							<div className="flex items-center gap-2">
 								<Key className="w-5 h-5" />
@@ -230,7 +230,7 @@ export function Settings() {
 								placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
 							/>
 							{settings.GITHUB_RL_LIMIT && (
-								<div className="mt-2 text-xs flex gap-4 text-muted-foreground bg-black/5 dark:bg-black/20 p-2.5 rounded-lg border border-white/5 w-fit">
+								<div className="mt-2 text-xs flex gap-4 text-muted-foreground dark:bg-black/20 p-2.5 rounded-lg border w-fit">
 									<span>
 										Quota API GitHub :{" "}
 										<strong
@@ -255,7 +255,7 @@ export function Settings() {
 								</div>
 							)}
 
-							<div className="mt-4 flex items-center justify-between bg-black/5 dark:bg-black/20 p-4 rounded-xl border border-white/5">
+							<div className="mt-4 flex items-center justify-between dark:bg-black/20 p-4 rounded-xl border">
 								<div>
 									<h4 className="font-bold text-sm">
 										Cache GitHub Advisory (GHSA)
@@ -302,7 +302,7 @@ export function Settings() {
 							</div>
 							{clearCacheMessage && (
 								<div
-									className={`text-sm px-3 py-2 rounded-md ${clearCacheMessage.type === "success" ? "bg-green-500/20 text-green-400 border border-green-500/30" : "bg-red-500/20 text-red-400 border border-red-500/30"}`}
+									className={`text-sm px-3 py-2 rounded-md ${clearCacheMessage.type === "success" ? "bg-green-500/20 border " : "bg-red-500/20 border "}`}
 								>
 									{clearCacheMessage.text}
 								</div>
@@ -337,7 +337,7 @@ export function Settings() {
 						<div className="flex flex-col gap-2">
 							<label className="text-lg font-bold">Options Globales</label>
 
-							<label className="flex items-center gap-3 cursor-pointer mt-2 group">
+							<label className="flex items-center gap-3 cursor-pointer mt-2">
 								<input
 									type="checkbox"
 									checked={settings.CRITICAL_ONLY === "true"}
@@ -347,14 +347,14 @@ export function Settings() {
 											CRITICAL_ONLY: e.target.checked ? "true" : "false",
 										})
 									}
-									className="w-5 h-5 rounded border-border bg-black/40 text-primary focus:ring-primary focus:ring-offset-background"
+									className="w-5 h-5 rounded border-border text-primary"
 								/>
-								<span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+								<span className="text-sm font-medium text-muted-foreground">
 									Mode Silencieux (N'afficher que les CVEs Critical/High)
 								</span>
 							</label>
 
-							<label className="flex items-center gap-3 cursor-pointer mt-2 group">
+							<label className="flex items-center gap-3 cursor-pointer mt-2">
 								<input
 									type="checkbox"
 									checked={settings.DISABLE_CONSOLE === "true"}
@@ -364,9 +364,9 @@ export function Settings() {
 											DISABLE_CONSOLE: e.target.checked ? "true" : "false",
 										})
 									}
-									className="w-5 h-5 rounded border-border bg-black/40 text-primary focus:ring-primary focus:ring-offset-background"
+									className="w-5 h-5 rounded border-border text-primary"
 								/>
-								<span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+								<span className="text-sm font-medium text-muted-foreground">
 									Désactiver la Console (Coupe le broadcast SSE et allège les
 									performances frontend)
 								</span>
@@ -496,7 +496,7 @@ export function Settings() {
 								}
 							>
 								{testJiraLoading ? (
-									<RefreshCw className="w-4 h-4 animate-spin mr-2" />
+									<RefreshCw className="w-4 h-4 mr-2" />
 								) : (
 									<RefreshCw className="w-4 h-4 mr-2" />
 								)}
@@ -514,7 +514,7 @@ export function Settings() {
 
 					<div className="flex justify-end items-center gap-4">
 						{saveSuccess && (
-							<span className="text-sm text-green-500 font-medium animate-in fade-in slide-in-from-right-4">
+							<span className="text-sm font-medium slide-in-from-right-4">
 								Paramètres sauvegardés avec succès !
 							</span>
 						)}
@@ -522,10 +522,10 @@ export function Settings() {
 							type="submit"
 							size="lg"
 							disabled={saving}
-							className="shadow-lg shadow-primary/20"
+							className="shadow-lg"
 						>
 							{saving ? (
-								<RefreshCw className="w-5 h-5 animate-spin mr-2" />
+								<RefreshCw className="w-5 h-5 mr-2" />
 							) : (
 								<Save className="w-5 h-5 mr-2" />
 							)}
@@ -537,7 +537,7 @@ export function Settings() {
 
 			<TagsManager />
 
-			<div className="glass-panel p-8 rounded-2xl animate-in slide-in-from-bottom-6 duration-700 delay-300 mt-8">
+			<div className="bg-card border-border p-8 rounded-2xl slide-in-from-bottom-6 delay-300 mt-8">
 				<h3 className="text-xl font-bold font-heading mb-6 flex items-center gap-2">
 					<Database className="w-5 h-5 text-primary" />
 					Sauvegarde & Restauration
@@ -566,7 +566,7 @@ export function Settings() {
 								variant="outline"
 								onClick={() => handleSnapshot("restore")}
 								disabled={backupLoading}
-								className="text-red-500 border-red-500/20 hover:bg-red-500/10 hover:text-red-500"
+								className="text-red-500"
 							>
 								<AlertTriangle className="w-4 h-4 mr-2" /> Restaurer
 							</Button>
@@ -594,7 +594,7 @@ export function Settings() {
 								disabled={importLoading}
 							>
 								{importLoading ? (
-									<RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+									<RefreshCw className="w-4 h-4 mr-2" />
 								) : (
 									<Upload className="w-4 h-4 mr-2" />
 								)}{" "}
@@ -613,7 +613,7 @@ export function Settings() {
 
 				{backupMessage && (
 					<div
-						className={`mt-6 p-4 rounded-lg border ${backupMessage.type === "error" ? "bg-red-500/10 border-red-500/20 text-red-400" : "bg-green-500/10 border-green-500/20 text-green-400"} flex items-center gap-2`}
+						className={`mt-6 p-4 rounded-lg border ${backupMessage.type === "error" ? "bg-red-500/10 " : "bg-green-500/10 "} flex items-center gap-2`}
 					>
 						{backupMessage.type === "error" ? (
 							<AlertTriangle className="w-5 h-5" />

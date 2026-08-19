@@ -63,15 +63,15 @@ export function HistoryChart() {
 
 	if (loading) {
 		return (
-			<div className="glass-panel w-full h-[400px] rounded-2xl flex items-center justify-center">
-				<Loader2 className="w-8 h-8 animate-spin text-primary" />
+			<div className="bg-card border-border w-full h-[400px] rounded-2xl flex items-center justify-center">
+				<Loader2 className="w-8 h-8 text-primary" />
 			</div>
 		);
 	}
 
 	if (data.length === 0) {
 		return (
-			<div className="glass-panel w-full h-[400px] rounded-2xl flex flex-col items-center justify-center text-muted-foreground gap-2">
+			<div className="bg-card border-border w-full h-[400px] rounded-2xl flex flex-col items-center justify-center text-muted-foreground gap-2">
 				<TrendingDown className="w-8 h-8 opacity-50" />
 				<p>Aucune donnée d'historique disponible.</p>
 			</div>
@@ -79,7 +79,7 @@ export function HistoryChart() {
 	}
 
 	return (
-		<div className="glass-panel w-full p-6 rounded-2xl">
+		<div className="bg-card border-border w-full p-6 rounded-2xl">
 			<div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
 					<h3 className="text-xl font-bold font-heading">Évolution Globale</h3>
@@ -92,7 +92,7 @@ export function HistoryChart() {
 					value={days.toString()}
 					onValueChange={(val) => setDays(Number.parseInt(val))}
 				>
-					<SelectTrigger className="w-[140px] h-9 rounded-xl bg-background/50 backdrop-blur-md">
+					<SelectTrigger className="w-[140px] h-9 rounded-xl">
 						<SelectValue placeholder="Période" />
 					</SelectTrigger>
 					<SelectContent>

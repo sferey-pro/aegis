@@ -33,7 +33,7 @@ export function TriageTable({
 }: {
 	paginatedGroups: any[];
 	setSelectedGroup: (group: any) => void;
-	createTicket: (e: React.MouseEvent, group: any) => void;
+	createTicket: (e: React.MouseEvent, : any) => void;
 	tickets: Record<string, any>;
 	jiraBaseUrl: string;
 	page: number;
@@ -44,10 +44,10 @@ export function TriageTable({
 	totalItems: number;
 }) {
 	return (
-		<div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
+		<div className="rounded-md border bg-card text-card-foreground overflow-hidden">
 			<Table>
 				<TableHeader>
-					<TableRow className="bg-muted/50 hover:bg-muted/50">
+					<TableRow className="bg-muted/50">
 						<TableHead className="min-w-[300px]">
 							Cible (Package & Projet)
 						</TableHead>
@@ -61,16 +61,16 @@ export function TriageTable({
 						return (
 							<React.Fragment key={group.key}>
 								<TableRow
-									className={`cursor-pointer ${group.hasConfirmed ? "bg-red-500/5 dark:bg-red-950/30 hover:bg-red-500/10 dark:hover:bg-red-950/40" : ""}`}
+									className={`cursor-pointer ${group.hasConfirmed ? "bg-red-500/5 dark:bg-red-950/30 dark:hover:bg-red-950/40" : ""}`}
 									onClick={() => setSelectedGroup(group)}
 								>
 									<TableCell className="whitespace-nowrap">
 										<div className="flex items-center gap-3">
 											<div
-												className={`p-1.5 rounded-lg border ${group.hasConfirmed ? "bg-red-500/20 border-red-500 text-red-500" : SEVERITY_COLORS[group.worstSeverity]} shadow-sm`}
+												className={`p-1.5 rounded-lg border ${group.hasConfirmed ? "bg-red-500/20 border-red-500 " : SEVERITY_COLORS[group.worstSeverity]}`}
 											>
 												{group.hasConfirmed ? (
-													<AlertOctagon className="w-5 h-5 text-red-500 animate-pulse" />
+													<AlertOctagon className="w-5 h-5" />
 												) : (
 													SEVERITY_ICONS[group.worstSeverity]
 												)}
@@ -90,7 +90,7 @@ export function TriageTable({
 														</span>
 													)}
 													{group.hasConfirmed && (
-														<span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border border-red-500/50 bg-red-500/20 text-red-400 animate-pulse">
+														<span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border">
 															Urgent
 														</span>
 													)}
@@ -109,14 +109,14 @@ export function TriageTable({
 
 									<TableCell className="text-center whitespace-nowrap">
 										<div className="flex flex-col items-center gap-2">
-											<div className="inline-flex items-center gap-2 px-2.5 py-1 bg-black/5 dark:bg-black/20 border border-border dark:border-white/5 rounded-md text-xs shadow-inner">
+											<div className="inline-flex items-center gap-2 px-2.5 py-1 dark:bg-black/20 border border-border dark:border-white/5 rounded-md text-xs">
 												<span className="font-bold flex items-center gap-1.5 text-foreground/90">
 													<Shield className="w-3.5 h-3.5 text-muted-foreground" />{" "}
 													{group.cves.length}
 												</span>
 												{group.pendingCount > 0 && (
 													<>
-														<span className="w-px h-3 bg-black/20 dark:bg-white/20"></span>
+														<span className="w-px h-3 dark:bg-white/20"></span>
 														<span className="text-primary font-medium flex items-center gap-1.5">
 															<RefreshCw className="w-3.5 h-3.5" />{" "}
 															{group.pendingCount}
@@ -126,7 +126,7 @@ export function TriageTable({
 											</div>
 											<div className="flex flex-col items-center gap-1">
 												{group.hasBaseline && (
-													<span className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 bg-purple-500/10 text-purple-400 border border-purple-500/30">
+													<span className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 border">
 														Dette:{" "}
 														{group.maxBaselineAgeInDays > 0
 															? `${group.maxBaselineAgeInDays}j`
@@ -135,13 +135,7 @@ export function TriageTable({
 												)}
 												{group.hasNetDiscovery && (
 													<span
-														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${
-															group.maxSlaAgeInDays > 30
-																? "bg-red-500/10 text-red-400 border border-red-500/30"
-																: group.maxSlaAgeInDays > 15
-																	? "bg-orange-500/10 text-orange-400 border border-orange-500/30"
-																	: "bg-green-500/10 text-green-400 border border-green-500/30"
-														}`}
+														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${ .maxSlaAgeInDays > 30 ? "bg-red-500/10 border " : .maxSlaAgeInDays > 15 ? "bg-orange-500/10 border " : "bg-green-500/10 border " }`}
 													>
 														SLA:{" "}
 														{group.maxSlaAgeInDays > 0
@@ -156,11 +150,11 @@ export function TriageTable({
 									<TableCell className="text-center whitespace-nowrap">
 										<div className="flex flex-col items-center justify-center h-full">
 											{group.targetPatch ? (
-												<span className="font-mono text-xs font-bold text-green-400 bg-green-500/10 px-2.5 py-1 rounded-md border border-green-500/20 shadow-sm flex items-center gap-1">
+												<span className="font-mono text-xs font-bold px-2.5 py-1 rounded-md border flex items-center gap-1">
 													↳ {group.targetPatch}
 												</span>
 											) : (
-												<span className="text-muted-foreground/50 text-xs italic px-2 py-1 bg-black/5 dark:bg-white/5 rounded-md border border-border dark:border-white/5">
+												<span className="text-muted-foreground/50 text-xs italic px-2 py-1 dark:bg-white/5 rounded-md border border-border dark:border-white/5">
 													Aucun patch
 												</span>
 											)}
@@ -169,8 +163,8 @@ export function TriageTable({
 									<TableCell className="text-right whitespace-nowrap">
 										<div className="flex flex-col items-end justify-center h-full">
 											<button
-												onClick={(e) => createTicket(e, group)}
-												className="px-2.5 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors inline-flex items-center gap-2 text-xs font-semibold"
+												onClick={(e) => createTicket(e, )}
+												className="px-2.5 py-1.5 rounded border inline-flex items-center gap-2 text-xs font-semibold"
 											>
 												<FileText className="w-3.5 h-3.5" />
 												Ticket
@@ -181,7 +175,7 @@ export function TriageTable({
 														href={`${jiraBaseUrl.replace(/\/$/, "")}/browse/${tickets[group.key].url}`}
 														target="_blank"
 														rel="noreferrer"
-														className="text-blue-400 hover:underline"
+														className="text-blue-400"
 														onClick={(e) => e.stopPropagation()}
 													>
 														{tickets[group.key].url}
@@ -208,7 +202,7 @@ export function TriageTable({
 											{totalItems} packages
 										</span>
 										<select
-											className="bg-background dark:bg-black/60 border border-border dark:border-white/10 rounded-md px-2 py-1 text-sm outline-none focus:border-primary font-mono text-foreground cursor-pointer"
+											className="bg-background dark:bg-black/60 border border-border dark:border-white/10 rounded-md px-2 py-1 text-sm outline-none font-mono text-foreground cursor-pointer"
 											value={itemsPerPage}
 											onChange={(e) => {
 												setItemsPerPage(Number(e.target.value));
@@ -245,7 +239,7 @@ export function TriageTable({
 										<button
 											onClick={() => setPage((p) => Math.max(1, p - 1))}
 											disabled={page === 1}
-											className="p-1.5 rounded-lg border border-border dark:border-white/10 bg-black/5 dark:bg-black/40 text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+											className="p-1.5 rounded-lg border border-border dark:border-white/10 dark:bg-black/40 text-muted-foreground dark:hover:bg-white/10 disabled:opacity-50"
 										>
 											<ChevronLeft className="w-5 h-5" />
 										</button>
@@ -257,7 +251,7 @@ export function TriageTable({
 												setPage((p) => Math.min(totalPages, p + 1))
 											}
 											disabled={page === totalPages}
-											className="p-1.5 rounded-lg border border-border dark:border-white/10 bg-black/5 dark:bg-black/40 text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10 hover:text-foreground disabled:opacity-50 transition-colors"
+											className="p-1.5 rounded-lg border border-border dark:border-white/10 dark:bg-black/40 text-muted-foreground dark:hover:bg-white/10 disabled:opacity-50"
 										>
 											<ChevronRight className="w-5 h-5" />
 										</button>

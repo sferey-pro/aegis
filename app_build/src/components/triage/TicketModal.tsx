@@ -1,5 +1,8 @@
-import { CheckCircle2, Copy, FileText, RefreshCw, Send, X } from "lucide-react";
+import { CheckCircle2, Copy, FileText, RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
 
 export function TicketModal({
 	ticketModal,
@@ -8,7 +11,7 @@ export function TicketModal({
 	setToast,
 	fetchTickets,
 }: {
-	ticketModal: { isOpen: boolean; md: string; copied: boolean; ?: any };
+	ticketModal: { isOpen: boolean; md: string; copied: boolean; group?: any };
 	setTicketModal: (val: any) => void;
 	copyToClipboard: () => void;
 	setToast: (toast: any) => void;
@@ -17,42 +20,36 @@ export function TicketModal({
 	const [notes, setNotes] = useState("");
 	const [creating, setCreating] = useState(false);
 
-	if (!ticketModal.isOpen) return null;
-
 	return (
-		<div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-			<div className="bg-card border-border w-full max-w-2xl rounded-2xl p-6 flex flex-col max-h-[85vh]">
-				<div className="flex items-center justify-between mb-4">
-					<h3 className="text-xl font-bold font-heading flex items-center gap-2">
+		<Dialog 
+			open={ticketModal.isOpen} 
+			onOpenChange={(open: boolean) => setTicketModal({ ...ticketModal, isOpen: open })}
+		>
+			<DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
 						<FileText className="w-5 h-5" />
 						Création Ticket Jira
-					</h3>
-					<button
-						onClick={() => setTicketModal({ ...ticketModal, isOpen: false })}
-						className="p-1.5 rounded-md text-muted-foreground dark:hover:bg-white/10"
-					>
-						<X className="w-5 h-5" />
-					</button>
-				</div>
+					</DialogTitle>
+					<DialogDescription>
+						Un ticket Jira va être créé pour le package{" "}
+						<span className="font-bold text-foreground">
+							{ticketModal.group?.package}
+						</span>{" "}
+						({ticketModal.group?.cves?.length} vulnérabilités).
+					</DialogDescription>
+				</DialogHeader>
 
-				<div className="text-sm text-muted-foreground mb-4">
-					Un ticket Jira va être créé pour le package{" "}
-					<span className="font-bold text-foreground">
-						{ticketModal.group?.package}
-					</span>{" "}
-					({ticketModal.group?.cves?.length} vulnérabilités).
-				</div>
-
-				<div className="flex-1 overflow-auto flex flex-col gap-4">
+				<div className="flex-1 overflow-auto flex flex-col gap-4 py-4">
 					<div>
 						<label className="block text-sm font-medium mb-2">
 							Notes additionnelles / Recommandations
 						</label>
-						<textarea
+						<Textarea
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							placeholder="Ajoutez vos recommandations pour les développeurs..."
-							className="w-full dark:bg-black/50 rounded-xl border dark:border-white/5 p-4 relative font-sans text-sm outline-none min-h-[120px]"
+							className="min-h-[120px] font-sans text-sm"
 						/>
 					</div>
 
@@ -60,34 +57,35 @@ export function TicketModal({
 						<label className="block text-sm font-medium mb-2">
 							Aperçu du contenu (Markdown pour copie manuelle)
 						</label>
-						<div className="w-full overflow-auto dark:bg-black/50 rounded-xl border dark:border-white/5 p-4 text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-[150px]">
+						<div className="w-full overflow-auto bg-muted/50 rounded-xl border border-input p-4 text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-[150px]">
 							{ticketModal.md}
 						</div>
 					</div>
 				</div>
 
-				<div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border">
-					<button
+				<DialogFooter className="gap-3 pt-4 border-t border-border">
+					<Button
+						variant="secondary"
 						onClick={() => setTicketModal({ ...ticketModal, isOpen: false })}
-						className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground"
 					>
 						Annuler
-					</button>
-					<button
+					</Button>
+					<Button
+						variant="secondary"
 						onClick={() => {
 							setTimeout(copyToClipboard, 0);
 						}}
 						title="Copier le Markdown"
-						className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground flex items-center gap-2"
+						className="flex items-center gap-2"
 					>
 						{ticketModal.copied ? (
 							<CheckCircle2 className="w-4 h-4" />
 						) : (
 							<Copy className="w-4 h-4" />
 						)}
-					</button>
+					</Button>
 
-					<button
+					<Button
 						onClick={async () => {
 							if (!ticketModal.group) return;
 							setCreating(true);
@@ -133,17 +131,17 @@ export function TicketModal({
 							}
 						}}
 						disabled={creating}
-						className="px-5 py-2 rounded-md bg-blue-600 text-white flex items-center gap-2 font-medium disabled:opacity-50"
+						className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
 					>
 						{creating ? (
-							<RefreshCw className="w-4 h-4" />
+							<RefreshCw className="w-4 h-4 animate-spin" />
 						) : (
 							<Send className="w-4 h-4" />
 						)}
 						Créer dans Jira
-					</button>
-				</div>
-			</div>
-		</div>
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

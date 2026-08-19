@@ -9,6 +9,7 @@ import { PromptsLibrary } from "./components/PromptsLibrary";
 import { Reports } from "./components/Reports";
 import { Settings } from "./components/Settings";
 import { Triage } from "./components/Triage";
+import { Debug } from "./components/debug/Debug";
 
 interface Stats {
 	monitoredProjects: number;
@@ -27,7 +28,7 @@ interface Stats {
 
 export function App() {
 	const [currentTab, setCurrentTab] = useState<
-		"overview" | "projects" | "triage" | "reports" | "prompts" | "settings"
+		"overview" | "projects" | "triage" | "reports" | "prompts" | "settings" | "debug"
 	>("overview");
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -99,6 +100,17 @@ export function App() {
 	useEffect(() => {
 		fetchStats(true);
 	}, [fetchStats]);
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.ctrlKey && e.shiftKey && e.key === "D") {
+				e.preventDefault();
+				setCurrentTab(prev => prev === "debug" ? "overview" : "debug");
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, []);
 
 	const handleRunAudit = useCallback(async () => {
 		setAuditing(true);
@@ -241,6 +253,7 @@ export function App() {
 					{currentTab === "reports" && <Reports />}
 					{currentTab === "prompts" && <PromptsLibrary />}
 					{currentTab === "settings" && <Settings />}
+					{currentTab === "debug" && <Debug />}
 				</div>
 
 				<ReportModal

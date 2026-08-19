@@ -16,7 +16,7 @@ export function GlobalLoader({
 	if (!loading && !auditing) return null;
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center flex-col gap-6">
+		<div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center flex-col gap-6">
 			<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] blur-[100px] rounded-full pointer-events-none"></div>
 
 			<div className="relative flex items-center justify-center w-24 h-24 rounded-full neon-glow z-10">

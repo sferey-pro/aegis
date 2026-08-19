@@ -17,6 +17,8 @@ import {
 	TableRow,
 	TableFooter,
 } from "../ui/table";
+import { Button } from "../ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 export function TriageTable({
 	paginatedGroups,
@@ -33,7 +35,7 @@ export function TriageTable({
 }: {
 	paginatedGroups: any[];
 	setSelectedGroup: (group: any) => void;
-	createTicket: (e: React.MouseEvent, : any) => void;
+	createTicket: (e: React.MouseEvent, group: any) => void;
 	tickets: Record<string, any>;
 	jiraBaseUrl: string;
 	page: number;
@@ -61,7 +63,7 @@ export function TriageTable({
 						return (
 							<React.Fragment key={group.key}>
 								<TableRow
-									className={`cursor-pointer ${group.hasConfirmed ? "bg-red-500/5 dark:bg-red-950/30 dark:hover:bg-red-950/40" : ""}`}
+									className={`cursor-pointer ${group.hasConfirmed ? "bg-red-500/5  :bg-red-950/40" : ""}`}
 									onClick={() => setSelectedGroup(group)}
 								>
 									<TableCell className="whitespace-nowrap">
@@ -99,7 +101,7 @@ export function TriageTable({
 													<span className="font-medium text-xs text-muted-foreground">
 														{group.projectName}
 													</span>
-													<span className="px-1.5 py-0.5 rounded bg-secondary text-[9px] uppercase font-mono text-muted-foreground border border-border dark:border-white/5">
+													<span className="px-1.5 py-0.5 rounded bg-secondary text-[9px] uppercase font-mono text-muted-foreground border border-border ">
 														{group.tool}
 													</span>
 												</div>
@@ -109,14 +111,14 @@ export function TriageTable({
 
 									<TableCell className="text-center whitespace-nowrap">
 										<div className="flex flex-col items-center gap-2">
-											<div className="inline-flex items-center gap-2 px-2.5 py-1 dark:bg-black/20 border border-border dark:border-white/5 rounded-md text-xs">
+											<div className="inline-flex items-center gap-2 px-2.5 py-1  border border-border  rounded-md text-xs">
 												<span className="font-bold flex items-center gap-1.5 text-foreground/90">
 													<Shield className="w-3.5 h-3.5 text-muted-foreground" />{" "}
 													{group.cves.length}
 												</span>
 												{group.pendingCount > 0 && (
 													<>
-														<span className="w-px h-3 dark:bg-white/20"></span>
+														<span className="w-px h-3 "></span>
 														<span className="text-primary font-medium flex items-center gap-1.5">
 															<RefreshCw className="w-3.5 h-3.5" />{" "}
 															{group.pendingCount}
@@ -135,7 +137,7 @@ export function TriageTable({
 												)}
 												{group.hasNetDiscovery && (
 													<span
-														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${ .maxSlaAgeInDays > 30 ? "bg-red-500/10 border " : .maxSlaAgeInDays > 15 ? "bg-orange-500/10 border " : "bg-green-500/10 border " }`}
+														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${ group.maxSlaAgeInDays > 30 ? "bg-red-500/10 border " : group.maxSlaAgeInDays > 15 ? "bg-orange-500/10 border " : "bg-green-500/10 border " }`}
 													>
 														SLA:{" "}
 														{group.maxSlaAgeInDays > 0
@@ -154,7 +156,7 @@ export function TriageTable({
 													↳ {group.targetPatch}
 												</span>
 											) : (
-												<span className="text-muted-foreground/50 text-xs italic px-2 py-1 dark:bg-white/5 rounded-md border border-border dark:border-white/5">
+												<span className="text-muted-foreground/50 text-xs italic px-2 py-1  rounded-md border border-border ">
 													Aucun patch
 												</span>
 											)}
@@ -162,13 +164,15 @@ export function TriageTable({
 									</TableCell>
 									<TableCell className="text-right whitespace-nowrap">
 										<div className="flex flex-col items-end justify-center h-full">
-											<button
-												onClick={(e) => createTicket(e, )}
-												className="px-2.5 py-1.5 rounded border inline-flex items-center gap-2 text-xs font-semibold"
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={(e) => createTicket(e, group)}
+												className="inline-flex items-center gap-2 text-xs font-semibold"
 											>
 												<FileText className="w-3.5 h-3.5" />
 												Ticket
-											</button>
+											</Button>
 											{tickets[group.key] && (
 												<div className="mt-2 text-xs flex justify-end">
 													<a
@@ -201,60 +205,48 @@ export function TriageTable({
 											{Math.min(page * itemsPerPage, totalItems)} sur{" "}
 											{totalItems} packages
 										</span>
-										<select
-											className="bg-background dark:bg-black/60 border border-border dark:border-white/10 rounded-md px-2 py-1 text-sm outline-none font-mono text-foreground cursor-pointer"
-											value={itemsPerPage}
-											onChange={(e) => {
-												setItemsPerPage(Number(e.target.value));
+										<Select
+											value={itemsPerPage.toString()}
+											onValueChange={(val) => {
+												setItemsPerPage(Number(val));
 												setPage(1);
 											}}
 										>
-											<option
-												className="bg-background text-foreground"
-												value={10}
-											>
-												10 par page
-											</option>
-											<option
-												className="bg-background text-foreground"
-												value={20}
-											>
-												20 par page
-											</option>
-											<option
-												className="bg-background text-foreground"
-												value={50}
-											>
-												50 par page
-											</option>
-											<option
-												className="bg-background text-foreground"
-												value={100}
-											>
-												100 par page
-											</option>
-										</select>
+											<SelectTrigger className="w-[140px] h-8 text-xs font-mono">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="10">10 par page</SelectItem>
+												<SelectItem value="20">20 par page</SelectItem>
+												<SelectItem value="50">50 par page</SelectItem>
+												<SelectItem value="100">100 par page</SelectItem>
+											</SelectContent>
+										</Select>
 									</div>
 									<div className="flex items-center gap-2">
-										<button
+										<Button
+											variant="outline"
+											size="icon"
 											onClick={() => setPage((p) => Math.max(1, p - 1))}
 											disabled={page === 1}
-											className="p-1.5 rounded-lg border border-border dark:border-white/10 dark:bg-black/40 text-muted-foreground dark:hover:bg-white/10 disabled:opacity-50"
+											className="h-8 w-8"
 										>
-											<ChevronLeft className="w-5 h-5" />
-										</button>
+											<ChevronLeft className="w-4 h-4" />
+										</Button>
 										<span className="text-sm font-medium px-2">
 											Page {page} / {totalPages}
 										</span>
-										<button
+										<Button
+											variant="outline"
+											size="icon"
 											onClick={() =>
 												setPage((p) => Math.min(totalPages, p + 1))
 											}
 											disabled={page === totalPages}
-											className="p-1.5 rounded-lg border border-border dark:border-white/10 dark:bg-black/40 text-muted-foreground dark:hover:bg-white/10 disabled:opacity-50"
+											className="h-8 w-8"
 										>
-											<ChevronRight className="w-5 h-5" />
-										</button>
+											<ChevronRight className="w-4 h-4" />
+										</Button>
 									</div>
 								</div>
 							</TableCell>

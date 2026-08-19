@@ -12,6 +12,7 @@ import {
 	XCircle,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
+import { Button } from "./ui/button";
 
 interface ConsoleEvent {
 	id: number;
@@ -136,9 +137,10 @@ export const Console = memo(function Console() {
 
 	if (!isOpen) {
 		return (
-			<button
+			<Button
+				variant="outline"
 				onClick={() => setIsOpen(true)}
-				className="fixed bottom-6 right-6 p-4 rounded-full bg-card border border-border z-50 neon-glow"
+				className="fixed bottom-6 right-6 p-4 rounded-full bg-card border border-border z-50 w-auto h-auto"
 				title="Ouvrir la Console Live"
 			>
 				<Terminal className="w-6 h-6 text-primary" />
@@ -150,7 +152,7 @@ export const Console = memo(function Console() {
 						</span>
 					</span>
 				)}
-			</button>
+			</Button>
 		);
 	}
 
@@ -166,37 +168,45 @@ export const Console = memo(function Console() {
 						AEGIS LIVE CONSOLE
 					</span>
 				</div>
-				<div className="flex items-center gap-3">
-					<button
+				<div className="flex items-center gap-1">
+					<Button
+						variant="ghost"
+						size="icon"
 						onClick={() => setDebugMode(!debugMode)}
-						className={`transition-colors ${debugMode ? "text-primary" : "text-muted-foreground "}`}
+						className={`transition-colors h-8 w-8 ${debugMode ? "text-primary" : "text-muted-foreground "}`}
 						title="Mode Debug (Affiche stdout et stderr)"
 					>
 						<AlertTriangle className="w-4 h-4" />
-					</button>
-					<button
+					</Button>
+					<Button
+						variant="ghost"
+						size="icon"
 						onClick={() => setLogs([])}
-						className="text-muted-foreground"
+						className="text-muted-foreground h-8 w-8"
 						title="Effacer la console"
 					>
 						<Trash2 className="w-4 h-4" />
-					</button>
-					<button
+					</Button>
+					<Button
+						variant="ghost"
+						size="icon"
 						onClick={() => setIsMaximized(!isMaximized)}
-						className="text-muted-foreground hidden md:block"
+						className="text-muted-foreground h-8 w-8 hidden md:flex"
 					>
 						{isMaximized ? (
 							<Minimize2 className="w-4 h-4" />
 						) : (
 							<Maximize2 className="w-4 h-4" />
 						)}
-					</button>
-					<button
+					</Button>
+					<Button
+						variant="ghost"
+						size="icon"
 						onClick={() => setIsOpen(false)}
-						className="text-muted-foreground"
+						className="text-muted-foreground h-8 w-8"
 					>
 						<X className="w-5 h-5" />
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -213,7 +223,7 @@ export const Console = memo(function Console() {
 						<button
 							key={t}
 							onClick={() => setActiveTab(t)}
-							className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold whitespace-nowrap border-b-2 relative ${ activeTab === t ? "text-primary border-primary " : "text-muted-foreground border-transparent " }`}
+							className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold whitespace-nowrap border-b-2 relative transition-colors ${ activeTab === t ? "text-primary border-primary " : "text-muted-foreground border-transparent hover:text-foreground" }`}
 						>
 							{t === "Global" ? (
 								<Globe className="w-3.5 h-3.5" />
@@ -271,7 +281,7 @@ export const Console = memo(function Console() {
 
 							<div className="flex-1 flex flex-col min-w-0">
 								<div className="flex items-center gap-2 flex-wrap">
-									<span className="font-semibold text-xs px-2 py-0.5 rounded text-white/90">
+									<span className="font-semibold text-xs px-2 py-0.5 rounded">
 										{log.label.toUpperCase()}
 									</span>
 

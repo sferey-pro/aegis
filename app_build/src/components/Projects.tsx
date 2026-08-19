@@ -34,6 +34,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "./ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 export const Projects = React.memo(function Projects({
 	onViewTriage,
@@ -456,225 +458,232 @@ export const Projects = React.memo(function Projects({
 				</div>
 			</div>
 
-			{isAdding && (
-				<div
-					className="fixed inset-0 z-50 flex items-center justify-center p-4"
-					onClick={resetForm}
-				>
+			<Dialog open={isAdding} onOpenChange={(open: boolean) => { if (!open) resetForm(); }}>
+				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
 					<form
 						ref={formRef}
 						onSubmit={handleSubmit}
-						onClick={(e) => e.stopPropagation()}
-						className="bg-card border-border w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto hide-scrollbar"
+						className="flex flex-col h-full"
 					>
-						<h3 className="text-xl font-bold mb-2 text-primary">
-							{editingId ? "Modifier le Projet" : "Nouveau Projet"}
-						</h3>
+						<DialogHeader className="p-6 pb-2 shrink-0">
+							<DialogTitle className="text-xl font-bold text-primary">
+								{editingId ? "Modifier le Projet" : "Nouveau Projet"}
+							</DialogTitle>
+						</DialogHeader>
 
-						<div className="flex dark:bg-black/20 p-1 rounded-lg border mb-2">
-							<button
-								type="button"
-								onClick={() => setFormData({ ...formData, is_remote: false })}
-								className={`flex-1 py-1.5 text-sm font-medium rounded-md ${!formData.is_remote ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground "}`}
-							>
-								Projet Local
-							</button>
-							<button
-								type="button"
-								onClick={() =>
-									setFormData({ ...formData, is_remote: true, path: "" })
-								}
-								className={`flex-1 py-1.5 text-sm font-medium rounded-md ${formData.is_remote ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground "}`}
-							>
-								Projet Distant (CI)
-							</button>
-						</div>
-
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div className="flex flex-col gap-1">
-								<label className="text-sm font-medium">Nom du projet</label>
-								<Input
-									required
-									type="text"
-									value={formData.name}
-									onChange={(e) =>
-										setFormData({ ...formData, name: e.target.value })
-									}
-									placeholder="Ex: Mon API Node"
-								/>
-							</div>
-
-							<div className="flex flex-col gap-1">
-								<label className="text-sm font-medium flex items-center gap-1">
-									<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
-								</label>
-								<div className="relative">
-									<input
-										readOnly
-										type="text"
-										value={
-											formData.name
-												? `${window.location.origin}/api/ingest/${formData.name
-														.toLowerCase()
-														.replace(/[^a-z0-9]+/g, "-")
-														.replace(/(^-|-$)/g, "")}`
-												: "URL auto-générée"
-										}
-										className="w-full border text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
-										title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
-									/>
-									<button
-										type="button"
-										title="Copier l'URL"
-										onClick={(e) => {
-											e.preventDefault();
-											e.stopPropagation();
-											const slug = formData.name
-												? formData.name
-														.toLowerCase()
-														.replace(/[^a-z0-9]+/g, "-")
-														.replace(/(^-|-$)/g, "")
-												: "";
-											if (slug) {
-												copyToClipboard(
-													`${window.location.origin}/api/ingest/${slug}`,
-												);
-												setCopiedSlug(-1);
-												setTimeout(() => setCopiedSlug(null), 2000);
-											}
-										}}
-										className="absolute inset-y-0 right-0 flex items-center px-3 rounded-r-md"
-									>
-										{copiedSlug === -1 ? (
-											<Check className="w-4 h-4" />
-										) : (
-											<Copy className="w-4 h-4 text-muted-foreground" />
-										)}
-									</button>
-								</div>
-							</div>
-
-							{!formData.is_remote && (
-								<div className="flex flex-col gap-1 md:col-span-2">
-									<label className="text-sm font-medium">
-										Chemin absolu (Racine Git)
-									</label>
-									<Input
-										required={!formData.is_remote}
-										type="text"
-										value={formData.path}
-										onChange={(e) =>
-											setFormData({ ...formData, path: e.target.value })
-										}
-										onBlur={handleDetectTool}
-										placeholder="Ex: /home/user/projects/api"
-									/>
-									{detectStatus === "detecting" && (
-										<span className="text-xs mt-1 flex items-center gap-1">
-											<Loader2 className="w-3 h-3" /> Détection
-											automatique...
-										</span>
-									)}
-									{detectStatus === "success" && (
-										<span className="text-xs mt-1 flex items-center gap-1">
-											<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
-											{detectedToolName}
-										</span>
-									)}
-									{detectStatus === "error" && (
-										<span className="text-xs mt-1 flex items-center gap-1">
-											<XCircle className="w-3 h-3" /> Impossible de détecter
-											automatiquement (vérifiez le chemin)
-										</span>
-									)}
-								</div>
-							)}
-
-							{!formData.is_remote && (
-								<div className="flex flex-col gap-1">
-									<label className="text-sm font-medium">
-										Sous-dossier d'audit (Optionnel)
-									</label>
-									<Input
-										type="text"
-										value={formData.audit_path}
-										onChange={(e) =>
-											setFormData({ ...formData, audit_path: e.target.value })
-										}
-										onBlur={handleDetectTool}
-										placeholder="Ex: backend/src (vide si racine)"
-									/>
-								</div>
-							)}
-
-							<div className="flex flex-col gap-1">
-								<label className="text-sm font-medium">Outil d'audit</label>
-								<select
-									value={formData.tool}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											tool: e.target.value as any,
-											type: e.target.value === "composer" ? "composer" : "node",
-										})
-									}
-									className="bg-background border border-border rounded-md px-3 py-2 outline-none"
+						<div className="flex-1 overflow-y-auto px-6 py-2 flex flex-col gap-4 hide-scrollbar">
+							<div className="flex p-1 rounded-lg border mb-2 shrink-0">
+								<Button
+									type="button"
+									variant={!formData.is_remote ? "default" : "ghost"}
+									onClick={() => setFormData({ ...formData, is_remote: false })}
+									className={`flex-1 rounded-md`}
 								>
-									<option value="npm">NPM</option>
-									<option value="yarn">Yarn</option>
-									<option value="bun">Bun</option>
-									<option value="composer">Composer</option>
-								</select>
+									Projet Local
+								</Button>
+								<Button
+									type="button"
+									variant={formData.is_remote ? "default" : "ghost"}
+									onClick={() =>
+										setFormData({ ...formData, is_remote: true, path: "" })
+									}
+									className={`flex-1 rounded-md`}
+								>
+									Projet Distant (CI)
+								</Button>
 							</div>
 
-							<div className="flex flex-col gap-2 md:col-span-2">
-								<label className="text-sm font-medium">
-									Tags (Configurations)
-								</label>
-								<div className="flex flex-wrap gap-2">
-									{availableTags.map((t) => {
-										const isSelected = formData.tags.includes(t.name);
-										return (
-											<button
-												key={t.id}
-												type="button"
-												onClick={() => {
-													if (isSelected) {
-														setFormData({
-															...formData,
-															tags: formData.tags.filter(
-																(tag) => tag !== t.name,
-															),
-														});
-													} else {
-														setFormData({
-															...formData,
-															tags: [...formData.tags, t.name],
-														});
-													}
-												}}
-												className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${ isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground" }`}
-											>
-												<span
-													className="w-2 h-2 rounded-full inline-block mr-2"
-													style={{
-														backgroundColor: `var(--color-${t.color}-500, var(--primary))`,
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
+								<div className="flex flex-col gap-1">
+									<label className="text-sm font-medium">Nom du projet</label>
+									<Input
+										required
+										type="text"
+										value={formData.name}
+										onChange={(e) =>
+											setFormData({ ...formData, name: e.target.value })
+										}
+										placeholder="Ex: Mon API Node"
+									/>
+								</div>
+
+								<div className="flex flex-col gap-1">
+									<label className="text-sm font-medium flex items-center gap-1">
+										<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
+									</label>
+									<div className="relative">
+										<input
+											readOnly
+											type="text"
+											value={
+												formData.name
+													? `${window.location.origin}/api/ingest/${formData.name
+															.toLowerCase()
+															.replace(/[^a-z0-9]+/g, "-")
+															.replace(/(^-|-$)/g, "")}`
+													: "URL auto-générée"
+											}
+											className="w-full border text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
+											title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
+										/>
+										<Button
+											type="button"
+											variant="ghost"
+											title="Copier l'URL"
+											onClick={(e) => {
+												e.preventDefault();
+												e.stopPropagation();
+												const slug = formData.name
+													? formData.name
+															.toLowerCase()
+															.replace(/[^a-z0-9]+/g, "-")
+															.replace(/(^-|-$)/g, "")
+													: "";
+												if (slug) {
+													copyToClipboard(
+														`${window.location.origin}/api/ingest/${slug}`,
+													);
+													setCopiedSlug(-1);
+													setTimeout(() => setCopiedSlug(null), 2000);
+												}
+											}}
+											className="absolute inset-y-0 right-0 flex items-center px-3 rounded-l-none"
+										>
+											{copiedSlug === -1 ? (
+												<Check className="w-4 h-4" />
+											) : (
+												<Copy className="w-4 h-4 text-muted-foreground" />
+											)}
+										</Button>
+									</div>
+								</div>
+
+								{!formData.is_remote && (
+									<div className="flex flex-col gap-1 md:col-span-2">
+										<label className="text-sm font-medium">
+											Chemin absolu (Racine Git)
+										</label>
+										<Input
+											required={!formData.is_remote}
+											type="text"
+											value={formData.path}
+											onChange={(e) =>
+												setFormData({ ...formData, path: e.target.value })
+											}
+											onBlur={handleDetectTool}
+											placeholder="Ex: /home/user/projects/api"
+										/>
+										{detectStatus === "detecting" && (
+											<span className="text-xs mt-1 flex items-center gap-1">
+												<Loader2 className="w-3 h-3" /> Détection
+												automatique...
+											</span>
+										)}
+										{detectStatus === "success" && (
+											<span className="text-xs mt-1 flex items-center gap-1">
+												<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
+												{detectedToolName}
+											</span>
+										)}
+										{detectStatus === "error" && (
+											<span className="text-xs mt-1 flex items-center gap-1">
+												<XCircle className="w-3 h-3" /> Impossible de détecter
+												automatiquement (vérifiez le chemin)
+											</span>
+										)}
+									</div>
+								)}
+
+								{!formData.is_remote && (
+									<div className="flex flex-col gap-1">
+										<label className="text-sm font-medium">
+											Sous-dossier d'audit (Optionnel)
+										</label>
+										<Input
+											type="text"
+											value={formData.audit_path}
+											onChange={(e) =>
+												setFormData({ ...formData, audit_path: e.target.value })
+											}
+											onBlur={handleDetectTool}
+											placeholder="Ex: backend/src (vide si racine)"
+										/>
+									</div>
+								)}
+
+								<div className="flex flex-col gap-1">
+									<label className="text-sm font-medium">Outil d'audit</label>
+									<Select
+										value={formData.tool}
+										onValueChange={(val: any) =>
+											setFormData({
+												...formData,
+												tool: val,
+												type: val === "composer" ? "composer" : "node",
+											})
+										}
+									>
+										<SelectTrigger className="w-full">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="npm">NPM</SelectItem>
+											<SelectItem value="yarn">Yarn</SelectItem>
+											<SelectItem value="bun">Bun</SelectItem>
+											<SelectItem value="composer">Composer</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+
+								<div className="flex flex-col gap-2 md:col-span-2">
+									<label className="text-sm font-medium">
+										Tags (Configurations)
+									</label>
+									<div className="flex flex-wrap gap-2">
+										{availableTags.map((t) => {
+											const isSelected = formData.tags.includes(t.name);
+											return (
+												<button
+													key={t.id}
+													type="button"
+													onClick={() => {
+														if (isSelected) {
+															setFormData({
+																...formData,
+																tags: formData.tags.filter(
+																	(tag) => tag !== t.name,
+																),
+															});
+														} else {
+															setFormData({
+																...formData,
+																tags: [...formData.tags, t.name],
+															});
+														}
 													}}
-												></span>
-												{t.name}
-											</button>
-										);
-									})}
-									{availableTags.length === 0 && (
-										<span className="text-xs text-muted-foreground italic">
-											Aucun tag configuré dans les Paramètres.
-										</span>
-									)}
+													className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${ isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground" }`}
+												>
+													<span
+														className="w-2 h-2 rounded-full inline-block mr-2"
+														style={{
+															backgroundColor: `var(--color-${t.color}-500, var(--primary))`,
+														}}
+													></span>
+													{t.name}
+												</button>
+											);
+										})}
+										{availableTags.length === 0 && (
+											<span className="text-xs text-muted-foreground italic">
+												Aucun tag configuré dans les Paramètres.
+											</span>
+										)}
+									</div>
 								</div>
 							</div>
 						</div>
 
-						<div className="flex justify-end gap-3 mt-4">
+						<DialogFooter className="p-6 pt-4 border-t shrink-0">
 							<Button type="button" variant="secondary" onClick={resetForm}>
 								Annuler
 							</Button>
@@ -708,27 +717,29 @@ export const Projects = React.memo(function Projects({
 									{editingId ? "Enregistrer" : "Créer sans auditer"}
 								</Button>
 							)}
-						</div>
+						</DialogFooter>
 					</form>
-				</div>
-			)}
+				</DialogContent>
+			</Dialog>
 
 			{availableTags.length > 0 && projects.length > 0 && (
 				<div className="flex flex-wrap gap-2 mb-6">
 					<span className="text-sm font-semibold text-muted-foreground mr-2 self-center">
 						Filtre :
 					</span>
-					<button
+					<Button
+						variant={filterTag === null ? "default" : "outline"}
 						onClick={() => setFilterTag(null)}
-						className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border ${filterTag === null ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-border "}`}
+						className="rounded-full text-xs font-bold uppercase tracking-wider px-3 h-7"
 					>
 						Tous
-					</button>
+					</Button>
 					{availableTags.map((t) => (
-						<button
+						<Button
 							key={t.id}
+							variant={filterTag === t.name ? "default" : "outline"}
 							onClick={() => setFilterTag(t.name)}
-							className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-full border flex items-center gap-1.5 ${filterTag === t.name ? "bg-primary/20 text-primary border-primary" : "bg-background text-muted-foreground border-border "}`}
+							className={`rounded-full text-xs font-bold uppercase tracking-wider px-3 h-7 flex items-center gap-1.5 ${filterTag === t.name ? "bg-primary/20 text-primary border-primary" : ""}`}
 						>
 							<span
 								className="w-2 h-2 rounded-full"
@@ -737,7 +748,7 @@ export const Projects = React.memo(function Projects({
 								}}
 							></span>
 							{t.name}
-						</button>
+						</Button>
 					))}
 				</div>
 			)}
@@ -784,7 +795,7 @@ export const Projects = React.memo(function Projects({
 								{auditState[p.id] && (
 									<div className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl">
 										<Loader2 className="w-6 h-6 text-primary" />
-										<span className="text-xs font-semibold text-white">
+										<span className="text-xs font-semibold ">
 											{auditState[p.id]}
 										</span>
 									</div>
@@ -903,7 +914,7 @@ export const Projects = React.memo(function Projects({
 								</div>
 
 								{p.git?.isRepo ? (
-									<div className="grid grid-cols-2 gap-2 mt-2 p-2 dark:bg-black/20 rounded-lg border text-xs">
+									<div className="grid grid-cols-2 gap-2 mt-2 p-2  rounded-lg border text-xs">
 										<div className="flex flex-col gap-1">
 											<span className="text-[10px] text-muted-foreground uppercase tracking-wider">
 												Branche
@@ -961,7 +972,7 @@ export const Projects = React.memo(function Projects({
 										</div>
 									</div>
 								) : (
-									<div className="flex items-center justify-between mt-2 p-2 dark:bg-black/20 rounded-lg border text-xs">
+									<div className="flex items-center justify-between mt-2 p-2  rounded-lg border text-xs">
 										<span className="text-muted-foreground italic">
 											Dépôt Non-Git
 										</span>
@@ -1211,7 +1222,7 @@ export const Projects = React.memo(function Projects({
 			)}
 
 			{isFetchingAll && (
-				<div className="fixed inset-0 z-[100] flex items-center justify-center flex-col gap-6">
+				<div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center flex-col gap-6">
 					<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] blur-[100px] rounded-full pointer-events-none"></div>
 
 					<div className="relative flex items-center justify-center w-28 h-28 rounded-full neon-glow z-10">

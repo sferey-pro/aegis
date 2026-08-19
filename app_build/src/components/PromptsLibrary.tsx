@@ -14,6 +14,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Badge } from "./ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 
 export function PromptsLibrary() {
 	const [prompts, setPrompts] = useState<any[]>([]);
@@ -137,73 +138,73 @@ export function PromptsLibrary() {
 				</Button>
 			</div>
 
-			{isAdding && (
-				<div
-					className="fixed inset-0 z-50 flex items-center justify-center p-4"
-					onClick={resetForm}
-				>
+			<Dialog open={isAdding} onOpenChange={(open: boolean) => { if (!open) resetForm(); }}>
+				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
 					<form
 						onSubmit={handleSubmit}
-						onClick={(e) => e.stopPropagation()}
-						className="bg-card border-border w-full max-w-2xl p-6 rounded-2xl flex flex-col gap-4"
+						className="flex flex-col h-full overflow-hidden"
 					>
-						<h3 className="text-xl font-bold mb-2 text-primary">
-							{editingId ? "Modifier le Prompt" : "Nouveau Prompt"}
-						</h3>
+						<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
+							<DialogTitle className="text-xl font-bold text-primary">
+								{editingId ? "Modifier le Prompt" : "Nouveau Prompt"}
+							</DialogTitle>
+						</DialogHeader>
 
-						<div className="flex flex-col gap-1">
-							<label className="text-sm font-medium">Titre</label>
-							<Input
-								required
-								type="text"
-								value={formData.title}
-								onChange={(e) =>
-									setFormData({ ...formData, title: e.target.value })
-								}
-								placeholder="Ex: Nettoyage du cache NPM"
-							/>
+						<div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-4">
+							<div className="flex flex-col gap-1">
+								<label className="text-sm font-medium">Titre</label>
+								<Input
+									required
+									type="text"
+									value={formData.title}
+									onChange={(e) =>
+										setFormData({ ...formData, title: e.target.value })
+									}
+									placeholder="Ex: Nettoyage du cache NPM"
+								/>
+							</div>
+
+							<div className="flex flex-col gap-1">
+								<label className="text-sm font-medium">
+									Contenu du Prompt IA
+								</label>
+								<Textarea
+									required
+									value={formData.body}
+									onChange={(e) =>
+										setFormData({ ...formData, body: e.target.value })
+									}
+									className="min-h-[150px] font-mono text-sm"
+									placeholder="Ex: Agis comme un expert en cybersécurité. Explique moi la faille {{cve}} sur le package {{package}}..."
+								/>
+							</div>
+
+							<div className="flex flex-col gap-1">
+								<label className="text-sm font-medium">
+									Tags (séparés par des virgules)
+								</label>
+								<Input
+									type="text"
+									value={formData.tags}
+									onChange={(e) =>
+										setFormData({ ...formData, tags: e.target.value })
+									}
+									placeholder="Ex: utilitaire, npm, fix"
+								/>
+							</div>
 						</div>
 
-						<div className="flex flex-col gap-1">
-							<label className="text-sm font-medium">
-								Contenu du Prompt IA
-							</label>
-							<Textarea
-								required
-								value={formData.body}
-								onChange={(e) =>
-									setFormData({ ...formData, body: e.target.value })
-								}
-								className="min-h-[150px] font-mono text-sm"
-								placeholder="Ex: Agis comme un expert en cybersécurité. Explique moi la faille {{cve}} sur le package {{package}}..."
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1">
-							<label className="text-sm font-medium">
-								Tags (séparés par des virgules)
-							</label>
-							<Input
-								type="text"
-								value={formData.tags}
-								onChange={(e) =>
-									setFormData({ ...formData, tags: e.target.value })
-								}
-								placeholder="Ex: utilitaire, npm, fix"
-							/>
-						</div>
-
-						<div className="flex justify-end gap-3 mt-4">
+						<DialogFooter className="p-4 border-t shrink-0 flex justify-end gap-3 bg-muted/20">
 							<Button type="button" variant="secondary" onClick={resetForm}>
 								Annuler
 							</Button>
 							<Button type="submit">
 								{editingId ? "Enregistrer" : "Créer le prompt"}
 							</Button>
-						</div>
+						</DialogFooter>
 					</form>
-				</div>
-			)}
+				</DialogContent>
+			</Dialog>
 
 			{loading ? (
 				<div className="flex justify-center p-12">
@@ -238,7 +239,7 @@ export function PromptsLibrary() {
 								</div>
 							</div>
 
-							<div className="text-sm mt-2 font-mono dark:bg-black/20 p-2 rounded border text-muted-foreground h-[60px] overflow-hidden relative">
+							<div className="text-sm mt-2 font-mono  p-2 rounded border text-muted-foreground h-[60px] overflow-hidden relative">
 								{p.body}
 								<div className="absolute bottom-0 left-0 right-0 h-8 from-[#111]"></div>
 							</div>

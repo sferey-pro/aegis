@@ -11,7 +11,6 @@ import {
 	RefreshCw,
 	Shield,
 	Trash2,
-	X,
 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { buildCvssTooltip } from "../lib/cvss";
@@ -25,6 +24,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "./ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Checkbox } from "./ui/checkbox";
 
 export const Reports = memo(function Reports() {
 	const [reports, setReports] = useState<any[]>([]);
@@ -147,24 +149,26 @@ export const Reports = memo(function Reports() {
 				</div>
 				<div className="flex items-center gap-4">
 					{selectedReports.length > 0 && (
-						<button
+						<Button
+							variant="outline"
 							onClick={() => setBulkDeleteModalOpen(true)}
-							className="px-4 py-2 border rounded-lg flex items-center gap-2 text-sm font-semibold"
+							className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-600 hover:bg-red-50"
 						>
 							<Trash2 className="w-4 h-4" />
 							Supprimer ({selectedReports.length})
-						</button>
+						</Button>
 					)}
-					<button
+					<Button
+						variant="outline"
 						onClick={fetchReports}
 						disabled={isFetching}
-						className={`group flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold ${isFetching ? "bg-primary/20 text-primary" : "bg-secondary/50 text-muted-foreground "}`}
+						className={`group flex items-center gap-2 text-sm font-semibold ${isFetching ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
 					>
 						<RefreshCw
 							className={`w-4 h-4 ${isFetching ? "animate-spin text-primary" : "group-hover:rotate-180"}`}
 						/>
 						{isFetching ? "Actualisation..." : "Actualiser"}
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -193,17 +197,15 @@ export const Reports = memo(function Reports() {
 							<TableHeader>
 								<TableRow className="bg-muted/50">
 									<TableHead className="w-12">
-										<input
-											type="checkbox"
-											className="rounded border-border accent-primary cursor-pointer w-4 h-4"
+										<Checkbox
 											checked={
 												currentReports.length > 0 &&
 												currentReports.every((r: any) =>
 													selectedReports.includes(r.id),
 												)
 											}
-											onChange={(e) => {
-												if (e.target.checked) {
+											onCheckedChange={(checked) => {
+												if (checked) {
 													const newIds = currentReports
 														.map((r: any) => r.id)
 														.filter(
@@ -219,6 +221,7 @@ export const Reports = memo(function Reports() {
 													);
 												}
 											}}
+											aria-label="Select all"
 										/>
 									</TableHead>
 									<TableHead>Date</TableHead>
@@ -238,12 +241,10 @@ export const Reports = memo(function Reports() {
 										}
 									>
 										<TableCell>
-											<input
-												type="checkbox"
-												className="rounded border-border accent-primary cursor-pointer w-4 h-4"
+											<Checkbox
 												checked={selectedReports.includes(r.id)}
-												onChange={(e) => {
-													if (e.target.checked) {
+												onCheckedChange={(checked) => {
+													if (checked) {
 														setSelectedReports([...selectedReports, r.id]);
 													} else {
 														setSelectedReports(
@@ -251,6 +252,7 @@ export const Reports = memo(function Reports() {
 														);
 													}
 												}}
+												aria-label="Select report"
 											/>
 										</TableCell>
 										<TableCell>
@@ -321,20 +323,24 @@ export const Reports = memo(function Reports() {
 										</TableCell>
 										<TableCell className="text-right">
 											<div className="flex items-center justify-end gap-1">
-												<button
+												<Button
+													variant="ghost"
+													size="icon"
 													onClick={() => handleViewDiff(reports.indexOf(r))}
-													className="p-2 text-muted-foreground rounded-md opacity-0"
+													className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
 													title="Voir les détails et le comparatif (Diff)"
 												>
 													<Eye className="w-4 h-4" />
-												</button>
-												<button
+												</Button>
+												<Button
+													variant="ghost"
+													size="icon"
 													onClick={() => handleDelete(r.id)}
-													className="p-2 text-muted-foreground rounded-md opacity-0"
+													className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
 													title="Supprimer le rapport"
 												>
 													<Trash2 className="w-4 h-4" />
-												</button>
+												</Button>
 											</div>
 										</TableCell>
 									</TableRow>
@@ -352,25 +358,29 @@ export const Reports = memo(function Reports() {
 								{reports.length} rapports
 							</span>
 							<div className="flex items-center gap-2">
-								<button
+								<Button
+									variant="outline"
+									size="icon"
 									onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
 									disabled={currentPage === 1}
-									className="p-1.5 rounded-lg border text-muted-foreground disabled:opacity-50"
+									className="h-8 w-8"
 								>
-									<ChevronLeft className="w-5 h-5" />
-								</button>
+									<ChevronLeft className="w-4 h-4" />
+								</Button>
 								<span className="text-sm font-medium px-2">
 									Page {currentPage} / {totalPages}
 								</span>
-								<button
+								<Button
+									variant="outline"
+									size="icon"
 									onClick={() =>
 										setCurrentPage((p) => Math.min(totalPages, p + 1))
 									}
 									disabled={currentPage === totalPages}
-									className="p-1.5 rounded-lg border text-muted-foreground disabled:opacity-50"
+									className="h-8 w-8"
 								>
-									<ChevronRight className="w-5 h-5" />
-								</button>
+									<ChevronRight className="w-4 h-4" />
+								</Button>
 							</div>
 						</div>
 					)}
@@ -410,217 +420,207 @@ export const Reports = memo(function Reports() {
 				onCancel={() => setBulkDeleteModalOpen(false)}
 			/>
 
-			{selectedReportIndex !== null && diffData && (
-				<div
-					className="fixed inset-0 z-50 flex items-center justify-center p-4"
-					onClick={() => setSelectedReportIndex(null)}
-				>
-					<div
-						className="bg-card border-border w-full max-w-4xl p-6 rounded-2xl flex flex-col gap-6 max-h-[90vh] overflow-hidden"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<div className="flex justify-between items-center pb-4 border-b">
-							<div>
-								<h2 className="text-2xl font-bold font-heading">
-									Détails du Rapport
-								</h2>
-								<p className="text-muted-foreground text-sm mt-1">
-									Comparaison avec le rapport précédent (N-1)
-								</p>
-							</div>
-							<button
-								onClick={() => setSelectedReportIndex(null)}
-								className="p-2 rounded-full"
-							>
-								<X className="w-5 h-5" />
-							</button>
+			<Dialog open={selectedReportIndex !== null} onOpenChange={(open: boolean) => { if (!open) setSelectedReportIndex(null); }}>
+				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+					<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
+						<div>
+							<DialogTitle className="text-2xl font-bold font-heading">
+								Détails du Rapport
+							</DialogTitle>
+							<DialogDescription className="text-sm mt-1">
+								Comparaison avec le rapport précédent (N-1)
+							</DialogDescription>
 						</div>
+					</DialogHeader>
 
-						<div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-6 pr-2">
-							<div className="grid grid-cols-3 gap-4">
-								<div className="bg-red-500/10 border rounded-xl p-4 flex flex-col gap-1">
-									<span className="text-red-400 font-bold flex items-center gap-2">
-										<ArrowUpRight className="w-4 h-4" /> Nouvelles failles
-									</span>
-									<span className="text-3xl font-light">
-										{diffData.newVulns.length}
-									</span>
-								</div>
-								<div className="bg-green-500/10 border rounded-xl p-4 flex flex-col gap-1">
-									<span className="text-green-400 font-bold flex items-center gap-2">
-										<ArrowDownRight className="w-4 h-4" /> Failles corrigées
-									</span>
-									<span className="text-3xl font-light">
-										{diffData.fixedVulns.length}
-									</span>
-								</div>
-								<div className="bg-white/5 border rounded-xl p-4 flex flex-col gap-1">
-									<span className="text-muted-foreground font-bold flex items-center gap-2">
-										<Minus className="w-4 h-4" /> Inchangées
-									</span>
-									<span className="text-3xl font-light text-white">
-										{diffData.unchangedVulns.length}
-									</span>
-								</div>
-							</div>
-
-							{diffData.fixedVulns.length > 0 && (
-								<div>
-									<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-										<Shield className="w-5 h-5" /> Failles corrigées depuis le
-										dernier rapport
-									</h3>
-									<div className="flex flex-col gap-2">
-										{diffData.fixedVulns.map((v, i) => (
-											<div
-												key={i}
-												className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border"
-											>
-												<div className="flex items-center gap-3">
-													<span className="text-xs font-mono px-2 py-1 rounded">
-														{v.projectName}
-													</span>
-													<span className="font-bold">{v.package}</span>
-													<span className="text-muted-foreground text-sm truncate max-w-[300px]">
-														{v.title}
-														{v.cvssVector && (
-															<Tooltip>
-																<TooltipTrigger asChild>
-																	<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded border text-muted-foreground cursor-help">
-																		{v.cvssVector}
-																	</span>
-																</TooltipTrigger>
-																<TooltipContent
-																	side="right"
-																	className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 max-w-[400px]"
-																>
-																	{buildCvssTooltip(v.cvssVector)}
-																</TooltipContent>
-															</Tooltip>
-														)}
-													</span>
-												</div>
-												{v.cve && (
-													<span className="text-xs font-mono text-muted-foreground">
-														{v.cve}
-													</span>
-												)}
-											</div>
-										))}
+					<div className="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-6 p-6">
+						{diffData && (
+							<>
+								<div className="grid grid-cols-3 gap-4">
+									<div className="bg-red-500/10 border rounded-xl p-4 flex flex-col gap-1">
+										<span className="text-red-400 font-bold flex items-center gap-2">
+											<ArrowUpRight className="w-4 h-4" /> Nouvelles failles
+										</span>
+										<span className="text-3xl font-light">
+											{diffData.newVulns.length}
+										</span>
+									</div>
+									<div className="bg-green-500/10 border rounded-xl p-4 flex flex-col gap-1">
+										<span className="text-green-400 font-bold flex items-center gap-2">
+											<ArrowDownRight className="w-4 h-4" /> Failles corrigées
+										</span>
+										<span className="text-3xl font-light">
+											{diffData.fixedVulns.length}
+										</span>
+									</div>
+									<div className="bg-white/5 border rounded-xl p-4 flex flex-col gap-1">
+										<span className="text-muted-foreground font-bold flex items-center gap-2">
+											<Minus className="w-4 h-4" /> Inchangées
+										</span>
+										<span className="text-3xl font-light">
+											{diffData.unchangedVulns.length}
+										</span>
 									</div>
 								</div>
-							)}
 
-							{diffData.newVulns.length > 0 && (
-								<div>
-									<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-										<Activity className="w-5 h-5" /> Nouvelles failles détectées
-									</h3>
-									<div className="flex flex-col gap-2">
-										{diffData.newVulns.map((v, i) => (
-											<div
-												key={i}
-												className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border"
-											>
-												<div className="flex items-center gap-3">
-													<span className="text-xs font-mono px-2 py-1 rounded">
-														{v.projectName}
-													</span>
-													<span className="font-bold">{v.package}</span>
-													<span className="text-muted-foreground text-sm truncate max-w-[300px]">
-														{v.title}
-														{v.cvssVector && (
-															<Tooltip>
-																<TooltipTrigger asChild>
-																	<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded border text-muted-foreground cursor-help">
-																		{v.cvssVector}
-																	</span>
-																</TooltipTrigger>
-																<TooltipContent
-																	side="right"
-																	className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 max-w-[400px]"
-																>
-																	{buildCvssTooltip(v.cvssVector)}
-																</TooltipContent>
-															</Tooltip>
-														)}
-													</span>
-												</div>
-												<div className="flex items-center gap-2 mt-2 md:mt-0">
-													{v.severity === "critical" && (
-														<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
-															Critique
+								{diffData.fixedVulns.length > 0 && (
+									<div>
+										<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+											<Shield className="w-5 h-5" /> Failles corrigées depuis le
+											dernier rapport
+										</h3>
+										<div className="flex flex-col gap-2">
+											{diffData.fixedVulns.map((v, i) => (
+												<div
+													key={i}
+													className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border"
+												>
+													<div className="flex items-center gap-3">
+														<span className="text-xs font-mono px-2 py-1 rounded">
+															{v.projectName}
 														</span>
-													)}
-													{v.severity === "high" && (
-														<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
-															Haut
+														<span className="font-bold">{v.package}</span>
+														<span className="text-muted-foreground text-sm truncate max-w-[300px]">
+															{v.title}
+															{v.cvssVector && (
+																<Tooltip>
+																	<TooltipTrigger asChild>
+																		<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded border text-muted-foreground cursor-help">
+																			{v.cvssVector}
+																		</span>
+																	</TooltipTrigger>
+																	<TooltipContent
+																		side="right"
+																		className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 max-w-[400px]"
+																	>
+																		{buildCvssTooltip(v.cvssVector)}
+																	</TooltipContent>
+																</Tooltip>
+															)}
 														</span>
-													)}
-													{v.severity === "moderate" && (
-														<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
-															Modéré
-														</span>
-													)}
+													</div>
 													{v.cve && (
 														<span className="text-xs font-mono text-muted-foreground">
 															{v.cve}
 														</span>
 													)}
 												</div>
-											</div>
-										))}
+											))}
+										</div>
 									</div>
-								</div>
-							)}
-
-							{diffData.unchangedVulns.length > 0 && (
-								<div>
-									<h3 className="text-lg font-bold text-muted-foreground mb-3 flex items-center gap-2">
-										<Minus className="w-5 h-5" /> Failles persistantes
-									</h3>
-									<div className="flex flex-col gap-2">
-										{diffData.unchangedVulns.slice(0, 50).map((v, i) => (
-											<div
-												key={i}
-												className="flex flex-col md:flex-row md:items-center justify-between p-2 rounded-lg border"
-											>
-												<div className="flex items-center gap-3">
-													<span className="text-[10px] font-mono px-1.5 py-0.5 rounded text-muted-foreground">
-														{v.projectName}
-													</span>
-													<span className="text-sm font-semibold">
-														{v.package}
-													</span>
-												</div>
-												{v.cve && (
-													<span className="text-[10px] font-mono text-muted-foreground">
-														{v.cve}
-													</span>
-												)}
-											</div>
-										))}
-										{diffData.unchangedVulns.length > 50 && (
-											<p className="text-xs text-center text-muted-foreground p-2">
-												... et {diffData.unchangedVulns.length - 50} autres non
-												affichées
-											</p>
-										)}
-									</div>
-								</div>
-							)}
-
-							{diffData.newVulns.length === 0 &&
-								diffData.fixedVulns.length === 0 &&
-								diffData.unchangedVulns.length === 0 && (
-									<p className="text-center text-muted-foreground py-8">
-										Aucune vulnérabilité trouvée dans ce rapport.
-									</p>
 								)}
-						</div>
+
+								{diffData.newVulns.length > 0 && (
+									<div>
+										<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+											<Activity className="w-5 h-5" /> Nouvelles failles détectées
+										</h3>
+										<div className="flex flex-col gap-2">
+											{diffData.newVulns.map((v, i) => (
+												<div
+													key={i}
+													className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border"
+												>
+													<div className="flex items-center gap-3">
+														<span className="text-xs font-mono px-2 py-1 rounded">
+															{v.projectName}
+														</span>
+														<span className="font-bold">{v.package}</span>
+														<span className="text-muted-foreground text-sm truncate max-w-[300px]">
+															{v.title}
+															{v.cvssVector && (
+																<Tooltip>
+																	<TooltipTrigger asChild>
+																		<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded border text-muted-foreground cursor-help">
+																			{v.cvssVector}
+																		</span>
+																	</TooltipTrigger>
+																	<TooltipContent
+																		side="right"
+																		className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 max-w-[400px]"
+																	>
+																		{buildCvssTooltip(v.cvssVector)}
+																	</TooltipContent>
+																</Tooltip>
+															)}
+														</span>
+													</div>
+													<div className="flex items-center gap-2 mt-2 md:mt-0">
+														{v.severity === "critical" && (
+															<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
+																Critique
+															</span>
+														)}
+														{v.severity === "high" && (
+															<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
+																Haut
+															</span>
+														)}
+														{v.severity === "moderate" && (
+															<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
+																Modéré
+															</span>
+														)}
+														{v.cve && (
+															<span className="text-xs font-mono text-muted-foreground">
+																{v.cve}
+															</span>
+														)}
+													</div>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
+
+								{diffData.unchangedVulns.length > 0 && (
+									<div>
+										<h3 className="text-lg font-bold text-muted-foreground mb-3 flex items-center gap-2">
+											<Minus className="w-5 h-5" /> Failles persistantes
+										</h3>
+										<div className="flex flex-col gap-2">
+											{diffData.unchangedVulns.slice(0, 50).map((v, i) => (
+												<div
+													key={i}
+													className="flex flex-col md:flex-row md:items-center justify-between p-2 rounded-lg border"
+												>
+													<div className="flex items-center gap-3">
+														<span className="text-[10px] font-mono px-1.5 py-0.5 rounded text-muted-foreground">
+															{v.projectName}
+														</span>
+														<span className="text-sm font-semibold">
+															{v.package}
+														</span>
+													</div>
+													{v.cve && (
+														<span className="text-[10px] font-mono text-muted-foreground">
+															{v.cve}
+														</span>
+													)}
+												</div>
+											))}
+											{diffData.unchangedVulns.length > 50 && (
+												<p className="text-xs text-center text-muted-foreground p-2">
+													... et {diffData.unchangedVulns.length - 50} autres non
+													affichées
+												</p>
+											)}
+										</div>
+									</div>
+								)}
+
+								{diffData.newVulns.length === 0 &&
+									diffData.fixedVulns.length === 0 &&
+									diffData.unchangedVulns.length === 0 && (
+										<p className="text-center text-muted-foreground py-8">
+											Aucune vulnérabilité trouvée dans ce rapport.
+										</p>
+									)}
+							</>
+						)}
 					</div>
-				</div>
-			)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 });

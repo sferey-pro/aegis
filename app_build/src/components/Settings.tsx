@@ -13,6 +13,7 @@ import { useEffect, useState, useRef } from "react";
 import { TagsManager } from "./TagsManager";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Switch } from "./ui/switch";
 import { Upload } from "lucide-react";
 
 export function Settings() {
@@ -230,7 +231,7 @@ export function Settings() {
 								placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
 							/>
 							{settings.GITHUB_RL_LIMIT && (
-								<div className="mt-2 text-xs flex gap-4 text-muted-foreground dark:bg-black/20 p-2.5 rounded-lg border w-fit">
+								<div className="mt-2 text-xs flex gap-4 text-muted-foreground  p-2.5 rounded-lg border w-fit">
 									<span>
 										Quota API GitHub :{" "}
 										<strong
@@ -255,7 +256,7 @@ export function Settings() {
 								</div>
 							)}
 
-							<div className="mt-4 flex items-center justify-between dark:bg-black/20 p-4 rounded-xl border">
+							<div className="mt-4 flex items-center justify-between  p-4 rounded-xl border">
 								<div>
 									<h4 className="font-bold text-sm">
 										Cache GitHub Advisory (GHSA)
@@ -338,16 +339,14 @@ export function Settings() {
 							<label className="text-lg font-bold">Options Globales</label>
 
 							<label className="flex items-center gap-3 cursor-pointer mt-2">
-								<input
-									type="checkbox"
+								<Switch
 									checked={settings.CRITICAL_ONLY === "true"}
-									onChange={(e) =>
+									onCheckedChange={(checked) =>
 										setSettings({
 											...settings,
-											CRITICAL_ONLY: e.target.checked ? "true" : "false",
+											CRITICAL_ONLY: checked ? "true" : "false",
 										})
 									}
-									className="w-5 h-5 rounded border-border text-primary"
 								/>
 								<span className="text-sm font-medium text-muted-foreground">
 									Mode Silencieux (N'afficher que les CVEs Critical/High)
@@ -355,16 +354,14 @@ export function Settings() {
 							</label>
 
 							<label className="flex items-center gap-3 cursor-pointer mt-2">
-								<input
-									type="checkbox"
+								<Switch
 									checked={settings.DISABLE_CONSOLE === "true"}
-									onChange={(e) =>
+									onCheckedChange={(checked) =>
 										setSettings({
 											...settings,
-											DISABLE_CONSOLE: e.target.checked ? "true" : "false",
+											DISABLE_CONSOLE: checked ? "true" : "false",
 										})
 									}
-									className="w-5 h-5 rounded border-border text-primary"
 								/>
 								<span className="text-sm font-medium text-muted-foreground">
 									Désactiver la Console (Coupe le broadcast SSE et allège les

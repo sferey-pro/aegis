@@ -127,7 +127,7 @@ export const Overview = memo(function Overview({
 										setTriageProjectId(tp.id);
 										setCurrentTab("triage");
 									}}
-									className="group flex items-center justify-between dark:bg-black/20 p-4 rounded-2xl border cursor-pointer"
+									className="group flex items-center justify-between  p-4 rounded-2xl border cursor-pointer"
 								>
 									<div className="flex items-center gap-4">
 										<div className="w-8 h-8 rounded-full bg-secondary text-muted-foreground flex items-center justify-center font-bold text-xs">
@@ -171,7 +171,7 @@ export const Overview = memo(function Overview({
 										setTriageCveFilter(tc.cve);
 										setCurrentTab("triage");
 									}}
-									className="group flex flex-col gap-2 dark:bg-black/20 p-4 rounded-2xl border cursor-pointer"
+									className="group flex flex-col gap-2  p-4 rounded-2xl border cursor-pointer"
 								>
 									<div className="flex items-center justify-between">
 										<span className="font-mono text-sm text-primary font-semibold">

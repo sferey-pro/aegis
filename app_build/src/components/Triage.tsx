@@ -12,6 +12,7 @@ import { CveDetailsModal } from "./triage/CveDetailsModal";
 import { compareVersions, SEV_ORDER } from "./triage/constants";
 import { TicketModal } from "./triage/TicketModal";
 import { TriageTable } from "./triage/TriageTable";
+import { Button } from "./ui/button";
 
 export const Triage = React.memo(function Triage({
 	projectId,
@@ -35,7 +36,7 @@ export const Triage = React.memo(function Triage({
 		isOpen: boolean;
 		md: string;
 		copied: boolean;
-	 ?: any;
+		group?: any;
 	}>({ isOpen: false, md: "", copied: false });
 	const [confirmModal, setConfirmModal] = useState<{
 		isOpen: boolean;
@@ -224,19 +225,19 @@ export const Triage = React.memo(function Triage({
 		setConfirmModal(null);
 	};
 
-	const createTicket = async (e: React.MouseEvent, : any) => {
+	const createTicket = async (e: React.MouseEvent, group: any) => {
 		e.stopPropagation();
 		try {
 			const res = await fetch("/api/tickets", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					projectId: .projectId,
-					packageName: .package,
+					projectId: group.projectId,
+					packageName: group.package,
 				}),
 			});
 			const data = await res.json();
-			setTicketModal({ isOpen: true, md: data.markdown, copied: false,  });
+			setTicketModal({ isOpen: true, md: data.markdown, copied: false, group });
 		} catch (err) {
 			console.error(err);
 		}
@@ -289,12 +290,13 @@ export const Triage = React.memo(function Triage({
 						Jira.
 					</p>
 				</div>
-				<button
+				<Button
+					variant={hideProcessed ? "secondary" : "outline"}
 					onClick={() => setHideProcessed(!hideProcessed)}
-					className={`px-3 py-1.5 rounded-lg text-sm font-medium border flex items-center gap-2 ${hideProcessed ? "bg-primary/20 text-primary " : "bg-secondary text-muted-foreground border-transparent "}`}
+					className={`flex items-center gap-2 ${hideProcessed ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
 				>
 					<CheckCircle2 className="w-4 h-4" /> Zero-Inbox (Masquer traitées)
-				</button>
+				</Button>
 			</div>
 
 			{loading ? (
@@ -368,12 +370,14 @@ export const Triage = React.memo(function Triage({
 							)}
 							{toast.title}
 						</h4>
-						<button
+						<Button
+							variant="ghost"
+							size="icon"
 							onClick={() => setToast(null)}
-							className="text-current opacity-70"
+							className="text-current opacity-70 w-6 h-6 hover:bg-transparent hover:opacity-100"
 						>
 							<X className="w-5 h-5" />
-						</button>
+						</Button>
 					</div>
 					<div className="text-sm opacity-90 mt-1">{toast.message}</div>
 				</div>

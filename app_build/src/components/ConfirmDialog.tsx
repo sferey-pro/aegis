@@ -1,4 +1,7 @@
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
+import { Button } from "./ui/button";
 
 interface ConfirmDialogProps {
 	isOpen: boolean;
@@ -19,48 +22,38 @@ export function ConfirmDialog({
 	onConfirm,
 	onCancel,
 }: ConfirmDialogProps) {
-	if (!isOpen) return null;
-
 	return (
-		<div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-			<div
-				className="bg-card border-border w-full max-w-md p-6 rounded-2xl flex flex-col gap-4"
-				onClick={(e) => e.stopPropagation()}
-			>
-				<div className="flex items-start justify-between">
-					<div className="flex items-center gap-3">
+		<Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-3">
 						<AlertTriangle className="w-6 h-6" />
-						<h2 className="text-lg font-bold">{title}</h2>
-					</div>
-					<button
-						onClick={onCancel}
-						className="text-muted-foreground"
-					>
-						<X className="w-5 h-5" />
-					</button>
-				</div>
+						{title}
+					</DialogTitle>
+					<DialogDescription className="mt-2 text-foreground/90">
+						{message}
+					</DialogDescription>
+				</DialogHeader>
 
-				<p className="text-sm text-foreground/90 mt-2">{message}</p>
-
-				<div className="flex justify-end gap-3 mt-4 pt-4 border-t">
-					<button
+				<DialogFooter className="gap-3 mt-4 pt-4 border-t">
+					<Button
+						variant="ghost"
 						onClick={onCancel}
-						className="px-4 py-2 text-sm font-medium rounded-md text-muted-foreground"
 					>
 						{cancelText}
-					</button>
-					<button
+					</Button>
+					<Button
+						variant="destructive"
 						onClick={() => {
 							onConfirm();
 							onCancel();
 						}}
-						className="px-4 py-2 text-sm font-medium rounded-md bg-red-500 text-white"
 					>
 						{confirmText}
-					</button>
-				</div>
-			</div>
-		</div>
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
@@ -77,39 +70,24 @@ export function AlertDialog({
 	message,
 	onClose,
 }: AlertDialogProps) {
-	if (!isOpen) return null;
-
 	return (
-		<div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-			<div
-				className="bg-card border-border w-full max-w-md p-6 rounded-2xl flex flex-col gap-4"
-				onClick={(e) => e.stopPropagation()}
-			>
-				<div className="flex items-start justify-between">
-					<div className="flex items-center gap-3">
-						<h2 className="text-lg font-bold">{title}</h2>
-					</div>
-					<button
-						onClick={onClose}
-						className="text-muted-foreground"
-					>
-						<X className="w-5 h-5" />
-					</button>
-				</div>
+		<Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle>{title}</DialogTitle>
+					<DialogDescription className="mt-2 text-foreground/90 whitespace-pre-wrap">
+						{message}
+					</DialogDescription>
+				</DialogHeader>
 
-				<p className="text-sm text-foreground/90 mt-2 whitespace-pre-wrap">
-					{message}
-				</p>
-
-				<div className="flex justify-end gap-3 mt-4 pt-4 border-t">
-					<button
+				<DialogFooter className="gap-3 mt-4 pt-4 border-t">
+					<Button
 						onClick={onClose}
-						className="px-4 py-2 rounded-lg bg-blue-500 text-white font-medium"
 					>
 						OK
-					</button>
-				</div>
-			</div>
-		</div>
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

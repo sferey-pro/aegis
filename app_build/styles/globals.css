@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -69,41 +69,7 @@
   --mesh-opacity: 0.08;
 }
 
-.dark {
-  /* Sleek deep dark mode for a security vibe */
-  --background: 222 47% 7%;
-  --foreground: 210 40% 98%;
-  
-  --card: 222 47% 9%;
-  --card-foreground: 210 40% 98%;
-  
-  --popover: 222 47% 9%;
-  --popover-foreground: 210 40% 98%;
-  
-  --primary: 190 90% 50%; /* Cyan / Neon blue */
-  --primary-foreground: 222 47% 7%;
-  
-  --secondary: 217.2 32.6% 15%;
-  --secondary-foreground: 210 40% 98%;
-  
-  --muted: 217.2 32.6% 15%;
-  --muted-foreground: 215 20.2% 65.1%;
-  
-  --accent: 217.2 32.6% 17%;
-  --accent-foreground: 210 40% 98%;
-  
-  --destructive: 350 89% 60%;
-  --destructive-foreground: 210 40% 98%;
-  
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 190 90% 50%;
 
-  --mesh-primary: 190 90% 50%;
-  --mesh-secondary: 280 80% 60%;
-  --mesh-tertiary: 220 90% 60%;
-  --mesh-opacity: 0.08;
-}
 
 @layer base {
   * {

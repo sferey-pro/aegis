@@ -6,10 +6,8 @@ import {
 	Loader2,
 	Settings,
 	Terminal,
-	Sun,
-	Moon,
 } from "lucide-react";
-import { memo, useState, useEffect } from "react";
+import { memo } from "react";
 import { Button } from "../ui/button";
 
 export const Header = memo(function Header({
@@ -29,29 +27,7 @@ export const Header = memo(function Header({
 	auditing: boolean;
 	pendingCves?: number;
 }) {
-	const [theme, setTheme] = useState("light");
-
-	useEffect(() => {
-		const stored = localStorage.getItem("aegis-theme");
-		if (stored === "dark") {
-			setTheme("dark");
-			document.documentElement.classList.add("dark");
-		} else {
-			setTheme("light");
-			document.documentElement.classList.remove("dark");
-		}
-	}, []);
-
-	const toggleTheme = () => {
-		const newTheme = theme === "light" ? "dark" : "light";
-		setTheme(newTheme);
-		localStorage.setItem("aegis-theme", newTheme);
-		if (newTheme === "dark") {
-			document.documentElement.classList.add("dark");
-		} else {
-			document.documentElement.classList.remove("dark");
-		}
-	};
+	// Dark mode logic completely removed
 
 	return (
 		<header className="fixed top-0 left-0 right-0 z-50 border-b flex items-center justify-between py-4 px-6 md:px-12 w-full">
@@ -72,28 +48,31 @@ export const Header = memo(function Header({
 					</h1>
 				</div>
 
-				<nav className="flex items-center gap-1.5 p-1.5 dark:bg-black/20 border border-border dark:border-white/5 rounded-2xl">
-					<button
+				<nav className="flex items-center gap-1.5 p-1.5 bg-card border border-border rounded-2xl">
+					<Button
+						variant={currentTab === "overview" ? "default" : "ghost"}
 						onClick={() => setCurrentTab("overview")}
-						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${currentTab === "overview" ? "bg-primary text-primary-foreground (var(--primary),0.3)]" : "text-muted-foreground dark:hover:bg-white/5 "}`}
+						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "overview" ? "" : "text-muted-foreground"}`}
 					>
 						<LayoutDashboard className="w-4 h-4" />
 						Vue d'ensemble
-					</button>
-					<button
+					</Button>
+					<Button
+						variant={currentTab === "projects" ? "default" : "ghost"}
 						onClick={() => setCurrentTab("projects")}
-						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${currentTab === "projects" ? "bg-primary text-primary-foreground (var(--primary),0.3)]" : "text-muted-foreground dark:hover:bg-white/5 "}`}
+						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "projects" ? "" : "text-muted-foreground"}`}
 					>
 						<FolderGit2 className="w-4 h-4" />
 						Projets
-					</button>
-					<button
+					</Button>
+					<Button
+						variant={currentTab === "triage" ? "default" : "ghost"}
 						onClick={() => {
 							setTriageProjectId(null);
 							setTriageCveFilter(null);
 							setCurrentTab("triage");
 						}}
-						className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${currentTab === "triage" ? "bg-primary text-primary-foreground (var(--primary),0.3)]" : "text-muted-foreground dark:hover:bg-white/5 "}`}
+						className={`relative flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "triage" ? "" : "text-muted-foreground"}`}
 					>
 						<AlertOctagon className="w-4 h-4" />
 						CVEs
@@ -102,43 +81,31 @@ export const Header = memo(function Header({
 								{pendingCves}
 							</span>
 						)}
-					</button>
-					<button
+					</Button>
+					<Button
+						variant={currentTab === "reports" ? "default" : "ghost"}
 						onClick={() => setCurrentTab("reports")}
-						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${currentTab === "reports" ? "bg-primary text-primary-foreground (var(--primary),0.3)]" : "text-muted-foreground dark:hover:bg-white/5 "}`}
+						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "reports" ? "" : "text-muted-foreground"}`}
 					>
 						<FileBarChart className="w-4 h-4" />
 						Rapports
-					</button>
-					<button
+					</Button>
+					<Button
+						variant={currentTab === "prompts" ? "default" : "ghost"}
 						onClick={() => setCurrentTab("prompts")}
-						className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${currentTab === "prompts" ? "bg-primary text-primary-foreground (var(--primary),0.3)]" : "text-muted-foreground dark:hover:bg-white/5 "}`}
+						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "prompts" ? "" : "text-muted-foreground"}`}
 					>
 						<Terminal className="w-4 h-4" />
 						Prompts
-					</button>
-
-					<div className="w-px h-6 dark:bg-white/10 mx-1"></div>
-
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={toggleTheme}
-						className="rounded-xl text-muted-foreground dark:hover:bg-white/5"
-						title="Changer de thème"
-					>
-						{theme === "light" ? (
-							<Moon className="w-5 h-5" />
-						) : (
-							<Sun className="w-5 h-5" />
-						)}
 					</Button>
+
+					<div className="w-px h-6 bg-border mx-1"></div>
 
 					<Button
 						variant={currentTab === "settings" ? "default" : "ghost"}
 						size="icon"
 						onClick={() => setCurrentTab("settings")}
-						className={`rounded-xl ${currentTab === "settings" ? "shadow-[0_0_15px_rgba(var(--primary),0.3)]" : "text-muted-foreground dark:hover:bg-white/5 "}`}
+						className={`rounded-xl ${currentTab === "settings" ? "" : "text-muted-foreground"}`}
 						title="Paramètres"
 					>
 						<Settings className="w-5 h-5" />

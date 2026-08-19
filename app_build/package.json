@@ -8,6 +8,7 @@
 		"start": "NODE_ENV=production bun src/index.ts",
 		"build": "bun run build.ts",
 		"test": "bun test",
+		"lint": "biome check src/",
 		"typecheck": "tsc --noEmit",
 		"check": "bun run typecheck && bun test"
 	},

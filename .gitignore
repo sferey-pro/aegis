@@ -1,40 +1,12 @@
-# dependencies (bun install)
-node_modules
-
-# output
-out
-dist
-*.tgz
-
-# code coverage
-coverage
-*.lcov
-
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# caches
-.eslintcache
-.cache
-*.tsbuildinfo
-
-# IntelliJ based IDEs
-.idea
-
-# Finder (MacOS) folder config
-.DS_Store
-*.sqlite*
-
-# local temporary and database files
+# Database files
+*.sqlite
 *.db
-errors*.txt
-test_run.json
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+# Ignore collections downloaded via the UI
+collection/*
+!collection/.gitkeep
+app_build/collection/*
+!app_build/collection/.gitkeep

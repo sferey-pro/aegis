@@ -18,7 +18,8 @@ export interface Vulnerability {
 	cvssVector?: string | null;
 	firstSeenAt?: string | null;
 	isBaseline?: boolean;
-	publishedAt?: string;
+	/** `null` explicite quand l'avis n'a pas de date, comme ses voisins ci-dessus. */
+	publishedAt?: string | null;
 	ageInDays?: number;
 }
 

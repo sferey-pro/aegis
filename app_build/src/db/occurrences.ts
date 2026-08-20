@@ -2,7 +2,7 @@ import { getDb } from "./index";
 
 export function ensureOccurrences(
 	projectId: number,
-	vulns: { package: string; cve: string }[],
+	vulns: { package: string; cve: string | null }[],
 	isBaseline: boolean,
 ) {
 	const db = getDb();

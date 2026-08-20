@@ -14,6 +14,12 @@ export interface ReportDetail {
 	vulns: Vulnerability[];
 }
 
+/** Ligne `reports` brute : les colonnes JSON arrivent en chaîne. */
+type ReportRow = Omit<Report, "counts" | "details"> & {
+	counts: string;
+	details: string | null;
+};
+
 export interface Report {
 	id: number;
 	projects_audited: number;
@@ -41,19 +47,19 @@ export function createReport(data: {
 		$total: data.total_vulnerabilities,
 		$counts: JSON.stringify(data.counts),
 		$details: JSON.stringify(data.details || []),
-	}) as any;
+	}) as ReportRow;
 
 	return {
 		...row,
 		counts: JSON.parse(row.counts),
-		details: JSON.parse(row.details),
+		details: JSON.parse(row.details || "[]"),
 	};
 }
 
 export function getReports(): Report[] {
 	const db = getDb();
 	const stmt = db.prepare(`SELECT * FROM reports ORDER BY created_at DESC`);
-	const rows = stmt.all() as any[];
+	const rows = stmt.all() as ReportRow[];
 
 	return rows.map((r) => ({
 		...r,

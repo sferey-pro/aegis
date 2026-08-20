@@ -16,7 +16,7 @@ export interface ConsoleEvent {
 
 export const projectContext = new AsyncLocalStorage<{ project: string }>();
 
-const clients = new Set<ReadableStreamDefaultController>();
+const clients = new Set<ReadableStreamDefaultController<string>>();
 let nextEventId = 1;
 
 export function emitConsoleStart(
@@ -75,7 +75,9 @@ function broadcast(event: ConsoleEvent) {
 	}
 }
 
-export function addConsoleClient(controller: ReadableStreamDefaultController) {
+export function addConsoleClient(
+	controller: ReadableStreamDefaultController<string>,
+) {
 	clients.add(controller);
 	try {
 		controller.enqueue(`: connected\n\n`);
@@ -83,7 +85,7 @@ export function addConsoleClient(controller: ReadableStreamDefaultController) {
 }
 
 export function removeConsoleClient(
-	controller: ReadableStreamDefaultController,
+	controller: ReadableStreamDefaultController<string>,
 ) {
 	clients.delete(controller);
 }

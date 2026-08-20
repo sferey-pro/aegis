@@ -48,6 +48,15 @@ export interface CreateRunInput {
 	duration_ms: number;
 }
 
+/**
+ * Projection réduite utilisée par l'historique global : seules les colonnes
+ * nécessaires au calcul de la série sont chargées.
+ */
+type HistoryRow = Pick<Run, "project_id" | "status"> & {
+	ran_at: string;
+	counts: string | RunCounts;
+};
+
 function parseRun(row: RunRow): Run {
 	return {
 		...row,
@@ -134,7 +143,7 @@ export function getLatestRunsByProjectIds(
 			GROUP BY project_id
 		) max_runs ON r.project_id = max_runs.project_id AND r.id = max_runs.max_id
 	`)
-		.all() as any[];
+		.all() as RunRow[];
 
 	const res: Record<number, Run> = {};
 	for (const row of rows) {
@@ -200,10 +209,10 @@ export function getGlobalHistory(days = 30) {
     WHERE project_id IN (${projectIds})
     ORDER BY ran_at ASC
   `)
-		.all() as any[];
+		.all() as HistoryRow[];
 
 	const latestCounts = new Map<number, RunCounts>();
-	const rowsByBucket = new Map<string, any[]>();
+	const rowsByBucket = new Map<string, HistoryRow[]>();
 
 	for (const r of rows) {
 		const runDate = new Date(`${r.ran_at.replace(" ", "T")}Z`);

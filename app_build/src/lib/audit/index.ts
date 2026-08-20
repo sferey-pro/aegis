@@ -3,17 +3,29 @@ import { spawn } from "bun";
 import { errorMessage } from "@/lib/utils";
 import { getDb } from "../../db";
 import { ensureOccurrences } from "../../db/occurrences";
-import { getProjectById, type Project } from "../../db/projects";
+import {
+	getProjectById,
+	type Project,
+	type ProjectTool,
+} from "../../db/projects";
 import { addRun, getLatestRun, type Run } from "../../db/runs";
+import type { CveGroup } from "../aggregator";
 import { emitConsoleEnd, emitConsoleStart, projectContext } from "../console";
 import { expandPath, getGitInfo } from "../git";
 import { parseAuditOutput } from "../parsers";
-import type { Severity } from "../parsers/types";
+import type { Severity, Vulnerability } from "../parsers/types";
+
+/** Entrée du diff « nouvelles CVE » d'un run (CONTEXT.md §2). */
+export interface NewCve {
+	ref: string;
+	package: string;
+	severity: Severity;
+}
 
 async function enhanceVulnerabilities(
 	projectId: number,
-	tool: any,
-	parsedVulns: any[],
+	tool: ProjectTool,
+	parsedVulns: Vulnerability[],
 	isBaseline: boolean,
 ) {
 	const { resolveFixedVersion } = await import("../github");
@@ -71,7 +83,7 @@ function getAuditMaxAgeHours(): number {
 	const db = getDb();
 	const row = db
 		.query(`SELECT value FROM settings WHERE key = 'AUDIT_MAX_AGE_HOURS'`)
-		.get() as any;
+		.get() as { value: string } | null;
 	if (!row) return 24;
 	const val = parseFloat(row.value);
 	if (Number.isNaN(val)) return 24;
@@ -133,7 +145,7 @@ export function auditTargetKey(
 export async function runAudit(
 	projectId: number,
 	force = false,
-): Promise<{ run: Run | null; deduped: boolean; newCves: any[] }> {
+): Promise<{ run: Run | null; deduped: boolean; newCves: NewCve[] }> {
 	const project = getProjectById(projectId);
 	if (!project) throw new Error("Projet introuvable");
 
@@ -271,7 +283,7 @@ export async function runAudit(
 				project_id: projectId,
 				status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
 				total: enhancedVulns.length,
-				counts: counts as any,
+				counts,
 				vulnerabilities: enhancedVulns,
 				command: commandStr,
 				commit_sha: gitInfo.sha,
@@ -284,7 +296,7 @@ export async function runAudit(
 			if (lastRun && lastRun.status !== "error") {
 				const oldSet = new Set(
 					lastRun.vulnerabilities.map(
-						(v: any) => `${v.package}::${v.cve || v.title}`,
+						(v) => `${v.package}::${v.cve || v.title}`,
 					),
 				);
 				for (const v of enhancedVulns) {
@@ -347,7 +359,7 @@ export async function ingestAudit(
 	projectId: number,
 	stdout: string,
 	commitSha: string = "",
-): Promise<{ run: Run | null; newCves: any[] }> {
+): Promise<{ run: Run | null; newCves: CveGroup[] }> {
 	const project = getProjectById(projectId);
 	if (!project) throw new Error("Projet introuvable");
 

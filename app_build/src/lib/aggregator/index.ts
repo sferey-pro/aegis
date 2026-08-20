@@ -31,7 +31,7 @@ export interface CveOccurrence {
 	cvssVector?: string | null;
 	firstSeenAt?: string | null;
 	ageInDays?: number;
-	publishedAt?: string;
+	publishedAt?: string | null;
 	isBaseline?: boolean;
 }
 

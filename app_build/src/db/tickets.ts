@@ -1,5 +1,8 @@
 import { getDb } from "./index";
 
+/** Ligne `tickets` brute : `cves` est du JSON en chaîne. */
+type TicketRow = Omit<Ticket, "cves"> & { cves: string | null };
+
 export interface Ticket {
 	id: number;
 	project_id: number;
@@ -12,7 +15,7 @@ export interface Ticket {
 
 export function getTickets(): Ticket[] {
 	const db = getDb();
-	const rows = db.query(`SELECT * FROM tickets`).all() as any[];
+	const rows = db.query(`SELECT * FROM tickets`).all() as TicketRow[];
 	return rows.map((r) => ({
 		...r,
 		cves: JSON.parse(r.cves || "[]"),
@@ -42,7 +45,7 @@ export function getTicketByHash(hash: string): Ticket | undefined {
 	const db = getDb();
 	const row = db
 		.query(`SELECT * FROM tickets WHERE content_hash = ?`)
-		.get(hash) as any;
+		.get(hash) as TicketRow | null;
 	if (!row) return undefined;
 	return {
 		...row,

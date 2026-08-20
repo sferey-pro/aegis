@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import type { BunRequest } from "bun";
 import { errorMessage } from "@/lib/utils";
 import { getProjectBySlug, listProjects } from "../db/projects";
 import { ingestAudit } from "../lib/audit";
@@ -24,7 +25,7 @@ export const auditRoutes = {
 	},
 
 	"/api/ingest/:slug": {
-		async POST(req: any) {
+		async POST(req: BunRequest<"/api/ingest/:slug">) {
 			const expectedToken = process.env.AEGIS_INGEST_TOKEN;
 			if (!expectedToken) {
 				return Response.json(

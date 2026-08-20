@@ -1,3 +1,4 @@
+import type { BunRequest } from "bun";
 import { errorMessage } from "@/lib/utils";
 import {
 	createPrompt,
@@ -23,7 +24,7 @@ export const promptsRoutes = {
 	},
 
 	"/api/prompts/:id": {
-		async PUT(req: any) {
+		async PUT(req: BunRequest<"/api/prompts/:id">) {
 			const id = parseInt(req.params.id, 10);
 			const body = await req.json();
 			try {
@@ -33,7 +34,7 @@ export const promptsRoutes = {
 				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}
 		},
-		async DELETE(req: any) {
+		async DELETE(req: BunRequest<"/api/prompts/:id">) {
 			deletePrompt(parseInt(req.params.id, 10));
 			return Response.json({ success: true });
 		},

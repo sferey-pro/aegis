@@ -1,3 +1,4 @@
+import type { BunRequest } from "bun";
 import { errorMessage } from "@/lib/utils";
 import { createTag, deleteTag, listTags } from "../db/tags";
 
@@ -18,7 +19,7 @@ export const tagsRoutes = {
 	},
 
 	"/api/tags/:id": {
-		async DELETE(req: any) {
+		async DELETE(req: BunRequest<"/api/tags/:id">) {
 			deleteTag(parseInt(req.params.id, 10));
 			return Response.json({ success: true });
 		},

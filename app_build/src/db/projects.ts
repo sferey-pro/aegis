@@ -29,7 +29,17 @@ export interface CreateProjectInput {
 	is_remote?: boolean;
 }
 
-function parseProject(row: any): Project {
+/**
+ * Ligne `projects` brute : `tags` est du JSON en chaîne et les booléens sont
+ * stockés en 0/1 par SQLite.
+ */
+type ProjectRow = Omit<Project, "tags" | "ignored" | "is_remote"> & {
+	tags: string | string[];
+	ignored: number | boolean;
+	is_remote: number | boolean;
+};
+
+function parseProject(row: ProjectRow): Project {
 	return {
 		...row,
 		tags: typeof row.tags === "string" ? JSON.parse(row.tags) : row.tags,
@@ -42,19 +52,23 @@ export function listProjects(): Project[] {
 	const db = getDb();
 	const rows = db
 		.query(`SELECT * FROM projects ORDER BY created_at DESC, id DESC`)
-		.all();
+		.all() as ProjectRow[];
 	return rows.map(parseProject);
 }
 
 export function getProjectById(id: number): Project | null {
 	const db = getDb();
-	const row = db.query(`SELECT * FROM projects WHERE id = ?`).get(id);
+	const row = db
+		.query(`SELECT * FROM projects WHERE id = ?`)
+		.get(id) as ProjectRow | null;
 	return row ? parseProject(row) : null;
 }
 
 export function getProjectBySlug(slug: string): Project | null {
 	const db = getDb();
-	const row = db.query(`SELECT * FROM projects WHERE slug = ?`).get(slug);
+	const row = db
+		.query(`SELECT * FROM projects WHERE slug = ?`)
+		.get(slug) as ProjectRow | null;
 	return row ? parseProject(row) : null;
 }
 
@@ -98,7 +112,7 @@ export function createProject(input: CreateProjectInput): Project {
 		$is_remote: is_remote,
 	});
 
-	return parseProject(row);
+	return parseProject(row as ProjectRow);
 }
 
 export function updateProject(
@@ -153,7 +167,7 @@ export function updateProject(
 		$ignored: ignored,
 	});
 
-	return parseProject(row);
+	return parseProject(row as ProjectRow);
 }
 
 export function deleteProject(id: number): void {

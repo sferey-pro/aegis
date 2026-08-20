@@ -26,19 +26,29 @@ export interface Run {
 	ran_at: string;
 }
 
+/**
+ * Représentation d'une ligne `runs` telle que SQLite la renvoie : les colonnes
+ * JSON arrivent en chaîne. `parseRun` les réhydrate ; le type tolère les deux
+ * formes car certaines requêtes (RETURNING) peuvent déjà renvoyer l'objet.
+ */
+type RunRow = Omit<Run, "counts" | "vulnerabilities"> & {
+	counts: string | RunCounts;
+	vulnerabilities: string | Vulnerability[];
+};
+
 export interface CreateRunInput {
 	project_id: number;
 	status: RunStatus;
 	total: number;
 	counts: RunCounts;
-	vulnerabilities: any[];
+	vulnerabilities: Vulnerability[];
 	command?: string | null;
 	commit_sha?: string | null;
 	error?: string | null;
 	duration_ms: number;
 }
 
-function parseRun(row: any): Run {
+function parseRun(row: RunRow): Run {
 	return {
 		...row,
 		counts:
@@ -76,7 +86,7 @@ export function addRun(input: CreateRunInput): Run {
 		$duration_ms: input.duration_ms,
 	});
 
-	return parseRun(row);
+	return parseRun(row as RunRow);
 }
 
 export function getRunsForProject(projectId: number, limit = 30): Run[] {
@@ -88,7 +98,7 @@ export function getRunsForProject(projectId: number, limit = 30): Run[] {
     ORDER BY ran_at DESC, id DESC 
     LIMIT ?
   `)
-		.all(projectId, limit);
+		.all(projectId, limit) as RunRow[];
 
 	return rows.map(parseRun);
 }
@@ -102,7 +112,7 @@ export function getLatestRun(projectId: number): Run | null {
     ORDER BY ran_at DESC, id DESC 
     LIMIT 1
   `)
-		.get(projectId);
+		.get(projectId) as RunRow | null;
 
 	return row ? parseRun(row) : null;
 }

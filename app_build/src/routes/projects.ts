@@ -1,3 +1,4 @@
+import type { BunRequest } from "bun";
 import { errorMessage } from "@/lib/utils";
 import {
 	createProject,
@@ -115,7 +116,7 @@ export const projectsRoutes = {
 	},
 
 	"/api/projects/:id": {
-		async GET(req: any) {
+		async GET(req: BunRequest<"/api/projects/:id">) {
 			const id = parseInt(req.params.id, 10);
 			const p = listProjects().find((p) => p.id === id);
 			if (!p) return Response.json({ error: "Not found" }, { status: 404 });
@@ -128,13 +129,13 @@ export const projectsRoutes = {
 			const run = getLatestRun(p.id);
 			return Response.json({ ...p, git, lastRun: run });
 		},
-		async PUT(req: any) {
+		async PUT(req: BunRequest<"/api/projects/:id">) {
 			const id = parseInt(req.params.id, 10);
 			const body = await req.json();
 			const project = updateProject(id, body);
 			return Response.json(project);
 		},
-		async DELETE(req: any) {
+		async DELETE(req: BunRequest<"/api/projects/:id">) {
 			const id = parseInt(req.params.id, 10);
 			deleteProject(id);
 			return Response.json({ success: true });
@@ -142,7 +143,7 @@ export const projectsRoutes = {
 	},
 
 	"/api/projects/:id/git-fetch": {
-		async POST(req: any) {
+		async POST(req: BunRequest<"/api/projects/:id/git-fetch">) {
 			const id = parseInt(req.params.id, 10);
 			const project = listProjects().find((p) => p.id === id);
 			if (!project)
@@ -158,7 +159,7 @@ export const projectsRoutes = {
 	},
 
 	"/api/projects/:id/git-pull": {
-		async POST(req: any) {
+		async POST(req: BunRequest<"/api/projects/:id/git-pull">) {
 			const id = parseInt(req.params.id, 10);
 			const project = listProjects().find((p) => p.id === id);
 			if (!project)
@@ -174,7 +175,7 @@ export const projectsRoutes = {
 	},
 
 	"/api/projects/:id/audit": {
-		async POST(req: any) {
+		async POST(req: BunRequest<"/api/projects/:id/audit">) {
 			const id = parseInt(req.params.id, 10);
 			const url = new URL(req.url);
 			const force = url.searchParams.get("force") === "true";

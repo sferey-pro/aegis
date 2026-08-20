@@ -1,5 +1,5 @@
-import React from "react";
 import type { LucideIcon } from "lucide-react";
+import type React from "react";
 
 interface StatCardProps {
 	title: string;
@@ -9,7 +9,13 @@ interface StatCardProps {
 	loading?: boolean;
 }
 
-export function StatCard({ title, value, icon: Icon, subtitle, loading }: StatCardProps) {
+export function StatCard({
+	title,
+	value,
+	icon: Icon,
+	subtitle,
+	loading,
+}: StatCardProps) {
 	return (
 		<div className="bg-card border-border p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden">
 			<div className="absolute inset-0 bg-primary/5 opacity-0"></div>

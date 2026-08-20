@@ -1,6 +1,13 @@
-import { AlertTriangle, Maximize2, Minimize2, Terminal, Trash2, X } from "lucide-react";
-import { Button } from "../ui/button";
+import {
+	AlertTriangle,
+	Maximize2,
+	Minimize2,
+	Terminal,
+	Trash2,
+	X,
+} from "lucide-react";
 import { memo } from "react";
+import { Button } from "../ui/button";
 
 interface ConsoleHeaderProps {
 	debugMode: boolean;
@@ -52,7 +59,11 @@ export const ConsoleHeader = memo(function ConsoleHeader({
 					onClick={() => setIsMaximized(!isMaximized)}
 					className="text-muted-foreground h-8 w-8 hidden md:flex"
 				>
-					{isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+					{isMaximized ? (
+						<Minimize2 className="w-4 h-4" />
+					) : (
+						<Maximize2 className="w-4 h-4" />
+					)}
 				</Button>
 				<Button
 					variant="ghost"

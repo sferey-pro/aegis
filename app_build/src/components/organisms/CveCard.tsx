@@ -7,9 +7,14 @@ import {
 	X,
 } from "lucide-react";
 import { buildCvssTooltip } from "../../lib/cvss";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "../ui/tooltip";
 import { SEVERITY_COLORS } from "../../lib/triage-constants";
 import { Button } from "../ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "../ui/tooltip";
 
 export function CveCard({
 	cveObj,
@@ -81,7 +86,7 @@ export function CveCard({
 					)}
 					{cveObj.ageInDays !== undefined && (
 						<span
-							className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${ cveObj.isBaseline ? "bg-purple-500/10 " : cveObj.ageInDays > 30 ? "bg-red-500/10 " : cveObj.ageInDays > 15 ? "bg-orange-500/10 " : "bg-white/5 text-muted-foreground " }`}
+							className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${cveObj.isBaseline ? "bg-purple-500/10 " : cveObj.ageInDays > 30 ? "bg-red-500/10 " : cveObj.ageInDays > 15 ? "bg-orange-500/10 " : "bg-white/5 text-muted-foreground "}`}
 							title={
 								cveObj.publishedAt
 									? `Publiée le: ${new Date(cveObj.publishedAt).toLocaleString()}`
@@ -250,7 +255,11 @@ export function CveCard({
 					<Check className="w-3.5 h-3.5" /> Confirmé
 				</Button>
 				<Button
-					variant={cveObj.status === "ignored" && !cveObj.isGlobal ? "outline" : "ghost"}
+					variant={
+						cveObj.status === "ignored" && !cveObj.isGlobal
+							? "outline"
+							: "ghost"
+					}
 					size="sm"
 					onClick={() => {
 						updateStatus(cveObj.cve, projectId, "ignored");

@@ -16,8 +16,12 @@ export const ConsoleLogItem = memo(function ConsoleLogItem({
 	return (
 		<div className="flex gap-3 break-words whitespace-pre-wrap">
 			<div className="w-4 flex-shrink-0 mt-0.5">
-				{log.status === "running" && <Loader2 className="w-4 h-4 animate-spin" />}
-				{log.status === "success" && <CheckCircle className="w-4 h-4 text-green-500" />}
+				{log.status === "running" && (
+					<Loader2 className="w-4 h-4 animate-spin" />
+				)}
+				{log.status === "success" && (
+					<CheckCircle className="w-4 h-4 text-green-500" />
+				)}
 				{log.status === "error" && <XCircle className="w-4 h-4 text-red-500" />}
 			</div>
 
@@ -66,13 +70,17 @@ export const ConsoleLogItem = memo(function ConsoleLogItem({
 					<div className="mt-2 flex flex-col gap-2 w-full max-w-full overflow-hidden">
 						{log.outText ? (
 							<div className="text-[10px] border-l-2 border-blue-500/50 p-2 bg-blue-500/10 rounded overflow-x-auto whitespace-pre-wrap break-words w-full text-blue-800 dark:text-blue-200 font-mono">
-								<span className="font-bold block mb-1 text-blue-600 dark:text-blue-400">STDOUT :</span>
+								<span className="font-bold block mb-1 text-blue-600 dark:text-blue-400">
+									STDOUT :
+								</span>
 								{log.outText}
 							</div>
 						) : null}
 						{log.errorText ? (
 							<div className="text-[10px] border-l-2 border-red-500/50 p-2 bg-red-500/10 rounded overflow-x-auto whitespace-pre-wrap break-words w-full text-red-800 dark:text-red-200 font-mono">
-								<span className="font-bold block mb-1 text-red-600 dark:text-red-400">STDERR :</span>
+								<span className="font-bold block mb-1 text-red-600 dark:text-red-400">
+									STDERR :
+								</span>
 								{log.errorText}
 							</div>
 						) : null}

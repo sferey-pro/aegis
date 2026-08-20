@@ -1,7 +1,14 @@
 import { CheckCircle2, Copy, FileText, RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
 
 export function TicketModal({
@@ -21,9 +28,11 @@ export function TicketModal({
 	const [creating, setCreating] = useState(false);
 
 	return (
-		<Dialog 
-			open={ticketModal.isOpen} 
-			onOpenChange={(open: boolean) => setTicketModal({ ...ticketModal, isOpen: open })}
+		<Dialog
+			open={ticketModal.isOpen}
+			onOpenChange={(open: boolean) =>
+				setTicketModal({ ...ticketModal, isOpen: open })
+			}
 		>
 			<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
 				<DialogHeader className="p-6 pb-4 border-b shrink-0">
@@ -42,10 +51,14 @@ export function TicketModal({
 
 				<div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-4">
 					<div>
-						<label className="block text-sm font-medium mb-2">
+						<label
+							htmlFor="ticket-notes"
+							className="block text-sm font-medium mb-2"
+						>
 							Notes additionnelles / Recommandations
 						</label>
 						<Textarea
+							id="ticket-notes"
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							placeholder="Ajoutez vos recommandations pour les développeurs..."
@@ -54,9 +67,9 @@ export function TicketModal({
 					</div>
 
 					<div>
-						<label className="block text-sm font-medium mb-2">
+						<span className="block text-sm font-medium mb-2">
 							Aperçu du contenu (Markdown pour copie manuelle)
-						</label>
+						</span>
 						<div className="w-full overflow-auto bg-muted/50 rounded-xl border border-input p-4 text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-[150px]">
 							{ticketModal.md}
 						</div>

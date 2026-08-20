@@ -107,12 +107,15 @@ export function getLatestRun(projectId: number): Run | null {
 	return row ? parseRun(row) : null;
 }
 
-export function getLatestRunsByProjectIds(projectIds: number[]): Record<number, Run> {
+export function getLatestRunsByProjectIds(
+	projectIds: number[],
+): Record<number, Run> {
 	if (projectIds.length === 0) return {};
 	const db = getDb();
 	const ids = projectIds.join(",");
-	
-	const rows = db.query(`
+
+	const rows = db
+		.query(`
 		SELECT r.* FROM runs r
 		INNER JOIN (
 			SELECT project_id, MAX(id) as max_id
@@ -120,8 +123,9 @@ export function getLatestRunsByProjectIds(projectIds: number[]): Record<number, 
 			WHERE project_id IN (${ids})
 			GROUP BY project_id
 		) max_runs ON r.project_id = max_runs.project_id AND r.id = max_runs.max_id
-	`).all() as any[];
-	
+	`)
+		.all() as any[];
+
 	const res: Record<number, Run> = {};
 	for (const row of rows) {
 		res[row.project_id] = parseRun(row);

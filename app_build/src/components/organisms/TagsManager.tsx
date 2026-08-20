@@ -1,9 +1,9 @@
 import { Plus, RefreshCw, Tag, X } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Badge } from "../ui/badge";
 
 export function TagsManager() {
 	const [tags, setTags] = useState<
@@ -14,7 +14,7 @@ export function TagsManager() {
 	const [newColor, setNewColor] = useState("indigo");
 	const [error, setError] = useState("");
 
-	const fetchTags = async () => {
+	const fetchTags = useCallback(async () => {
 		try {
 			const res = await fetch("/api/tags");
 			setTags(await res.json());
@@ -23,11 +23,11 @@ export function TagsManager() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		fetchTags();
-	}, []);
+	}, [fetchTags]);
 
 	const handleAdd = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -79,20 +79,26 @@ export function TagsManager() {
 				className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6  p-4 rounded-xl border"
 			>
 				<div className="flex flex-col flex-1 w-full gap-1">
-					<label className="text-xs font-semibold uppercase text-muted-foreground">
+					<label
+						htmlFor="tag-name"
+						className="text-xs font-semibold uppercase text-muted-foreground"
+					>
 						Nom du tag
 					</label>
 					<Input
+						id="tag-name"
 						value={newName}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+							setNewName(e.target.value)
+						}
 						placeholder="Ex: API"
 						required
 					/>
 				</div>
 				<div className="flex flex-col w-full sm:w-auto gap-1">
-					<label className="text-xs font-semibold uppercase text-muted-foreground">
+					<span className="text-xs font-semibold uppercase text-muted-foreground">
 						Couleur
-					</label>
+					</span>
 					<div className="flex items-center gap-2 px-1 py-1 h-[42px]">
 						{[
 							"indigo",

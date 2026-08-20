@@ -2,10 +2,10 @@ import { Loader2, TrendingDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
+	type ChartConfig,
 	ChartContainer,
 	ChartTooltip,
 	ChartTooltipContent,
-	type ChartConfig,
 } from "../ui/chart";
 import {
 	Select,

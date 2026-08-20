@@ -7,9 +7,8 @@ import {
 	Shield,
 } from "lucide-react";
 import { memo } from "react";
+import { Link } from "react-router-dom";
 import { HistoryChart } from "../components/organisms/HistoryChart";
-
-import { useNavigate } from "react-router-dom";
 
 export const Overview = memo(function Overview({
 	stats,
@@ -20,8 +19,6 @@ export const Overview = memo(function Overview({
 	loading: boolean;
 	syncDisplay: string;
 }) {
-	const navigate = useNavigate();
-	
 	return (
 		<main className="flex-1 w-full max-w-7xl mx-auto mt-4 z-10 flex flex-col gap-6">
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
@@ -119,9 +116,10 @@ export const Overview = memo(function Overview({
 						</div>
 						<div className="flex flex-col gap-3">
 							{stats.topProjects.map((tp: any, i: number) => (
-								<div
-									key={i}
-									onClick={() => navigate(`/triage?project=${tp.id}`)}
+								<Link
+									key={tp.id}
+									to={`/triage?project=${tp.id}`}
+									aria-label={`Trier les vulnérabilités du projet ${tp.name}`}
 									className="group flex items-center justify-between  p-4 rounded-2xl border cursor-pointer"
 								>
 									<div className="flex items-center gap-4">
@@ -144,7 +142,7 @@ export const Overview = memo(function Overview({
 											</span>
 										)}
 									</div>
-								</div>
+								</Link>
 							))}
 						</div>
 					</div>
@@ -159,10 +157,11 @@ export const Overview = memo(function Overview({
 							</h3>
 						</div>
 						<div className="flex flex-col gap-3">
-							{stats.topCves.map((tc: any, i: number) => (
-								<div
-									key={i}
-									onClick={() => navigate(`/triage?cve=${tc.cve}`)}
+							{stats.topCves.map((tc: any) => (
+								<Link
+									key={tc.cve}
+									to={`/triage?cve=${tc.cve}`}
+									aria-label={`Trier les occurrences de ${tc.cve}`}
 									className="group flex flex-col gap-2  p-4 rounded-2xl border cursor-pointer"
 								>
 									<div className="flex items-center justify-between">
@@ -179,7 +178,7 @@ export const Overview = memo(function Overview({
 									>
 										{tc.title}
 									</p>
-								</div>
+								</Link>
 							))}
 						</div>
 					</div>

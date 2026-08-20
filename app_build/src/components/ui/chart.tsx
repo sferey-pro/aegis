@@ -1,6 +1,6 @@
 import * as React from "react";
-import * as RechartsPrimitive from "recharts";
 import type { TooltipValueType } from "recharts";
+import * as RechartsPrimitive from "recharts";
 
 import { cn } from "@/lib/utils";
 
@@ -88,12 +88,11 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 		return null;
 	}
 
-	return (
-		<style
-			dangerouslySetInnerHTML={{
-				__html: Object.entries(THEMES)
-					.map(
-						([theme, prefix]) => `
+	// Les variables CSS sont rendues comme enfant texte de <style> plutot que via
+	// dangerouslySetInnerHTML : meme resultat, sans point d'injection HTML.
+	const css = Object.entries(THEMES)
+		.map(
+			([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
 	.map(([key, itemConfig]) => {
@@ -105,11 +104,10 @@ ${colorConfig
 	.join("\n")}
 }
 `,
-					)
-					.join("\n"),
-			}}
-		/>
-	);
+		)
+		.join("\n");
+
+	return <style>{css}</style>;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
@@ -204,7 +202,7 @@ function ChartTooltipContent({
 
 						return (
 							<div
-								key={index}
+								key={key}
 								className={cn(
 									"flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted-foreground",
 									indicator === "dot" && "items-center",
@@ -296,13 +294,13 @@ function ChartLegendContent({
 		>
 			{payload
 				.filter((item) => item.type !== "none")
-				.map((item, index) => {
+				.map((item) => {
 					const key = `${nameKey ?? item.dataKey ?? "value"}`;
 					const itemConfig = getPayloadConfigFromPayload(config, item, key);
 
 					return (
 						<div
-							key={index}
+							key={key}
 							className={cn(
 								"flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
 							)}
@@ -364,9 +362,9 @@ function getPayloadConfigFromPayload(
 
 export {
 	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
 	ChartLegend,
 	ChartLegendContent,
 	ChartStyle,
+	ChartTooltip,
+	ChartTooltipContent,
 };

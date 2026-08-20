@@ -6,18 +6,20 @@ import {
 	Shield,
 	X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
-import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 import { TicketModal } from "../components/organisms/TicketModal";
 import { TriageTable } from "../components/organisms/TriageTable";
 import { Button } from "../components/ui/button";
-import { useSearchParams } from "react-router-dom";
+import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 
 export const Triage = React.memo(function Triage() {
 	const [searchParams, setSearchParams] = useSearchParams();
-	const projectId = searchParams.get("project") ? parseInt(searchParams.get("project") as string) : null;
+	const projectId = searchParams.get("project")
+		? parseInt(searchParams.get("project") as string)
+		: null;
 	const cveFilter = searchParams.get("cve");
 
 	const onClearProject = () => {
@@ -57,7 +59,7 @@ export const Triage = React.memo(function Triage() {
 	} | null>(null);
 	const [hideProcessed, setHideProcessed] = useState(false);
 
-	const fetchCves = async () => {
+	const fetchCves = useCallback(async () => {
 		try {
 			const res = await fetch("/api/cves");
 			const data = await res.json();
@@ -67,21 +69,23 @@ export const Triage = React.memo(function Triage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
-	const fetchTickets = async () => {
+	const fetchTickets = useCallback(async () => {
 		try {
 			const res = await fetch("/api/tickets/list");
 			const data = await res.json();
 			const map: Record<string, any> = {};
-			data.forEach((t: any) => (map[`${t.project_id}::${t.package}`] = t));
+			for (const t of data) {
+				map[`${t.project_id}::${t.package}`] = t;
+			}
 			setTickets(map);
 		} catch (e) {
 			console.error(e);
 		}
-	};
+	}, []);
 
-	const fetchSettings = async () => {
+	const fetchSettings = useCallback(async () => {
 		try {
 			const res = await fetch("/api/settings");
 			const data = await res.json();
@@ -89,13 +93,13 @@ export const Triage = React.memo(function Triage() {
 		} catch (e) {
 			console.error(e);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		fetchCves();
 		fetchTickets();
 		fetchSettings();
-	}, []);
+	}, [fetchCves, fetchTickets, fetchSettings]);
 
 	const packageGroups = React.useMemo(() => {
 		const map = new Map<string, any>();
@@ -175,6 +179,10 @@ export const Triage = React.memo(function Triage() {
 			.sort((a, b) => b.projectName.localeCompare(a.projectName));
 	}, [cves, projectId, cveFilter, hideProcessed]);
 
+	// Dependances volontaires utilisees comme declencheurs : le corps ne les lit
+	// pas, mais la pagination doit repartir a la premiere page quand le jeu de
+	// donnees ou un filtre change.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: declencheurs volontaires
 	useEffect(() => {
 		setPage(1);
 	}, [cves, projectId, cveFilter, hideProcessed]);
@@ -268,6 +276,7 @@ export const Triage = React.memo(function Triage() {
 								Filtré par projet
 								{onClearProject && (
 									<button
+										type="button"
 										onClick={onClearProject}
 										className="hover:text-red-400"
 									>
@@ -281,6 +290,7 @@ export const Triage = React.memo(function Triage() {
 								Filtré par CVE ({cveFilter})
 								{onClearCve && (
 									<button
+										type="button"
 										onClick={onClearCve}
 										className="hover:text-red-400"
 									>
@@ -312,9 +322,7 @@ export const Triage = React.memo(function Triage() {
 				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
 					<Shield className="w-16 h-16 opacity-80" />
 					<div>
-						<h3 className="text-xl font-bold">
-							Aucune vulnérabilité
-						</h3>
+						<h3 className="text-xl font-bold">Aucune vulnérabilité</h3>
 						<p className="text-muted-foreground">Votre écosystème est sain !</p>
 					</div>
 				</div>
@@ -362,7 +370,7 @@ export const Triage = React.memo(function Triage() {
 
 			{toast?.isOpen && (
 				<div
-					className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border flex flex-col gap-2 bg-card border-border ${ toast.type === "success" ? "bg-green-500/10 " : toast.type === "error" ? "bg-red-500/10 " : "bg-blue-500/10 " }`}
+					className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border flex flex-col gap-2 bg-card border-border ${toast.type === "success" ? "bg-green-500/10 " : toast.type === "error" ? "bg-red-500/10 " : "bg-blue-500/10 "}`}
 				>
 					<div className="flex justify-between items-start">
 						<h4 className="font-bold flex items-center gap-2">

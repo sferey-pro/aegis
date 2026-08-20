@@ -1,22 +1,28 @@
-import React from "react";
+// biome-ignore-all lint/a11y/useSemanticElements: la carte entiere est cliquable
+// (ouvre le triage du projet) mais contient six boutons d'action imbriques. La
+// convertir en <button> produirait des controles interactifs imbriques : HTML
+// invalide et regression d'accessibilite. role="button" + tabIndex + onKeyDown
+// est le compromis retenu ; a remplacer par le motif "stretched link" si la
+// carte est retravaillee.
 import {
-	Shield,
-	CheckCircle2,
 	AlertTriangle,
-	MoreHorizontal,
-	Check,
-	Copy,
-	Info,
-	Clock,
-	GitBranch,
 	ArrowDownToLine,
+	Check,
+	CheckCircle2,
+	Clock,
 	CloudDownload,
-	RefreshCw,
-	Play,
+	Copy,
 	Edit2,
-	Trash2,
+	GitBranch,
+	Info,
 	Loader2,
+	MoreHorizontal,
+	Play,
+	RefreshCw,
+	Shield,
+	Trash2,
 } from "lucide-react";
+import React from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -60,28 +66,32 @@ export const ProjectCard = React.memo(function ProjectCard({
 	const hasCritical = p.lastRun?.counts?.critical > 0;
 	const hasNoCves =
 		p.lastRun &&
-		Object.values(p.lastRun.counts).reduce(
-			(a: any, b: any) => a + b,
-			0,
-		) === 0;
+		Object.values(p.lastRun.counts).reduce((a: any, b: any) => a + b, 0) === 0;
 
 	return (
 		<div
-			className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${ p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-red-500/50 cursor-pointer " : "hover:-translate-y-1 cursor-pointer " }`}
+			className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-red-500/50 cursor-pointer " : "hover:-translate-y-1 cursor-pointer "}`}
 			style={{
 				animationDelay: `${(index % 20) * 50}ms`,
 				animationFillMode: "backwards",
 			}}
+			role="button"
+			tabIndex={0}
+			aria-label={`Voir le triage du projet ${p.name}`}
 			onClick={() => {
 				if (onViewTriage) onViewTriage(p.id);
+			}}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					if (onViewTriage) onViewTriage(p.id);
+				}
 			}}
 		>
 			{auditState[p.id] && (
 				<div className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl">
 					<Loader2 className="w-6 h-6 text-primary animate-spin" />
-					<span className="text-xs font-semibold ">
-						{auditState[p.id]}
-					</span>
+					<span className="text-xs font-semibold ">{auditState[p.id]}</span>
 				</div>
 			)}
 
@@ -118,6 +128,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 
 				<div className="relative group/menu">
 					<button
+						type="button"
 						className="p-1.5 rounded-full text-muted-foreground hover:bg-muted"
 						onClick={(e) => e.stopPropagation()}
 					>
@@ -131,6 +142,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 							</span>
 						</div>
 						<button
+							type="button"
 							title="Copier l'URL d'ingestion CI"
 							onClick={(e) => {
 								e.preventDefault();
@@ -154,9 +166,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 							) : (
 								<Copy className="w-3.5 h-3.5" />
 							)}
-							{copiedSlug === p.id
-								? "Copié !"
-								: "Copier URL Ingestion"}
+							{copiedSlug === p.id ? "Copié !" : "Copier URL Ingestion"}
 						</button>
 					</div>
 				</div>
@@ -176,9 +186,9 @@ export const ProjectCard = React.memo(function ProjectCard({
 
 			{p.tags && p.tags.length > 0 && (
 				<div className="flex flex-wrap gap-1 mt-2">
-					{p.tags.map((tag: string, i: number) => (
+					{p.tags.map((tag: string) => (
 						<Badge
-							key={i}
+							key={tag}
 							variant="secondary"
 							className="text-[10px] uppercase tracking-wider text-primary"
 						>
@@ -232,11 +242,11 @@ export const ProjectCard = React.memo(function ProjectCard({
 									className="text-red-400 font-bold flex items-center gap-0.5"
 									title={`${p.git.behind} commits de retard`}
 								>
-									<ArrowDownToLine className="w-3 h-3" />{" "}
-									{p.git.behind}
+									<ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
 								</span>
 							)}
 							<button
+								type="button"
 								onClick={(e) => handleFetch(p.id, e)}
 								className="p-1 text-muted-foreground rounded hover:bg-muted"
 								title="Git Fetch"
@@ -245,6 +255,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 							</button>
 							{p.git.behind > 0 && (
 								<button
+									type="button"
 									onClick={(e) => handlePull(p.id, e)}
 									className="px-1.5 py-0.5 rounded font-bold text-[10px] uppercase hover:bg-muted"
 									title="Git Pull (Fast-Forward uniquement)"
@@ -257,10 +268,9 @@ export const ProjectCard = React.memo(function ProjectCard({
 				</div>
 			) : (
 				<div className="flex items-center justify-between mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
-					<span className="text-muted-foreground italic">
-						Dépôt Non-Git
-					</span>
+					<span className="text-muted-foreground italic">Dépôt Non-Git</span>
 					<button
+						type="button"
 						onClick={(e) => handleDetectGit(p.id, e)}
 						disabled={detectingId === p.id}
 						className="p-1 text-muted-foreground rounded flex items-center gap-1 disabled:opacity-50 hover:bg-muted"
@@ -276,6 +286,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 
 			<div className="flex items-center justify-between mt-auto pt-4 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
 				<button
+					type="button"
 					onClick={(e) => toggleIgnore(p, e)}
 					className="text-xs text-muted-foreground hover:text-foreground"
 				>

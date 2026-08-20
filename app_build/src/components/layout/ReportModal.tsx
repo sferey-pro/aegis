@@ -1,8 +1,14 @@
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../ui/dialog";
 
 export function ReportModal({
 	reportModal,
@@ -13,7 +19,12 @@ export function ReportModal({
 }) {
 	const navigate = useNavigate();
 	return (
-		<Dialog open={!!reportModal} onOpenChange={(open) => { if (!open) setReportModal(null) }}>
+		<Dialog
+			open={!!reportModal}
+			onOpenChange={(open) => {
+				if (!open) setReportModal(null);
+			}}
+		>
 			<DialogContent className="max-w-xl sm:min-w-[450px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
 				<div className="absolute top-0 right-0 p-32 blur-[80px] rounded-full pointer-events-none"></div>
 

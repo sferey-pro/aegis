@@ -7,10 +7,10 @@
 
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { App } from "./App";
-import { TooltipProvider } from "./components/ui/tooltip";
 
 import { BrowserRouter } from "react-router-dom";
+import { App } from "./App";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 const elem = document.getElementById("root")!;
 const app = (
@@ -22,4 +22,5 @@ const app = (
 );
 
 // https://bun.com/docs/bundler/hot-reloading#import-meta-hot-data
-(import.meta.hot.data.root ??= createRoot(elem)).render(app);
+import.meta.hot.data.root ??= createRoot(elem);
+import.meta.hot.data.root.render(app);

@@ -1,29 +1,45 @@
-import React, { useState, useEffect, useRef } from "react";
 import {
-	Plus,
-	Trash2,
-	Folder,
-	Shield,
-	RefreshCw,
-	GitBranch,
-	CloudDownload,
-	ArrowDownToLine,
 	AlertTriangle,
-	CheckCircle2,
-	Loader2,
-	XCircle,
-	Copy,
+	ArrowDownToLine,
 	Check,
-	Info,
+	CheckCircle2,
+	CloudDownload,
+	Copy,
 	Edit2,
-	Play,
+	Folder,
+	GitBranch,
+	Info,
 	LayoutGrid,
 	List,
+	Loader2,
+	Play,
+	Plus,
+	RefreshCw,
+	Shield,
+	Trash2,
+	XCircle,
 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { ProjectCard } from "../components/organisms/ProjectCard";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "../components/ui/select";
 import {
 	Table,
 	TableBody,
@@ -32,11 +48,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "../components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { ProjectCard } from "../components/organisms/ProjectCard";
-
-import { useNavigate } from "react-router-dom";
 
 export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
@@ -150,16 +161,16 @@ export const Projects = React.memo(function Projects() {
 				});
 	};
 
-	const fetchTags = async () => {
+	const fetchTags = useCallback(async () => {
 		try {
 			const res = await fetch("/api/tags");
 			setAvailableTags(await res.json());
 		} catch (e) {
 			console.error(e);
 		}
-	};
+	}, []);
 
-	const fetchProjects = async () => {
+	const fetchProjects = useCallback(async () => {
 		try {
 			const res = await fetch("/api/projects");
 			const data = await res.json();
@@ -169,12 +180,12 @@ export const Projects = React.memo(function Projects() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		fetchProjects();
 		fetchTags();
-	}, []);
+	}, [fetchProjects, fetchTags]);
 
 	const resetForm = () => {
 		setIsAdding(false);
@@ -465,7 +476,12 @@ export const Projects = React.memo(function Projects() {
 				</div>
 			</div>
 
-			<Dialog open={isAdding} onOpenChange={(open: boolean) => { if (!open) resetForm(); }}>
+			<Dialog
+				open={isAdding}
+				onOpenChange={(open: boolean) => {
+					if (!open) resetForm();
+				}}
+			>
 				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
 					<form
 						ref={formRef}
@@ -502,8 +518,11 @@ export const Projects = React.memo(function Projects() {
 
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
 								<div className="flex flex-col gap-1">
-									<label className="text-sm font-medium">Nom du projet</label>
+									<label htmlFor="project-name" className="text-sm font-medium">
+										Nom du projet
+									</label>
 									<Input
+										id="project-name"
 										required
 										type="text"
 										value={formData.name}
@@ -515,11 +534,15 @@ export const Projects = React.memo(function Projects() {
 								</div>
 
 								<div className="flex flex-col gap-1">
-									<label className="text-sm font-medium flex items-center gap-1">
+									<label
+										htmlFor="project-ingest-url"
+										className="text-sm font-medium flex items-center gap-1"
+									>
 										<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
 									</label>
 									<div className="relative">
 										<input
+											id="project-ingest-url"
 											readOnly
 											type="text"
 											value={
@@ -567,10 +590,14 @@ export const Projects = React.memo(function Projects() {
 
 								{!formData.is_remote && (
 									<div className="flex flex-col gap-1 md:col-span-2">
-										<label className="text-sm font-medium">
+										<label
+											htmlFor="project-path"
+											className="text-sm font-medium"
+										>
 											Chemin absolu (Racine Git)
 										</label>
 										<Input
+											id="project-path"
 											required={!formData.is_remote}
 											type="text"
 											value={formData.path}
@@ -582,8 +609,7 @@ export const Projects = React.memo(function Projects() {
 										/>
 										{detectStatus === "detecting" && (
 											<span className="text-xs mt-1 flex items-center gap-1">
-												<Loader2 className="w-3 h-3" /> Détection
-												automatique...
+												<Loader2 className="w-3 h-3" /> Détection automatique...
 											</span>
 										)}
 										{detectStatus === "success" && (
@@ -603,10 +629,14 @@ export const Projects = React.memo(function Projects() {
 
 								{!formData.is_remote && (
 									<div className="flex flex-col gap-1">
-										<label className="text-sm font-medium">
+										<label
+											htmlFor="project-audit-path"
+											className="text-sm font-medium"
+										>
 											Sous-dossier d'audit (Optionnel)
 										</label>
 										<Input
+											id="project-audit-path"
 											type="text"
 											value={formData.audit_path}
 											onChange={(e) =>
@@ -619,7 +649,9 @@ export const Projects = React.memo(function Projects() {
 								)}
 
 								<div className="flex flex-col gap-1">
-									<label className="text-sm font-medium">Outil d'audit</label>
+									<label htmlFor="project-tool" className="text-sm font-medium">
+										Outil d'audit
+									</label>
 									<Select
 										value={formData.tool}
 										onValueChange={(val: any) =>
@@ -630,7 +662,7 @@ export const Projects = React.memo(function Projects() {
 											})
 										}
 									>
-										<SelectTrigger className="w-full">
+										<SelectTrigger id="project-tool" className="w-full">
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
@@ -643,9 +675,9 @@ export const Projects = React.memo(function Projects() {
 								</div>
 
 								<div className="flex flex-col gap-2 md:col-span-2">
-									<label className="text-sm font-medium">
+									<span className="text-sm font-medium">
 										Tags (Configurations)
-									</label>
+									</span>
 									<div className="flex flex-wrap gap-2">
 										{availableTags.map((t) => {
 											const isSelected = formData.tags.includes(t.name);
@@ -668,7 +700,7 @@ export const Projects = React.memo(function Projects() {
 															});
 														}
 													}}
-													className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${ isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground" }`}
+													className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground"}`}
 												>
 													<span
 														className="w-2 h-2 rounded-full inline-block mr-2"
@@ -780,25 +812,25 @@ export const Projects = React.memo(function Projects() {
 						? projects.filter((p) => p.tags && p.tags.includes(filterTag))
 						: projects
 					).map((p, index) => (
-							<ProjectCard
-								key={p.id}
-								p={p}
-								index={index}
-								auditState={auditState}
-								onViewTriage={() => navigate(`/triage?project=${p.id}`)}
-								copiedSlug={copiedSlug}
-								setCopiedSlug={setCopiedSlug}
-								copyToClipboard={copyToClipboard}
-								detectingId={detectingId}
-								handleDetectGit={handleDetectGit}
-								handleFetch={handleFetch}
-								handlePull={handlePull}
-								toggleIgnore={toggleIgnore}
-								handleForceAudit={handleForceAudit}
-								handleEdit={handleEdit}
-								handleDelete={handleDelete}
-								formatDate={formatDate}
-							/>
+						<ProjectCard
+							key={p.id}
+							p={p}
+							index={index}
+							auditState={auditState}
+							onViewTriage={() => navigate(`/triage?project=${p.id}`)}
+							copiedSlug={copiedSlug}
+							setCopiedSlug={setCopiedSlug}
+							copyToClipboard={copyToClipboard}
+							detectingId={detectingId}
+							handleDetectGit={handleDetectGit}
+							handleFetch={handleFetch}
+							handlePull={handlePull}
+							toggleIgnore={toggleIgnore}
+							handleForceAudit={handleForceAudit}
+							handleEdit={handleEdit}
+							handleDelete={handleDelete}
+							formatDate={formatDate}
+						/>
 					))}
 				</div>
 			) : (
@@ -846,9 +878,9 @@ export const Projects = React.memo(function Projects() {
 										<TableCell>
 											<div className="flex flex-col gap-2 items-start">
 												<div className="flex flex-wrap gap-1">
-													{p.tags?.map((tag: string, i: number) => (
+													{p.tags?.map((tag: string) => (
 														<Badge
-															key={i}
+															key={tag}
 															variant="secondary"
 															className="text-[10px] uppercase tracking-wider text-primary"
 														>
@@ -858,18 +890,12 @@ export const Projects = React.memo(function Projects() {
 												</div>
 												<div className="flex items-center gap-2">
 													{hasNoCves && (
-														<Badge
-															variant="outline"
-															className="text-[10px]"
-														>
+														<Badge variant="outline" className="text-[10px]">
 															Sain
 														</Badge>
 													)}
 													{hasCritical && (
-														<Badge
-															variant="outline"
-															className="text-[10px]"
-														>
+														<Badge variant="outline" className="text-[10px]">
 															Critique
 														</Badge>
 													)}
@@ -912,6 +938,7 @@ export const Projects = React.memo(function Projects() {
 														Non-Git
 													</span>
 													<button
+														type="button"
 														onClick={(e) => handleDetectGit(p.id, e)}
 														disabled={detectingId === p.id}
 														className="p-1 text-muted-foreground rounded disabled:opacity-50"

@@ -8,7 +8,7 @@ import {
 	Terminal,
 } from "lucide-react";
 import { memo } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 
 export const Header = memo(function Header({
@@ -22,15 +22,16 @@ export const Header = memo(function Header({
 }) {
 	const location = useLocation();
 	const navigate = useNavigate();
-	
+
 	const path = location.pathname;
 
 	return (
 		<header className="fixed top-0 left-0 right-0 z-50 border-b flex items-center justify-between py-4 px-6 md:px-12 w-full">
 			<div className="flex items-center gap-2 select-none w-full max-w-7xl mx-auto justify-between">
-				<div
+				<Link
+					to="/"
+					aria-label="Retour au tableau de bord"
 					className="flex items-center gap-3 cursor-pointer"
-					onClick={() => navigate("/")}
 				>
 					<div className="relative flex items-center justify-center w-11 h-11 rounded-xl border overflow-hidden (var(--primary),0.2)] (var(--primary),0.4)]">
 						<img
@@ -42,7 +43,7 @@ export const Header = memo(function Header({
 					<h1 className="text-2xl font-bold font-heading tracking-tight">
 						Aegis
 					</h1>
-				</div>
+				</Link>
 
 				<nav className="flex items-center gap-1.5 p-1.5 bg-card border border-border rounded-2xl">
 					<Button

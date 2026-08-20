@@ -1,8 +1,14 @@
 import { AlertOctagon } from "lucide-react";
 import type React from "react";
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
 
 export function ConfirmReasonModal({
@@ -20,8 +26,8 @@ export function ConfirmReasonModal({
 	submitConfirm: (e: React.FormEvent) => void;
 }) {
 	return (
-		<Dialog 
-			open={!!confirmModal?.isOpen} 
+		<Dialog
+			open={!!confirmModal?.isOpen}
 			onOpenChange={(open) => {
 				if (!open) setConfirmModal(null);
 			}}
@@ -35,32 +41,31 @@ export function ConfirmReasonModal({
 							</div>
 							Confirmer la faille
 						</DialogTitle>
-						<DialogDescription>
-							{confirmModal?.cve}
-						</DialogDescription>
+						<DialogDescription>{confirmModal?.cve}</DialogDescription>
 					</DialogHeader>
 
 					<div className="flex-1 overflow-y-auto p-6 space-y-4">
-					<p className="text-sm text-foreground/90 mt-2">
-						Vous êtes sur le point de confirmer cette faille. Le composant sera
-						marqué comme{" "}
-						<strong className="text-red-400">Urgent à sécuriser</strong>.
-					</p>
+						<p className="text-sm text-foreground/90 mt-2">
+							Vous êtes sur le point de confirmer cette faille. Le composant
+							sera marqué comme{" "}
+							<strong className="text-red-400">Urgent à sécuriser</strong>.
+						</p>
 
-					<div className="flex flex-col gap-1.5 mt-2">
-						<label className="text-sm font-semibold">
-							Raison / Justification (Obligatoire)
-						</label>
-						<Textarea
-							required
-							value={confirmModal?.reason || ""}
-							onChange={(e) =>
-								setConfirmModal({ ...confirmModal, reason: e.target.value })
-							}
-							className="min-h-[100px] text-sm"
-							placeholder="Ex: Le composant est exposé sur l'interface publique, risque réel d'exploitation..."
-						/>
-					</div>
+						<div className="flex flex-col gap-1.5 mt-2">
+							<label htmlFor="confirm-reason" className="text-sm font-semibold">
+								Raison / Justification (Obligatoire)
+							</label>
+							<Textarea
+								id="confirm-reason"
+								required
+								value={confirmModal?.reason || ""}
+								onChange={(e) =>
+									setConfirmModal({ ...confirmModal, reason: e.target.value })
+								}
+								className="min-h-[100px] text-sm"
+								placeholder="Ex: Le composant est exposé sur l'interface publique, risque réel d'exploitation..."
+							/>
+						</div>
 					</div>
 
 					<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
@@ -71,10 +76,7 @@ export function ConfirmReasonModal({
 						>
 							Annuler
 						</Button>
-						<Button
-							type="submit"
-							variant="destructive"
-						>
+						<Button type="submit" variant="destructive">
 							Confirmer la faille
 						</Button>
 					</DialogFooter>

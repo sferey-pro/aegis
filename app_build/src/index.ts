@@ -1,5 +1,5 @@
 import { serve } from "bun";
-import { getDb, closeDb } from "./db";
+import { closeDb, getDb } from "./db";
 import index from "./index.html";
 import { annotationsRoutes } from "./routes/annotations";
 import { auditRoutes } from "./routes/audit";
@@ -52,7 +52,7 @@ export const server = serve({
 		console.error("Unhandled Route Error:", err);
 		return Response.json(
 			{ error: "Internal Server Error", details: err.message },
-			{ status: 500 }
+			{ status: 500 },
 		);
 	},
 });

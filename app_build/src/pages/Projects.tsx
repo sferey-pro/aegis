@@ -19,7 +19,7 @@ import {
 	Trash2,
 	XCircle,
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
@@ -161,16 +161,16 @@ export const Projects = React.memo(function Projects() {
 				});
 	};
 
-	const fetchTags = async () => {
+	const fetchTags = useCallback(async () => {
 		try {
 			const res = await fetch("/api/tags");
 			setAvailableTags(await res.json());
 		} catch (e) {
 			console.error(e);
 		}
-	};
+	}, []);
 
-	const fetchProjects = async () => {
+	const fetchProjects = useCallback(async () => {
 		try {
 			const res = await fetch("/api/projects");
 			const data = await res.json();
@@ -180,12 +180,12 @@ export const Projects = React.memo(function Projects() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		fetchProjects();
 		fetchTags();
-	}, []);
+	}, [fetchProjects, fetchTags]);
 
 	const resetForm = () => {
 		setIsAdding(false);
@@ -518,8 +518,11 @@ export const Projects = React.memo(function Projects() {
 
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
 								<div className="flex flex-col gap-1">
-									<label className="text-sm font-medium">Nom du projet</label>
+									<label htmlFor="project-name" className="text-sm font-medium">
+										Nom du projet
+									</label>
 									<Input
+										id="project-name"
 										required
 										type="text"
 										value={formData.name}
@@ -531,11 +534,15 @@ export const Projects = React.memo(function Projects() {
 								</div>
 
 								<div className="flex flex-col gap-1">
-									<label className="text-sm font-medium flex items-center gap-1">
+									<label
+										htmlFor="project-ingest-url"
+										className="text-sm font-medium flex items-center gap-1"
+									>
 										<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
 									</label>
 									<div className="relative">
 										<input
+											id="project-ingest-url"
 											readOnly
 											type="text"
 											value={
@@ -583,10 +590,14 @@ export const Projects = React.memo(function Projects() {
 
 								{!formData.is_remote && (
 									<div className="flex flex-col gap-1 md:col-span-2">
-										<label className="text-sm font-medium">
+										<label
+											htmlFor="project-path"
+											className="text-sm font-medium"
+										>
 											Chemin absolu (Racine Git)
 										</label>
 										<Input
+											id="project-path"
 											required={!formData.is_remote}
 											type="text"
 											value={formData.path}
@@ -618,10 +629,14 @@ export const Projects = React.memo(function Projects() {
 
 								{!formData.is_remote && (
 									<div className="flex flex-col gap-1">
-										<label className="text-sm font-medium">
+										<label
+											htmlFor="project-audit-path"
+											className="text-sm font-medium"
+										>
 											Sous-dossier d'audit (Optionnel)
 										</label>
 										<Input
+											id="project-audit-path"
 											type="text"
 											value={formData.audit_path}
 											onChange={(e) =>
@@ -634,7 +649,9 @@ export const Projects = React.memo(function Projects() {
 								)}
 
 								<div className="flex flex-col gap-1">
-									<label className="text-sm font-medium">Outil d'audit</label>
+									<label htmlFor="project-tool" className="text-sm font-medium">
+										Outil d'audit
+									</label>
 									<Select
 										value={formData.tool}
 										onValueChange={(val: any) =>
@@ -645,7 +662,7 @@ export const Projects = React.memo(function Projects() {
 											})
 										}
 									>
-										<SelectTrigger className="w-full">
+										<SelectTrigger id="project-tool" className="w-full">
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
@@ -658,9 +675,9 @@ export const Projects = React.memo(function Projects() {
 								</div>
 
 								<div className="flex flex-col gap-2 md:col-span-2">
-									<label className="text-sm font-medium">
+									<span className="text-sm font-medium">
 										Tags (Configurations)
-									</label>
+									</span>
 									<div className="flex flex-wrap gap-2">
 										{availableTags.map((t) => {
 											const isSelected = formData.tags.includes(t.name);
@@ -861,9 +878,9 @@ export const Projects = React.memo(function Projects() {
 										<TableCell>
 											<div className="flex flex-col gap-2 items-start">
 												<div className="flex flex-wrap gap-1">
-													{p.tags?.map((tag: string, i: number) => (
+													{p.tags?.map((tag: string) => (
 														<Badge
-															key={i}
+															key={tag}
 															variant="secondary"
 															className="text-[10px] uppercase tracking-wider text-primary"
 														>
@@ -921,6 +938,7 @@ export const Projects = React.memo(function Projects() {
 														Non-Git
 													</span>
 													<button
+														type="button"
 														onClick={(e) => handleDetectGit(p.id, e)}
 														disabled={detectingId === p.id}
 														className="p-1 text-muted-foreground rounded disabled:opacity-50"

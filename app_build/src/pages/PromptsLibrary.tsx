@@ -8,7 +8,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -31,11 +31,7 @@ export function PromptsLibrary() {
 
 	const [promptToDelete, setPromptToDelete] = useState<number | null>(null);
 
-	useEffect(() => {
-		fetchPrompts();
-	}, []);
-
-	const fetchPrompts = async () => {
+	const fetchPrompts = useCallback(async () => {
 		try {
 			const res = await fetch("/api/prompts");
 			const data = await res.json();
@@ -45,7 +41,11 @@ export function PromptsLibrary() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
+
+	useEffect(() => {
+		fetchPrompts();
+	}, [fetchPrompts]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -163,8 +163,11 @@ export function PromptsLibrary() {
 
 						<div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-4">
 							<div className="flex flex-col gap-1">
-								<label className="text-sm font-medium">Titre</label>
+								<label htmlFor="prompt-title" className="text-sm font-medium">
+									Titre
+								</label>
 								<Input
+									id="prompt-title"
 									required
 									type="text"
 									value={formData.title}
@@ -176,10 +179,11 @@ export function PromptsLibrary() {
 							</div>
 
 							<div className="flex flex-col gap-1">
-								<label className="text-sm font-medium">
+								<label htmlFor="prompt-body" className="text-sm font-medium">
 									Contenu du Prompt IA
 								</label>
 								<Textarea
+									id="prompt-body"
 									required
 									value={formData.body}
 									onChange={(e) =>
@@ -191,10 +195,11 @@ export function PromptsLibrary() {
 							</div>
 
 							<div className="flex flex-col gap-1">
-								<label className="text-sm font-medium">
+								<label htmlFor="prompt-tags" className="text-sm font-medium">
 									Tags (séparés par des virgules)
 								</label>
 								<Input
+									id="prompt-tags"
 									type="text"
 									value={formData.tags}
 									onChange={(e) =>
@@ -257,9 +262,9 @@ export function PromptsLibrary() {
 
 							{p.tags && p.tags.length > 0 && (
 								<div className="flex flex-wrap gap-1 mt-2">
-									{p.tags.map((tag: string, i: number) => (
+									{p.tags.map((tag: string) => (
 										<Badge
-											key={i}
+											key={tag}
 											variant="secondary"
 											className="flex items-center gap-1 text-[10px] uppercase tracking-wider"
 										>

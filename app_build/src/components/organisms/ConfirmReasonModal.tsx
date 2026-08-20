@@ -52,10 +52,11 @@ export function ConfirmReasonModal({
 						</p>
 
 						<div className="flex flex-col gap-1.5 mt-2">
-							<label className="text-sm font-semibold">
+							<label htmlFor="confirm-reason" className="text-sm font-semibold">
 								Raison / Justification (Obligatoire)
 							</label>
 							<Textarea
+								id="confirm-reason"
 								required
 								value={confirmModal?.reason || ""}
 								onChange={(e) =>

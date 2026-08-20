@@ -28,6 +28,7 @@ export const ConsoleTabs = memo(function ConsoleTabs({
 
 				return (
 					<button
+						type="button"
 						key={t}
 						onClick={() => setActiveTab(t)}
 						className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold whitespace-nowrap border-b-2 relative transition-colors ${

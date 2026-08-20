@@ -1,3 +1,9 @@
+// biome-ignore-all lint/a11y/useSemanticElements: la carte entiere est cliquable
+// (ouvre le triage du projet) mais contient six boutons d'action imbriques. La
+// convertir en <button> produirait des controles interactifs imbriques : HTML
+// invalide et regression d'accessibilite. role="button" + tabIndex + onKeyDown
+// est le compromis retenu ; a remplacer par le motif "stretched link" si la
+// carte est retravaillee.
 import {
 	AlertTriangle,
 	ArrowDownToLine,
@@ -69,8 +75,17 @@ export const ProjectCard = React.memo(function ProjectCard({
 				animationDelay: `${(index % 20) * 50}ms`,
 				animationFillMode: "backwards",
 			}}
+			role="button"
+			tabIndex={0}
+			aria-label={`Voir le triage du projet ${p.name}`}
 			onClick={() => {
 				if (onViewTriage) onViewTriage(p.id);
+			}}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					if (onViewTriage) onViewTriage(p.id);
+				}
 			}}
 		>
 			{auditState[p.id] && (
@@ -113,6 +128,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 
 				<div className="relative group/menu">
 					<button
+						type="button"
 						className="p-1.5 rounded-full text-muted-foreground hover:bg-muted"
 						onClick={(e) => e.stopPropagation()}
 					>
@@ -126,6 +142,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 							</span>
 						</div>
 						<button
+							type="button"
 							title="Copier l'URL d'ingestion CI"
 							onClick={(e) => {
 								e.preventDefault();
@@ -169,9 +186,9 @@ export const ProjectCard = React.memo(function ProjectCard({
 
 			{p.tags && p.tags.length > 0 && (
 				<div className="flex flex-wrap gap-1 mt-2">
-					{p.tags.map((tag: string, i: number) => (
+					{p.tags.map((tag: string) => (
 						<Badge
-							key={i}
+							key={tag}
 							variant="secondary"
 							className="text-[10px] uppercase tracking-wider text-primary"
 						>
@@ -229,6 +246,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 								</span>
 							)}
 							<button
+								type="button"
 								onClick={(e) => handleFetch(p.id, e)}
 								className="p-1 text-muted-foreground rounded hover:bg-muted"
 								title="Git Fetch"
@@ -237,6 +255,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 							</button>
 							{p.git.behind > 0 && (
 								<button
+									type="button"
 									onClick={(e) => handlePull(p.id, e)}
 									className="px-1.5 py-0.5 rounded font-bold text-[10px] uppercase hover:bg-muted"
 									title="Git Pull (Fast-Forward uniquement)"
@@ -251,6 +270,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 				<div className="flex items-center justify-between mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
 					<span className="text-muted-foreground italic">Dépôt Non-Git</span>
 					<button
+						type="button"
 						onClick={(e) => handleDetectGit(p.id, e)}
 						disabled={detectingId === p.id}
 						className="p-1 text-muted-foreground rounded flex items-center gap-1 disabled:opacity-50 hover:bg-muted"
@@ -266,6 +286,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 
 			<div className="flex items-center justify-between mt-auto pt-4 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
 				<button
+					type="button"
 					onClick={(e) => toggleIgnore(p, e)}
 					className="text-xs text-muted-foreground hover:text-foreground"
 				>

@@ -51,10 +51,14 @@ export function TicketModal({
 
 				<div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-4">
 					<div>
-						<label className="block text-sm font-medium mb-2">
+						<label
+							htmlFor="ticket-notes"
+							className="block text-sm font-medium mb-2"
+						>
 							Notes additionnelles / Recommandations
 						</label>
 						<Textarea
+							id="ticket-notes"
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							placeholder="Ajoutez vos recommandations pour les développeurs..."
@@ -63,9 +67,9 @@ export function TicketModal({
 					</div>
 
 					<div>
-						<label className="block text-sm font-medium mb-2">
+						<span className="block text-sm font-medium mb-2">
 							Aperçu du contenu (Markdown pour copie manuelle)
-						</label>
+						</span>
 						<div className="w-full overflow-auto bg-muted/50 rounded-xl border border-input p-4 text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-[150px]">
 							{ticketModal.md}
 						</div>

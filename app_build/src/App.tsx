@@ -78,7 +78,7 @@ export function App() {
 
 	const fetchStats = useCallback(async (initial = false) => {
 		try {
-			let res;
+			let res: Response;
 			if (initial) {
 				[res] = await Promise.all([
 					fetch("/api/stats"),

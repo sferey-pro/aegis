@@ -214,7 +214,9 @@ export function Settings() {
 						<div className="flex flex-col gap-2">
 							<div className="flex items-center gap-2">
 								<Key className="w-5 h-5" />
-								<label className="text-lg font-bold">Jeton GitHub (API)</label>
+								<label htmlFor="github-token" className="text-lg font-bold">
+									Jeton GitHub (API)
+								</label>
 							</div>
 							<p className="text-sm text-muted-foreground mb-2">
 								Nécessaire pour interroger la base <i>GitHub Advisory</i>{" "}
@@ -222,6 +224,7 @@ export function Settings() {
 								les scores CVSS réels.
 							</p>
 							<Input
+								id="github-token"
 								type="password"
 								value={settings.GITHUB_TOKEN}
 								onChange={(e) =>
@@ -313,7 +316,7 @@ export function Settings() {
 						<hr className="border-border" />
 
 						<div className="flex flex-col gap-2">
-							<label className="text-lg font-bold">
+							<label htmlFor="audit-max-age" className="text-lg font-bold">
 								Cache d'Audit (Heures)
 							</label>
 							<p className="text-sm text-muted-foreground mb-2">
@@ -321,6 +324,7 @@ export function Settings() {
 								ne sera pas ré-audité inutilement.
 							</p>
 							<Input
+								id="audit-max-age"
 								type="number"
 								value={settings.AUDIT_MAX_AGE_HOURS}
 								onChange={(e) =>
@@ -336,10 +340,14 @@ export function Settings() {
 						</div>
 
 						<div className="flex flex-col gap-2">
-							<label className="text-lg font-bold">Options Globales</label>
+							<span className="text-lg font-bold">Options Globales</span>
 
-							<label className="flex items-center gap-3 cursor-pointer mt-2">
+							<label
+								htmlFor="critical-only"
+								className="flex items-center gap-3 cursor-pointer mt-2"
+							>
 								<Switch
+									id="critical-only"
 									checked={settings.CRITICAL_ONLY === "true"}
 									onCheckedChange={(checked) =>
 										setSettings({
@@ -353,8 +361,12 @@ export function Settings() {
 								</span>
 							</label>
 
-							<label className="flex items-center gap-3 cursor-pointer mt-2">
+							<label
+								htmlFor="disable-console"
+								className="flex items-center gap-3 cursor-pointer mt-2"
+							>
 								<Switch
+									id="disable-console"
 									checked={settings.DISABLE_CONSOLE === "true"}
 									onCheckedChange={(checked) =>
 										setSettings({
@@ -371,11 +383,14 @@ export function Settings() {
 						</div>
 
 						<div className="flex flex-col gap-2">
-							<label className="text-lg font-bold">Base URL Jira</label>
+							<label htmlFor="jira-base-url" className="text-lg font-bold">
+								Base URL Jira
+							</label>
 							<p className="text-sm text-muted-foreground mb-2">
 								Adresse de votre instance Jira (sans le /browse/).
 							</p>
 							<Input
+								id="jira-base-url"
 								type="text"
 								value={settings.JIRA_BASE_URL}
 								onChange={(e) =>
@@ -387,10 +402,11 @@ export function Settings() {
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-bold">
+								<label htmlFor="jira-user" className="text-sm font-bold">
 									Utilisateur Jira (Email)
 								</label>
 								<Input
+									id="jira-user"
 									type="email"
 									value={settings.JIRA_USER}
 									onChange={(e) =>
@@ -400,10 +416,11 @@ export function Settings() {
 								/>
 							</div>
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-bold">
+								<label htmlFor="jira-api-key" className="text-sm font-bold">
 									Clé d'API Jira (Token)
 								</label>
 								<Input
+									id="jira-api-key"
 									type="password"
 									value={settings.JIRA_API_KEY}
 									onChange={(e) =>
@@ -417,10 +434,11 @@ export function Settings() {
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-bold">
+								<label htmlFor="jira-project" className="text-sm font-bold">
 									Projet Jira (Clé ou ID)
 								</label>
 								<Input
+									id="jira-project"
 									type="text"
 									value={settings.JIRA_PROJECT}
 									onChange={(e) =>
@@ -431,10 +449,11 @@ export function Settings() {
 								/>
 							</div>
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-bold">
+								<label htmlFor="jira-component" className="text-sm font-bold">
 									Composant Jira (Optionnel)
 								</label>
 								<Input
+									id="jira-component"
 									type="text"
 									value={settings.JIRA_COMPONENT}
 									onChange={(e) =>
@@ -444,10 +463,11 @@ export function Settings() {
 								/>
 							</div>
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-bold">
+								<label htmlFor="jira-issue-type" className="text-sm font-bold">
 									Type de ticket (Optionnel)
 								</label>
 								<Input
+									id="jira-issue-type"
 									type="text"
 									value={settings.JIRA_ISSUE_TYPE}
 									onChange={(e) =>
@@ -460,8 +480,11 @@ export function Settings() {
 								/>
 							</div>
 							<div className="flex flex-col gap-2">
-								<label className="text-sm font-bold">Epic Parente (Clé)</label>
+								<label htmlFor="jira-parent-epic" className="text-sm font-bold">
+									Epic Parente (Clé)
+								</label>
 								<Input
+									id="jira-parent-epic"
 									type="text"
 									value={settings.JIRA_PARENT_EPIC}
 									onChange={(e) =>

@@ -6,7 +6,7 @@ import {
 	Shield,
 	X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
@@ -59,7 +59,7 @@ export const Triage = React.memo(function Triage() {
 	} | null>(null);
 	const [hideProcessed, setHideProcessed] = useState(false);
 
-	const fetchCves = async () => {
+	const fetchCves = useCallback(async () => {
 		try {
 			const res = await fetch("/api/cves");
 			const data = await res.json();
@@ -69,21 +69,23 @@ export const Triage = React.memo(function Triage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
-	const fetchTickets = async () => {
+	const fetchTickets = useCallback(async () => {
 		try {
 			const res = await fetch("/api/tickets/list");
 			const data = await res.json();
 			const map: Record<string, any> = {};
-			data.forEach((t: any) => (map[`${t.project_id}::${t.package}`] = t));
+			for (const t of data) {
+				map[`${t.project_id}::${t.package}`] = t;
+			}
 			setTickets(map);
 		} catch (e) {
 			console.error(e);
 		}
-	};
+	}, []);
 
-	const fetchSettings = async () => {
+	const fetchSettings = useCallback(async () => {
 		try {
 			const res = await fetch("/api/settings");
 			const data = await res.json();
@@ -91,13 +93,13 @@ export const Triage = React.memo(function Triage() {
 		} catch (e) {
 			console.error(e);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		fetchCves();
 		fetchTickets();
 		fetchSettings();
-	}, []);
+	}, [fetchCves, fetchTickets, fetchSettings]);
 
 	const packageGroups = React.useMemo(() => {
 		const map = new Map<string, any>();
@@ -177,6 +179,10 @@ export const Triage = React.memo(function Triage() {
 			.sort((a, b) => b.projectName.localeCompare(a.projectName));
 	}, [cves, projectId, cveFilter, hideProcessed]);
 
+	// Dependances volontaires utilisees comme declencheurs : le corps ne les lit
+	// pas, mais la pagination doit repartir a la premiere page quand le jeu de
+	// donnees ou un filtre change.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: declencheurs volontaires
 	useEffect(() => {
 		setPage(1);
 	}, [cves, projectId, cveFilter, hideProcessed]);
@@ -270,6 +276,7 @@ export const Triage = React.memo(function Triage() {
 								Filtré par projet
 								{onClearProject && (
 									<button
+										type="button"
 										onClick={onClearProject}
 										className="hover:text-red-400"
 									>
@@ -282,7 +289,11 @@ export const Triage = React.memo(function Triage() {
 							<span className="text-sm font-semibold px-3 py-1 rounded-full border flex items-center gap-2">
 								Filtré par CVE ({cveFilter})
 								{onClearCve && (
-									<button onClick={onClearCve} className="hover:text-red-400">
+									<button
+										type="button"
+										onClick={onClearCve}
+										className="hover:text-red-400"
+									>
 										<X className="w-3.5 h-3.5" />
 									</button>
 								)}

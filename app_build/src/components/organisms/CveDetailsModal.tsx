@@ -74,9 +74,9 @@ export function CveDetailsModal({
 						</DialogHeader>
 						<div className="flex-1 overflow-y-auto p-6">
 							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-								{selectedGroup?.cves?.map((cveObj: any, i: number) => (
+								{selectedGroup?.cves?.map((cveObj: any) => (
 									<CveCard
-										key={i}
+										key={cveObj.cve}
 										cveObj={cveObj}
 										packageName={selectedGroup.package}
 										projectId={selectedGroup.projectId}

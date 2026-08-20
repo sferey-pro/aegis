@@ -75,7 +75,10 @@ export const Console = memo(function Console() {
 		return () => evtSource.close();
 	}, []);
 
-	// Auto-scroll logic
+	// Auto-scroll logic. logs / activeTab / debugMode sont des declencheurs
+	// volontaires : le corps ne les lit pas, mais sans eux la console cesse de
+	// suivre l'arrivee des nouvelles commandes.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: declencheurs volontaires
 	useEffect(() => {
 		if (isOpen) {
 			const container = logsEndRef.current?.parentElement;

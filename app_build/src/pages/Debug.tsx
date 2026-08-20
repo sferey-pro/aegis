@@ -19,6 +19,7 @@ import { LabelInput } from "../components/molecules/LabelInput";
 import { StatCard } from "../components/molecules/StatCard";
 import { ActionBadge } from "../components/molecules/ActionBadge";
 import { FilterDropdown } from "../components/molecules/FilterDropdown";
+import { CveCard } from "../components/organisms/CveCard";
 import { ArrowLeft, Activity, Filter } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -288,6 +289,32 @@ export function Debug() {
 									{ label: "Élevée", value: "high" },
 								]}
 							/>
+						</div>
+						<div className="bg-card p-6 rounded-xl border border-border flex flex-col gap-6 lg:col-span-2">
+							<h3 className="font-semibold text-lg">CveCard (Organisme)</h3>
+							<div className="max-w-[400px]">
+								<CveCard
+									cveObj={{
+										cve: "CVE-2024-12345",
+										ref: "CVE-2024-12345",
+										severity: "HIGH",
+										title: "Denial of service via colliding heading slugs",
+										versionRange: ">=2.0.0, <2.9.0",
+										cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+										ageInDays: 13,
+										isBaseline: true,
+										fixedIn: "2.9.0",
+										link: "https://github.com/advisories/GHSA-1234-5678",
+										status: "pending"
+									}}
+									packageName="league/commonmark"
+									projectId={1}
+									setToast={() => {}}
+									updateStatus={async () => {}}
+									handleConfirmCve={() => {}}
+									onActionComplete={() => {}}
+								/>
+							</div>
 						</div>
 					</div>
 				</section>

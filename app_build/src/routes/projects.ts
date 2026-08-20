@@ -6,14 +6,35 @@ import {
 	deleteProject,
 	getProjectById,
 	listProjects,
+	type Project,
 	updateProject,
 } from "../db/projects";
-import { getLatestRun } from "../db/runs";
+import { getLatestRun, type Run } from "../db/runs";
 import { auditTargetKey, resolveAuditTarget } from "../lib/audit";
 import { runSingleAudit } from "../lib/audit/queue";
-import { expandPath, getGitInfo, gitFetch, gitPull } from "../lib/git";
+import {
+	expandPath,
+	type GitInfo,
+	getGitInfo,
+	gitFetch,
+	gitPull,
+} from "../lib/git";
 import { detectBodySchema, projectBodySchema } from "../lib/schemas";
 import { parseBody } from "../lib/validate";
+
+/** L'état git est absent ou partiel si le chemin n'est pas un dépôt exploitable. */
+export type ProjectGitState = GitInfo | { isRepo: false };
+
+/**
+ * Forme renvoyée par `GET /api/projects` et `GET /api/projects/:id` : l'entité
+ * stockée, enrichie de l'état git live et du dernier run. Déclarée ici, dans la
+ * route qui produit cet enrichissement — le handler ci-dessous la satisfait, donc
+ * un changement de forme casse la compilation au lieu de dériver en silence.
+ */
+export type ProjectListItem = Project & {
+	git: ProjectGitState;
+	lastRun: Run | null;
+};
 
 function isPathAllowed(targetPath: string) {
 	const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
@@ -97,7 +118,7 @@ export const projectsRoutes = {
 			const { getLatestRunsByProjectIds } = await import("../db/runs");
 			const latestRuns = getLatestRunsByProjectIds(projects.map((p) => p.id));
 
-			const enriched = new Array(projects.length);
+			const enriched: ProjectListItem[] = new Array(projects.length);
 			let i = 0;
 			// 4 concurrent workers for getGitInfo
 			const concurrencyLimit = 4;
@@ -106,7 +127,7 @@ export const projectsRoutes = {
 					const index = i++;
 					const p = projects[index];
 					if (!p) continue;
-					let git = { isRepo: false };
+					let git: ProjectGitState = { isRepo: false };
 					try {
 						git = await getGitInfo(p.path);
 					} catch (e) {
@@ -149,7 +170,7 @@ export const projectsRoutes = {
 			const id = parseInt(req.params.id, 10);
 			const p = listProjects().find((p) => p.id === id);
 			if (!p) return Response.json({ error: "Not found" }, { status: 404 });
-			let git = { isRepo: false };
+			let git: ProjectGitState = { isRepo: false };
 			try {
 				git = await getGitInfo(p.path);
 			} catch (e) {

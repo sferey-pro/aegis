@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import type {
-	ProjectListItem,
-	Report,
-	ReportDetail,
-	StatsResponse,
-} from "@/lib/api-types";
+import type { Report, ReportDetail } from "@/db/reports";
+import type { ProjectListItem } from "@/routes/projects";
+import type { StatsResponse } from "@/routes/stats";
 import { GlobalLoader } from "./components/layout/GlobalLoader";
 import { ReportModal } from "./components/layout/ReportModal";
 import { BlankLayout } from "./components/templates/BlankLayout";

@@ -13,7 +13,19 @@ import {
 	Trash2,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
-import type { DiffVuln, Report } from "@/lib/api-types";
+import type { Report } from "@/db/reports";
+import type { Vulnerability } from "@/lib/parsers/types";
+
+/**
+ * Vulnérabilité telle que l'écran manipule un diff entre deux comptes-rendus :
+ * celle du run, plus le projet d'origine et la clé d'identité du diff
+ * (`projectId-package-cve|title`), qui sert aussi de clé de rendu React.
+ */
+type DiffVuln = Vulnerability & {
+	projectName: string;
+	_key: string;
+};
+
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";

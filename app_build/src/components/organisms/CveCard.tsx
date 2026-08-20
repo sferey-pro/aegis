@@ -6,7 +6,7 @@ import {
 	RefreshCw,
 	X,
 } from "lucide-react";
-import type { AnnotationStatus } from "@/lib/api-types";
+import type { AnnotationStatus } from "@/db/annotations";
 import { errorMessage } from "@/lib/utils";
 import { buildCvssTooltip } from "../../lib/cvss";
 import { SEVERITY_COLORS } from "../../lib/triage-constants";

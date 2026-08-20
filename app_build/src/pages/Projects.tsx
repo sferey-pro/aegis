@@ -21,7 +21,9 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ProjectListItem, ProjectTool, Tag } from "@/lib/api-types";
+import type { ProjectTool } from "@/db/projects";
+import type { Tag } from "@/db/tags";
+import type { ProjectListItem } from "@/routes/projects";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
 import { Badge } from "../components/ui/badge";

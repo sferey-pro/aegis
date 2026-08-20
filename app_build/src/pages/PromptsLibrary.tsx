@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import type { Prompt } from "@/lib/api-types";
+import type { Prompt } from "@/db/prompts";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";

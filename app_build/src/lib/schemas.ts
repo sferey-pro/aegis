@@ -88,7 +88,15 @@ export const annotationBodySchema = z.object({
 	fixedIn: emptyToNull,
 });
 
+/** Forme reçue par la route, après application des valeurs par défaut. */
 export type AnnotationBody = z.infer<typeof annotationBodySchema>;
+
+/**
+ * Forme envoyée par le client, avant valeurs par défaut : `note` et `fixedIn`
+ * sont facultatifs. `z.input` et `z.infer` décrivent les deux côtés du même
+ * schéma, ce qui évite d'entretenir un type de requête séparé.
+ */
+export type AnnotationInput = z.input<typeof annotationBodySchema>;
 
 // ---------------------------------------------------------------- tags
 

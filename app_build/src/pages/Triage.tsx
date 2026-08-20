@@ -8,17 +8,15 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type {
-	AnnotationPayload,
-	AnnotationStatus,
-	CveGroup,
-	PackageGroup,
-	Ticket,
-} from "@/lib/api-types";
+import type { AnnotationStatus } from "@/db/annotations";
+import type { Ticket } from "@/db/tickets";
+import type { CveGroup } from "@/lib/aggregator";
+import type { AnnotationInput } from "@/lib/schemas";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
 import { TicketModal } from "../components/organisms/TicketModal";
 import { TriageTable } from "../components/organisms/TriageTable";
+import type { PackageGroup } from "../components/organisms/triage-types";
 import { Button } from "../components/ui/button";
 import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 
@@ -208,7 +206,7 @@ export const Triage = React.memo(function Triage() {
 		note?: string,
 	) => {
 		try {
-			const payload: AnnotationPayload = { cve, projectId, status: newStatus };
+			const payload: AnnotationInput = { cve, projectId, status: newStatus };
 			if (note !== undefined) {
 				payload.note = note;
 			} else if (newStatus !== "confirmed") {

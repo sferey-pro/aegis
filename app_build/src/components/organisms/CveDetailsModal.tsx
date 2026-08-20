@@ -1,5 +1,5 @@
 import { Link as LinkIcon } from "lucide-react";
-import type { AnnotationStatus } from "@/lib/api-types";
+import type { AnnotationStatus } from "@/db/annotations";
 import { Button } from "../ui/button";
 import {
 	Dialog,

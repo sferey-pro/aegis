@@ -41,7 +41,7 @@ async function request(
 
 	const req: any = {
 		params,
-		url: "http://localhost" + path,
+		url: `http://localhost${path}`,
 		json: async () => body,
 	};
 
@@ -49,7 +49,7 @@ async function request(
 	let data = null;
 	try {
 		data = await res.json();
-	} catch (e) {}
+	} catch (_e) {}
 
 	return { status: res.status || 200, data };
 }

@@ -33,14 +33,15 @@ export const ticketsRoutes = {
 				}
 			}
 
-			if (occurrences.length === 0)
+			const [first] = occurrences;
+			if (!first)
 				return Response.json({ error: "Non trouvé" }, { status: 404 });
 
-			const projectName = occurrences[0]!.projectName;
+			const projectName = first.projectName;
 			const title = `[Aegis] Remédiation ${packageName} - ${projectName}`;
 
 			let md = `# ${title}\n\n`;
-			md += `**Projet:** ${projectName} (${occurrences[0]!.tool})\n`;
+			md += `**Projet:** ${projectName} (${first.tool})\n`;
 			md += `**Package:** \`${packageName}\`\n\n`;
 			md += `## Vulnérabilités (${occurrences.length})\n\n`;
 
@@ -126,14 +127,15 @@ export const ticketsRoutes = {
 				}
 			}
 
-			if (occurrences.length === 0) {
+			const [first] = occurrences;
+			if (!first) {
 				return Response.json(
 					{ error: "Aucune vulnérabilité trouvée pour ce package." },
 					{ status: 404 },
 				);
 			}
-			const projectName = occurrences[0]!.projectName;
-			const tool = occurrences[0]!.tool;
+			const projectName = first.projectName;
+			const tool = first.tool;
 
 			// Build the ADF Document
 			const adfDoc = doc(
@@ -195,7 +197,7 @@ export const ticketsRoutes = {
 				issueData.fields.components = [{ id: component }];
 			}
 
-			const crypto = await import("crypto");
+			const crypto = await import("node:crypto");
 			const contentHash = crypto
 				.createHash("sha256")
 				.update(JSON.stringify(issueData))

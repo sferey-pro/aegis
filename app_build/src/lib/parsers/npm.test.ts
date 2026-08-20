@@ -26,12 +26,12 @@ describe("Parser: NPM", () => {
 		};
 		const res = parseNpm(JSON.stringify(input));
 		expect(res.total).toBe(1);
-		expect(res.vulnerabilities[0]!.package).toBe("lodash");
-		expect(res.vulnerabilities[0]!.title).toBe(
+		expect(res.vulnerabilities[0]?.package).toBe("lodash");
+		expect(res.vulnerabilities[0]?.title).toBe(
 			"Dépendance vulnérable via some-parent",
 		);
-		expect(res.vulnerabilities[0]!.cve).toBeNull();
-		expect(res.vulnerabilities[0]!.severity).toBe("high");
+		expect(res.vulnerabilities[0]?.cve).toBeNull();
+		expect(res.vulnerabilities[0]?.severity).toBe("high");
 	});
 
 	test("parses Cas B (with advisories) and extracts fixedIn", () => {
@@ -86,7 +86,7 @@ describe("Parser: NPM", () => {
 		};
 		const res = parseNpm(JSON.stringify(input));
 		expect(res.total).toBe(2);
-		expect(res.vulnerabilities[0]!.title).toBe("Bug 1");
-		expect(res.vulnerabilities[1]!.title).toBe("Bug 2");
+		expect(res.vulnerabilities[0]?.title).toBe("Bug 1");
+		expect(res.vulnerabilities[1]?.title).toBe("Bug 2");
 	});
 });

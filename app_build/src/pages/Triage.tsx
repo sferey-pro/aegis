@@ -18,7 +18,7 @@ import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 export const Triage = React.memo(function Triage() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const projectId = searchParams.get("project")
-		? parseInt(searchParams.get("project") as string)
+		? parseInt(searchParams.get("project") as string, 10)
 		: null;
 	const cveFilter = searchParams.get("cve");
 

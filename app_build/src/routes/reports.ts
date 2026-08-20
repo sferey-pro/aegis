@@ -13,7 +13,7 @@ export const reportsRoutes = {
 
 	"/api/reports/:id": {
 		async DELETE(req: any) {
-			const id = parseInt(req.params.id);
+			const id = parseInt(req.params.id, 10);
 			deleteReport(id);
 			return Response.json({ success: true });
 		},

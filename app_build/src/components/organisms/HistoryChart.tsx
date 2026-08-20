@@ -90,7 +90,7 @@ export function HistoryChart() {
 				</div>
 				<Select
 					value={days.toString()}
-					onValueChange={(val: string) => setDays(Number.parseInt(val))}
+					onValueChange={(val: string) => setDays(Number.parseInt(val, 10))}
 				>
 					<SelectTrigger className="w-[140px] h-9 rounded-xl">
 						<SelectValue placeholder="Période" />

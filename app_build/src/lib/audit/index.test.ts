@@ -132,8 +132,8 @@ describe("Engine: Audit", () => {
 
 		const res = await ingestAudit(p.id, fakeNpmStdout, "sha-12345");
 		expect(res.run).not.toBeNull();
-		expect(res.run!.commit_sha).toBe("sha-12345");
-		expect(res.run!.status).toBe("vulnerable");
-		expect(res.run!.counts.high).toBe(1);
+		expect(res.run?.commit_sha).toBe("sha-12345");
+		expect(res.run?.status).toBe("vulnerable");
+		expect(res.run?.counts.high).toBe(1);
 	});
 });

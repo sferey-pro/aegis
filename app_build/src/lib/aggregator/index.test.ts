@@ -105,16 +105,16 @@ describe("Aggregator: CVE", () => {
 		expect(groups.length).toBe(2);
 
 		// Triés par pire sévérité (critical d'abord)
-		expect(groups[0]!.worst).toBe("critical");
-		expect(groups[0]!.cve).toBe("react: XSS");
-		expect(groups[0]!.ref).toBeNull();
-		expect(groups[0]!.occurrences[0]!.status).toBe("pending"); // Défaut
+		expect(groups[0]?.worst).toBe("critical");
+		expect(groups[0]?.cve).toBe("react: XSS");
+		expect(groups[0]?.ref).toBeNull();
+		expect(groups[0]?.occurrences[0]?.status).toBe("pending"); // Défaut
 
-		expect(groups[1]!.worst).toBe("high");
-		expect(groups[1]!.cve).toBe("CVE-123");
-		expect(groups[1]!.ref).toBe("CVE-123");
-		expect(groups[1]!.occurrences[0]!.status).toBe("ignored"); // Surchargé par l'annotation
-		expect(groups[1]!.occurrences[0]!.fixedIn).toBe("2.0.0"); // Surchargé par l'annotation
+		expect(groups[1]?.worst).toBe("high");
+		expect(groups[1]?.cve).toBe("CVE-123");
+		expect(groups[1]?.ref).toBe("CVE-123");
+		expect(groups[1]?.occurrences[0]?.status).toBe("ignored"); // Surchargé par l'annotation
+		expect(groups[1]?.occurrences[0]?.fixedIn).toBe("2.0.0"); // Surchargé par l'annotation
 	});
 
 	test("intra-project deduplication keeps worst severity", () => {
@@ -160,8 +160,8 @@ describe("Aggregator: CVE", () => {
 
 		const groups = buildCveGroups();
 		expect(groups.length).toBe(1); // Dédupliqué car même CVE sur même Projet
-		expect(groups[0]!.worst).toBe("high");
-		expect(groups[0]!.occurrences.length).toBe(1);
-		expect(groups[0]!.occurrences[0]!.severity).toBe("high");
+		expect(groups[0]?.worst).toBe("high");
+		expect(groups[0]?.occurrences.length).toBe(1);
+		expect(groups[0]?.occurrences[0]?.severity).toBe("high");
 	});
 });

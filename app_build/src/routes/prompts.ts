@@ -23,7 +23,7 @@ export const promptsRoutes = {
 
 	"/api/prompts/:id": {
 		async PUT(req: any) {
-			const id = parseInt(req.params.id);
+			const id = parseInt(req.params.id, 10);
 			const body = await req.json();
 			try {
 				const prompt = updatePrompt(id, body.title, body.body, body.tags || []);
@@ -33,7 +33,7 @@ export const promptsRoutes = {
 			}
 		},
 		async DELETE(req: any) {
-			deletePrompt(parseInt(req.params.id));
+			deletePrompt(parseInt(req.params.id, 10));
 			return Response.json({ success: true });
 		},
 	},

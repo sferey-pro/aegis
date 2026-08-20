@@ -173,8 +173,8 @@ export function getGlobalHistory(days = 30) {
 	if (!projectIds) {
 		return buckets.map((b) => ({
 			date: isHourly
-				? b.split(" ")[1] + "h"
-				: b.split("-")[2] + "/" + b.split("-")[1],
+				? `${b.split(" ")[1]}h`
+				: `${b.split("-")[2]}/${b.split("-")[1]}`,
 			rawDate: b,
 			critical: 0,
 			high: 0,
@@ -196,8 +196,8 @@ export function getGlobalHistory(days = 30) {
 	const rowsByBucket = new Map<string, any[]>();
 
 	for (const r of rows) {
-		const runDate = new Date(r.ran_at.replace(" ", "T") + "Z");
-		if (isNaN(runDate.getTime())) continue;
+		const runDate = new Date(`${r.ran_at.replace(" ", "T")}Z`);
+		if (Number.isNaN(runDate.getTime())) continue;
 
 		const y = runDate.getFullYear();
 		const m = String(runDate.getMonth() + 1).padStart(2, "0");
@@ -206,17 +206,17 @@ export function getGlobalHistory(days = 30) {
 
 		const bucket = isHourly ? `${y}-${m}-${day} ${h}` : `${y}-${m}-${day}`;
 		if (!rowsByBucket.has(bucket)) rowsByBucket.set(bucket, []);
-		rowsByBucket.get(bucket)!.push(r);
+		rowsByBucket.get(bucket)?.push(r);
 	}
 
 	const firstBucketDateStr = isHourly
-		? buckets[0] + ":00:00"
-		: buckets[0] + " 00:00:00";
+		? `${buckets[0]}:00:00`
+		: `${buckets[0]} 00:00:00`;
 	const firstBucketDate = new Date(firstBucketDateStr.replace(" ", "T"));
 
 	for (const r of rows) {
-		const runDate = new Date(r.ran_at.replace(" ", "T") + "Z");
-		if (isNaN(runDate.getTime())) continue;
+		const runDate = new Date(`${r.ran_at.replace(" ", "T")}Z`);
+		if (Number.isNaN(runDate.getTime())) continue;
 		if (runDate < firstBucketDate) {
 			if (r.status === "ok" || r.status === "vulnerable") {
 				latestCounts.set(
@@ -251,8 +251,8 @@ export function getGlobalHistory(days = 30) {
 		}
 
 		const label = isHourly
-			? b.split(" ")[1] + "h"
-			: b.split("-")[2] + "/" + b.split("-")[1];
+			? `${b.split(" ")[1]}h`
+			: `${b.split("-")[2]}/${b.split("-")[1]}`;
 		result.push({ date: label, rawDate: b, critical, high, moderate, low });
 	}
 

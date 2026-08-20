@@ -10,7 +10,7 @@ export function parseYarn(output: string): ParseResult {
 		let parsed: any;
 		try {
 			parsed = JSON.parse(line);
-		} catch (e) {
+		} catch (_e) {
 			// NDJSON yarns tolère le bruit (lignes non-json ignorées silencieusement)
 			continue;
 		}

@@ -52,12 +52,10 @@ export function emitConsoleEnd(
 
 	// Truncate large outputs to prevent massive JSON stringify overhead and UI slowdowns
 	if (fullEvent.outText && fullEvent.outText.length > 3000) {
-		fullEvent.outText =
-			fullEvent.outText.substring(0, 3000) + "\n... [TRUNCATED]";
+		fullEvent.outText = `${fullEvent.outText.substring(0, 3000)}\n... [TRUNCATED]`;
 	}
 	if (fullEvent.errorText && fullEvent.errorText.length > 3000) {
-		fullEvent.errorText =
-			fullEvent.errorText.substring(0, 3000) + "\n... [TRUNCATED]";
+		fullEvent.errorText = `${fullEvent.errorText.substring(0, 3000)}\n... [TRUNCATED]`;
 	}
 
 	broadcast(fullEvent);
@@ -71,7 +69,7 @@ function broadcast(event: ConsoleEvent) {
 	for (const client of clients) {
 		try {
 			client.enqueue(payload);
-		} catch (e) {
+		} catch (_e) {
 			clients.delete(client);
 		}
 	}
@@ -81,7 +79,7 @@ export function addConsoleClient(controller: ReadableStreamDefaultController) {
 	clients.add(controller);
 	try {
 		controller.enqueue(`: connected\n\n`);
-	} catch (e) {}
+	} catch (_e) {}
 }
 
 export function removeConsoleClient(
@@ -94,7 +92,7 @@ setInterval(() => {
 	for (const client of clients) {
 		try {
 			client.enqueue(`: ping\n\n`);
-		} catch (e) {
+		} catch (_e) {
 			clients.delete(client);
 		}
 	}

@@ -136,7 +136,7 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
 		if (!status.includes("fatal:")) {
 			info.dirty = status.length > 0;
 		}
-	} catch (e) {
+	} catch (_e) {
 		// if cwd doesn't exist, spawn will throw or runGit will throw
 		// we just return isRepo = false
 	}

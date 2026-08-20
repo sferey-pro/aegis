@@ -110,7 +110,7 @@ export const Projects = React.memo(function Projects() {
 						return prev;
 					});
 				}
-			} catch (e) {}
+			} catch (_e) {}
 		});
 		return () => evtSource.close();
 	}, []);
@@ -149,8 +149,8 @@ export const Projects = React.memo(function Projects() {
 
 	const formatDate = (dateStr: string) => {
 		if (!dateStr) return "Inconnu";
-		const parsed = new Date(dateStr.replace(" ", "T") + "Z");
-		return isNaN(parsed.getTime())
+		const parsed = new Date(`${dateStr.replace(" ", "T")}Z`);
+		return Number.isNaN(parsed.getTime())
 			? "Inconnu"
 			: parsed.toLocaleString("fr-FR", {
 					day: "2-digit",
@@ -809,7 +809,7 @@ export const Projects = React.memo(function Projects() {
 			) : viewMode === "grid" ? (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{(filterTag
-						? projects.filter((p) => p.tags && p.tags.includes(filterTag))
+						? projects.filter((p) => p.tags?.includes(filterTag))
 						: projects
 					).map((p, index) => (
 						<ProjectCard
@@ -846,7 +846,7 @@ export const Projects = React.memo(function Projects() {
 						</TableHeader>
 						<TableBody>
 							{(filterTag
-								? projects.filter((p) => p.tags && p.tags.includes(filterTag))
+								? projects.filter((p) => p.tags?.includes(filterTag))
 								: projects
 							).map((p) => {
 								const hasCritical = p.lastRun?.counts?.critical > 0;

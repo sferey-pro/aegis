@@ -81,7 +81,7 @@ export const Reports = memo(function Reports() {
 		}
 
 		const prevVulns = new Map();
-		if (prevReport && prevReport.details) {
+		if (prevReport?.details) {
 			prevReport.details.forEach((d: any) => {
 				if (d.vulns) {
 					d.vulns.forEach((v: any) => {
@@ -275,7 +275,7 @@ export const Reports = memo(function Reports() {
 													<Calendar className="w-4 h-4" />
 												</div>
 												<span className="font-bold">
-													{new Date(r.created_at + "Z").toLocaleString(
+													{new Date(`${r.created_at}Z`).toLocaleString(
 														"fr-FR",
 														{
 															day: "2-digit",

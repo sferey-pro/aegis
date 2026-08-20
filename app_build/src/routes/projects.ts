@@ -55,7 +55,7 @@ export const projectsRoutes = {
 					tool = "composer";
 				else if (fs.existsSync(nodePath.join(fullPath, "package.json")))
 					tool = "npm";
-			} catch (e) {}
+			} catch (_e) {}
 
 			return Response.json({ tool });
 		},
@@ -114,7 +114,7 @@ export const projectsRoutes = {
 
 	"/api/projects/:id": {
 		async GET(req: any) {
-			const id = parseInt(req.params.id);
+			const id = parseInt(req.params.id, 10);
 			const p = listProjects().find((p) => p.id === id);
 			if (!p) return Response.json({ error: "Not found" }, { status: 404 });
 			let git = { isRepo: false };
@@ -127,13 +127,13 @@ export const projectsRoutes = {
 			return Response.json({ ...p, git, lastRun: run });
 		},
 		async PUT(req: any) {
-			const id = parseInt(req.params.id);
+			const id = parseInt(req.params.id, 10);
 			const body = await req.json();
 			const project = updateProject(id, body);
 			return Response.json(project);
 		},
 		async DELETE(req: any) {
-			const id = parseInt(req.params.id);
+			const id = parseInt(req.params.id, 10);
 			deleteProject(id);
 			return Response.json({ success: true });
 		},
@@ -141,7 +141,7 @@ export const projectsRoutes = {
 
 	"/api/projects/:id/git-fetch": {
 		async POST(req: any) {
-			const id = parseInt(req.params.id);
+			const id = parseInt(req.params.id, 10);
 			const project = listProjects().find((p) => p.id === id);
 			if (!project)
 				return Response.json({ error: "Not found" }, { status: 404 });
@@ -157,7 +157,7 @@ export const projectsRoutes = {
 
 	"/api/projects/:id/git-pull": {
 		async POST(req: any) {
-			const id = parseInt(req.params.id);
+			const id = parseInt(req.params.id, 10);
 			const project = listProjects().find((p) => p.id === id);
 			if (!project)
 				return Response.json({ error: "Not found" }, { status: 404 });
@@ -173,7 +173,7 @@ export const projectsRoutes = {
 
 	"/api/projects/:id/audit": {
 		async POST(req: any) {
-			const id = parseInt(req.params.id);
+			const id = parseInt(req.params.id, 10);
 			const url = new URL(req.url);
 			const force = url.searchParams.get("force") === "true";
 			try {

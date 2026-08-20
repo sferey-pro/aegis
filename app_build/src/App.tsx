@@ -139,7 +139,7 @@ export function App() {
 				});
 				const auditData = await auditRes.json();
 
-				if (auditData.run && auditData.run.counts) {
+				if (auditData.run?.counts) {
 					totalVulns += auditData.run.total || 0;
 					counts.critical += auditData.run.counts.critical || 0;
 					counts.high += auditData.run.counts.high || 0;
@@ -187,7 +187,7 @@ export function App() {
 
 	let syncDisplay = "Aucune synchronisation";
 	if (stats?.lastSync) {
-		const d = new Date(stats.lastSync + "Z");
+		const d = new Date(`${stats.lastSync}Z`);
 		syncDisplay = d.toLocaleString("fr-FR", {
 			hour: "2-digit",
 			minute: "2-digit",

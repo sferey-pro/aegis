@@ -48,9 +48,9 @@ describe("Parser Utils", () => {
 
 		const res = dedupe(vulns);
 		expect(res.length).toBe(2);
-		expect(res[0]!.cve).toBe("CVE-1");
-		expect(res[0]!.severity).toBe("high"); // Kept first occurrence
-		expect(res[1]!.cve).toBe("CVE-2");
+		expect(res[0]?.cve).toBe("CVE-1");
+		expect(res[0]?.severity).toBe("high"); // Kept first occurrence
+		expect(res[1]?.cve).toBe("CVE-2");
 	});
 
 	test("sortVulnerabilities sorts by severity correctly", () => {
@@ -82,9 +82,9 @@ describe("Parser Utils", () => {
 		];
 
 		const sorted = sortVulnerabilities(vulns);
-		expect(sorted[0]!.severity).toBe("critical");
-		expect(sorted[1]!.severity).toBe("moderate");
-		expect(sorted[2]!.severity).toBe("unknown");
+		expect(sorted[0]?.severity).toBe("critical");
+		expect(sorted[1]?.severity).toBe("moderate");
+		expect(sorted[2]?.severity).toBe("unknown");
 	});
 
 	test("buildParseResult composes dedupe, sort, and count", () => {
@@ -120,6 +120,6 @@ describe("Parser Utils", () => {
 		expect(res.counts.high).toBe(1);
 		expect(res.counts.low).toBe(1);
 		expect(res.counts.critical).toBe(0);
-		expect(res.vulnerabilities[0]!.package).toBe("A"); // high comes before low
+		expect(res.vulnerabilities[0]?.package).toBe("A"); // high comes before low
 	});
 });

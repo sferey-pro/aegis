@@ -18,7 +18,7 @@ export const tagsRoutes = {
 
 	"/api/tags/:id": {
 		async DELETE(req: any) {
-			deleteTag(parseInt(req.params.id));
+			deleteTag(parseInt(req.params.id, 10));
 			return Response.json({ success: true });
 		},
 	},

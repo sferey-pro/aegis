@@ -18,14 +18,14 @@ export function keyFrom(
 ): AdvisoryKey | null {
 	if (link) {
 		const match = link.match(GHSA_REGEX);
-		if (match) return { kind: "ghsa", id: match[1]!.toUpperCase() };
+		if (match?.[1]) return { kind: "ghsa", id: match[1].toUpperCase() };
 	}
 	if (cve) {
 		const matchGH = cve.match(GHSA_REGEX);
-		if (matchGH) return { kind: "ghsa", id: matchGH[1]!.toUpperCase() };
+		if (matchGH?.[1]) return { kind: "ghsa", id: matchGH[1].toUpperCase() };
 
 		const matchCVE = cve.match(CVE_REGEX);
-		if (matchCVE) return { kind: "cve", id: matchCVE[1]!.toUpperCase() };
+		if (matchCVE?.[1]) return { kind: "cve", id: matchCVE[1].toUpperCase() };
 	}
 	return null;
 }
@@ -118,7 +118,7 @@ async function fetchAdvisory(
 
 	const token = getSetting("GITHUB_TOKEN", process.env.GITHUB_TOKEN);
 	if (token) {
-		headers["authorization"] = `Bearer ${token}`;
+		headers.authorization = `Bearer ${token}`;
 	}
 
 	const startTime = Date.now();
@@ -168,7 +168,7 @@ async function fetchAdvisory(
 
 		if (Array.isArray(data.vulnerabilities)) {
 			for (const v of data.vulnerabilities) {
-				if (v.package && v.package.ecosystem && v.package.name) {
+				if (v.package?.ecosystem && v.package.name) {
 					// GitHub API returns "npm" or "Packagist". We map Composer to composer/packagist logic if needed
 					let eco = v.package.ecosystem.toLowerCase();
 					if (eco === "packagist") eco = "composer"; // normalization to match our mapEcosystem
@@ -193,7 +193,7 @@ async function fetchAdvisory(
 			advisory: { severity, fixes, html_url, cvss_vector, published_at },
 			rateLimited: false,
 		};
-	} catch (e) {
+	} catch (_e) {
 		emitConsoleEnd(eventId, { exitCode: 0, ms: Date.now() - startTime });
 		return { advisory: null, rateLimited: false };
 	}
@@ -214,7 +214,7 @@ function matchBestFix(
 
 	if (versionRange) {
 		const exact = fixesList.find((f) => f.range === versionRange);
-		if (exact && exact.patched) return exact.patched;
+		if (exact?.patched) return exact.patched;
 
 		const majors = new Set(
 			Array.from(versionRange.matchAll(/\b(\d+)\./g)).map((m) => m[1]),

@@ -73,7 +73,7 @@ function getAuditMaxAgeHours(): number {
 		.get() as any;
 	if (!row) return 24;
 	const val = parseFloat(row.value);
-	if (isNaN(val)) return 24;
+	if (Number.isNaN(val)) return 24;
 	return val;
 }
 
@@ -81,8 +81,8 @@ function isFresh(ranAtStr: string, maxAgeHours: number): boolean {
 	if (maxAgeHours < 0) return false;
 	if (maxAgeHours === 0) return true;
 
-	const ranAt = new Date(ranAtStr + "Z"); // SQLite CURRENT_TIMESTAMP is UTC
-	if (isNaN(ranAt.getTime())) return true; // Date illisible -> on garde frais par sécurité
+	const ranAt = new Date(`${ranAtStr}Z`); // SQLite CURRENT_TIMESTAMP is UTC
+	if (Number.isNaN(ranAt.getTime())) return true; // Date illisible -> on garde frais par sécurité
 
 	const now = new Date();
 	const diffHours = (now.getTime() - ranAt.getTime()) / (1000 * 60 * 60);

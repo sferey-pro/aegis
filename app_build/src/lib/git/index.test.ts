@@ -42,7 +42,7 @@ describe("Integration: Git", () => {
 			"Résultat Fetch:",
 			result.ok,
 			"| Log:",
-			result.log.substring(0, 50) + "...",
+			`${result.log.substring(0, 50)}...`,
 		);
 	});
 });

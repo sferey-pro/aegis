@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/utils";
 import { getAllAnnotations } from "../db/annotations";
 import { createSnapshot, restoreSnapshot } from "../db/backup";
 import { listProjects } from "../db/projects";
@@ -93,8 +94,8 @@ export const settingsRoutes = {
 		async POST() {
 			try {
 				return Response.json(restoreSnapshot());
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 400 });
+			} catch (e: unknown) {
+				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}
 		},
 	},

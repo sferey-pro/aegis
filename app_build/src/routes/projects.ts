@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/utils";
 import {
 	createProject,
 	deleteProject,
@@ -191,9 +192,9 @@ export const projectsRoutes = {
 					runSingleAudit(id, force),
 				);
 				return Response.json({ success: true, ...res });
-			} catch (e: any) {
+			} catch (e: unknown) {
 				return Response.json(
-					{ success: false, error: e.message },
+					{ success: false, error: errorMessage(e) },
 					{ status: 500 },
 				);
 			}

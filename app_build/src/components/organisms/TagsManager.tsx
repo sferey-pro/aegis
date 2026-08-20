@@ -1,6 +1,7 @@
 import { Plus, RefreshCw, Tag, X } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
+import { errorMessage } from "@/lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -45,8 +46,8 @@ export function TagsManager() {
 
 			setNewName("");
 			fetchTags();
-		} catch (err: any) {
-			setError(err.message);
+		} catch (err: unknown) {
+			setError(errorMessage(err));
 		}
 	};
 

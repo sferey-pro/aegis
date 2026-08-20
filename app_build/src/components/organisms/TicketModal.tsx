@@ -1,5 +1,6 @@
 import { CheckCircle2, Copy, FileText, RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
+import { errorMessage } from "@/lib/utils";
 import { Button } from "../ui/button";
 import {
 	Dialog,
@@ -132,12 +133,12 @@ export function TicketModal({
 											data.error || "Erreur lors de la création du ticket.",
 									});
 								}
-							} catch (err: any) {
+							} catch (err: unknown) {
 								setToast({
 									isOpen: true,
 									type: "error",
 									title: "Erreur",
-									message: err.message,
+									message: errorMessage(err),
 								});
 							} finally {
 								setCreating(false);

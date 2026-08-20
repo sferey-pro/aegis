@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { errorMessage } from "@/lib/utils";
 import { TagsManager } from "../components/organisms/TagsManager";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -112,8 +113,8 @@ export function Settings() {
 					action === "create" ? `Snapshot créé (${data.path})` : data.message,
 				type: "success",
 			});
-		} catch (err: any) {
-			setBackupMessage({ text: err.message, type: "error" });
+		} catch (err: unknown) {
+			setBackupMessage({ text: errorMessage(err), type: "error" });
 		} finally {
 			setBackupLoading(false);
 		}
@@ -150,8 +151,8 @@ export function Settings() {
 			} else {
 				throw new Error(data.error || "Erreur lors de l'import");
 			}
-		} catch (err: any) {
-			setBackupMessage({ text: err.message, type: "error" });
+		} catch (err: unknown) {
+			setBackupMessage({ text: errorMessage(err), type: "error" });
 		} finally {
 			setImportLoading(false);
 			if (fileInputRef.current) fileInputRef.current.value = "";
@@ -183,8 +184,8 @@ export function Settings() {
 					type: "error",
 				});
 			}
-		} catch (err: any) {
-			setTestJiraMessage({ text: err.message, type: "error" });
+		} catch (err: unknown) {
+			setTestJiraMessage({ text: errorMessage(err), type: "error" });
 		} finally {
 			setTestJiraLoading(false);
 		}
@@ -292,8 +293,11 @@ export function Settings() {
 													type: "error",
 												});
 											}
-										} catch (e: any) {
-											setClearCacheMessage({ text: e.message, type: "error" });
+										} catch (e: unknown) {
+											setClearCacheMessage({
+												text: errorMessage(e),
+												type: "error",
+											});
 										} finally {
 											setClearCacheLoading(false);
 											setTimeout(() => setClearCacheMessage(null), 5000);

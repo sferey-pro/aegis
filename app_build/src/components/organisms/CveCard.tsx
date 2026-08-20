@@ -6,6 +6,7 @@ import {
 	RefreshCw,
 	X,
 } from "lucide-react";
+import { errorMessage } from "@/lib/utils";
 import { buildCvssTooltip } from "../../lib/cvss";
 import { SEVERITY_COLORS } from "../../lib/triage-constants";
 import { Button } from "../ui/button";
@@ -190,12 +191,12 @@ export function CveCard({
 										});
 										setTimeout(() => setToast(null), 5000);
 									}
-								} catch (err: any) {
+								} catch (err: unknown) {
 									setToast({
 										isOpen: true,
 										type: "error",
 										title: "Erreur",
-										message: err.message,
+										message: errorMessage(err),
 									});
 									setTimeout(() => setToast(null), 5000);
 								}

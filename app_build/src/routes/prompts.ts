@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/utils";
 import {
 	createPrompt,
 	deletePrompt,
@@ -15,8 +16,8 @@ export const promptsRoutes = {
 			try {
 				const prompt = createPrompt(body.title, body.body, body.tags || []);
 				return Response.json(prompt);
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 400 });
+			} catch (e: unknown) {
+				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}
 		},
 	},
@@ -28,8 +29,8 @@ export const promptsRoutes = {
 			try {
 				const prompt = updatePrompt(id, body.title, body.body, body.tags || []);
 				return Response.json(prompt);
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 400 });
+			} catch (e: unknown) {
+				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}
 		},
 		async DELETE(req: any) {

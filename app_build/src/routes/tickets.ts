@@ -11,6 +11,7 @@ import {
 	tableRow,
 	text,
 } from "@atlaskit/adf-utils/builders";
+import { errorMessage } from "@/lib/utils";
 import { buildCveGroups } from "../lib/aggregator";
 
 export const ticketsRoutes = {
@@ -269,9 +270,9 @@ export const ticketsRoutes = {
 
 				const data = await response.json();
 				return Response.json({ success: true, user: data.displayName });
-			} catch (e: any) {
+			} catch (e: unknown) {
 				return Response.json(
-					{ success: false, error: e.message },
+					{ success: false, error: errorMessage(e) },
 					{ status: 400 },
 				);
 			}

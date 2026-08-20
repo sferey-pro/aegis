@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/utils";
 import { getDb } from "../db";
 import { buildCveGroups } from "../lib/aggregator";
 
@@ -14,9 +15,9 @@ export const cvesRoutes = {
 				const { syncAdvisory } = await import("../lib/github");
 				const advisory = await syncAdvisory(cve, link);
 				return Response.json({ success: !!advisory, advisory });
-			} catch (e: any) {
+			} catch (e: unknown) {
 				return Response.json(
-					{ success: false, error: e.message },
+					{ success: false, error: errorMessage(e) },
 					{ status: 500 },
 				);
 			}
@@ -28,9 +29,9 @@ export const cvesRoutes = {
 			try {
 				getDb().query("DELETE FROM advisory_cache").run();
 				return Response.json({ success: true });
-			} catch (e: any) {
+			} catch (e: unknown) {
 				return Response.json(
-					{ success: false, error: e.message },
+					{ success: false, error: errorMessage(e) },
 					{ status: 500 },
 				);
 			}

@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/utils";
 import { createTag, deleteTag, listTags } from "../db/tags";
 
 export const tagsRoutes = {
@@ -10,8 +11,8 @@ export const tagsRoutes = {
 			try {
 				const tag = createTag(body.name, body.color);
 				return Response.json(tag);
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 400 });
+			} catch (e: unknown) {
+				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}
 		},
 	},

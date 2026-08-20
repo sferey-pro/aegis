@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { spawn } from "bun";
+import { errorMessage } from "@/lib/utils";
 import { emitConsoleEnd, emitConsoleStart } from "../console";
 
 export interface GitInfo {
@@ -181,11 +182,11 @@ export async function gitFetch(
 		}
 
 		return { ok: exitCode === 0, log: log.trim() };
-	} catch (e: any) {
+	} catch (e: unknown) {
 		emitConsoleEnd(eventId, {
 			exitCode: 1,
 			ms: Date.now() - startTime,
-			errorText: e.message,
+			errorText: errorMessage(e),
 		});
 		return { ok: false, log: `chemin introuvable ou erreur système` };
 	}
@@ -227,11 +228,11 @@ export async function gitPull(
 		}
 
 		return { ok: exitCode === 0, log: log.trim() };
-	} catch (e: any) {
+	} catch (e: unknown) {
 		emitConsoleEnd(eventId, {
 			exitCode: 1,
 			ms: Date.now() - startTime,
-			errorText: e.message,
+			errorText: errorMessage(e),
 		});
 		return { ok: false, log: "chemin introuvable ou erreur système" };
 	}

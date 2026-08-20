@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { spawn } from "bun";
+import { errorMessage } from "@/lib/utils";
 import { getDb } from "../../db";
 import { ensureOccurrences } from "../../db/occurrences";
 import { getProjectById, type Project } from "../../db/projects";
@@ -180,8 +181,8 @@ export async function runAudit(
 			stdout = stdoutText;
 			stderr = stderrText;
 			exitCode = await proc.exited;
-		} catch (err: any) {
-			systemError = err.message;
+		} catch (err: unknown) {
+			systemError = errorMessage(err);
 		}
 
 		const duration_ms = Date.now() - startTime;
@@ -284,9 +285,9 @@ export async function runAudit(
 			}
 
 			return { run: successRun, deduped: false, newCves };
-		} catch (err: any) {
+		} catch (err: unknown) {
 			const errorBody = [
-				err.message,
+				errorMessage(err),
 				`cwd: ${cwd}`,
 				`exit: ${exitCode}`,
 				stderr,

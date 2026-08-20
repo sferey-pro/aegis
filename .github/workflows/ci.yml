@@ -10,6 +10,13 @@ jobs:
   test:
     name: Build & Test
     runs-on: ubuntu-latest
+
+    # Toute l'application vit dans app_build/ ; il n'y a pas de package.json
+    # à la racine du dépôt. S'applique aux étapes `run`, pas aux `uses`.
+    defaults:
+      run:
+        working-directory: app_build
+
     steps:
       - uses: actions/checkout@v4
       

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { ProjectListItem, ProjectTool, Tag } from "@/lib/api-types";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
 import { Badge } from "../components/ui/badge";
@@ -51,10 +52,10 @@ import {
 
 export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
-	const [projects, setProjects] = useState<any[]>([]);
+	const [projects, setProjects] = useState<ProjectListItem[]>([]);
 	const [loading, setLoading] = useState(true);
 
-	const [availableTags, setAvailableTags] = useState<any[]>([]);
+	const [availableTags, setAvailableTags] = useState<Tag[]>([]);
 	const [filterTag, setFilterTag] = useState<string | null>(null);
 
 	const [isAdding, setIsAdding] = useState(false);
@@ -68,7 +69,7 @@ export const Projects = React.memo(function Projects() {
 	const [copiedSlug, setCopiedSlug] = useState<number | null>(null);
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [auditState, setAuditState] = useState<Record<number, string>>({});
-	const projectsRef = useRef<any[]>([]);
+	const projectsRef = useRef<ProjectListItem[]>([]);
 
 	useEffect(() => {
 		projectsRef.current = projects;
@@ -92,7 +93,7 @@ export const Projects = React.memo(function Projects() {
 
 					setAuditState((prev) => {
 						const p = projectsRef.current.find(
-							(proj: any) => proj.name === data.project,
+							(proj) => proj.name === data.project,
 						);
 						if (p) return { ...prev, [p.id]: msg };
 						return prev;
@@ -100,7 +101,7 @@ export const Projects = React.memo(function Projects() {
 				} else if (data.phase === "end" && data.project) {
 					setAuditState((prev) => {
 						const p = projectsRef.current.find(
-							(proj: any) => proj.name === data.project,
+							(proj) => proj.name === data.project,
 						);
 						if (p) {
 							const next = { ...prev };
@@ -203,7 +204,7 @@ export const Projects = React.memo(function Projects() {
 		});
 	};
 
-	const handleEdit = (p: any, e?: React.MouseEvent) => {
+	const handleEdit = (p: ProjectListItem, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		setFormData({
 			name: p.name,
@@ -290,7 +291,10 @@ export const Projects = React.memo(function Projects() {
 		}
 	};
 
-	const toggleIgnore = async (project: any, e?: React.MouseEvent) => {
+	const toggleIgnore = async (
+		project: ProjectListItem,
+		e?: React.MouseEvent,
+	) => {
 		if (e) e.stopPropagation();
 		try {
 			await fetch(`/api/projects/${project.id}`, {
@@ -654,10 +658,11 @@ export const Projects = React.memo(function Projects() {
 									</label>
 									<Select
 										value={formData.tool}
-										onValueChange={(val: any) =>
+										onValueChange={(val) =>
 											setFormData({
 												...formData,
-												tool: val,
+												// Valeurs bornées par les <SelectItem> déclarés juste en dessous.
+												tool: val as ProjectTool,
 												type: val === "composer" ? "composer" : "node",
 											})
 										}
@@ -849,13 +854,11 @@ export const Projects = React.memo(function Projects() {
 								? projects.filter((p) => p.tags?.includes(filterTag))
 								: projects
 							).map((p) => {
-								const hasCritical = p.lastRun?.counts?.critical > 0;
+								const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 								const hasNoCves =
 									p.lastRun &&
-									Object.values(p.lastRun.counts).reduce(
-										(a: any, b: any) => a + b,
-										0,
-									) === 0;
+									Object.values(p.lastRun.counts).reduce((a, b) => a + b, 0) ===
+										0;
 								return (
 									<TableRow
 										key={p.id}

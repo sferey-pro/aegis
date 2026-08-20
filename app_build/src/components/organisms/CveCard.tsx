@@ -6,6 +6,7 @@ import {
 	RefreshCw,
 	X,
 } from "lucide-react";
+import type { AnnotationStatus } from "@/lib/api-types";
 import { errorMessage } from "@/lib/utils";
 import { buildCvssTooltip } from "../../lib/cvss";
 import { SEVERITY_COLORS } from "../../lib/triage-constants";
@@ -33,7 +34,7 @@ export function CveCard({
 	updateStatus: (
 		cve: string,
 		projectId: number,
-		newStatus: string,
+		newStatus: AnnotationStatus,
 		note?: string,
 	) => Promise<void>;
 	handleConfirmCve: (

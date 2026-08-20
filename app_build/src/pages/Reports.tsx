@@ -13,6 +13,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
+import type { DiffVuln, Report } from "@/lib/api-types";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
@@ -39,7 +40,7 @@ import {
 import { buildCvssTooltip } from "../lib/cvss";
 
 export const Reports = memo(function Reports() {
-	const [reports, setReports] = useState<any[]>([]);
+	const [reports, setReports] = useState<Report[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [isFetching, setIsFetching] = useState(false);
 	const [reportToDelete, setReportToDelete] = useState<number | null>(null);
@@ -55,20 +56,23 @@ export const Reports = memo(function Reports() {
 		null,
 	);
 	const [diffData, setDiffData] = useState<{
-		newVulns: any[];
-		fixedVulns: any[];
-		unchangedVulns: any[];
+		newVulns: DiffVuln[];
+		fixedVulns: DiffVuln[];
+		unchangedVulns: DiffVuln[];
 	} | null>(null);
 
 	const handleViewDiff = (index: number) => {
 		const currentReport = reports[index];
+		// L'index vient de la liste rendue : il peut être périmé si un rapport a été
+		// supprimé entre-temps.
+		if (!currentReport) return;
 		const prevReport = index < reports.length - 1 ? reports[index + 1] : null;
 
 		const currentVulns = new Map();
 		if (currentReport.details) {
-			currentReport.details.forEach((d: any) => {
+			currentReport.details.forEach((d) => {
 				if (d.vulns) {
-					d.vulns.forEach((v: any) => {
+					d.vulns.forEach((v) => {
 						const key = `${d.projectId}-${v.package}-${v.cve || v.title}`;
 						currentVulns.set(key, {
 							...v,
@@ -82,9 +86,9 @@ export const Reports = memo(function Reports() {
 
 		const prevVulns = new Map();
 		if (prevReport?.details) {
-			prevReport.details.forEach((d: any) => {
+			prevReport.details.forEach((d) => {
 				if (d.vulns) {
-					d.vulns.forEach((v: any) => {
+					d.vulns.forEach((v) => {
 						const key = `${d.projectId}-${v.package}-${v.cve || v.title}`;
 						prevVulns.set(key, { ...v, projectName: d.projectName, _key: key });
 					});
@@ -92,14 +96,14 @@ export const Reports = memo(function Reports() {
 			});
 		}
 
-		const newVulns: any[] = [];
-		const unchangedVulns: any[] = [];
+		const newVulns: DiffVuln[] = [];
+		const unchangedVulns: DiffVuln[] = [];
 		currentVulns.forEach((v, k) => {
 			if (!prevVulns.has(k)) newVulns.push(v);
 			else unchangedVulns.push(v);
 		});
 
-		const fixedVulns: any[] = [];
+		const fixedVulns: DiffVuln[] = [];
 		prevVulns.forEach((v, k) => {
 			if (!currentVulns.has(k)) fixedVulns.push(v);
 		});
@@ -112,14 +116,14 @@ export const Reports = memo(function Reports() {
 		setIsFetching(true);
 		try {
 			const res = await fetch("/api/reports");
-			const data = await res.json();
+			const data = (await res.json()) as Report[];
 			setReports(data);
 			// Reset to page 1 if data changes and current page is out of bounds
 			setCurrentPage((prev) =>
 				prev > Math.ceil(data.length / itemsPerPage) ? 1 : prev,
 			);
 			// Remove deleted reports from selection
-			const allIds = data.map((r: any) => r.id);
+			const allIds = data.map((r) => r.id);
 			setSelectedReports((prev) => prev.filter((id) => allIds.includes(id)));
 		} catch (e) {
 			console.error(e);
@@ -214,20 +218,20 @@ export const Reports = memo(function Reports() {
 										<Checkbox
 											checked={
 												currentReports.length > 0 &&
-												currentReports.every((r: any) =>
+												currentReports.every((r) =>
 													selectedReports.includes(r.id),
 												)
 											}
 											onCheckedChange={(checked) => {
 												if (checked) {
 													const newIds = currentReports
-														.map((r: any) => r.id)
+														.map((r) => r.id)
 														.filter(
 															(id: number) => !selectedReports.includes(id),
 														);
 													setSelectedReports([...selectedReports, ...newIds]);
 												} else {
-													const pageIds = currentReports.map((r: any) => r.id);
+													const pageIds = currentReports.map((r) => r.id);
 													setSelectedReports(
 														selectedReports.filter(
 															(id) => !pageIds.includes(id),
@@ -246,7 +250,7 @@ export const Reports = memo(function Reports() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{currentReports.map((r: any) => (
+								{currentReports.map((r) => (
 									<TableRow
 										key={r.id}
 										className="group"

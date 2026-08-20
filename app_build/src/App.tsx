@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import type {
+	ProjectListItem,
+	Report,
+	ReportDetail,
+	StatsResponse,
+} from "@/lib/api-types";
 import { GlobalLoader } from "./components/layout/GlobalLoader";
 import { ReportModal } from "./components/layout/ReportModal";
 import { BlankLayout } from "./components/templates/BlankLayout";
@@ -12,26 +18,11 @@ import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
 import { Triage } from "./pages/Triage";
 
-interface Stats {
-	monitoredProjects: number;
-	criticalVulnerabilities: number;
-	pendingCves?: number;
-	lastSync: string | null;
-	healthGrade?: string;
-	topProjects?: Array<{
-		id: number;
-		name: string;
-		critical: number;
-		high: number;
-	}>;
-	topCves?: Array<{ cve: string; title: string; count: number; worst: string }>;
-}
-
 export function App() {
 	const navigate = useNavigate();
 	const location = useLocation();
 
-	const [stats, setStats] = useState<Stats | null>(null);
+	const [stats, setStats] = useState<StatsResponse | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [auditing, setAuditing] = useState(false);
 	const [auditProgress, setAuditProgress] = useState<{
@@ -39,7 +30,7 @@ export function App() {
 		total: number;
 		name: string;
 	} | null>(null);
-	const [reportModal, setReportModal] = useState<any | null>(null);
+	const [reportModal, setReportModal] = useState<Report | null>(null);
 
 	const [loadingMessage, setLoadingMessage] = useState(
 		"Connexion à la base de données...",
@@ -117,8 +108,8 @@ export function App() {
 		setAuditProgress(null);
 		try {
 			const res = await fetch("/api/projects");
-			const allProjects = await res.json();
-			const projectsToAudit = allProjects.filter((p: any) => !p.ignored);
+			const allProjects = (await res.json()) as ProjectListItem[];
+			const projectsToAudit = allProjects.filter((p) => !p.ignored);
 
 			let current = 1;
 			const total = projectsToAudit.length;
@@ -131,7 +122,7 @@ export function App() {
 				info: 0,
 				unknown: 0,
 			};
-			const reportDetails: any[] = [];
+			const reportDetails: ReportDetail[] = [];
 
 			for (const p of projectsToAudit) {
 				setAuditProgress({ current, total, name: p.name });

@@ -8,6 +8,13 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import type {
+	AnnotationPayload,
+	AnnotationStatus,
+	CveGroup,
+	PackageGroup,
+	Ticket,
+} from "@/lib/api-types";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
 import { TicketModal } from "../components/organisms/TicketModal";
@@ -32,18 +39,18 @@ export const Triage = React.memo(function Triage() {
 		newParams.delete("cve");
 		setSearchParams(newParams);
 	};
-	const [cves, setCves] = useState<any[]>([]);
-	const [tickets, setTickets] = useState<Record<string, any>>({});
+	const [cves, setCves] = useState<CveGroup[]>([]);
+	const [tickets, setTickets] = useState<Record<string, Ticket>>({});
 	const [jiraBaseUrl, setJiraBaseUrl] = useState("");
 	const [loading, setLoading] = useState(true);
 	const [page, setPage] = useState(1);
 	const [itemsPerPage, setItemsPerPage] = useState(10);
-	const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
+	const [selectedGroup, setSelectedGroup] = useState<PackageGroup | null>(null);
 	const [ticketModal, setTicketModal] = useState<{
 		isOpen: boolean;
 		md: string;
 		copied: boolean;
-		group?: any;
+		group?: PackageGroup;
 	}>({ isOpen: false, md: "", copied: false });
 	const [confirmModal, setConfirmModal] = useState<{
 		isOpen: boolean;
@@ -75,7 +82,7 @@ export const Triage = React.memo(function Triage() {
 		try {
 			const res = await fetch("/api/tickets/list");
 			const data = await res.json();
-			const map: Record<string, any> = {};
+			const map: Record<string, Ticket> = {};
 			for (const t of data) {
 				map[`${t.project_id}::${t.package}`] = t;
 			}
@@ -102,11 +109,11 @@ export const Triage = React.memo(function Triage() {
 	}, [fetchCves, fetchTickets, fetchSettings]);
 
 	const packageGroups = React.useMemo(() => {
-		const map = new Map<string, any>();
-		cves.forEach((cveGroup: any) => {
+		const map = new Map<string, PackageGroup>();
+		cves.forEach((cveGroup) => {
 			if (cveFilter && cveGroup.cve !== cveFilter) return;
 
-			cveGroup.occurrences.forEach((occ: any) => {
+			cveGroup.occurrences.forEach((occ) => {
 				if (projectId && occ.projectId !== projectId) return;
 				if (hideProcessed && occ.status !== "pending") return;
 
@@ -160,7 +167,7 @@ export const Triage = React.memo(function Triage() {
 				g.cves.push({
 					cve: cveGroup.cve,
 					ref: cveGroup.ref,
-					title: occ.title || cveGroup.title,
+					title: occ.title || cveGroup.cve,
 					severity: occ.severity,
 					versionRange: occ.versionRange,
 					fixedIn: occ.fixedIn,
@@ -197,11 +204,11 @@ export const Triage = React.memo(function Triage() {
 	const updateStatus = async (
 		cve: string,
 		projectId: number,
-		newStatus: string,
+		newStatus: AnnotationStatus,
 		note?: string,
 	) => {
 		try {
-			const payload: any = { cve, projectId, status: newStatus };
+			const payload: AnnotationPayload = { cve, projectId, status: newStatus };
 			if (note !== undefined) {
 				payload.note = note;
 			} else if (newStatus !== "confirmed") {
@@ -239,7 +246,7 @@ export const Triage = React.memo(function Triage() {
 		setConfirmModal(null);
 	};
 
-	const createTicket = async (e: React.MouseEvent, group: any) => {
+	const createTicket = async (e: React.MouseEvent, group: PackageGroup) => {
 		e.stopPropagation();
 		try {
 			const res = await fetch("/api/tickets", {

@@ -1,4 +1,5 @@
 import { Link as LinkIcon } from "lucide-react";
+import type { AnnotationStatus } from "@/lib/api-types";
 import { Button } from "../ui/button";
 import {
 	Dialog,
@@ -24,7 +25,7 @@ export function CveDetailsModal({
 	updateStatus: (
 		cve: string,
 		projectId: number,
-		newStatus: string,
+		newStatus: AnnotationStatus,
 		note?: string,
 	) => Promise<void>;
 	handleConfirmCve: (

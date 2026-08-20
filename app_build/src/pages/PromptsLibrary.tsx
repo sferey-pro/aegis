@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
+import type { Prompt } from "@/lib/api-types";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -23,7 +24,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 
 export function PromptsLibrary() {
-	const [prompts, setPrompts] = useState<any[]>([]);
+	const [prompts, setPrompts] = useState<Prompt[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [isAdding, setIsAdding] = useState(false);
 	const [editingId, setEditingId] = useState<number | null>(null);
@@ -80,7 +81,7 @@ export function PromptsLibrary() {
 		}
 	};
 
-	const handleEdit = (prompt: any) => {
+	const handleEdit = (prompt: Prompt) => {
 		setFormData({
 			title: prompt.title,
 			body: prompt.body,

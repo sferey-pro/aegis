@@ -1,12 +1,25 @@
+import type { Vulnerability } from "../lib/parsers/types";
 import { getDb } from "./index";
 import type { RunCounts } from "./runs";
+
+/**
+ * Détail d'un projet dans un compte-rendu d'audit global : le client envoie,
+ * pour chaque projet ayant au moins une vulnérabilité, la liste complète telle
+ * que le run l'a produite. C'est cette liste que l'écran Rapports compare d'un
+ * compte-rendu au précédent.
+ */
+export interface ReportDetail {
+	projectId: number;
+	projectName: string;
+	vulns: Vulnerability[];
+}
 
 export interface Report {
 	id: number;
 	projects_audited: number;
 	total_vulnerabilities: number;
 	counts: RunCounts;
-	details: any[];
+	details: ReportDetail[];
 	created_at: string;
 }
 
@@ -14,7 +27,7 @@ export function createReport(data: {
 	projects_audited: number;
 	total_vulnerabilities: number;
 	counts: RunCounts;
-	details: any[];
+	details: ReportDetail[];
 }): Report {
 	const db = getDb();
 	const stmt = db.prepare(`

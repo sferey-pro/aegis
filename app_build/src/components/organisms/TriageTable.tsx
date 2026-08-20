@@ -7,6 +7,7 @@ import {
 	Shield,
 } from "lucide-react";
 import React from "react";
+import type { Ticket } from "@/db/tickets";
 import { SEVERITY_COLORS, SEVERITY_ICONS } from "../../lib/triage-constants";
 import { Button } from "../ui/button";
 import {
@@ -25,6 +26,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "../ui/table";
+import type { PackageGroup } from "./triage-types";
 
 export function TriageTable({
 	paginatedGroups,
@@ -39,10 +41,10 @@ export function TriageTable({
 	setItemsPerPage,
 	totalItems,
 }: {
-	paginatedGroups: any[];
-	setSelectedGroup: (group: any) => void;
-	createTicket: (e: React.MouseEvent, group: any) => void;
-	tickets: Record<string, any>;
+	paginatedGroups: PackageGroup[];
+	setSelectedGroup: (group: PackageGroup) => void;
+	createTicket: (e: React.MouseEvent, group: PackageGroup) => void;
+	tickets: Record<string, Ticket>;
 	jiraBaseUrl: string;
 	page: number;
 	setPage: (p: number | ((prev: number) => number)) => void;
@@ -66,6 +68,8 @@ export function TriageTable({
 				</TableHeader>
 				<TableBody>
 					{paginatedGroups.map((group) => {
+						// Une seule lecture de la map : l'entrée peut être absente.
+						const ticket = tickets[group.key];
 						return (
 							<React.Fragment key={group.key}>
 								<TableRow
@@ -179,16 +183,16 @@ export function TriageTable({
 												<FileText className="w-3.5 h-3.5" />
 												Ticket
 											</Button>
-											{tickets[group.key] && (
+											{ticket && (
 												<div className="mt-2 text-xs flex justify-end">
 													<a
-														href={`${jiraBaseUrl.replace(/\/$/, "")}/browse/${tickets[group.key].url}`}
+														href={`${jiraBaseUrl.replace(/\/$/, "")}/browse/${ticket.url}`}
 														target="_blank"
 														rel="noreferrer"
 														className="text-blue-400"
 														onClick={(e) => e.stopPropagation()}
 													>
-														{tickets[group.key].url}
+														{ticket.url}
 													</a>
 												</div>
 											)}

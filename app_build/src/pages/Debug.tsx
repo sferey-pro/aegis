@@ -411,7 +411,7 @@ export function Debug() {
 									cveObj={{
 										cve: "CVE-2024-12345",
 										ref: "CVE-2024-12345",
-										severity: "HIGH",
+										severity: "high",
 										title: "Denial of service via colliding heading slugs",
 										versionRange: ">=2.0.0, <2.9.0",
 										cvssVector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
@@ -420,6 +420,7 @@ export function Debug() {
 										fixedIn: "2.9.0",
 										link: "https://github.com/advisories/GHSA-1234-5678",
 										status: "pending",
+										note: "",
 									}}
 									packageName="league/commonmark"
 									projectId={1}

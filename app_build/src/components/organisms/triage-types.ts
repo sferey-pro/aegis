@@ -47,6 +47,7 @@ export interface PackageGroupCve
 		| "firstSeenAt"
 		| "publishedAt"
 		| "isBaseline"
+		| "isGlobal"
 	> {
 	/** Clé du groupe CVE : la référence, ou le libellé de repli. */
 	cve: string;
@@ -56,7 +57,24 @@ export interface PackageGroupCve
 
 /** Notification éphémère affichée après une action de triage. */
 export interface Toast {
+	isOpen: boolean;
 	title: string;
 	message: React.ReactNode;
 	type: "success" | "error" | "info";
+}
+
+/** État de la modale « Risque confirmé », qui exige une justification. */
+export interface ConfirmModalState {
+	isOpen: boolean;
+	cve: string;
+	projectId: number;
+	reason: string;
+}
+
+/** État de la modale de préparation de ticket. */
+export interface TicketModalState {
+	isOpen: boolean;
+	md: string;
+	copied: boolean;
+	group?: PackageGroup;
 }

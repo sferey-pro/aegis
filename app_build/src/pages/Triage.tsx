@@ -16,7 +16,12 @@ import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
 import { TicketModal } from "../components/organisms/TicketModal";
 import { TriageTable } from "../components/organisms/TriageTable";
-import type { PackageGroup } from "../components/organisms/triage-types";
+import type {
+	ConfirmModalState,
+	PackageGroup,
+	TicketModalState,
+	Toast,
+} from "../components/organisms/triage-types";
 import { Button } from "../components/ui/button";
 import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 
@@ -44,24 +49,15 @@ export const Triage = React.memo(function Triage() {
 	const [page, setPage] = useState(1);
 	const [itemsPerPage, setItemsPerPage] = useState(10);
 	const [selectedGroup, setSelectedGroup] = useState<PackageGroup | null>(null);
-	const [ticketModal, setTicketModal] = useState<{
-		isOpen: boolean;
-		md: string;
-		copied: boolean;
-		group?: PackageGroup;
-	}>({ isOpen: false, md: "", copied: false });
-	const [confirmModal, setConfirmModal] = useState<{
-		isOpen: boolean;
-		cve: string;
-		projectId: number;
-		reason: string;
-	} | null>(null);
-	const [toast, setToast] = useState<{
-		isOpen: boolean;
-		title: string;
-		message: React.ReactNode;
-		type: "success" | "error" | "info";
-	} | null>(null);
+	const [ticketModal, setTicketModal] = useState<TicketModalState>({
+		isOpen: false,
+		md: "",
+		copied: false,
+	});
+	const [confirmModal, setConfirmModal] = useState<ConfirmModalState | null>(
+		null,
+	);
+	const [toast, setToast] = useState<Toast | null>(null);
 	const [hideProcessed, setHideProcessed] = useState(false);
 
 	const fetchCves = useCallback(async () => {
@@ -177,6 +173,7 @@ export const Triage = React.memo(function Triage() {
 					firstSeenAt: occ.firstSeenAt,
 					publishedAt: occ.publishedAt,
 					isBaseline: occ.isBaseline,
+					isGlobal: occ.isGlobal,
 				});
 			});
 		});

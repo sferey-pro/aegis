@@ -10,6 +10,7 @@ import {
 	DialogTitle,
 } from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
+import type { ConfirmModalState } from "./triage-types";
 
 export function ConfirmReasonModal({
 	confirmModal,
@@ -22,7 +23,7 @@ export function ConfirmReasonModal({
 		projectId: number;
 		reason: string;
 	} | null;
-	setConfirmModal: (val: any) => void;
+	setConfirmModal: (val: ConfirmModalState | null) => void;
 	submitConfirm: (e: React.FormEvent) => void;
 }) {
 	return (
@@ -60,7 +61,11 @@ export function ConfirmReasonModal({
 								required
 								value={confirmModal?.reason || ""}
 								onChange={(e) =>
-									setConfirmModal({ ...confirmModal, reason: e.target.value })
+									setConfirmModal(
+										confirmModal
+											? { ...confirmModal, reason: e.target.value }
+											: null,
+									)
 								}
 								className="min-h-[100px] text-sm"
 								placeholder="Ex: Le composant est exposé sur l'interface publique, risque réel d'exploitation..."

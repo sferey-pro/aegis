@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { buildCvssTooltip } from "../../lib/cvss";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { SEVERITY_COLORS } from "./constants";
+import { SEVERITY_COLORS } from "../triage/constants";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -47,7 +47,9 @@ export function CveDetailsModal({
 			}}
 		>
 			<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-				<DialogHeader className="p-6 border-b shrink-0 flex-row items-center justify-between">
+				{selectedGroup && (
+					<>
+						<DialogHeader className="p-6 border-b shrink-0 flex-row items-center justify-between">
 					<div className="flex flex-col gap-1 text-left">
 						<div className="flex items-center gap-4">
 							<DialogTitle className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
@@ -75,7 +77,7 @@ export function CveDetailsModal({
 				</DialogHeader>
 				<div className="flex-1 overflow-y-auto p-6">
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-						{selectedGroup.cves.map((cveObj: any, i: number) => (
+						{selectedGroup?.cves?.map((cveObj: any, i: number) => (
 							<div
 								key={i}
 								className="flex flex-col gap-4 p-5 rounded-xl border relative overflow-hidden"
@@ -328,6 +330,8 @@ export function CveDetailsModal({
 						))}
 					</div>
 				</div>
+					</>
+				)}
 			</DialogContent>
 		</Dialog>
 	);

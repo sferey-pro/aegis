@@ -7,7 +7,7 @@ import {
 	Shield,
 } from "lucide-react";
 import React from "react";
-import { SEVERITY_COLORS, SEVERITY_ICONS } from "./constants";
+import { SEVERITY_COLORS, SEVERITY_ICONS } from "../triage/constants";
 import {
 	Table,
 	TableBody,

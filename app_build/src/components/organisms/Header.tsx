@@ -8,33 +8,29 @@ import {
 	Terminal,
 } from "lucide-react";
 import { memo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 
 export const Header = memo(function Header({
-	currentTab,
-	setCurrentTab,
-	setTriageProjectId,
-	setTriageCveFilter,
 	handleRunAudit,
 	auditing,
 	pendingCves,
 }: {
-	currentTab: string;
-	setCurrentTab: (tab: any) => void;
-	setTriageProjectId: (id: number | null) => void;
-	setTriageCveFilter: (cve: string | null) => void;
 	handleRunAudit: () => void;
 	auditing: boolean;
 	pendingCves?: number;
 }) {
-	// Dark mode logic completely removed
+	const location = useLocation();
+	const navigate = useNavigate();
+	
+	const path = location.pathname;
 
 	return (
 		<header className="fixed top-0 left-0 right-0 z-50 border-b flex items-center justify-between py-4 px-6 md:px-12 w-full">
 			<div className="flex items-center gap-2 select-none w-full max-w-7xl mx-auto justify-between">
 				<div
 					className="flex items-center gap-3 cursor-pointer"
-					onClick={() => setCurrentTab("overview")}
+					onClick={() => navigate("/")}
 				>
 					<div className="relative flex items-center justify-center w-11 h-11 rounded-xl border overflow-hidden (var(--primary),0.2)] (var(--primary),0.4)]">
 						<img
@@ -50,29 +46,25 @@ export const Header = memo(function Header({
 
 				<nav className="flex items-center gap-1.5 p-1.5 bg-card border border-border rounded-2xl">
 					<Button
-						variant={currentTab === "overview" ? "default" : "ghost"}
-						onClick={() => setCurrentTab("overview")}
-						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "overview" ? "" : "text-muted-foreground"}`}
+						variant={path === "/" ? "default" : "ghost"}
+						onClick={() => navigate("/")}
+						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${path === "/" ? "" : "text-muted-foreground"}`}
 					>
 						<LayoutDashboard className="w-4 h-4" />
 						Vue d'ensemble
 					</Button>
 					<Button
-						variant={currentTab === "projects" ? "default" : "ghost"}
-						onClick={() => setCurrentTab("projects")}
-						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "projects" ? "" : "text-muted-foreground"}`}
+						variant={path === "/projects" ? "default" : "ghost"}
+						onClick={() => navigate("/projects")}
+						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${path === "/projects" ? "" : "text-muted-foreground"}`}
 					>
 						<FolderGit2 className="w-4 h-4" />
 						Projets
 					</Button>
 					<Button
-						variant={currentTab === "triage" ? "default" : "ghost"}
-						onClick={() => {
-							setTriageProjectId(null);
-							setTriageCveFilter(null);
-							setCurrentTab("triage");
-						}}
-						className={`relative flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "triage" ? "" : "text-muted-foreground"}`}
+						variant={path === "/triage" ? "default" : "ghost"}
+						onClick={() => navigate("/triage")}
+						className={`relative flex items-center gap-2 rounded-xl text-sm font-medium ${path === "/triage" ? "" : "text-muted-foreground"}`}
 					>
 						<AlertOctagon className="w-4 h-4" />
 						CVEs
@@ -83,17 +75,17 @@ export const Header = memo(function Header({
 						)}
 					</Button>
 					<Button
-						variant={currentTab === "reports" ? "default" : "ghost"}
-						onClick={() => setCurrentTab("reports")}
-						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "reports" ? "" : "text-muted-foreground"}`}
+						variant={path === "/reports" ? "default" : "ghost"}
+						onClick={() => navigate("/reports")}
+						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${path === "/reports" ? "" : "text-muted-foreground"}`}
 					>
 						<FileBarChart className="w-4 h-4" />
 						Rapports
 					</Button>
 					<Button
-						variant={currentTab === "prompts" ? "default" : "ghost"}
-						onClick={() => setCurrentTab("prompts")}
-						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${currentTab === "prompts" ? "" : "text-muted-foreground"}`}
+						variant={path === "/prompts" ? "default" : "ghost"}
+						onClick={() => navigate("/prompts")}
+						className={`flex items-center gap-2 rounded-xl text-sm font-medium ${path === "/prompts" ? "" : "text-muted-foreground"}`}
 					>
 						<Terminal className="w-4 h-4" />
 						Prompts
@@ -102,10 +94,10 @@ export const Header = memo(function Header({
 					<div className="w-px h-6 bg-border mx-1"></div>
 
 					<Button
-						variant={currentTab === "settings" ? "default" : "ghost"}
+						variant={path === "/settings" ? "default" : "ghost"}
 						size="icon"
-						onClick={() => setCurrentTab("settings")}
-						className={`rounded-xl ${currentTab === "settings" ? "" : "text-muted-foreground"}`}
+						onClick={() => navigate("/settings")}
+						className={`rounded-xl ${path === "/settings" ? "" : "text-muted-foreground"}`}
 						title="Paramètres"
 					>
 						<Settings className="w-5 h-5" />

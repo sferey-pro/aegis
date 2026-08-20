@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { buildCvssTooltip } from "../lib/cvss";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
 import {
 	Table,
 	TableBody,
@@ -23,10 +23,10 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "./ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
-import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
+} from "../components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
 
 export const Reports = memo(function Reports() {
 	const [reports, setReports] = useState<any[]>([]);

@@ -10,11 +10,15 @@ import "./index.css";
 import { App } from "./App";
 import { TooltipProvider } from "./components/ui/tooltip";
 
+import { BrowserRouter } from "react-router-dom";
+
 const elem = document.getElementById("root")!;
 const app = (
-	<TooltipProvider delayDuration={200}>
-		<App />
-	</TooltipProvider>
+	<BrowserRouter>
+		<TooltipProvider delayDuration={200}>
+			<App />
+		</TooltipProvider>
+	</BrowserRouter>
 );
 
 // https://bun.com/docs/bundler/hot-reloading#import-meta-hot-data

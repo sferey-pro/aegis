@@ -7,24 +7,29 @@ import {
 	X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { ConfirmReasonModal } from "./triage/ConfirmReasonModal";
-import { CveDetailsModal } from "./triage/CveDetailsModal";
-import { compareVersions, SEV_ORDER } from "./triage/constants";
-import { TicketModal } from "./triage/TicketModal";
-import { TriageTable } from "./triage/TriageTable";
-import { Button } from "./ui/button";
+import { ConfirmReasonModal } from "../components/triage/ConfirmReasonModal";
+import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
+import { compareVersions, SEV_ORDER } from "../components/triage/constants";
+import { TicketModal } from "../components/organisms/TicketModal";
+import { TriageTable } from "../components/organisms/TriageTable";
+import { Button } from "../components/ui/button";
+import { useSearchParams } from "react-router-dom";
 
-export const Triage = React.memo(function Triage({
-	projectId,
-	onClearProject,
-	cveFilter,
-	onClearCve,
-}: {
-	projectId?: number | null;
-	onClearProject?: () => void;
-	cveFilter?: string | null;
-	onClearCve?: () => void;
-}) {
+export const Triage = React.memo(function Triage() {
+	const [searchParams, setSearchParams] = useSearchParams();
+	const projectId = searchParams.get("project") ? parseInt(searchParams.get("project") as string) : null;
+	const cveFilter = searchParams.get("cve");
+
+	const onClearProject = () => {
+		const newParams = new URLSearchParams(searchParams);
+		newParams.delete("project");
+		setSearchParams(newParams);
+	};
+	const onClearCve = () => {
+		const newParams = new URLSearchParams(searchParams);
+		newParams.delete("cve");
+		setSearchParams(newParams);
+	};
 	const [cves, setCves] = useState<any[]>([]);
 	const [tickets, setTickets] = useState<Record<string, any>>({});
 	const [jiraBaseUrl, setJiraBaseUrl] = useState("");

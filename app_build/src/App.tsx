@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { Console } from "./components/Console";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { GlobalLoader } from "./components/layout/GlobalLoader";
-import { Header } from "./components/layout/Header";
 import { ReportModal } from "./components/layout/ReportModal";
-import { Overview } from "./components/overview/Overview";
-import { Projects } from "./components/Projects";
-import { PromptsLibrary } from "./components/PromptsLibrary";
-import { Reports } from "./components/Reports";
-import { Settings } from "./components/Settings";
-import { Triage } from "./components/Triage";
-import { Debug } from "./components/debug/Debug";
+import { MainLayout } from "./components/templates/MainLayout";
+import { BlankLayout } from "./components/templates/BlankLayout";
+
+import { Overview } from "./pages/Overview";
+import { Projects } from "./pages/Projects";
+import { PromptsLibrary } from "./pages/PromptsLibrary";
+import { Reports } from "./pages/Reports";
+import { Settings } from "./pages/Settings";
+import { Triage } from "./pages/Triage";
+import { Debug } from "./pages/Debug";
 
 interface Stats {
 	monitoredProjects: number;
@@ -27,9 +29,9 @@ interface Stats {
 }
 
 export function App() {
-	const [currentTab, setCurrentTab] = useState<
-		"overview" | "projects" | "triage" | "reports" | "prompts" | "settings" | "debug"
-	>("overview");
+	const navigate = useNavigate();
+	const location = useLocation();
+
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [auditing, setAuditing] = useState(false);
@@ -38,8 +40,6 @@ export function App() {
 		total: number;
 		name: string;
 	} | null>(null);
-	const [triageProjectId, setTriageProjectId] = useState<number | null>(null);
-	const [triageCveFilter, setTriageCveFilter] = useState<string | null>(null);
 	const [reportModal, setReportModal] = useState<any | null>(null);
 
 	const [loadingMessage, setLoadingMessage] = useState(
@@ -105,12 +105,12 @@ export function App() {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.ctrlKey && e.shiftKey && e.key === "D") {
 				e.preventDefault();
-				setCurrentTab(prev => prev === "debug" ? "overview" : "debug");
+				navigate(location.pathname === "/debug" ? "/" : "/debug");
 			}
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, []);
+	}, [navigate, location.pathname]);
 
 	const handleRunAudit = useCallback(async () => {
 		setAuditing(true);
@@ -212,68 +212,25 @@ export function App() {
 			<div
 				className={`flex flex-col min-h-screen overflow-x-hidden relative transition-opacity duration-300 ${loading || auditing ? "opacity-50 pointer-events-none blur-sm" : "opacity-100"}`}
 			>
-				<Header
-					currentTab={currentTab}
-					setCurrentTab={setCurrentTab}
-					setTriageProjectId={setTriageProjectId}
-					setTriageCveFilter={setTriageCveFilter}
-					handleRunAudit={handleRunAudit}
-					auditing={auditing}
-					pendingCves={stats?.pendingCves}
-				/>
-
-				<div className="pt-[88px] flex-1 flex flex-col w-full">
-					{currentTab === "overview" && (
-						<Overview
-							stats={stats}
-							loading={loading}
-							setTriageProjectId={setTriageProjectId}
-							setCurrentTab={setCurrentTab}
-							setTriageCveFilter={setTriageCveFilter}
-							syncDisplay={syncDisplay}
-						/>
-					)}
-
-					{currentTab === "projects" && (
-						<Projects
-							onViewTriage={(id) => {
-								setTriageProjectId(id);
-								setCurrentTab("triage");
-							}}
-						/>
-					)}
-					{currentTab === "triage" && (
-						<Triage
-							projectId={triageProjectId}
-							cveFilter={triageCveFilter}
-							onClearProject={() => setTriageProjectId(null)}
-							onClearCve={() => setTriageCveFilter(null)}
-						/>
-					)}
-					{currentTab === "reports" && <Reports />}
-					{currentTab === "prompts" && <PromptsLibrary />}
-					{currentTab === "settings" && <Settings />}
-					{currentTab === "debug" && <Debug />}
-				</div>
-
-				<ReportModal
-					reportModal={reportModal}
-					setReportModal={setReportModal}
-					setCurrentTab={setCurrentTab}
-				/>
-
-				<footer className="w-full text-center py-8 mt-12 border-t border-border/10 text-muted-foreground/60 text-sm animate-in fade-in duration-500">
-					<p className="font-bold text-foreground/50 mb-1 tracking-wider uppercase text-xs">
-						Aegis Security
-					</p>
-					<p>
-						Parce que coder sans faille relève du mythe, mais les corriger avant
-						le week-end est un art.
-					</p>
-				</footer>
-
-				<Console />
+				<Routes>
+					<Route element={<MainLayout handleRunAudit={handleRunAudit} auditing={auditing} pendingCves={stats?.pendingCves} />}>
+						<Route path="/" element={<Overview stats={stats} loading={loading} syncDisplay={syncDisplay} />} />
+						<Route path="/projects" element={<Projects />} />
+						<Route path="/triage" element={<Triage />} />
+						<Route path="/reports" element={<Reports />} />
+						<Route path="/prompts" element={<PromptsLibrary />} />
+						<Route path="/settings" element={<Settings />} />
+					</Route>
+					<Route element={<BlankLayout />}>
+						<Route path="/debug" element={<Debug />} />
+					</Route>
+				</Routes>
 			</div>
+
+			<ReportModal
+				reportModal={reportModal}
+				setReportModal={setReportModal}
+			/>
 		</>
 	);
 }

@@ -10,10 +10,10 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useState, useRef } from "react";
-import { TagsManager } from "./TagsManager";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Switch } from "./ui/switch";
+import { TagsManager } from "../components/TagsManager";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Switch } from "../components/ui/switch";
 import { Upload } from "lucide-react";
 
 export function Settings() {

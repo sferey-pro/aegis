@@ -1,4 +1,5 @@
 import { Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -6,12 +7,11 @@ import { Button } from "../ui/button";
 export function ReportModal({
 	reportModal,
 	setReportModal,
-	setCurrentTab,
 }: {
 	reportModal: any;
 	setReportModal: (val: any) => void;
-	setCurrentTab: (tab: any) => void;
 }) {
+	const navigate = useNavigate();
 	return (
 		<Dialog open={!!reportModal} onOpenChange={(open) => { if (!open) setReportModal(null) }}>
 			<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
@@ -52,7 +52,7 @@ export function ReportModal({
 					<Button
 						onClick={() => {
 							setReportModal(null);
-							setCurrentTab("reports");
+							navigate("/reports");
 						}}
 						className="w-full font-bold rounded-xl"
 						size="lg"

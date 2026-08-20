@@ -7,23 +7,21 @@ import {
 	Shield,
 } from "lucide-react";
 import { memo } from "react";
-import { HistoryChart } from "../HistoryChart";
+import { HistoryChart } from "../components/HistoryChart";
+
+import { useNavigate } from "react-router-dom";
 
 export const Overview = memo(function Overview({
 	stats,
 	loading,
-	setTriageProjectId,
-	setCurrentTab,
-	setTriageCveFilter,
 	syncDisplay,
 }: {
 	stats: any;
 	loading: boolean;
-	setTriageProjectId: (id: number | null) => void;
-	setCurrentTab: (tab: any) => void;
-	setTriageCveFilter: (cve: string | null) => void;
 	syncDisplay: string;
 }) {
+	const navigate = useNavigate();
+	
 	return (
 		<main className="flex-1 w-full max-w-7xl mx-auto mt-4 z-10 flex flex-col gap-6">
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
@@ -123,10 +121,7 @@ export const Overview = memo(function Overview({
 							{stats.topProjects.map((tp: any, i: number) => (
 								<div
 									key={i}
-									onClick={() => {
-										setTriageProjectId(tp.id);
-										setCurrentTab("triage");
-									}}
+									onClick={() => navigate(`/triage?project=${tp.id}`)}
 									className="group flex items-center justify-between  p-4 rounded-2xl border cursor-pointer"
 								>
 									<div className="flex items-center gap-4">
@@ -167,10 +162,7 @@ export const Overview = memo(function Overview({
 							{stats.topCves.map((tc: any, i: number) => (
 								<div
 									key={i}
-									onClick={() => {
-										setTriageCveFilter(tc.cve);
-										setCurrentTab("triage");
-									}}
+									onClick={() => navigate(`/triage?cve=${tc.cve}`)}
 									className="group flex flex-col gap-2  p-4 rounded-2xl border cursor-pointer"
 								>
 									<div className="flex items-center justify-between">

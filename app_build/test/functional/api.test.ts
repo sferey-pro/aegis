@@ -11,6 +11,9 @@ const routes: any = {
 	...settingsRoutes,
 };
 
+/** Sentinelle : demande au faux `req.json()` de rejeter (corps illisible). */
+const INVALID_JSON = Symbol("corps illisible");
+
 async function request(
 	path: string,
 	options: RequestInit = {},
@@ -39,10 +42,15 @@ async function request(
 		return { status: 404, data: null };
 	}
 
+	// Le marqueur INVALID_JSON simule un corps illisible : `req.json()` rejette,
+	// comme le ferait Bun sur du JSON malformé.
 	const req: any = {
 		params,
 		url: `http://localhost${path}`,
-		json: async () => body,
+		json: async () => {
+			if (body === INVALID_JSON) throw new SyntaxError("Unexpected token");
+			return body;
+		},
 	};
 
 	const res = await handler(req);
@@ -72,10 +80,14 @@ describe("Aegis Functional API Tests", () => {
 
 	it("should create a new project", async () => {
 		const payload = {
-			name: "Test Func Project",
+			name: "  Test Func Project  ",
 			path: process.cwd(),
 			tool: "npm",
-			type: "application",
+			// `type` doit appartenir à l'énumération : "application" était accepté
+			// avant l'ajout de la validation, et créait un projet inauditable.
+			type: "node",
+			audit_path: "   ",
+			tags: [" web ", "web", "", "api"],
 		};
 
 		const res = await request(
@@ -87,14 +99,82 @@ describe("Aegis Functional API Tests", () => {
 			payload,
 		);
 
-		if (res.status !== 200) {
+		if (res.status !== 201) {
 			console.log("Project creation failed:", res.data);
 		}
-		expect(res.status).toBe(200);
+		expect(res.status).toBe(201);
 		expect(res.data.id).toBeDefined();
+
+		// Normalisation attendue (CONTEXT.md §1)
 		expect(res.data.name).toBe("Test Func Project");
+		expect(res.data.audit_path).toBeNull();
+		expect(res.data.tags).toEqual(["web", "api"]);
 
 		createdProjectId = res.data.id;
+	});
+
+	describe("validation du corps (CONTEXT.md §1)", () => {
+		const valid = () => ({
+			name: "Projet valide",
+			path: process.cwd(),
+			tool: "npm",
+			type: "node",
+		});
+
+		const post = (body: unknown) =>
+			request("/api/projects", { method: "POST" }, body);
+
+		it("rejette un corps illisible avec « JSON invalide »", async () => {
+			const res = await post(INVALID_JSON);
+			expect(res.status).toBe(400);
+			expect(res.data.error).toBe("JSON invalide");
+		});
+
+		it("rejette un nom vide avec « Nom requis »", async () => {
+			const res = await post({ ...valid(), name: "   " });
+			expect(res.status).toBe(400);
+			expect(res.data.error).toBe("Nom requis");
+		});
+
+		it("rejette un chemin vide avec « Chemin requis »", async () => {
+			const res = await post({ ...valid(), path: "" });
+			expect(res.status).toBe(400);
+			expect(res.data.error).toBe("Chemin requis");
+		});
+
+		it("rejette un type hors énumération", async () => {
+			const res = await post({ ...valid(), type: "php" });
+			expect(res.status).toBe(400);
+			expect(res.data.error).toBe("Type invalide (node|composer)");
+		});
+
+		it("rejette un outil hors énumération", async () => {
+			const res = await post({ ...valid(), tool: "pnpm" });
+			expect(res.status).toBe(400);
+			expect(res.data.error).toBe("Outil invalide (npm|yarn|composer)");
+		});
+
+		it("refuse en 409 un second projet sur la même cible d'audit", async () => {
+			// Le projet créé plus haut vise déjà process.cwd(). Une écriture du même
+			// chemin avec un `/` final doit résoudre vers la même clé.
+			const res = await post({
+				...valid(),
+				name: "Doublon",
+				path: `${process.cwd()}/`,
+			});
+			expect(res.status).toBe(409);
+			expect(res.data.error).toContain("cible d'audit");
+		});
+
+		it("renvoie 404 sur la modification d'un id inexistant", async () => {
+			const res = await request(
+				"/api/projects/999999",
+				{ method: "PUT" },
+				valid(),
+			);
+			expect(res.status).toBe(404);
+			expect(res.data.error).toBe("Projet introuvable");
+		});
 	});
 
 	it("should fetch the newly created project by ID", async () => {
@@ -147,18 +227,21 @@ describe("Aegis Functional API Tests", () => {
 				name: "Temp update",
 				path: process.cwd(),
 				tool: "npm",
-				type: "application",
+				type: "node",
 			},
 		);
+		expect(createRes.status).toBe(201);
 		const id = createRes.data.id;
 
+		// `path` fait partie du corps validé : un PUT partiel est refusé en 400.
 		const res = await request(
 			`/api/projects/${id}`,
 			{ method: "PUT" },
 			{
 				name: "Updated Name",
+				path: process.cwd(),
 				tool: "yarn",
-				type: "application",
+				type: "node",
 				audit_path: "",
 				tags: [],
 				ignored: true,

@@ -1,50 +1,78 @@
+import nodePath from "node:path";
 import type { BunRequest } from "bun";
 import { errorMessage } from "@/lib/utils";
 import {
 	createProject,
 	deleteProject,
+	getProjectById,
 	listProjects,
 	updateProject,
 } from "../db/projects";
 import { getLatestRun } from "../db/runs";
+import { auditTargetKey, resolveAuditTarget } from "../lib/audit";
 import { runSingleAudit } from "../lib/audit/queue";
-import { getGitInfo, gitFetch, gitPull } from "../lib/git";
+import { expandPath, getGitInfo, gitFetch, gitPull } from "../lib/git";
+import { detectBodySchema, projectBodySchema } from "../lib/schemas";
+import { parseBody } from "../lib/validate";
 
 function isPathAllowed(targetPath: string) {
 	const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
 	if (!allowedRootsStr) return true;
-	const nodePath = require("node:path");
 	const allowedRoots = allowedRootsStr
 		.split(",")
 		.map((r) => nodePath.resolve(r.trim()));
 	const absolutePath = nodePath.resolve(targetPath);
 	return allowedRoots.some(
-		(root: string) =>
+		(root) =>
 			absolutePath === root || absolutePath.startsWith(root + nodePath.sep),
+	);
+}
+
+/**
+ * Refuse la requête si la racine git ou la cible d'audit sortent de
+ * `AEGIS_ALLOWED_ROOTS`. Les deux sont contrôlées : la racine sert aux commandes
+ * git (qui exécutent les hooks du dépôt), la cible sert au lancement de l'outil
+ * d'audit. Contrôler la cible telle qu'elle sera réellement exécutée.
+ */
+function pathGuard(path: string, auditPath: string | null): Response | null {
+	const root = expandPath(path);
+	const target = resolveAuditTarget(path, auditPath);
+	if (isPathAllowed(root) && isPathAllowed(target)) return null;
+	return Response.json(
+		{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
+		{ status: 403 },
+	);
+}
+
+/**
+ * Doublon si un autre projet vise la même cible d'audit résolue (CONTEXT.md §1).
+ * `excludeId` permet d'exclure le projet en cours de modification.
+ */
+function findDuplicate(
+	path: string,
+	auditPath: string | null,
+	excludeId?: number,
+) {
+	const key = auditTargetKey(path, auditPath);
+	return listProjects().find(
+		(p) => p.id !== excludeId && auditTargetKey(p.path, p.audit_path) === key,
 	);
 }
 
 export const projectsRoutes = {
 	"/api/projects/detect": {
 		async POST(req: Request) {
-			const { path, audit_path } = await req.json();
+			const { data, response } = await parseBody(req, detectBodySchema);
+			if (!data) return response;
+
+			const denied = pathGuard(data.path, data.audit_path);
+			if (denied) return denied;
+
 			const fs = await import("node:fs");
-			const nodePath = await import("node:path");
-			const { expandPath } = await import("../lib/git");
+			const fullPath = resolveAuditTarget(data.path, data.audit_path);
 
 			let tool = null;
 			try {
-				const expanded = expandPath(path);
-				const safeAuditPath = (audit_path || "").replace(/^\/+/, "");
-				const fullPath = nodePath.resolve(expanded, safeAuditPath);
-
-				if (!isPathAllowed(fullPath)) {
-					return Response.json(
-						{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
-						{ status: 403 },
-					);
-				}
-
 				if (fs.existsSync(nodePath.join(fullPath, "composer.lock")))
 					tool = "composer";
 				else if (fs.existsSync(nodePath.join(fullPath, "bun.lockb")))
@@ -95,23 +123,24 @@ export const projectsRoutes = {
 			return Response.json(enriched);
 		},
 		async POST(req: Request) {
-			const body = await req.json();
-			const nodePath = await import("node:path");
-			const { expandPath } = await import("../lib/git");
+			const { data, response } = await parseBody(req, projectBodySchema);
+			if (!data) return response;
 
-			const expanded = expandPath(body.path);
-			const safeAuditPath = (body.audit_path || "").replace(/^\/+/, "");
-			const fullPath = nodePath.resolve(expanded, safeAuditPath);
+			const denied = pathGuard(data.path, data.audit_path);
+			if (denied) return denied;
 
-			if (!isPathAllowed(fullPath)) {
+			const duplicate = findDuplicate(data.path, data.audit_path);
+			if (duplicate) {
 				return Response.json(
-					{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
-					{ status: 403 },
+					{
+						error: `Un projet vise déjà cette cible d'audit : ${duplicate.name}`,
+					},
+					{ status: 409 },
 				);
 			}
 
-			const project = createProject(body);
-			return Response.json(project);
+			const project = createProject(data);
+			return Response.json(project, { status: 201 });
 		},
 	},
 
@@ -131,8 +160,27 @@ export const projectsRoutes = {
 		},
 		async PUT(req: BunRequest<"/api/projects/:id">) {
 			const id = parseInt(req.params.id, 10);
-			const body = await req.json();
-			const project = updateProject(id, body);
+			if (!getProjectById(id)) {
+				return Response.json({ error: "Projet introuvable" }, { status: 404 });
+			}
+
+			const { data, response } = await parseBody(req, projectBodySchema);
+			if (!data) return response;
+
+			const denied = pathGuard(data.path, data.audit_path);
+			if (denied) return denied;
+
+			const duplicate = findDuplicate(data.path, data.audit_path, id);
+			if (duplicate) {
+				return Response.json(
+					{
+						error: `Un projet vise déjà cette cible d'audit : ${duplicate.name}`,
+					},
+					{ status: 409 },
+				);
+			}
+
+			const project = updateProject(id, data);
 			return Response.json(project);
 		},
 		async DELETE(req: BunRequest<"/api/projects/:id">) {

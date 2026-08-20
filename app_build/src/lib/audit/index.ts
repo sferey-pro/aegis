@@ -90,20 +90,44 @@ function isFresh(ranAtStr: string, maxAgeHours: number): boolean {
 	return diffHours <= maxAgeHours;
 }
 
-export function getAuditTarget(project: Project): string {
-	const root = expandPath(project.path);
-	if (!project.audit_path) return root;
+/**
+ * Résout le dossier réellement audité depuis un couple (racine git, sous-dossier).
+ *
+ * Source de vérité unique : les contrôles d'autorisation de chemin et la
+ * détection de doublon doivent appeler cette fonction, jamais recomposer le
+ * chemin de leur côté. Les deux calculs avaient divergé, si bien qu'un
+ * `audit_path` absolu était validé comme relatif puis exécuté comme absolu.
+ */
+export function resolveAuditTarget(
+	path: string,
+	auditPath?: string | null,
+): string {
+	const root = expandPath(path);
+	if (!auditPath) return root;
 
 	// Si le chemin commence par / ou ~, c'est un chemin absolu à part entière
-	if (
-		project.audit_path.startsWith("/") ||
-		project.audit_path.startsWith("~")
-	) {
-		return expandPath(project.audit_path);
+	if (auditPath.startsWith("/") || auditPath.startsWith("~")) {
+		return expandPath(auditPath);
 	}
 
 	// Sinon, c'est relatif à la racine Git (root)
-	return resolve(root, project.audit_path);
+	return resolve(root, auditPath);
+}
+
+export function getAuditTarget(project: Project): string {
+	return resolveAuditTarget(project.path, project.audit_path);
+}
+
+/**
+ * Clé d'unicité d'un projet : cible d'audit résolue, `/` finaux retirés
+ * (CONTEXT.md §1). `~/app`, `/home/u/app` et `/home/u/app/` donnent la même clé.
+ */
+export function auditTargetKey(
+	path: string,
+	auditPath?: string | null,
+): string {
+	const target = resolveAuditTarget(path, auditPath);
+	return target.length > 1 ? target.replace(/\/+$/, "") : target;
 }
 
 export async function runAudit(

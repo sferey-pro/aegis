@@ -18,20 +18,35 @@ Finies les lignes de terminal illisibles ! Avec Aegis, repérez instantanément 
 - **🌐 Ingénierie Glocale** : Scannez vos projets locaux (par chemin de dossier) ou ingérez les rapports de vulnérabilité distants poussés par vos pipelines CI/CD.
 - **🔍 Module de Triage Centralisé** : Passez en revue toutes vos CVEs dans une boîte de réception type "Inbox Zero". Marquez les failles comme `En attente`, `Confirmées` (Urgent), `Non affectées` (Faux positif) ou `Ignorées`.
 - **📊 Tableaux de Bord & Rapports** : Suivez l'historique de votre écosystème avec des graphiques évolutifs temporels (vue 1h, 1j, 7j, 30j...) et générez des rapports d'audit globaux sur tous vos projets en un clic.
-- **🎨 Design UI/UX Premium** : Interface construite en React + TailwindCSS exploitant massivement les effets de flou (backdrop-blur), les animations de layout fluides, une typographie soignée pour une expérience utilisateur sans friction, et une gestion avancée des re-rendus (React.memo, useCallback) pour des performances optimales.
+- **🎨 Design UI/UX Premium** : Interface construite en React + TailwindCSS (via l'écosystème Shadcn UI et Radix). Le système intègre des animations de layout fluides, une typographie soignée et un système de thèmes.
 - **🤖 Bibliothèque de Prompts** : Espace dédié pour stocker vos prompts IA d'aide à la remédiation de sécurité.
-- **🔌 Intégration Jira & Ticketing** : Support natif pour la génération automatisée de tickets Atlassian Jira directement depuis l'interface de triage des CVEs. Protection anti-doublon via hachage SHA-256 (`content_hash`).
-- **🔗 GitHub Advisory Data** : Enrichissement automatique des données de failles via l'API GitHub Advisory avec limitation de concurrence pour respecter les quotas (Rate Limits).
-- **⚙️ Paramètres & Export/Import** : Configurez facilement les tags de vos projets et exportez/importez votre configuration au format JSON pour la sauvegarder ou la partager.
+- **🔌 Intégration Jira & Ticketing** : Support natif pour la génération automatisée de tickets Atlassian Jira. Protection anti-doublon via hachage SHA-256 (`content_hash`).
+- **🔗 GitHub Advisory Data** : Enrichissement automatique des données de failles via l'API GitHub Advisory.
+- **⚙️ Paramètres & Export/Import** : Configurez facilement les tags de vos projets et exportez/importez votre configuration.
+
+---
+
+## 🏗️ Architecture Frontend (Atomic Design)
+
+Le code frontend de l'application est structuré selon les principes de l'**Atomic Design** pour maximiser la réutilisabilité et la maintenabilité du code. La navigation est intégralement gérée par `react-router-dom` (v7).
+
+Le dossier `src/` est organisé comme suit :
+- 📁 **`pages/`** : Les composants racines de chaque route (ex: `Overview.tsx`, `Projects.tsx`, `Triage.tsx`, `Settings.tsx`).
+- 📁 **`components/`** : Les briques de l'interface graphique :
+  - 🧩 **`ui/` (Atomes)** : Les composants de base purs Shadcn/Radix (Boutons, Inputs, Select, Dialogs...).
+  - 🧬 **`molecules/`** : L'assemblage d'atomes pour créer des éléments simples (ex: `StatCard`, `ActionBadge`, `LabelInput`).
+  - 🧱 **`organisms/`** : Les grands blocs fonctionnels autonomes (ex: `Header`, `TriageTable`, `CveDetailsModal`, `ProjectCard`).
+  - 📐 **`templates/`** : Les gabarits de mise en page (ex: `MainLayout` avec Header et padding, `BlankLayout` pour la page Debug).
+- 📁 **`lib/`** : Logique métier, utilitaires et constantes (ex: `triage-constants.tsx`, `cvss.ts`).
 
 ---
 
 ## 🛠️ Stack Technique
 
-- **Moteur (Backend)** : [Bun](https://bun.com/) (Hautes performances, gestion optimisée des requêtes SQL par lots pour éviter les N+1, et gestion globale des erreurs asynchrones)
-- **Base de Données** : SQLite (via `bun:sqlite` - léger, transactions sécurisées, sans dépendance externe)
-- **Frontend** : React 18, React Router, Recharts
-- **Style** : TailwindCSS (Vanilla, architecture orientée Glassmorphism), Lucide React pour l'iconographie
+- **Moteur Backend** : [Bun](https://bun.com/) (Hautes performances, APIs natives)
+- **Base de Données** : SQLite (via `bun:sqlite` - léger et performant)
+- **Frontend** : React 19, React Router v7, Recharts
+- **Style** : TailwindCSS v4, Lucide React pour l'iconographie
 
 ---
 
@@ -44,34 +59,30 @@ cd aegis
 ```
 
 ### 2. Configuration de l'environnement
-Copiez le fichier d'exemple et ajustez les variables si besoin :
+Copiez le fichier d'exemple :
 ```bash
 cp .env.example .env
 ```
-Variables importantes :
-- `AEGIS_PORT` : Le port sur lequel l'application sera lancée (par défaut `3001`).
-- `AEGIS_INGEST_TOKEN` : Token secret pour sécuriser l'API d'ingestion CI/CD.
-- `AEGIS_ALLOWED_ROOTS` : Chemins de base autorisés pour scanner des projets locaux (mesure de sécurité).
+*(Vous pourrez y configurer `AEGIS_PORT`, `AEGIS_INGEST_TOKEN` et `AEGIS_ALLOWED_ROOTS`)*
 
-### 3. Installer les dépendances via Bun
+### 3. Lancer l'environnement de développement
+L'outil principal utilise un `Makefile` pour simplifier les commandes :
 ```bash
-bun install
+# Lance le serveur backend et le build frontend en mode watch (hot reload)
+make dev
 ```
 
-### 4. Lancer le serveur de développement (Backend + Frontend)
-```bash
-bun dev
-```
+L'application sera accessible sur `http://localhost:3001`.
 
-L'application sera accessible sur `http://localhost:3001` (ou le port défini par `AEGIS_PORT`). La base de données SQLite `aegis.db` sera créée automatiquement à la racine.
+### Commandes Utiles (via Bun & Make)
+- `make build` : Construit le bundle frontend de production dans `dist/`.
+- `bun run check` (dans `app_build`) : Exécute le Type checking (`tsc --noEmit`) et lance l'ensemble des tests unitaires fonctionnels de l'application.
 
 ---
 
 ## 📡 Intégration CI (Ingest API)
 
 Aegis permet de stocker les rapports de vulnérabilités générés par vos pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins, etc.) pour les centraliser sur le dashboard. 
-
-Pour cela, envoyez la sortie standard (`stdout`) de votre outil d'audit (`npm audit --json`, etc.) à l'API d'ingestion en spécifiant le paramètre `sha` pour lier le rapport à un commit précis.
 
 **Exemple d'appel cURL :**
 ```bash

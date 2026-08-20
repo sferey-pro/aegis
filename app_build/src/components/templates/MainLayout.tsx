@@ -1,7 +1,7 @@
-import React from "react";
+
 import { Outlet } from "react-router-dom";
 import { Header } from "../organisms/Header";
-import { Console } from "../Console";
+import { Console } from "../organisms/Console";
 
 interface MainLayoutProps {
 	handleRunAudit: () => Promise<void>;

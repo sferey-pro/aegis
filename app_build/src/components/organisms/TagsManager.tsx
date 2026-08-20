@@ -1,9 +1,9 @@
 import { Plus, RefreshCw, Tag, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Badge } from "./ui/badge";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Badge } from "../ui/badge";
 
 export function TagsManager() {
 	const [tags, setTags] = useState<
@@ -84,7 +84,7 @@ export function TagsManager() {
 					</label>
 					<Input
 						value={newName}
-						onChange={(e) => setNewName(e.target.value)}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
 						placeholder="Ex: API"
 						required
 					/>

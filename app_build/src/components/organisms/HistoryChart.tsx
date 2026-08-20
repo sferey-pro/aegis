@@ -6,14 +6,14 @@ import {
 	ChartTooltip,
 	ChartTooltipContent,
 	type ChartConfig,
-} from "./ui/chart";
+} from "../ui/chart";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "./ui/select";
+} from "../ui/select";
 
 const chartConfig = {
 	critical: {
@@ -90,7 +90,7 @@ export function HistoryChart() {
 				</div>
 				<Select
 					value={days.toString()}
-					onValueChange={(val) => setDays(Number.parseInt(val))}
+					onValueChange={(val: string) => setDays(Number.parseInt(val))}
 				>
 					<SelectTrigger className="w-[140px] h-9 rounded-xl">
 						<SelectValue placeholder="Période" />

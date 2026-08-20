@@ -7,9 +7,9 @@ import {
 	X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { ConfirmReasonModal } from "../components/triage/ConfirmReasonModal";
+import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
-import { compareVersions, SEV_ORDER } from "../components/triage/constants";
+import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 import { TicketModal } from "../components/organisms/TicketModal";
 import { TriageTable } from "../components/organisms/TriageTable";
 import { Button } from "../components/ui/button";

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { buildCvssTooltip } from "../lib/cvss";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
 import {
 	Table,

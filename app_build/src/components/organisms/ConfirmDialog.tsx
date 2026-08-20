@@ -1,7 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
-import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
+import { Button } from "../ui/button";
 
 interface ConfirmDialogProps {
 	isOpen: boolean;
@@ -23,7 +23,7 @@ export function ConfirmDialog({
 	onCancel,
 }: ConfirmDialogProps) {
 	return (
-		<Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
+		<Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onCancel(); }}>
 			<DialogContent className="max-w-md">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-3">
@@ -71,7 +71,7 @@ export function AlertDialog({
 	onClose,
 }: AlertDialogProps) {
 	return (
-		<Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+		<Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
 			<DialogContent className="max-w-md">
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>

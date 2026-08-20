@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";

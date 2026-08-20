@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { buildCvssTooltip } from "../../lib/cvss";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { SEVERITY_COLORS } from "../triage/constants";
+import { SEVERITY_COLORS } from "../../lib/triage-constants";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { Button } from "../ui/button";

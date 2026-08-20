@@ -7,7 +7,7 @@ import {
 	Shield,
 } from "lucide-react";
 import { memo } from "react";
-import { HistoryChart } from "../components/HistoryChart";
+import { HistoryChart } from "../components/organisms/HistoryChart";
 
 import { useNavigate } from "react-router-dom";
 

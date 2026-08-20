@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useState, useRef } from "react";
-import { TagsManager } from "../components/TagsManager";
+import { TagsManager } from "../components/organisms/TagsManager";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Switch } from "../components/ui/switch";

@@ -20,7 +20,7 @@ import {
 	LayoutGrid,
 	List,
 } from "lucide-react";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
@@ -77,13 +77,25 @@ export const Projects = React.memo(function Projects() {
 					if (data.label === "git") msg = "Opération Git...";
 					if (data.label === "github") msg = "Recherche correctifs GitHub...";
 					if (data.label === "audit")
-						msg = `Audit ${data.cmd.split(" ")[0]}...`;
+						msg = `Audit ${data.cmd?.split(" ")[0] || ""}...`;
 
 					setAuditState((prev) => {
 						const p = projectsRef.current.find(
 							(proj: any) => proj.name === data.project,
 						);
 						if (p) return { ...prev, [p.id]: msg };
+						return prev;
+					});
+				} else if (data.phase === "end" && data.project) {
+					setAuditState((prev) => {
+						const p = projectsRef.current.find(
+							(proj: any) => proj.name === data.project,
+						);
+						if (p) {
+							const next = { ...prev };
+							delete next[p.id];
+							return next;
+						}
 						return prev;
 					});
 				}

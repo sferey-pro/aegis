@@ -1,22 +1,22 @@
-import React from "react";
 import {
-	Shield,
-	CheckCircle2,
 	AlertTriangle,
-	MoreHorizontal,
-	Check,
-	Copy,
-	Info,
-	Clock,
-	GitBranch,
 	ArrowDownToLine,
+	Check,
+	CheckCircle2,
+	Clock,
 	CloudDownload,
-	RefreshCw,
-	Play,
+	Copy,
 	Edit2,
-	Trash2,
+	GitBranch,
+	Info,
 	Loader2,
+	MoreHorizontal,
+	Play,
+	RefreshCw,
+	Shield,
+	Trash2,
 } from "lucide-react";
+import React from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -60,14 +60,11 @@ export const ProjectCard = React.memo(function ProjectCard({
 	const hasCritical = p.lastRun?.counts?.critical > 0;
 	const hasNoCves =
 		p.lastRun &&
-		Object.values(p.lastRun.counts).reduce(
-			(a: any, b: any) => a + b,
-			0,
-		) === 0;
+		Object.values(p.lastRun.counts).reduce((a: any, b: any) => a + b, 0) === 0;
 
 	return (
 		<div
-			className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${ p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-red-500/50 cursor-pointer " : "hover:-translate-y-1 cursor-pointer " }`}
+			className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-red-500/50 cursor-pointer " : "hover:-translate-y-1 cursor-pointer "}`}
 			style={{
 				animationDelay: `${(index % 20) * 50}ms`,
 				animationFillMode: "backwards",
@@ -79,9 +76,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 			{auditState[p.id] && (
 				<div className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl">
 					<Loader2 className="w-6 h-6 text-primary animate-spin" />
-					<span className="text-xs font-semibold ">
-						{auditState[p.id]}
-					</span>
+					<span className="text-xs font-semibold ">{auditState[p.id]}</span>
 				</div>
 			)}
 
@@ -154,9 +149,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 							) : (
 								<Copy className="w-3.5 h-3.5" />
 							)}
-							{copiedSlug === p.id
-								? "Copié !"
-								: "Copier URL Ingestion"}
+							{copiedSlug === p.id ? "Copié !" : "Copier URL Ingestion"}
 						</button>
 					</div>
 				</div>
@@ -232,8 +225,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 									className="text-red-400 font-bold flex items-center gap-0.5"
 									title={`${p.git.behind} commits de retard`}
 								>
-									<ArrowDownToLine className="w-3 h-3" />{" "}
-									{p.git.behind}
+									<ArrowDownToLine className="w-3 h-3" /> {p.git.behind}
 								</span>
 							)}
 							<button
@@ -257,9 +249,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 				</div>
 			) : (
 				<div className="flex items-center justify-between mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
-					<span className="text-muted-foreground italic">
-						Dépôt Non-Git
-					</span>
+					<span className="text-muted-foreground italic">Dépôt Non-Git</span>
 					<button
 						onClick={(e) => handleDetectGit(p.id, e)}
 						disabled={detectingId === p.id}

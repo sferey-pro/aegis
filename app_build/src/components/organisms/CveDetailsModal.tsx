@@ -1,7 +1,13 @@
 import { Link as LinkIcon } from "lucide-react";
-
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../ui/dialog";
 import { CveCard } from "./CveCard";
 
 export function CveDetailsModal({
@@ -31,8 +37,8 @@ export function CveDetailsModal({
 	jiraBaseUrl: string;
 }) {
 	return (
-		<Dialog 
-			open={!!selectedGroup} 
+		<Dialog
+			open={!!selectedGroup}
 			onOpenChange={(open) => {
 				if (!open) setSelectedGroup(null);
 			}}
@@ -66,30 +72,30 @@ export function CveDetailsModal({
 								</DialogDescription>
 							</div>
 						</DialogHeader>
-				<div className="flex-1 overflow-y-auto p-6">
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-						{selectedGroup?.cves?.map((cveObj: any, i: number) => (
-							<CveCard
-								key={i}
-								cveObj={cveObj}
-								packageName={selectedGroup.package}
-								projectId={selectedGroup.projectId}
-								setToast={setToast}
-								updateStatus={updateStatus}
-								handleConfirmCve={handleConfirmCve}
-								onActionComplete={() => setSelectedGroup(null)}
-							/>
-						))}
-					</div>
-				</div>
-				<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
-					<Button
-						variant="secondary"
-						onClick={() => setSelectedGroup(null)}
-					>
-						Fermer
-					</Button>
-				</DialogFooter>
+						<div className="flex-1 overflow-y-auto p-6">
+							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+								{selectedGroup?.cves?.map((cveObj: any, i: number) => (
+									<CveCard
+										key={i}
+										cveObj={cveObj}
+										packageName={selectedGroup.package}
+										projectId={selectedGroup.projectId}
+										setToast={setToast}
+										updateStatus={updateStatus}
+										handleConfirmCve={handleConfirmCve}
+										onActionComplete={() => setSelectedGroup(null)}
+									/>
+								))}
+							</div>
+						</div>
+						<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
+							<Button
+								variant="secondary"
+								onClick={() => setSelectedGroup(null)}
+							>
+								Fermer
+							</Button>
+						</DialogFooter>
 					</>
 				)}
 			</DialogContent>

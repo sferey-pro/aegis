@@ -1,5 +1,5 @@
-import { describe, expect, test, mock, beforeEach } from "bun:test";
-import { enqueueGlobalAudit, runSingleAudit, getAuditStatus } from "./queue";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { enqueueGlobalAudit, getAuditStatus, runSingleAudit } from "./queue";
 
 const mockRunAudit = mock(async (id: number, force: boolean) => {
 	// Simulate async work
@@ -49,7 +49,7 @@ describe("Engine: Audit Queue", () => {
 		enqueueGlobalAudit([1, 2, 3]);
 
 		// Status immediately after enqueue
-		let status = getAuditStatus();
+		const status = getAuditStatus();
 		expect(status.isRunning).toBe(true);
 		expect(status.total).toBe(3);
 		expect(status.currentProject).toBe(1);

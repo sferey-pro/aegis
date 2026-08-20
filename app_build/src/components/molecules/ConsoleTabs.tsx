@@ -23,7 +23,8 @@ export const ConsoleTabs = memo(function ConsoleTabs({
 				const tabRunning =
 					t === "Global"
 						? globalRunningCount
-						: logs.filter((l) => l.project === t && l.status === "running").length;
+						: logs.filter((l) => l.project === t && l.status === "running")
+								.length;
 
 				return (
 					<button
@@ -35,7 +36,11 @@ export const ConsoleTabs = memo(function ConsoleTabs({
 								: "text-muted-foreground border-transparent hover:text-foreground"
 						}`}
 					>
-						{t === "Global" ? <Globe className="w-3.5 h-3.5" /> : <Folder className="w-3.5 h-3.5" />}
+						{t === "Global" ? (
+							<Globe className="w-3.5 h-3.5" />
+						) : (
+							<Folder className="w-3.5 h-3.5" />
+						)}
 						{t}
 						{tabRunning > 0 && (
 							<span className="ml-1 flex h-2 w-2 relative">

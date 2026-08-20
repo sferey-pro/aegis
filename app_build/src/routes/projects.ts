@@ -65,8 +65,8 @@ export const projectsRoutes = {
 		async GET() {
 			const projects = listProjects();
 			const { getLatestRunsByProjectIds } = await import("../db/runs");
-			const latestRuns = getLatestRunsByProjectIds(projects.map(p => p.id));
-			
+			const latestRuns = getLatestRunsByProjectIds(projects.map((p) => p.id));
+
 			const enriched = new Array(projects.length);
 			let i = 0;
 			// 4 concurrent workers for getGitInfo
@@ -85,8 +85,8 @@ export const projectsRoutes = {
 				}
 			};
 			await Promise.all(
-				Array.from({ length: Math.min(concurrencyLimit, projects.length) }).map(() =>
-					exec(),
+				Array.from({ length: Math.min(concurrencyLimit, projects.length) }).map(
+					() => exec(),
 				),
 			);
 			return Response.json(enriched);

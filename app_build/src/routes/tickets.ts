@@ -1,17 +1,17 @@
-import { buildCveGroups } from "../lib/aggregator";
 import {
 	doc,
 	heading,
+	link,
+	panel,
 	paragraph,
-	text,
 	strong,
 	table,
-	tableRow,
-	tableHeader,
 	tableCell,
-	panel,
-	link,
+	tableHeader,
+	tableRow,
+	text,
 } from "@atlaskit/adf-utils/builders";
+import { buildCveGroups } from "../lib/aggregator";
 
 export const ticketsRoutes = {
 	"/api/tickets": {

@@ -1,7 +1,14 @@
 import { CheckCircle2, Copy, FileText, RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
 
 export function TicketModal({
@@ -21,9 +28,11 @@ export function TicketModal({
 	const [creating, setCreating] = useState(false);
 
 	return (
-		<Dialog 
-			open={ticketModal.isOpen} 
-			onOpenChange={(open: boolean) => setTicketModal({ ...ticketModal, isOpen: open })}
+		<Dialog
+			open={ticketModal.isOpen}
+			onOpenChange={(open: boolean) =>
+				setTicketModal({ ...ticketModal, isOpen: open })
+			}
 		>
 			<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
 				<DialogHeader className="p-6 pb-4 border-b shrink-0">

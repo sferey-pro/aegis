@@ -22,7 +22,7 @@ export const Header = memo(function Header({
 }) {
 	const location = useLocation();
 	const navigate = useNavigate();
-	
+
 	const path = location.pathname;
 
 	return (

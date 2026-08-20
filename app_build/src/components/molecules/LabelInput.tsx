@@ -1,6 +1,6 @@
-import React from "react";
-import { Label } from "../ui/label";
+import type React from "react";
 import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 
 interface LabelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 	label: string;

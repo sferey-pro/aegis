@@ -1,29 +1,45 @@
-import React, { useState, useEffect, useRef } from "react";
 import {
-	Plus,
-	Trash2,
-	Folder,
-	Shield,
-	RefreshCw,
-	GitBranch,
-	CloudDownload,
-	ArrowDownToLine,
 	AlertTriangle,
-	CheckCircle2,
-	Loader2,
-	XCircle,
-	Copy,
+	ArrowDownToLine,
 	Check,
-	Info,
+	CheckCircle2,
+	CloudDownload,
+	Copy,
 	Edit2,
-	Play,
+	Folder,
+	GitBranch,
+	Info,
 	LayoutGrid,
 	List,
+	Loader2,
+	Play,
+	Plus,
+	RefreshCw,
+	Shield,
+	Trash2,
+	XCircle,
 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { ProjectCard } from "../components/organisms/ProjectCard";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "../components/ui/select";
 import {
 	Table,
 	TableBody,
@@ -32,11 +48,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "../components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { ProjectCard } from "../components/organisms/ProjectCard";
-
-import { useNavigate } from "react-router-dom";
 
 export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
@@ -465,7 +476,12 @@ export const Projects = React.memo(function Projects() {
 				</div>
 			</div>
 
-			<Dialog open={isAdding} onOpenChange={(open: boolean) => { if (!open) resetForm(); }}>
+			<Dialog
+				open={isAdding}
+				onOpenChange={(open: boolean) => {
+					if (!open) resetForm();
+				}}
+			>
 				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
 					<form
 						ref={formRef}
@@ -582,8 +598,7 @@ export const Projects = React.memo(function Projects() {
 										/>
 										{detectStatus === "detecting" && (
 											<span className="text-xs mt-1 flex items-center gap-1">
-												<Loader2 className="w-3 h-3" /> Détection
-												automatique...
+												<Loader2 className="w-3 h-3" /> Détection automatique...
 											</span>
 										)}
 										{detectStatus === "success" && (
@@ -668,7 +683,7 @@ export const Projects = React.memo(function Projects() {
 															});
 														}
 													}}
-													className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${ isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground" }`}
+													className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground"}`}
 												>
 													<span
 														className="w-2 h-2 rounded-full inline-block mr-2"
@@ -780,25 +795,25 @@ export const Projects = React.memo(function Projects() {
 						? projects.filter((p) => p.tags && p.tags.includes(filterTag))
 						: projects
 					).map((p, index) => (
-							<ProjectCard
-								key={p.id}
-								p={p}
-								index={index}
-								auditState={auditState}
-								onViewTriage={() => navigate(`/triage?project=${p.id}`)}
-								copiedSlug={copiedSlug}
-								setCopiedSlug={setCopiedSlug}
-								copyToClipboard={copyToClipboard}
-								detectingId={detectingId}
-								handleDetectGit={handleDetectGit}
-								handleFetch={handleFetch}
-								handlePull={handlePull}
-								toggleIgnore={toggleIgnore}
-								handleForceAudit={handleForceAudit}
-								handleEdit={handleEdit}
-								handleDelete={handleDelete}
-								formatDate={formatDate}
-							/>
+						<ProjectCard
+							key={p.id}
+							p={p}
+							index={index}
+							auditState={auditState}
+							onViewTriage={() => navigate(`/triage?project=${p.id}`)}
+							copiedSlug={copiedSlug}
+							setCopiedSlug={setCopiedSlug}
+							copyToClipboard={copyToClipboard}
+							detectingId={detectingId}
+							handleDetectGit={handleDetectGit}
+							handleFetch={handleFetch}
+							handlePull={handlePull}
+							toggleIgnore={toggleIgnore}
+							handleForceAudit={handleForceAudit}
+							handleEdit={handleEdit}
+							handleDelete={handleDelete}
+							formatDate={formatDate}
+						/>
 					))}
 				</div>
 			) : (
@@ -858,18 +873,12 @@ export const Projects = React.memo(function Projects() {
 												</div>
 												<div className="flex items-center gap-2">
 													{hasNoCves && (
-														<Badge
-															variant="outline"
-															className="text-[10px]"
-														>
+														<Badge variant="outline" className="text-[10px]">
 															Sain
 														</Badge>
 													)}
 													{hasCritical && (
-														<Badge
-															variant="outline"
-															className="text-[10px]"
-														>
+														<Badge variant="outline" className="text-[10px]">
 															Critique
 														</Badge>
 													)}

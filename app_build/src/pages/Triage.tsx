@@ -7,17 +7,19 @@ import {
 	X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
-import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 import { TicketModal } from "../components/organisms/TicketModal";
 import { TriageTable } from "../components/organisms/TriageTable";
 import { Button } from "../components/ui/button";
-import { useSearchParams } from "react-router-dom";
+import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 
 export const Triage = React.memo(function Triage() {
 	const [searchParams, setSearchParams] = useSearchParams();
-	const projectId = searchParams.get("project") ? parseInt(searchParams.get("project") as string) : null;
+	const projectId = searchParams.get("project")
+		? parseInt(searchParams.get("project") as string)
+		: null;
 	const cveFilter = searchParams.get("cve");
 
 	const onClearProject = () => {
@@ -280,10 +282,7 @@ export const Triage = React.memo(function Triage() {
 							<span className="text-sm font-semibold px-3 py-1 rounded-full border flex items-center gap-2">
 								Filtré par CVE ({cveFilter})
 								{onClearCve && (
-									<button
-										onClick={onClearCve}
-										className="hover:text-red-400"
-									>
+									<button onClick={onClearCve} className="hover:text-red-400">
 										<X className="w-3.5 h-3.5" />
 									</button>
 								)}
@@ -312,9 +311,7 @@ export const Triage = React.memo(function Triage() {
 				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
 					<Shield className="w-16 h-16 opacity-80" />
 					<div>
-						<h3 className="text-xl font-bold">
-							Aucune vulnérabilité
-						</h3>
+						<h3 className="text-xl font-bold">Aucune vulnérabilité</h3>
 						<p className="text-muted-foreground">Votre écosystème est sain !</p>
 					</div>
 				</div>
@@ -362,7 +359,7 @@ export const Triage = React.memo(function Triage() {
 
 			{toast?.isOpen && (
 				<div
-					className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border flex flex-col gap-2 bg-card border-border ${ toast.type === "success" ? "bg-green-500/10 " : toast.type === "error" ? "bg-red-500/10 " : "bg-blue-500/10 " }`}
+					className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border flex flex-col gap-2 bg-card border-border ${toast.type === "success" ? "bg-green-500/10 " : toast.type === "error" ? "bg-red-500/10 " : "bg-blue-500/10 "}`}
 				>
 					<div className="flex justify-between items-start">
 						<h4 className="font-bold flex items-center gap-2">

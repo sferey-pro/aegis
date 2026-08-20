@@ -1,7 +1,13 @@
 import { AlertTriangle } from "lucide-react";
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../ui/dialog";
 
 interface ConfirmDialogProps {
 	isOpen: boolean;
@@ -23,7 +29,12 @@ export function ConfirmDialog({
 	onCancel,
 }: ConfirmDialogProps) {
 	return (
-		<Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onCancel(); }}>
+		<Dialog
+			open={isOpen}
+			onOpenChange={(open: boolean) => {
+				if (!open) onCancel();
+			}}
+		>
 			<DialogContent className="max-w-md p-0 overflow-hidden flex flex-col">
 				<DialogHeader className="p-6 pb-4 border-b shrink-0">
 					<DialogTitle className="flex items-center gap-3">
@@ -39,10 +50,7 @@ export function ConfirmDialog({
 				</div>
 
 				<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
-					<Button
-						variant="ghost"
-						onClick={onCancel}
-					>
+					<Button variant="ghost" onClick={onCancel}>
 						{cancelText}
 					</Button>
 					<Button
@@ -74,7 +82,12 @@ export function AlertDialog({
 	onClose,
 }: AlertDialogProps) {
 	return (
-		<Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
+		<Dialog
+			open={isOpen}
+			onOpenChange={(open: boolean) => {
+				if (!open) onClose();
+			}}
+		>
 			<DialogContent className="max-w-md p-0 overflow-hidden flex flex-col">
 				<DialogHeader className="p-6 pb-4 border-b shrink-0">
 					<DialogTitle>{title}</DialogTitle>
@@ -87,11 +100,7 @@ export function AlertDialog({
 				</div>
 
 				<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
-					<Button
-						onClick={onClose}
-					>
-						OK
-					</Button>
+					<Button onClick={onClose}>OK</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

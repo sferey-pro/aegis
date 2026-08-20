@@ -1,5 +1,5 @@
-import { Badge } from "../ui/badge";
 import { X } from "lucide-react";
+import { Badge } from "../ui/badge";
 
 interface ActionBadgeProps {
 	label: string;
@@ -7,7 +7,11 @@ interface ActionBadgeProps {
 	onDelete?: () => void;
 }
 
-export function ActionBadge({ label, color = "primary", onDelete }: ActionBadgeProps) {
+export function ActionBadge({
+	label,
+	color = "primary",
+	onDelete,
+}: ActionBadgeProps) {
 	return (
 		<Badge
 			variant="secondary"

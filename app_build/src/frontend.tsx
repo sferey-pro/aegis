@@ -7,10 +7,10 @@
 
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { App } from "./App";
-import { TooltipProvider } from "./components/ui/tooltip";
 
 import { BrowserRouter } from "react-router-dom";
+import { App } from "./App";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 const elem = document.getElementById("root")!;
 const app = (

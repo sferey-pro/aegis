@@ -1,10 +1,10 @@
 import { Terminal } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
+import { ConsoleHeader } from "../molecules/ConsoleHeader";
+import { ConsoleLogItem } from "../molecules/ConsoleLogItem";
+import { ConsoleTabs } from "../molecules/ConsoleTabs";
 import { Button } from "../ui/button";
 import type { ConsoleEvent, LogEntry } from "./console-types";
-import { ConsoleHeader } from "../molecules/ConsoleHeader";
-import { ConsoleTabs } from "../molecules/ConsoleTabs";
-import { ConsoleLogItem } from "../molecules/ConsoleLogItem";
 
 export const Console = memo(function Console() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -159,7 +159,8 @@ export const Console = memo(function Console() {
 								Console Live Désactivée
 							</p>
 							<p className="text-sm">
-								Pour préserver les performances, vous pouvez la réactiver depuis les paramètres.
+								Pour préserver les performances, vous pouvez la réactiver depuis
+								les paramètres.
 							</p>
 						</div>
 					</div>

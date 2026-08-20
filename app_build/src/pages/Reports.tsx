@@ -13,9 +13,16 @@ import {
 	Trash2,
 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
-import { buildCvssTooltip } from "../lib/cvss";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
+import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "../components/ui/dialog";
 import {
 	Table,
 	TableBody,
@@ -24,9 +31,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "../components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
-import { Button } from "../components/ui/button";
-import { Checkbox } from "../components/ui/checkbox";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "../components/ui/tooltip";
+import { buildCvssTooltip } from "../lib/cvss";
 
 export const Reports = memo(function Reports() {
 	const [reports, setReports] = useState<any[]>([]);
@@ -420,7 +430,12 @@ export const Reports = memo(function Reports() {
 				onCancel={() => setBulkDeleteModalOpen(false)}
 			/>
 
-			<Dialog open={selectedReportIndex !== null} onOpenChange={(open: boolean) => { if (!open) setSelectedReportIndex(null); }}>
+			<Dialog
+				open={selectedReportIndex !== null}
+				onOpenChange={(open: boolean) => {
+					if (!open) setSelectedReportIndex(null);
+				}}
+			>
 				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
 					<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
 						<div>
@@ -513,7 +528,8 @@ export const Reports = memo(function Reports() {
 								{diffData.newVulns.length > 0 && (
 									<div>
 										<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-											<Activity className="w-5 h-5" /> Nouvelles failles détectées
+											<Activity className="w-5 h-5" /> Nouvelles failles
+											détectées
 										</h3>
 										<div className="flex flex-col gap-2">
 											{diffData.newVulns.map((v, i) => (
@@ -601,8 +617,8 @@ export const Reports = memo(function Reports() {
 											))}
 											{diffData.unchangedVulns.length > 50 && (
 												<p className="text-xs text-center text-muted-foreground p-2">
-													... et {diffData.unchangedVulns.length - 50} autres non
-													affichées
+													... et {diffData.unchangedVulns.length - 50} autres
+													non affichées
 												</p>
 											)}
 										</div>

@@ -7,9 +7,8 @@ import {
 	Shield,
 } from "lucide-react";
 import { memo } from "react";
-import { HistoryChart } from "../components/organisms/HistoryChart";
-
 import { useNavigate } from "react-router-dom";
+import { HistoryChart } from "../components/organisms/HistoryChart";
 
 export const Overview = memo(function Overview({
 	stats,
@@ -21,7 +20,7 @@ export const Overview = memo(function Overview({
 	syncDisplay: string;
 }) {
 	const navigate = useNavigate();
-	
+
 	return (
 		<main className="flex-1 w-full max-w-7xl mx-auto mt-4 z-10 flex flex-col gap-6">
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">

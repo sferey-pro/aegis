@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { GlobalLoader } from "./components/layout/GlobalLoader";
 import { ReportModal } from "./components/layout/ReportModal";
-import { MainLayout } from "./components/templates/MainLayout";
 import { BlankLayout } from "./components/templates/BlankLayout";
-
+import { MainLayout } from "./components/templates/MainLayout";
+import { Debug } from "./pages/Debug";
 import { Overview } from "./pages/Overview";
 import { Projects } from "./pages/Projects";
 import { PromptsLibrary } from "./pages/PromptsLibrary";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
 import { Triage } from "./pages/Triage";
-import { Debug } from "./pages/Debug";
 
 interface Stats {
 	monitoredProjects: number;
@@ -213,8 +212,25 @@ export function App() {
 				className={`flex flex-col min-h-screen overflow-x-hidden relative transition-opacity duration-300 ${loading || auditing ? "opacity-50 pointer-events-none blur-sm" : "opacity-100"}`}
 			>
 				<Routes>
-					<Route element={<MainLayout handleRunAudit={handleRunAudit} auditing={auditing} pendingCves={stats?.pendingCves} />}>
-						<Route path="/" element={<Overview stats={stats} loading={loading} syncDisplay={syncDisplay} />} />
+					<Route
+						element={
+							<MainLayout
+								handleRunAudit={handleRunAudit}
+								auditing={auditing}
+								pendingCves={stats?.pendingCves}
+							/>
+						}
+					>
+						<Route
+							path="/"
+							element={
+								<Overview
+									stats={stats}
+									loading={loading}
+									syncDisplay={syncDisplay}
+								/>
+							}
+						/>
 						<Route path="/projects" element={<Projects />} />
 						<Route path="/triage" element={<Triage />} />
 						<Route path="/reports" element={<Reports />} />
@@ -227,10 +243,7 @@ export function App() {
 				</Routes>
 			</div>
 
-			<ReportModal
-				reportModal={reportModal}
-				setReportModal={setReportModal}
-			/>
+			<ReportModal reportModal={reportModal} setReportModal={setReportModal} />
 		</>
 	);
 }

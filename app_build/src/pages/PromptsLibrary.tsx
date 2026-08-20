@@ -10,11 +10,17 @@ import {
 import type React from "react";
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { Badge } from "../components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 
 export function PromptsLibrary() {
 	const [prompts, setPrompts] = useState<any[]>([]);
@@ -138,7 +144,12 @@ export function PromptsLibrary() {
 				</Button>
 			</div>
 
-			<Dialog open={isAdding} onOpenChange={(open: boolean) => { if (!open) resetForm(); }}>
+			<Dialog
+				open={isAdding}
+				onOpenChange={(open: boolean) => {
+					if (!open) resetForm();
+				}}
+			>
 				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
 					<form
 						onSubmit={handleSubmit}

@@ -7,14 +7,14 @@ import {
 	RefreshCw,
 	Save,
 	Settings as SettingsIcon,
+	Upload,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TagsManager } from "../components/organisms/TagsManager";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Switch } from "../components/ui/switch";
-import { Upload } from "lucide-react";
 
 export function Settings() {
 	const [settings, setSettings] = useState({

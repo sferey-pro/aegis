@@ -8,17 +8,23 @@ import {
 } from "lucide-react";
 import React from "react";
 import { SEVERITY_COLORS, SEVERITY_ICONS } from "../../lib/triage-constants";
+import { Button } from "../ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "../ui/select";
 import {
 	Table,
 	TableBody,
 	TableCell,
+	TableFooter,
 	TableHead,
 	TableHeader,
 	TableRow,
-	TableFooter,
 } from "../ui/table";
-import { Button } from "../ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 export function TriageTable({
 	paginatedGroups,
@@ -137,7 +143,7 @@ export function TriageTable({
 												)}
 												{group.hasNetDiscovery && (
 													<span
-														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${ group.maxSlaAgeInDays > 30 ? "bg-red-500/10 border " : group.maxSlaAgeInDays > 15 ? "bg-orange-500/10 border " : "bg-green-500/10 border " }`}
+														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${group.maxSlaAgeInDays > 30 ? "bg-red-500/10 border " : group.maxSlaAgeInDays > 15 ? "bg-orange-500/10 border " : "bg-green-500/10 border "}`}
 													>
 														SLA:{" "}
 														{group.maxSlaAgeInDays > 0

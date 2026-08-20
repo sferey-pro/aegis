@@ -1,9 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { cvesRoutes } from "../../src/routes/cves";
 import { projectsRoutes } from "../../src/routes/projects";
-import { statsRoutes } from "../../src/routes/stats";
-
 import { settingsRoutes } from "../../src/routes/settings";
+import { statsRoutes } from "../../src/routes/stats";
 
 const routes: any = {
 	...statsRoutes,
@@ -24,7 +23,11 @@ async function request(
 	const parts = path.split("/");
 	if (path === "/api/projects/detect") {
 		routeKey = path;
-	} else if (parts.length === 4 && parts[1] === "api" && parts[2] === "projects") {
+	} else if (
+		parts.length === 4 &&
+		parts[1] === "api" &&
+		parts[2] === "projects"
+	) {
 		routeKey = "/api/projects/:id";
 		params = { id: parts[3] };
 	}
@@ -126,30 +129,45 @@ describe("Aegis Functional API Tests", () => {
 	});
 
 	it("should run detect route", async () => {
-		const res = await request("/api/projects/detect", { method: "POST" }, { path: process.cwd() });
+		const res = await request(
+			"/api/projects/detect",
+			{ method: "POST" },
+			{ path: process.cwd() },
+		);
 		expect(res.status).toBe(200);
 		expect(res.data).toHaveProperty("tool");
 	});
 
 	it("should update a project", async () => {
 		// First create a temp project
-		const createRes = await request("/api/projects", { method: "POST" }, {
-			name: "Temp update", path: process.cwd(), tool: "npm", type: "application"
-		});
+		const createRes = await request(
+			"/api/projects",
+			{ method: "POST" },
+			{
+				name: "Temp update",
+				path: process.cwd(),
+				tool: "npm",
+				type: "application",
+			},
+		);
 		const id = createRes.data.id;
 
-		const res = await request(`/api/projects/${id}`, { method: "PUT" }, {
-			name: "Updated Name",
-			tool: "yarn",
-			type: "application",
-			audit_path: "",
-			tags: [],
-			ignored: true
-		});
+		const res = await request(
+			`/api/projects/${id}`,
+			{ method: "PUT" },
+			{
+				name: "Updated Name",
+				tool: "yarn",
+				type: "application",
+				audit_path: "",
+				tags: [],
+				ignored: true,
+			},
+		);
 		expect(res.status).toBe(200);
 		expect(res.data.name).toBe("Updated Name");
 		expect(res.data.ignored).toBe(true);
-		
+
 		// Delete it
 		await request(`/api/projects/${id}`, { method: "DELETE" });
 	});
@@ -159,9 +177,13 @@ describe("Aegis Functional API Tests", () => {
 		expect(res.status).toBe(200);
 		expect(typeof res.data).toBe("object");
 
-		const updateRes = await request("/api/settings", { method: "PUT" }, {
-			TEST_KEY: "test_value"
-		});
+		const updateRes = await request(
+			"/api/settings",
+			{ method: "PUT" },
+			{
+				TEST_KEY: "test_value",
+			},
+		);
 		expect(updateRes.status).toBe(200);
 	});
 
@@ -170,10 +192,14 @@ describe("Aegis Functional API Tests", () => {
 		expect(exportRes.status).toBe(200);
 		expect(exportRes.data).toHaveProperty("settings");
 		expect(exportRes.data).toHaveProperty("projects");
-		
-		const importRes = await request("/api/config/import", { method: "POST" }, {
-			settings: { TEST_KEY: "new_value", SECRET: "***" }
-		});
+
+		const importRes = await request(
+			"/api/config/import",
+			{ method: "POST" },
+			{
+				settings: { TEST_KEY: "new_value", SECRET: "***" },
+			},
+		);
 		expect(importRes.status).toBe(200);
 	});
 });

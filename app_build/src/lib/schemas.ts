@@ -133,11 +133,24 @@ export const auditMaxAgeHoursSchema = z.coerce
 	.finite("Durée invalide")
 	.min(-1, "Durée invalide");
 
+/**
+ * La table `settings` est un simple couple clé/valeur textuel : le schéma valide
+ * la contrainte sur `AUDIT_MAX_AGE_HOURS` mais conserve toutes les valeurs en
+ * chaîne, forme sous laquelle elles sont stockées.
+ */
 export const settingsBodySchema = z
-	.object({
-		AUDIT_MAX_AGE_HOURS: auditMaxAgeHoursSchema.optional(),
-	})
-	.loose();
+	.record(z.string(), z.coerce.string())
+	.superRefine((values, ctx) => {
+		const raw = values.AUDIT_MAX_AGE_HOURS;
+		if (raw === undefined) return;
+		if (!auditMaxAgeHoursSchema.safeParse(raw).success) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Durée invalide",
+				path: ["AUDIT_MAX_AGE_HOURS"],
+			});
+		}
+	});
 
 export type SettingsBody = z.infer<typeof settingsBodySchema>;
 

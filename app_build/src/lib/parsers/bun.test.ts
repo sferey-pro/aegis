@@ -28,7 +28,8 @@ describe("Parser: Bun", () => {
 		const res = parseBun(`bun audit v1.2.0\n${JSON.stringify(input)}`);
 		expect(res.total).toBe(1);
 
-		const vuln = res.vulnerabilities[0]!;
+		const [vuln] = res.vulnerabilities;
+		if (!vuln) throw new Error("attendu au moins une vulnérabilité");
 		expect(vuln.package).toBe("tar");
 		expect(vuln.severity).toBe("high");
 		expect(vuln.title).toBe("Arbitrary File Creation");

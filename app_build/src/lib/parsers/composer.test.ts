@@ -31,7 +31,8 @@ describe("Parser: Composer", () => {
 		const res = parseComposer(JSON.stringify(input));
 		expect(res.total).toBe(1);
 
-		const vuln = res.vulnerabilities[0]!;
+		const [vuln] = res.vulnerabilities;
+		if (!vuln) throw new Error("attendu au moins une vulnérabilité");
 		expect(vuln.package).toBe("vendor/pkg");
 		expect(vuln.severity).toBe("critical");
 		expect(vuln.title).toBe("SQL Injection");
@@ -50,12 +51,14 @@ describe("Parser: Composer", () => {
 		const res = parseComposer(JSON.stringify(input));
 		expect(res.total).toBe(2);
 
-		const v1 = res.vulnerabilities.find((v) => v.package === "old/pkg")!;
+		const v1 = res.vulnerabilities.find((v) => v.package === "old/pkg");
+		if (!v1) throw new Error("paquet old/pkg introuvable");
 		expect(v1.severity).toBe("info");
 		expect(v1.title).toBe("Remplacer par new/pkg");
 		expect(v1.abandoned).toBe(true);
 
-		const v2 = res.vulnerabilities.find((v) => v.package === "dead/pkg")!;
+		const v2 = res.vulnerabilities.find((v) => v.package === "dead/pkg");
+		if (!v2) throw new Error("paquet dead/pkg introuvable");
 		expect(v2.severity).toBe("info");
 		expect(v2.title).toBe("Aucun remplacement suggéré");
 		expect(v2.abandoned).toBe(true);

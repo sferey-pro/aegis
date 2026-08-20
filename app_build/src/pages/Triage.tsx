@@ -111,8 +111,9 @@ export const Triage = React.memo(function Triage() {
 				if (hideProcessed && occ.status !== "pending") return;
 
 				const key = `${occ.projectId}::${occ.package}`;
-				if (!map.has(key)) {
-					map.set(key, {
+				let g = map.get(key);
+				if (!g) {
+					g = {
 						key,
 						projectId: occ.projectId,
 						projectName: occ.projectName,
@@ -127,9 +128,9 @@ export const Triage = React.memo(function Triage() {
 						hasBaseline: false,
 						hasNetDiscovery: false,
 						targetPatch: null as string | null,
-					});
+					};
+					map.set(key, g);
 				}
-				const g = map.get(key)!;
 				if (
 					occ.fixedIn &&
 					(!g.targetPatch || compareVersions(occ.fixedIn, g.targetPatch) > 0)

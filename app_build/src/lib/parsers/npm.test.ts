@@ -61,7 +61,8 @@ describe("Parser: NPM", () => {
 		const res = parseNpm(JSON.stringify(input));
 		expect(res.total).toBe(1);
 
-		const vuln = res.vulnerabilities[0]!;
+		const [vuln] = res.vulnerabilities;
+		if (!vuln) throw new Error("attendu au moins une vulnérabilité");
 		expect(vuln.package).toBe("cross-spawn");
 		expect(vuln.title).toBe("Regular Expression Denial of Service");
 		expect(vuln.link).toBe("https://github.com/advisories/GHSA-123");

@@ -66,8 +66,9 @@ export function App() {
 		let step = 0;
 		const interval = setInterval(() => {
 			step++;
-			if (step < messages.length) {
-				setLoadingMessage(messages[step]!);
+			const next = messages[step];
+			if (next) {
+				setLoadingMessage(next);
 			} else {
 				clearInterval(interval);
 			}

@@ -12,7 +12,10 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import { TooltipProvider } from "./components/ui/tooltip";
 
-const elem = document.getElementById("root")!;
+const elem = document.getElementById("root");
+if (!elem) {
+	throw new Error("Élément racine #root introuvable dans index.html");
+}
 const app = (
 	<BrowserRouter>
 		<TooltipProvider delayDuration={200}>

@@ -123,10 +123,10 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
 			);
 			if (counts && !counts.includes("fatal:")) {
 				// Output format: "<behind>\t<ahead>" (left is upstream, right is HEAD)
-				const parts = counts.split("\t");
-				if (parts.length === 2) {
-					info.behind = parseInt(parts[0]!, 10) || 0;
-					info.ahead = parseInt(parts[1]!, 10) || 0;
+				const [behindStr, aheadStr] = counts.split("\t");
+				if (behindStr !== undefined && aheadStr !== undefined) {
+					info.behind = parseInt(behindStr, 10) || 0;
+					info.ahead = parseInt(aheadStr, 10) || 0;
 				}
 			}
 		}

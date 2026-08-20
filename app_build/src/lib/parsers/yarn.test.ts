@@ -29,7 +29,8 @@ describe("Parser: Yarn", () => {
 		const res = parseYarn(input);
 		expect(res.total).toBe(1);
 
-		const vuln = res.vulnerabilities[0]!;
+		const [vuln] = res.vulnerabilities;
+		if (!vuln) throw new Error("attendu au moins une vulnérabilité");
 		expect(vuln.package).toBe("lodash");
 		expect(vuln.severity).toBe("high");
 		expect(vuln.title).toBe("Prototype Pollution");

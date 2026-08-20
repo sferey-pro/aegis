@@ -74,7 +74,8 @@ export const projectsRoutes = {
 			const exec = async () => {
 				while (i < projects.length) {
 					const index = i++;
-					const p = projects[index]!;
+					const p = projects[index];
+					if (!p) continue;
 					let git = { isRepo: false };
 					try {
 						git = await getGitInfo(p.path);

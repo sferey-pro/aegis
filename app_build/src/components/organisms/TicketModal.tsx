@@ -25,8 +25,8 @@ export function TicketModal({
 			open={ticketModal.isOpen} 
 			onOpenChange={(open: boolean) => setTicketModal({ ...ticketModal, isOpen: open })}
 		>
-			<DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-				<DialogHeader>
+			<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+				<DialogHeader className="p-6 pb-4 border-b shrink-0">
 					<DialogTitle className="flex items-center gap-2">
 						<FileText className="w-5 h-5" />
 						Création Ticket Jira
@@ -40,7 +40,7 @@ export function TicketModal({
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="flex-1 overflow-auto flex flex-col gap-4 py-4">
+				<div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-4">
 					<div>
 						<label className="block text-sm font-medium mb-2">
 							Notes additionnelles / Recommandations
@@ -63,7 +63,7 @@ export function TicketModal({
 					</div>
 				</div>
 
-				<DialogFooter className="gap-3 pt-4 border-t border-border">
+				<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
 					<Button
 						variant="secondary"
 						onClick={() => setTicketModal({ ...ticketModal, isOpen: false })}

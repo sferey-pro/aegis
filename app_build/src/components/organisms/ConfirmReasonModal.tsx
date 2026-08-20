@@ -26,9 +26,9 @@ export function ConfirmReasonModal({
 				if (!open) setConfirmModal(null);
 			}}
 		>
-			<DialogContent className="max-w-lg">
-				<form onSubmit={submitConfirm} className="flex flex-col gap-4">
-					<DialogHeader>
+			<DialogContent className="max-w-lg p-0 overflow-hidden flex flex-col">
+				<form onSubmit={submitConfirm} className="flex flex-col h-full">
+					<DialogHeader className="p-6 pb-4 border-b shrink-0">
 						<DialogTitle className="flex items-center gap-3 text-xl font-bold font-heading">
 							<div className="w-10 h-10 rounded-full flex items-center justify-center">
 								<AlertOctagon className="w-5 h-5" />
@@ -40,6 +40,7 @@ export function ConfirmReasonModal({
 						</DialogDescription>
 					</DialogHeader>
 
+					<div className="flex-1 overflow-y-auto p-6 space-y-4">
 					<p className="text-sm text-foreground/90 mt-2">
 						Vous êtes sur le point de confirmer cette faille. Le composant sera
 						marqué comme{" "}
@@ -60,8 +61,9 @@ export function ConfirmReasonModal({
 							placeholder="Ex: Le composant est exposé sur l'interface publique, risque réel d'exploitation..."
 						/>
 					</div>
+					</div>
 
-					<DialogFooter className="gap-3 mt-4">
+					<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
 						<Button
 							type="button"
 							variant="secondary"

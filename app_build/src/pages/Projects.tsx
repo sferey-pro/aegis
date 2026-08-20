@@ -454,16 +454,13 @@ export const Projects = React.memo(function Projects() {
 					</Button>
 					<Button
 						onClick={() => {
-							if (isAdding) resetForm();
-							else {
-								resetForm();
-								setIsAdding(true);
-							}
+							resetForm();
+							setIsAdding(true);
 						}}
 						className="shadow-lg"
 					>
 						<Plus className="w-4 h-4 mr-2" />
-						{isAdding ? "Annuler" : "Ajouter un Projet"}
+						Ajouter un Projet
 					</Button>
 				</div>
 			</div>
@@ -475,7 +472,7 @@ export const Projects = React.memo(function Projects() {
 						onSubmit={handleSubmit}
 						className="flex flex-col h-full"
 					>
-						<DialogHeader className="p-6 pb-2 shrink-0">
+						<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
 							<DialogTitle className="text-xl font-bold text-primary">
 								{editingId ? "Modifier le Projet" : "Nouveau Projet"}
 							</DialogTitle>
@@ -693,7 +690,7 @@ export const Projects = React.memo(function Projects() {
 							</div>
 						</div>
 
-						<DialogFooter className="p-6 pt-4 border-t shrink-0">
+						<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
 							<Button type="button" variant="secondary" onClick={resetForm}>
 								Annuler
 							</Button>

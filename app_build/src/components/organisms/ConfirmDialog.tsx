@@ -24,18 +24,21 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
 	return (
 		<Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onCancel(); }}>
-			<DialogContent className="max-w-md">
-				<DialogHeader>
+			<DialogContent className="max-w-md p-0 overflow-hidden flex flex-col">
+				<DialogHeader className="p-6 pb-4 border-b shrink-0">
 					<DialogTitle className="flex items-center gap-3">
 						<AlertTriangle className="w-6 h-6" />
 						{title}
 					</DialogTitle>
-					<DialogDescription className="mt-2 text-foreground/90">
-						{message}
-					</DialogDescription>
 				</DialogHeader>
 
-				<DialogFooter className="gap-3 mt-4 pt-4 border-t">
+				<div className="p-6 overflow-y-auto">
+					<DialogDescription className="text-foreground/90">
+						{message}
+					</DialogDescription>
+				</div>
+
+				<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
 					<Button
 						variant="ghost"
 						onClick={onCancel}
@@ -72,15 +75,18 @@ export function AlertDialog({
 }: AlertDialogProps) {
 	return (
 		<Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) onClose(); }}>
-			<DialogContent className="max-w-md">
-				<DialogHeader>
+			<DialogContent className="max-w-md p-0 overflow-hidden flex flex-col">
+				<DialogHeader className="p-6 pb-4 border-b shrink-0">
 					<DialogTitle>{title}</DialogTitle>
-					<DialogDescription className="mt-2 text-foreground/90 whitespace-pre-wrap">
-						{message}
-					</DialogDescription>
 				</DialogHeader>
 
-				<DialogFooter className="gap-3 mt-4 pt-4 border-t">
+				<div className="p-6 overflow-y-auto">
+					<DialogDescription className="text-foreground/90 whitespace-pre-wrap">
+						{message}
+					</DialogDescription>
+				</div>
+
+				<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
 					<Button
 						onClick={onClose}
 					>

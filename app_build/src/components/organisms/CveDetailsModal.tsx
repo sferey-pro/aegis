@@ -10,7 +10,7 @@ import { buildCvssTooltip } from "../../lib/cvss";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { SEVERITY_COLORS } from "../../lib/triage-constants";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
 
 export function CveDetailsModal({
@@ -46,42 +46,43 @@ export function CveDetailsModal({
 				if (!open) setSelectedGroup(null);
 			}}
 		>
-			<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+			<DialogContent className="max-w-5xl w-[95vw] lg:w-[80vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
 				{selectedGroup && (
 					<>
-						<DialogHeader className="p-6 border-b shrink-0 flex-row items-center justify-between">
-					<div className="flex flex-col gap-1 text-left">
-						<div className="flex items-center gap-4">
-							<DialogTitle className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
-								{selectedGroup?.package}
-							</DialogTitle>
-							{selectedGroup && tickets[selectedGroup.key] && (
-								<a
-									href={`${jiraBaseUrl.replace(/\/$/, "")}/browse/${tickets[selectedGroup.key].url}`}
-									target="_blank"
-									rel="noreferrer"
-									className="px-2.5 py-1 rounded-md border text-xs font-bold flex items-center gap-1.5"
-								>
-									<LinkIcon className="w-3 h-3" />
-									Ticket Jira : {tickets[selectedGroup.key].url}
-								</a>
-							)}
-						</div>
-						<DialogDescription className="text-sm text-muted-foreground mt-1">
-							Projet :{" "}
-							<span className="font-semibold text-foreground">
-								{selectedGroup?.projectName}
-							</span>
-						</DialogDescription>
-					</div>
-				</DialogHeader>
+						<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row items-center justify-between">
+							<div className="flex flex-col gap-1 text-left">
+								<div className="flex items-center gap-4">
+									<DialogTitle className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
+										{selectedGroup?.package}
+									</DialogTitle>
+									{selectedGroup && tickets[selectedGroup.key] && (
+										<a
+											href={`${jiraBaseUrl.replace(/\/$/, "")}/browse/${tickets[selectedGroup.key].url}`}
+											target="_blank"
+											rel="noreferrer"
+											className="px-2.5 py-1 rounded-md border text-xs font-bold flex items-center gap-1.5"
+										>
+											<LinkIcon className="w-3 h-3" />
+											Ticket Jira : {tickets[selectedGroup.key].url}
+										</a>
+									)}
+								</div>
+								<DialogDescription className="text-sm text-muted-foreground mt-1">
+									Projet :{" "}
+									<span className="font-semibold text-foreground">
+										{selectedGroup?.projectName}
+									</span>
+								</DialogDescription>
+							</div>
+						</DialogHeader>
 				<div className="flex-1 overflow-y-auto p-6">
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						{selectedGroup?.cves?.map((cveObj: any, i: number) => (
 							<div
 								key={i}
-								className="flex flex-col gap-4 p-5 rounded-xl border relative overflow-hidden"
+								className="flex flex-col rounded-xl border relative overflow-hidden"
 							>
+								<div className="flex flex-col gap-4 p-5 flex-1">
 								<div className="flex items-start justify-between gap-4">
 									<div className="flex flex-col gap-1.5 flex-1">
 										<h4 className="font-bold text-lg text-foreground flex items-center gap-2">
@@ -249,9 +250,35 @@ export function CveDetailsModal({
 									</div>
 								)}
 
-								<hr className="border-border/50 my-2" />
+								{cveObj.note && (
+									<div className="text-sm text-muted-foreground p-3 rounded-lg border relative mt-2">
+										<span className="font-semibold block mb-1 text-foreground/80">
+											Raison / Note :
+										</span>
+										<p className="pr-8 whitespace-pre-wrap leading-relaxed">
+											{cveObj.note}
+										</p>
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => {
+												handleConfirmCve(
+													cveObj.cve,
+													selectedGroup.projectId,
+													cveObj.note,
+												);
+												setSelectedGroup(null);
+											}}
+											className="absolute top-2 right-2 w-7 h-7 opacity-0 hover:opacity-100 text-muted-foreground transition-opacity group-hover:opacity-100"
+											title="Modifier la note"
+										>
+											<Edit2 className="w-3.5 h-3.5" />
+										</Button>
+									</div>
+								)}
+								</div>
 
-								<div className="flex flex-wrap gap-2">
+								<div className="flex flex-wrap items-center gap-2 p-4 bg-muted/20 border-t mt-auto">
 									<Button
 										variant={cveObj.status === "pending" ? "secondary" : "ghost"}
 										size="sm"
@@ -299,37 +326,18 @@ export function CveDetailsModal({
 										<X className="w-3.5 h-3.5" /> Faux positif
 									</Button>
 								</div>
-
-								{cveObj.note && (
-									<div className="text-sm text-muted-foreground p-3 rounded-lg border relative mt-2">
-										<span className="font-semibold block mb-1 text-foreground/80">
-											Raison / Note :
-										</span>
-										<p className="pr-8 whitespace-pre-wrap leading-relaxed">
-											{cveObj.note}
-										</p>
-										<Button
-											variant="ghost"
-											size="icon"
-											onClick={() => {
-												handleConfirmCve(
-													cveObj.cve,
-													selectedGroup.projectId,
-													cveObj.note,
-												);
-												setSelectedGroup(null);
-											}}
-											className="absolute top-2 right-2 w-7 h-7 opacity-0 hover:opacity-100 text-muted-foreground transition-opacity group-hover:opacity-100"
-											title="Modifier la note"
-										>
-											<Edit2 className="w-3.5 h-3.5" />
-										</Button>
-									</div>
-								)}
 							</div>
 						))}
 					</div>
 				</div>
+				<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
+					<Button
+						variant="secondary"
+						onClick={() => setSelectedGroup(null)}
+					>
+						Fermer
+					</Button>
+				</DialogFooter>
 					</>
 				)}
 			</DialogContent>

@@ -96,7 +96,11 @@ const METRICS: Record<
 export function parseCvssVector(vector: string): Record<string, CvssMetric[]> {
 	const parts = vector.split("/");
 
-	const metrics = parts.slice(1);
+	// N34 : `slice(1)` inconditionnel supposait toujours le préfixe `CVSS:x.y`. Un
+	// vecteur transmis sans préfixe — ce que produisent certaines sources d'avis,
+	// et ce qu'un humain peut saisir — perdait donc sa première métrique en
+	// silence. On n'écarte le premier segment que s'il est bien ce préfixe.
+	const metrics = /^CVSS:\d/.test(parts[0] ?? "") ? parts.slice(1) : parts;
 
 	const groups: Record<string, CvssMetric[]> = {};
 

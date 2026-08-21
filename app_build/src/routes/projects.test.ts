@@ -410,17 +410,6 @@ describe("DELETE /api/projects/:id", () => {
 		const { data: liste } = await srv.json<ProjectListItem[]>("/api/projects");
 		expect(liste).toEqual([]);
 	});
-
-	test("un identifiant inconnu répond quand même succès — écart documenté", async () => {
-		// La suppression est idempotente côté SQL et la route ne vérifie pas
-		// l'existence : l'interface ne peut pas distinguer « supprimé » de
-		// « n'existait pas ».
-		const { status, data } = await srv.json("/api/projects/999999", {
-			method: "DELETE",
-		});
-		expect(status).toBe(200);
-		expect(data).toEqual({ success: true });
-	});
 });
 
 describe("POST /api/projects/detect", () => {
@@ -534,7 +523,9 @@ describe("actions git et audit sur un projet", () => {
 		expect(status).toBe(404);
 	});
 
-	test("git-fetch sur un dépôt sans amont renvoie ok avec un journal", async () => {
+	test("git-fetch sur un dépôt sans amont le dit explicitement", async () => {
+		// N43 : « Déjà à jour. » sur un dépôt sans remote était le message le plus
+		// trompeur possible — rien n'avait été tenté.
 		const { data: cree } = await creer({ path: depot("fetch") });
 		const { status, data } = await srv.json<{ ok: boolean; log: string }>(
 			`/api/projects/${cree.id}/git-fetch`,
@@ -542,7 +533,7 @@ describe("actions git et audit sur un projet", () => {
 		);
 		expect(status).toBe(200);
 		expect(data.ok).toBe(true);
-		expect(data.log).toBe("Déjà à jour.");
+		expect(data.log).toBe("Aucun dépôt distant configuré : rien à récupérer.");
 	});
 
 	test("git-pull sur un dépôt sans amont échoue proprement", async () => {
@@ -618,7 +609,7 @@ describe("actions git et audit sur un projet", () => {
 describe("contrats attendus — à activer au correctif", () => {
 	// N37 — 404 sur un identifiant inexistant, sinon l'interface ne distingue pas
 	// « supprimé » de « n'existait pas ».
-	test.failing("supprimer un identifiant inconnu renvoie 404 (N37)", async () => {
+	test("supprimer un identifiant inconnu renvoie 404 (N37)", async () => {
 		const { status } = await srv.json("/api/projects/999999", {
 			method: "DELETE",
 		});
@@ -653,7 +644,7 @@ describe("contrats attendus — à activer au correctif", () => {
 	// SHA courant, sinon la déduplication n'aurait pas lieu de toute façon (un run
 	// en erreur n'est jamais dédupliqué) et le test passerait pour la mauvaise
 	// raison — ce qui s'est produit à la première écriture.
-	test.failing("?force=1 force le réaudit (N11)", async () => {
+	test("?force=1 force le réaudit (N11)", async () => {
 		const repo = depot("force-un");
 		const { data: cree } = await creer({
 			path: repo,

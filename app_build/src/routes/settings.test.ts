@@ -359,17 +359,6 @@ describe("POST /api/config/import", () => {
 		expect(status).toBe(200);
 		expect(data.success).toBe(true);
 	});
-
-	test("un corps illisible renvoie 500 — écart documenté", async () => {
-		// La route lit `req.json()` sans passer par `parseBody` : l'exception
-		// remonte au gestionnaire global au lieu du 400 des autres routes.
-		const { status } = await srv.json("/api/config/import", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: "{",
-		});
-		expect(status).toBe(500);
-	});
 });
 
 describe("instantanés", () => {
@@ -459,7 +448,7 @@ describe("contrats attendus — à activer au correctif", () => {
 	});
 
 	// N35 — 400 « JSON invalide » comme les routes passant par parseBody.
-	test.failing("un corps illisible renvoie 400 « JSON invalide » (N35)", async () => {
+	test("un corps illisible renvoie 400 « JSON invalide » (N35)", async () => {
 		const { status, data } = await srv.json("/api/config/import", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },

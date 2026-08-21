@@ -226,4 +226,71 @@ function initDb(database: Database) {
 	} catch (_e) {
 		// Table absente sur une base antérieure à `cve_occurrences`.
 	}
+
+	/**
+	 * Unicité des noms de tags **insensible à la casse** (défaut N40).
+	 *
+	 * `UNIQUE` sur du TEXT sans `COLLATE NOCASE` laissait coexister « backend » et
+	 * « Backend », produisant deux filtres visuellement identiques dans la page
+	 * Projets, chacun ne correspondant qu'à une partie des projets. L'erreur est
+	 * invisible à la lecture, et le message « Un tag avec ce nom existe déjà » ne
+	 * se déclenchait pas.
+	 *
+	 * `CREATE TABLE IF NOT EXISTS` ne modifie pas une table existante : on ajoute
+	 * donc un index unique `COLLATE NOCASE`, qui s'applique aussi aux bases déjà
+	 * créées. L'ancienne contrainte `UNIQUE` reste — elle est un sous-ensemble plus
+	 * strict, donc sans effet.
+	 *
+	 * Les collisions déjà en base sont fusionnées avant, sinon l'index refuse de se
+	 * créer : on garde l'orthographe du plus petit `id` — la première saisie — et
+	 * on **réécrit `projects.tags`** pour y remplacer les variantes supprimées. Ne
+	 * pas le faire créerait exactement les tags fantômes de N12.
+	 */
+	try {
+		const collisions = (db
+			?.query(
+				`SELECT LOWER(name) AS cle, MIN(id) AS garde, COUNT(*) AS n
+				 FROM tags GROUP BY LOWER(name) HAVING n > 1`,
+			)
+			.all() ?? []) as { cle: string; garde: number; n: number }[];
+
+		for (const c of collisions) {
+			const survivant = db
+				?.query(`SELECT name FROM tags WHERE id = ?`)
+				.get(c.garde) as { name: string } | undefined;
+			const doublons = (db
+				?.query(`SELECT id, name FROM tags WHERE LOWER(name) = ? AND id <> ?`)
+				.all(c.cle, c.garde) ?? []) as { id: number; name: string }[];
+			if (!survivant) continue;
+
+			for (const d of doublons) {
+				// Réécrire les projets qui référencent l'orthographe supprimée.
+				const projets = (db?.query(`SELECT id, tags FROM projects`).all() ??
+					[]) as { id: number; tags: string | null }[];
+				for (const proj of projets) {
+					let noms: string[];
+					try {
+						noms = JSON.parse(proj.tags || "[]");
+					} catch {
+						continue;
+					}
+					if (!noms.includes(d.name)) continue;
+					const remplaces = [
+						...new Set(noms.map((n) => (n === d.name ? survivant.name : n))),
+					];
+					db?.query(`UPDATE projects SET tags = ? WHERE id = ?`).run(
+						JSON.stringify(remplaces),
+						proj.id,
+					);
+				}
+				db?.query(`DELETE FROM tags WHERE id = ?`).run(d.id);
+			}
+		}
+
+		db?.query(
+			"CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_nocase ON tags(name COLLATE NOCASE)",
+		).run();
+	} catch (_e) {
+		// Base antérieure à la table `tags`, ou index déjà présent.
+	}
 }

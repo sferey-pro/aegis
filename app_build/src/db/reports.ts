@@ -58,7 +58,13 @@ export function createReport(data: {
 
 export function getReports(): Report[] {
 	const db = getDb();
-	const stmt = db.prepare(`SELECT * FROM reports ORDER BY created_at DESC`);
+	// N38 : `created_at` a une résolution d'une seconde. Sans départage par `id`,
+	// deux audits lancés dans la même seconde remontaient dans un ordre indéfini —
+	// or c'est cet ordre qui détermine quel compte-rendu l'écran Rapports compare
+	// au précédent. Même règle que `getLatestRun` pour les runs.
+	const stmt = db.prepare(
+		`SELECT * FROM reports ORDER BY created_at DESC, id DESC`,
+	);
 	const rows = stmt.all() as ReportRow[];
 
 	return rows.map((r) => ({
@@ -68,7 +74,12 @@ export function getReports(): Report[] {
 	}));
 }
 
-export function deleteReport(id: number) {
+export function deleteReport(id: number): boolean {
 	const db = getDb();
-	db.prepare(`DELETE FROM reports WHERE id = ?`).run(id);
+	// N37 : retourne s'il y a bien eu suppression, pour que la route réponde
+	// 404 sur un identifiant inconnu. Sans cela, l'interface ne distinguait
+	// pas « supprimé » de « n'existait pas », ce qui masquait une
+	// désynchronisation entre la liste affichée et l'état réel.
+	const info = db.prepare(`DELETE FROM reports WHERE id = ?`).run(id);
+	return info.changes > 0;
 }

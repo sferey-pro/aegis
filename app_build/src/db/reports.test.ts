@@ -160,7 +160,7 @@ describe("contrats attendus — à activer au correctif", () => {
 	// N38 — `ORDER BY created_at DESC` sans départage par `id` : deux audits d'une
 	// même seconde remontent dans un ordre indéfini, alors que c'est cet ordre qui
 	// décide quel compte-rendu l'écran Rapports compare au précédent.
-	test.failing("à created_at égal, l'id le plus grand passe devant (N38)", () => {
+	test("à created_at égal, l'id le plus grand passe devant (N38)", () => {
 		const a = rapport();
 		const b = rapport();
 		expect(getReports().map((r) => r.id)).toEqual([b.id, a.id]);

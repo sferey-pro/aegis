@@ -1,6 +1,8 @@
 import { errorMessage } from "@/lib/utils";
 import { getDb } from "../db";
 import { buildCveGroups } from "../lib/aggregator";
+import { advisorySyncBodySchema } from "../lib/schemas";
+import { parseBody } from "../lib/validate";
 
 export const cvesRoutes = {
 	"/api/cves": {
@@ -10,8 +12,13 @@ export const cvesRoutes = {
 	},
 	"/api/advisories/sync": {
 		async POST(req: Request) {
+			// N35 : le corps était lu à nu, donc un JSON malformé sortait en 500 au
+			// lieu du 400 « JSON invalide » servi partout ailleurs.
+			const { data, response } = await parseBody(req, advisorySyncBodySchema);
+			if (!data) return response;
+
 			try {
-				const { cve, link } = await req.json();
+				const { cve, link } = data;
 				const { syncAdvisory } = await import("../lib/github");
 				const advisory = await syncAdvisory(cve, link);
 				return Response.json({ success: !!advisory, advisory });

@@ -39,6 +39,24 @@ export const server = serve({
 			},
 		},
 
+		/**
+		 * N36 : tout ce qui commence par `/api/` et n'a pas été capté au-dessus est
+		 * une erreur d'appel, pas une navigation client. Sans cette route, un
+		 * chemin inconnu — ou une route atteinte avec une méthode qu'elle n'expose
+		 * pas — tombait dans le fourre-tout `/*` et recevait `index.html` en 200.
+		 * Le client échouait alors à son `res.json()` sur « Unexpected token < »,
+		 * sans indice sur la cause.
+		 *
+		 * Doit rester **avant** `"/*"` : l'ordre de déclaration décide.
+		 */
+		"/api/*": {
+			GET: () => Response.json({ error: "Route inconnue" }, { status: 404 }),
+			POST: () => Response.json({ error: "Route inconnue" }, { status: 404 }),
+			PUT: () => Response.json({ error: "Route inconnue" }, { status: 404 }),
+			DELETE: () => Response.json({ error: "Route inconnue" }, { status: 404 }),
+			PATCH: () => Response.json({ error: "Route inconnue" }, { status: 404 }),
+		},
+
 		// Serve index.html for all unmatched routes.
 		"/*": index,
 	},

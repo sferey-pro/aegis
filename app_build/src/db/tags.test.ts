@@ -28,14 +28,6 @@ describe("db/tags", () => {
 		);
 	});
 
-	test("l'unicité est sensible à la casse — écart documenté", () => {
-		// `UNIQUE` sur du TEXT sans COLLATE NOCASE : « Backend » et « backend »
-		// coexistent, ce qui produit deux filtres visuellement identiques.
-		createTag("backend");
-		expect(() => createTag("Backend")).not.toThrow();
-		expect(listTags()).toHaveLength(2);
-	});
-
 	test("listTags trie par nom croissant", () => {
 		createTag("zod");
 		createTag("api");
@@ -107,7 +99,7 @@ describe("contrats attendus — à activer au correctif", () => {
 
 	// N40 — `UNIQUE` sans `COLLATE NOCASE` laisse coexister « backend » et
 	// « Backend », soit deux filtres visuellement identiques.
-	test.failing("l'unicité du nom ignore la casse (N40)", () => {
+	test("l'unicité du nom ignore la casse (N40)", () => {
 		createTag("backend");
 		expect(() => createTag("Backend")).toThrow(
 			"Un tag avec ce nom existe déjà",

@@ -138,11 +138,6 @@ describe("DELETE /api/prompts/:id", () => {
 		const { data } = await srv.json<Prompt[]>("/api/prompts");
 		expect(data).toEqual([]);
 	});
-
-	test("un identifiant inconnu renvoie aussi 204 — écart documenté", async () => {
-		const res = await srv.request("/api/prompts/999999", { method: "DELETE" });
-		expect(res.status).toBe(204);
-	});
 });
 
 /**
@@ -164,7 +159,7 @@ describe("DELETE /api/prompts/:id", () => {
 
 describe("contrats attendus — à activer au correctif", () => {
 	// N37 — 404 sur un identifiant inexistant.
-	test.failing("un identifiant inconnu renvoie 404 (N37)", async () => {
+	test("un identifiant inconnu renvoie 404 (N37)", async () => {
 		const res = await srv.request("/api/prompts/999999", { method: "DELETE" });
 		expect(res.status).toBe(404);
 	});

@@ -26,7 +26,10 @@ export const tagsRoutes = {
 
 	"/api/tags/:id": {
 		async DELETE(req: BunRequest<"/api/tags/:id">) {
-			deleteTag(parseInt(req.params.id, 10));
+			// N37 : 404 si rien n'a été supprimé.
+			if (!deleteTag(parseInt(req.params.id, 10))) {
+				return Response.json({ error: "Tag introuvable" }, { status: 404 });
+			}
 			return new Response(null, { status: 204 });
 		},
 	},

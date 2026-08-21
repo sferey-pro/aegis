@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**44 entrées ouvertes (37 🔴) ou partielles (7 🟡) · 20 fermées · 23 épinglées par un test.**
+**42 entrées ouvertes (35 🔴) ou partielles (7 🟡) · 22 fermées · 23 épinglées par un test.**
 
 ### Priorité 1 — Sécurité
 
@@ -33,9 +33,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | État | Test |
 |---|---|:-:|:-:|
-| [N1](#n1-github-est-appelé-pendant-chaque-audit) | GitHub est appelé pendant chaque audit | 🔴 | — |
 | [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | La restauration de snapshot ne restaure rien | 🔴 | 🧪 |
-| [N6](#n6-les-erreurs-http-sont-consommées-comme-des-succès) | Les erreurs HTTP sont consommées comme des succès | 🔴 | — |
 | [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours) | Annotations globales impossibles, import de config non transactionnel | 🔴 | 🧪 |
 | [N10](#n10-trois-clés-didentité-différentes-pour-la-même-vulnérabilité) | Trois clés d'identité pour la même vulnérabilité | 🔴 | 🧪 |
 | [N11](#n11-force1-est-inopérant) | `?force=1` est inopérant | 🔴 | — |
@@ -97,7 +95,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | Constat de vérification |
 |---|---|---|
-| T1 | Front quasi non couvert | **347 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
+| T1 | Front quasi non couvert | **355 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
 | T2 | Routes peu couvertes | **11 modules de routes sur 11**, en fonctionnel sur un vrai `Bun.serve` — 227 tests |
 | T3 | Test git dépendant du réseau | dépôts jetables en `tmpdir()` avec un dépôt nu local comme amont ; **aucun accès réseau** dans toute la suite |
 | T4 | Modules sans aucun test | `lib/cvss.ts` (14 tests), `lib/console.ts` (18), `db/backup.ts` (6) |
@@ -112,6 +110,8 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | C1 | Aucune authentification sur l'API | résiduel → [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin) : la brèche `PUT` est fermée, celle de `git-fetch`/`git-pull` non |
 | C2 | Fuite des secrets par `/api/config/export` | résiduel → [N5](#n5-get-apisettings-expose-les-secrets-en-clair) |
 | C8 | `/api/audit/run` sans garde de concurrence | résiduel → [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) |
+| N1 | GitHub est appelé pendant chaque audit | 🟢 **corrigé le 21/08/2026.** Le chemin d'audit passe par `resolveFixedVersionFromCache`, qui lit le cache d'avis local et **n'émet aucune requête** — vérifié par un compteur d'appels sortants, pas seulement par un audit qui aboutit hors ligne. Un audit est donc hors ligne, déterministe et borné par le disque. L'enrichissement n'est pas supprimé : ce qui est déjà connu est appliqué, le reste attend `/api/advisories/sync`. Au passage, la liste persistée est **retriée** après enrichissement — une sévérité relevée invalidait l'ordre du parseur (§3). |
+| N6 | Les erreurs HTTP sont consommées comme des succès | 🟢 **corrigé le 21/08/2026.** Point de passage unique `src/lib/api.ts` (`fetchJson`, `fetchVoid`, `apiErrorMessage`), appliqué aux **43** appels : il ne reste aucun `fetch` brut dans `pages/`, `components/` ni `App.tsx`. Les trois conséquences nommées sont fermées — le triage a un état d'échec distinct de « écosystème sain », un audit en échec n'est plus compté zéro vulnérabilité ni archivé comme tel, et la page Réglages sort de son chargement. Les suppressions en lot passent par `Promise.allSettled` et annoncent les échecs partiels. **Résiduel :** aucun `AbortController` — l'annulation relève de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire). |
 | N3 | Garde de chemin incomplète, défaut ouvert | 🟢 **corrigé le 21/08/2026.** `pathGuard` couvre désormais les sept points d'entrée touchant un chemin — création, modification, détection, `git-fetch`, `git-pull`, audit et import de configuration — et le contrôle a lieu **juste avant** chaque sous-processus, pas seulement à l'enregistrement. `isPathAllowed` est passé en **défaut fermé** : sans `AEGIS_ALLOWED_ROOTS`, rien n'est autorisé (`AEGIS_ALLOWED_ROOTS=/` ouvre explicitement). Bug trouvé au passage : la racine du système n'autorisait rien, `root + sep` donnant `"//"`. |
 | N4 | SSRF authentifié via `/api/tickets/test-connection` | 🟢 **corrigé le 21/08/2026.** La route ne lit plus l'URL ni les identifiants dans le corps : elle vérifie la configuration **enregistrée**. `JIRA_BASE_URL` est validée en https à l'écriture (`jiraBaseUrlSchema`) et re-validée au point d'utilisation par `jiraEndpoint`, sur les deux appels sortants Jira. Conséquence d'usage : il faut enregistrer avant de tester. |
 | N5 | `GET /api/settings` expose les secrets en clair | 🟢 **corrigé le 21/08/2026.** Liste blanche `PUBLIC_SETTING_KEYS`, et un booléen `<CLÉ>_CONFIGURED` par secret. Liste blanche et non liste noire : c'était le défaut du correctif C2. En écriture, un secret vide est ignoré, sinon le formulaire — qui ne connaît plus la valeur — l'effacerait à chaque enregistrement. **Résiduel :** effacer un secret depuis l'interface n'est plus possible, il faudra une action explicite. |
@@ -254,7 +254,7 @@ Combiné à [N33](#n33-zcoerceboolean-rend-la-chaîne-false-vraie), le scénario
 **Correctif :** calculer le diff d'ingestion sur le run précédent du projet — comme le fait `runAudit` — plutôt qu'en passant par l'agrégat global, dont le filtre « ignoré » a une finalité d'affichage.
 
 ### N1. GitHub est appelé pendant chaque audit
-🔴 **Ouvert — vérifié le 21/08/2026.** `resolveFixedVersion` est toujours appelée dans la boucle d'`enhanceVulnerabilities`, et **`res.rateLimited` n'est jamais testé** (0 occurrence de `rateLimited` dans `src/lib/audit/`). Les tests de cette couche neutralisent le réseau, ils ne contredisent donc pas ce défaut.
+🟢 **Corrigé le 21/08/2026.** Le chemin d'audit appelle `resolveFixedVersionFromCache`, qui lit le cache et n'émet aucune requête. 🧪 Épinglé par un **compteur d'appels sortants** : il ne suffit pas qu'un audit aboutisse hors ligne, il faut qu'il n'ait rien tenté. Trois tests couvrent l'enrichissement depuis le cache, la préservation du `fixedIn` de l'outil en cas d'absence, et le retri par gravité.
 
 **⊕2** — `src/lib/audit/index.ts:24-32` (via `enhanceVulnerabilities`, appelée en `:238` et `:342`)
 
@@ -304,7 +304,11 @@ Deux défauts aggravants :
 4. Ajouter le filet de sécurité `pre-restore-<timestamp>.sqlite` prévu par §12 : aujourd'hui, une restauration réussie est irréversible.
 
 ### N6. Les erreurs HTTP sont consommées comme des succès
-🔴 **Ouvert — mesure refaite le 21/08/2026 : 43 appels `fetch`, `.ok` présent dans 3 fichiers seulement** (`Projects.tsx`, `Settings.tsx`, `TagsManager.tsx`), **0 `AbortController`**. Les tests de pages couvrent l'erreur réseau au niveau du rendu, mais aucun n'affirme qu'un chiffre de sécurité n'est pas affiché après un chargement échoué — c'est un défaut de conception, pas un défaut détectable par assertion.
+🟢 **Corrigé le 21/08/2026.** Les 43 appels passent par `src/lib/api.ts` ; il ne reste aucun `fetch` brut dans `pages/`, `components/` ni `App.tsx`. 🧪 Épinglé par dix tests, dont ceux qui affirment qu'un chargement échoué n'affiche **pas** de chiffre de sécurité — « — » et non « 0 ».
+
+> **Deux défauts trouvés en appliquant le wrapper.** D'abord `fetchJson` renvoyait `undefined` sur un corps illisible en 2xx, alors que son type promet `T` : `HistoryChart` écrivait cet `undefined` dans un état typé et tombait sur `data.length`. Un corps illisible est désormais une erreur. Ensuite le typage a révélé que `data.tool` de la détection d'outil n'était pas rétréci à travers une fermeture — invisible tant que `res.json()` renvoyait `any`.
+
+> **Résiduel :** aucun `AbortController`. L'annulation d'un audit en cours relève de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire), qui la traitera avec le pool de concurrence.
 
 **⊕3** — mesure sur `src/pages`, `src/components`, `src/App.tsx` : **43 appels `fetch`, 3 vérifications `res.ok`, 0 `AbortController`, 0 timeout, 0 retry**
 
@@ -844,14 +848,14 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1116** |
+| `src/pages/Projects.tsx` | **1142** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |
 
 `Projects.tsx` a franchi le millier de lignes depuis la vague 1. Le refactor Atomic Design a extrait les atomes et les organismes, mais les pages ont continué de grossir : elles portent l'état, les appels réseau, l'orchestration et le markup. C'est ce qui rend [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction) (handlers non mémoïsés), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation) (état serveur local) et [N24](#n24-filtres-et-pagination-hors-de-lurl) (filtres non partagés) difficiles à corriger séparément : les trois ont la même racine.
 
-À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 347 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
+À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 355 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
 
 ### N31. Écarts au contrat CONTEXT.md — arbitrage à trancher
 **⊕2**

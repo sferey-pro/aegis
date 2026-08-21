@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import type { Report } from "@/db/reports";
+import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
 import type { Vulnerability } from "@/lib/parsers/types";
 
 /**
@@ -57,6 +58,8 @@ export const Reports = memo(function Reports() {
 	const [isFetching, setIsFetching] = useState(false);
 	const [reportToDelete, setReportToDelete] = useState<number | null>(null);
 	const [selectedReports, setSelectedReports] = useState<number[]>([]);
+	/** Échecs partiels d'une suppression en lot (N6). */
+	const [bulkError, setBulkError] = useState<string | null>(null);
 	const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
 
 	// Pagination state
@@ -127,8 +130,7 @@ export const Reports = memo(function Reports() {
 	const fetchReports = useCallback(async () => {
 		setIsFetching(true);
 		try {
-			const res = await fetch("/api/reports");
-			const data = (await res.json()) as Report[];
+			const data = await fetchJson<Report[]>("/api/reports");
 			setReports(data);
 			// Reset to page 1 if data changes and current page is out of bounds
 			setCurrentPage((prev) =>
@@ -156,7 +158,7 @@ export const Reports = memo(function Reports() {
 	const confirmDelete = async () => {
 		if (reportToDelete === null) return;
 		try {
-			await fetch(`/api/reports/${reportToDelete}`, { method: "DELETE" });
+			await fetchVoid(`/api/reports/${reportToDelete}`, { method: "DELETE" });
 			setReportToDelete(null);
 			fetchReports();
 		} catch (e) {
@@ -170,6 +172,14 @@ export const Reports = memo(function Reports() {
 
 	return (
 		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10">
+			{bulkError && (
+				<div
+					role="alert"
+					className="mb-6 rounded-2xl border border-red-500/50 bg-red-500/10 px-5 py-4 text-sm font-medium"
+				>
+					{bulkError}
+				</div>
+			)}
 			<div className="flex items-center justify-between mb-8">
 				<div>
 					<h2 className="text-3xl font-bold font-heading">Rapports d'Audit</h2>
@@ -435,15 +445,26 @@ export const Reports = memo(function Reports() {
 					try {
 						setLoading(true);
 						setBulkDeleteModalOpen(false);
-						await Promise.all(
+						// N6 : `Promise.all` abandonne au premier rejet, masquant les
+						// échecs partiels — l'utilisateur voyait la liste se rafraîchir
+						// sans savoir que trois suppressions sur dix avaient échoué.
+						const issues = await Promise.allSettled(
 							selectedReports.map((id) =>
-								fetch(`/api/reports/${id}`, { method: "DELETE" }),
+								fetchVoid(`/api/reports/${id}`, { method: "DELETE" }),
 							),
 						);
+						const echecs = issues.filter((r) => r.status === "rejected");
 						setSelectedReports([]);
+						if (echecs.length > 0) {
+							setBulkError(
+								`${echecs.length} suppression${echecs.length > 1 ? "s" : ""} sur ${issues.length} a échoué`,
+							);
+						} else {
+							setBulkError(null);
+						}
 						fetchReports();
 					} catch (e) {
-						console.error(e);
+						setBulkError(apiErrorMessage(e));
 						setLoading(false);
 					}
 				}}

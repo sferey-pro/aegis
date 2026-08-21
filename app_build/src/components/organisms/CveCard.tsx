@@ -7,6 +7,7 @@ import {
 	X,
 } from "lucide-react";
 import type { AnnotationStatus } from "@/db/annotations";
+import { fetchJson, jsonInit } from "@/lib/api";
 import type { CachedAdvisory } from "@/lib/github";
 import { errorMessage } from "@/lib/utils";
 import { buildCvssTooltip } from "../../lib/cvss";
@@ -126,14 +127,16 @@ export function CveCard({
 							size="sm"
 							onClick={async () => {
 								try {
-									const res = await fetch("/api/advisories/sync", {
-										method: "POST",
-										body: JSON.stringify({
+									const data = await fetchJson<{
+										success?: boolean;
+										advisory?: CachedAdvisory | null;
+									}>(
+										"/api/advisories/sync",
+										jsonInit("POST", {
 											cve: cveObj.cve,
 											link: cveObj.link,
 										}),
-									});
-									const data = await res.json();
+									);
 
 									if (data.success && data.advisory) {
 										const fixes: CachedAdvisory["fixes"] =
@@ -193,7 +196,7 @@ export function CveCard({
 											isOpen: true,
 											type: "error",
 											title: "Échec",
-											message: data.error || "Erreur inconnue",
+											message: "Avis introuvable chez GitHub",
 										});
 										setTimeout(() => setToast(null), 5000);
 									}

@@ -68,38 +68,66 @@ describe("Settings", () => {
 	});
 
 	/**
-	 * ⚠️ Le chemin « chargement en échec » n'est pas testable en l'état.
+	 * Ces trois cas n'étaient pas testables avant le correctif N6.
 	 *
-	 * L'effet de `Settings.tsx:61` enchaîne `.then().then()` sans `.catch`, et
-	 * `setLoading(false)` est *dans* le `then`. Un `fetch` qui rejette produit
-	 * donc un **rejet de promesse non géré**, que Bun compte comme un échec du
-	 * test lui-même — y compris avec un handler `unhandledRejection` installé.
-	 *
-	 * Autrement dit, le défaut FE2c empêche d'écrire son propre test de
-	 * non-régression. Il est plus grave que « spinner infini » : c'est un rejet
-	 * non géré, et le formulaire n'apparaît jamais sans le moindre message.
-	 *
-	 * Dès qu'un `.catch` sera ajouté au composant, ces deux cas deviendront
-	 * testables : coupure réseau et corps illisible doivent tous deux sortir de
-	 * l'état de chargement et afficher une erreur.
+	 * L'effet enchaînait `.then().then()` sans `.catch`, et `setLoading(false)`
+	 * était *dans* le `then`. Un `fetch` qui rejetait produisait donc un rejet de
+	 * promesse non géré, que Bun compte comme un échec du fichier de test entier —
+	 * y compris avec un handler `unhandledRejection` installé. Le défaut empêchait
+	 * littéralement d'écrire son propre test de non-régression.
 	 */
 
-	test("une réponse 500 est traitée comme des réglages valides", async () => {
-		// Testable, celui-là : la réponse résout, donc aucun rejet. Mais `res.ok`
-		// n'est pas vérifié — le corps d'erreur est passé à `setSettings`, et le
-		// formulaire s'affiche avec les valeurs par défaut comme si tout allait
-		// bien. Même famille que le défaut N6.
+	test("un 500 au chargement sort de l'état de chargement et le signale (N6)", async () => {
+		// Auparavant : `res.ok` n'était pas vérifié, le corps d'erreur était passé à
+		// `setSettings`, et le formulaire s'affichait avec ses valeurs par défaut
+		// comme si tout allait bien.
 		mockFetch({
 			"GET /api/settings": { status: 500, body: { error: "boom" } },
 		});
 		render(<Settings />);
 
-		// Le formulaire apparaît malgré le 500.
+		expect(await screen.findByRole("alert")).toHaveTextContent(/boom/);
+		// Le formulaire n'est pas affiché : il ne reflèterait rien de réel.
 		expect(
-			await screen.findByRole("button", { name: /Enregistrer/ }),
+			screen.queryAllByRole("button", { name: /Enregistrer/ }),
+		).toHaveLength(0);
+		expect(
+			screen.getByRole("button", { name: /Recharger/ }),
 		).toBeInTheDocument();
-		// Et les champs prennent leurs défauts, sans signaler l'échec.
-		expect(screen.getByLabelText(/Cache d'Audit/)).toHaveValue(24);
+	});
+
+	test("une coupure réseau au chargement est signalée (N6)", async () => {
+		mockFetch({ "GET /api/settings": { networkError: "ECONNREFUSED" } });
+		render(<Settings />);
+		expect(await screen.findByRole("alert")).toBeInTheDocument();
+	});
+
+	test("un corps illisible au chargement est traité comme un échec (N6)", async () => {
+		// `fetchJson` renvoie `undefined` sur un 200 au corps illisible. Afficher le
+		// formulaire avec ses valeurs par défaut laisserait croire à une
+		// configuration vide, et un enregistrement écraserait la vraie. L'écran
+		// signale donc l'échec plutôt que d'inventer un état.
+		mockFetch({ "GET /api/settings": { invalidJson: true } });
+		render(<Settings />);
+		expect(await screen.findByRole("alert")).toBeInTheDocument();
+		expect(
+			screen.queryAllByRole("button", { name: /Enregistrer/ }),
+		).toHaveLength(0);
+	});
+
+	test("un échec d'enregistrement est signalé, pas avalé (N6)", async () => {
+		mockFetch({
+			"GET /api/settings": reglages,
+			"PUT /api/settings": { status: 400, body: { error: "Durée invalide" } },
+		});
+		render(<Settings />);
+		await screen.findByLabelText(/Base URL Jira/);
+
+		fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(
+			/Durée invalide/,
+		);
 	});
 
 	test("enregistrer envoie les réglages, secret vide compris", async () => {

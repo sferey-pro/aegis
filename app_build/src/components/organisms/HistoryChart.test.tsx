@@ -82,9 +82,11 @@ describe("HistoryChart", () => {
 		).toBeInTheDocument();
 	});
 
-	test("une réponse 500 est traitée comme des données", async () => {
-		// `res.ok` n'est pas vérifié : le corps d'erreur est passé à `setData`.
-		// Documenté ici parce que c'est précisément le défaut N6 de l'audit.
+	test("une réponse 500 sort de l'état de chargement (N6)", async () => {
+		// Auparavant `res.ok` n'était pas vérifié : le corps d'erreur `{error}` était
+		// passé à `setData`, et `data.length` valant `undefined`, le composant ne
+		// tombait dans aucune de ses deux branches — ni graphique ni « aucune
+		// donnée ». `fetchJson` lève désormais, et la série est vidée.
 		mockFetch({
 			"/api/history-global?days=7": { status: 500, body: { error: "boom" } },
 		});
@@ -92,10 +94,8 @@ describe("HistoryChart", () => {
 		await waitFor(() => {
 			expect(fetchCalls()).toHaveLength(1);
 		});
-		// L'objet d'erreur n'étant pas un tableau, `data.length` est undefined :
-		// le composant ne tombe pas dans la branche « aucune donnée ».
 		expect(
-			screen.queryAllByText("Aucune donnée d'historique disponible."),
-		).toHaveLength(0);
+			await screen.findByText("Aucune donnée d'historique disponible."),
+		).toBeInTheDocument();
 	});
 });

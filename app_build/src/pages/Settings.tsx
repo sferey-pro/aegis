@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
 import { errorMessage } from "@/lib/utils";
 import { TagsManager } from "../components/organisms/TagsManager";
 import { Button } from "../components/ui/button";
@@ -56,6 +57,10 @@ export function Settings() {
 		text: string;
 		type: "success" | "error";
 	} | null>(null);
+	/** Échec du chargement des réglages : l'écran doit sortir du chargement. */
+	const [loadError, setLoadError] = useState<string | null>(null);
+	/** Échec du dernier enregistrement. */
+	const [saveError, setSaveError] = useState<string | null>(null);
 	/**
 	 * Les secrets sont en écriture seule : l'API n'en renvoie que l'état. On garde
 	 * donc « configuré / non configuré » à part, pour l'afficher sans jamais
@@ -67,8 +72,7 @@ export function Settings() {
 	});
 
 	useEffect(() => {
-		fetch("/api/settings")
-			.then((r) => r.json())
+		fetchJson<Record<string, string>>("/api/settings")
 			.then((data) => {
 				// Les secrets ne sont plus renvoyés par l'API (N5) : seuls des
 				// booléens `<CLÉ>_CONFIGURED` indiquent s'ils sont renseignés. Les
@@ -95,6 +99,15 @@ export function Settings() {
 					DISABLE_CONSOLE: data.DISABLE_CONSOLE || "false",
 				});
 				setLoading(false);
+			})
+			// N6 : la chaîne n'avait aucun `.catch`, et `setLoading(false)` était
+			// **dans** le `then`. Un serveur indisponible produisait donc un rejet non
+			// capturé et un écran bloqué sur son indicateur de chargement, sans
+			// message ni recours. Ce chemin était même intestable : le rejet non
+			// capturé faisait échouer le fichier de test entier.
+			.catch((e: unknown) => {
+				setLoadError(apiErrorMessage(e));
+				setLoading(false);
 			});
 	}, []);
 
@@ -103,15 +116,14 @@ export function Settings() {
 		setSaving(true);
 		setSaveSuccess(false);
 		try {
-			await fetch("/api/settings", {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(settings),
-			});
+			await fetchVoid("/api/settings", jsonInit("PUT", settings));
 			setSaveSuccess(true);
+			setSaveError(null);
 			setTimeout(() => setSaveSuccess(false), 2000);
 		} catch (err) {
-			console.error(err);
+			// Un enregistrement perdu en silence est pire qu'un échec visible :
+			// l'utilisateur repart en croyant sa configuration appliquée.
+			setSaveError(apiErrorMessage(err));
 		} finally {
 			setSaving(false);
 		}
@@ -121,16 +133,19 @@ export function Settings() {
 		setBackupLoading(true);
 		setBackupMessage(null);
 		try {
-			const res = await fetch(`/api/snapshots/${action}`, { method: "POST" });
-			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || "Erreur serveur");
+			const data = await fetchJson<{ path?: string; message?: string }>(
+				`/api/snapshots/${action}`,
+				{ method: "POST" },
+			);
 			setBackupMessage({
 				text:
-					action === "create" ? `Snapshot créé (${data.path})` : data.message,
+					action === "create"
+						? `Snapshot créé (${data.path ?? "chemin inconnu"})`
+						: (data.message ?? "Opération effectuée"),
 				type: "success",
 			});
 		} catch (err: unknown) {
-			setBackupMessage({ text: errorMessage(err), type: "error" });
+			setBackupMessage({ text: apiErrorMessage(err), type: "error" });
 		} finally {
 			setBackupLoading(false);
 		}
@@ -153,22 +168,20 @@ export function Settings() {
 			const text = await file.text();
 			const json = JSON.parse(text);
 
-			const res = await fetch("/api/config/import", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(json),
-			});
-			const data = await res.json();
+			const data = await fetchJson<{ success?: boolean }>(
+				"/api/config/import",
+				jsonInit("POST", json),
+			);
 			if (data.success) {
 				setBackupMessage({
 					text: "Configuration importée avec succès. Veuillez rafraîchir la page.",
 					type: "success",
 				});
 			} else {
-				throw new Error(data.error || "Erreur lors de l'import");
+				throw new Error("Erreur lors de l'import");
 			}
 		} catch (err: unknown) {
-			setBackupMessage({ text: errorMessage(err), type: "error" });
+			setBackupMessage({ text: apiErrorMessage(err), type: "error" });
 		} finally {
 			setImportLoading(false);
 			if (fileInputRef.current) fileInputRef.current.value = "";
@@ -220,7 +233,21 @@ export function Settings() {
 
 			{loading ? (
 				<div className="flex justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary" />
+					<RefreshCw className="w-8 h-8 text-primary animate-spin" />
+				</div>
+			) : loadError ? (
+				/* N6 : cet écran restait bloqué sur son indicateur de chargement,
+				   sans message ni recours, dès que le serveur était indisponible. */
+				<div
+					role="alert"
+					className="border border-red-500/50 bg-red-500/10 p-8 rounded-2xl flex flex-col items-center gap-4 text-center"
+				>
+					<p className="font-semibold">
+						Impossible de charger les réglages : {loadError}
+					</p>
+					<Button variant="outline" onClick={() => window.location.reload()}>
+						Recharger
+					</Button>
 				</div>
 			) : (
 				<form onSubmit={handleSave} className="space-y-6">
@@ -294,10 +321,9 @@ export function Settings() {
 										setClearCacheLoading(true);
 										setClearCacheMessage(null);
 										try {
-											const res = await fetch("/api/advisories/cache", {
-												method: "DELETE",
-											});
-											const data = await res.json();
+											const data = await fetchJson<{
+												success?: boolean;
+											}>("/api/advisories/cache", { method: "DELETE" });
 											if (data.success) {
 												setClearCacheMessage({
 													text: "Cache GHSA vidé avec succès",
@@ -305,14 +331,13 @@ export function Settings() {
 												});
 											} else {
 												setClearCacheMessage({
-													text:
-														data.error || "Erreur lors du nettoyage du cache",
+													text: "Erreur lors du nettoyage du cache",
 													type: "error",
 												});
 											}
 										} catch (e: unknown) {
 											setClearCacheMessage({
-												text: errorMessage(e),
+												text: apiErrorMessage(e),
 												type: "error",
 											});
 										} finally {
@@ -561,6 +586,11 @@ export function Settings() {
 						{saveSuccess && (
 							<span className="text-sm font-medium slide-in-from-right-4">
 								Paramètres sauvegardés avec succès !
+							</span>
+						)}
+						{saveError && (
+							<span role="alert" className="text-sm font-medium text-red-500">
+								Échec de l'enregistrement : {saveError}
 							</span>
 						)}
 						<Button

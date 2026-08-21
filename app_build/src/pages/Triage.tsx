@@ -11,6 +11,7 @@ import { useSearchParams } from "react-router-dom";
 import type { AnnotationStatus } from "@/db/annotations";
 import type { Ticket } from "@/db/tickets";
 import type { CveGroup } from "@/lib/aggregator";
+import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
 import type { AnnotationInput } from "@/lib/schemas";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
@@ -59,14 +60,19 @@ export const Triage = React.memo(function Triage() {
 	);
 	const [toast, setToast] = useState<Toast | null>(null);
 	const [hideProcessed, setHideProcessed] = useState(false);
+	/** Échec du chargement des CVE, distinct d'un parc sans vulnérabilité (N6). */
+	const [loadError, setLoadError] = useState<string | null>(null);
 
 	const fetchCves = useCallback(async () => {
 		try {
-			const res = await fetch("/api/cves");
-			const data = await res.json();
-			setCves(data);
+			setCves(await fetchJson<CveGroup[]>("/api/cves"));
+			setLoadError(null);
 		} catch (e) {
-			console.error(e);
+			// N6 : sans cet état, une liste vide par échec s'affichait « Aucune
+			// vulnérabilité — votre écosystème est sain ». Pour un écran de triage,
+			// c'est la conclusion la plus dangereuse qu'on puisse tirer d'une panne.
+			setCves([]);
+			setLoadError(apiErrorMessage(e));
 		} finally {
 			setLoading(false);
 		}
@@ -74,22 +80,21 @@ export const Triage = React.memo(function Triage() {
 
 	const fetchTickets = useCallback(async () => {
 		try {
-			const res = await fetch("/api/tickets/list");
-			const data = await res.json();
+			const data = await fetchJson<Ticket[]>("/api/tickets/list");
 			const map: Record<string, Ticket> = {};
 			for (const t of data) {
 				map[`${t.project_id}::${t.package}`] = t;
 			}
 			setTickets(map);
 		} catch (e) {
+			// Accessoire : l'absence de liens de tickets n'invalide pas le triage.
 			console.error(e);
 		}
 	}, []);
 
 	const fetchSettings = useCallback(async () => {
 		try {
-			const res = await fetch("/api/settings");
-			const data = await res.json();
+			const data = await fetchJson<Record<string, string>>("/api/settings");
 			setJiraBaseUrl(data.JIRA_BASE_URL || "");
 		} catch (e) {
 			console.error(e);
@@ -213,14 +218,17 @@ export const Triage = React.memo(function Triage() {
 				payload.note = note;
 			}
 
-			await fetch("/api/annotations", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			});
+			await fetchVoid("/api/annotations", jsonInit("POST", payload));
 			fetchCves();
 		} catch (err) {
-			console.error(err);
+			// Une décision de triage perdue en silence est pire qu'une erreur : le
+			// référent croit avoir traité la CVE.
+			setToast({
+				isOpen: true,
+				title: "Échec",
+				message: `Décision non enregistrée : ${apiErrorMessage(err)}`,
+				type: "error",
+			});
 		}
 	};
 
@@ -247,18 +255,23 @@ export const Triage = React.memo(function Triage() {
 	const createTicket = async (e: React.MouseEvent, group: PackageGroup) => {
 		e.stopPropagation();
 		try {
-			const res = await fetch("/api/tickets", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
+			const data = await fetchJson<{ markdown: string }>(
+				"/api/tickets",
+				jsonInit("POST", {
 					projectId: group.projectId,
 					packageName: group.package,
 				}),
-			});
-			const data = await res.json();
+			);
 			setTicketModal({ isOpen: true, md: data.markdown, copied: false, group });
 		} catch (err) {
-			console.error(err);
+			// La modale s'ouvrait avec un brouillon `undefined` : le référent
+			// copiait une chaîne vide dans son ticket Jira.
+			setToast({
+				isOpen: true,
+				title: "Échec",
+				message: `Brouillon non généré : ${apiErrorMessage(err)}`,
+				type: "error",
+			});
 		}
 	};
 
@@ -322,7 +335,28 @@ export const Triage = React.memo(function Triage() {
 
 			{loading ? (
 				<div className="flex justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary" />
+					<RefreshCw className="w-8 h-8 text-primary animate-spin" />
+				</div>
+			) : loadError ? (
+				/* N6 : un échec de chargement a son propre état. Le confondre avec un
+				   parc sain était le pire mode de défaillance de cet écran. */
+				<div
+					role="alert"
+					className="bg-card border border-red-500/50 bg-red-500/10 p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4"
+				>
+					<Shield className="w-16 h-16 opacity-80" />
+					<div>
+						<h3 className="text-xl font-bold">
+							Impossible de charger les vulnérabilités
+						</h3>
+						<p className="text-muted-foreground">{loadError}</p>
+						<p className="text-muted-foreground mt-1 text-sm">
+							Cet écran ne reflète pas l'état de votre parc.
+						</p>
+					</div>
+					<Button variant="outline" onClick={fetchCves}>
+						Réessayer
+					</Button>
 				</div>
 			) : packageGroups.length === 0 ? (
 				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">

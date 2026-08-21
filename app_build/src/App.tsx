@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import type { Report, ReportDetail } from "@/db/reports";
+import type { Run } from "@/db/runs";
+import { apiErrorMessage, fetchJson, jsonInit } from "@/lib/api";
 import type { ProjectListItem } from "@/routes/projects";
 import type { StatsResponse } from "@/routes/stats";
+
+/** Réponse de `POST /api/projects/:id/audit`, telle que la route la construit. */
+interface AuditRunResponse {
+	success: boolean;
+	deduped?: boolean;
+	run?: Run | null;
+	error?: string;
+}
+
 import { GlobalLoader } from "./components/layout/GlobalLoader";
 import { ReportModal } from "./components/layout/ReportModal";
 import { BlankLayout } from "./components/templates/BlankLayout";
@@ -20,6 +31,10 @@ export function App() {
 	const location = useLocation();
 
 	const [stats, setStats] = useState<StatsResponse | null>(null);
+	/** Message d'échec du chargement des statistiques, distinct de l'état vide. */
+	const [statsError, setStatsError] = useState<string | null>(null);
+	/** Projets dont l'audit a échoué pendant le dernier lot. */
+	const [auditErrors, setAuditErrors] = useState<string[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [auditing, setAuditing] = useState(false);
 	const [auditProgress, setAuditProgress] = useState<{
@@ -67,19 +82,23 @@ export function App() {
 
 	const fetchStats = useCallback(async (initial = false) => {
 		try {
-			let res: Response;
+			let data: StatsResponse;
 			if (initial) {
-				[res] = await Promise.all([
-					fetch("/api/stats"),
-					new Promise((resolve) => setTimeout(resolve, 1000)),
+				[data] = await Promise.all([
+					fetchJson<StatsResponse>("/api/stats"),
+					new Promise<void>((resolve) => setTimeout(resolve, 1000)),
 				]);
 			} else {
-				res = await fetch("/api/stats");
+				data = await fetchJson<StatsResponse>("/api/stats");
 			}
-			const data = await res.json();
 			setStats(data);
+			setStatsError(null);
 		} catch (err) {
-			console.error(err);
+			// N6 : un chargement en échec ne doit pas se lire comme un parc sain.
+			// `stats` est remis à null pour que l'affichage montre « — » et non
+			// « 0 failles critiques », et l'erreur est portée à l'écran.
+			setStats(null);
+			setStatsError(apiErrorMessage(err));
 		} finally {
 			setLoading(false);
 		}
@@ -103,9 +122,9 @@ export function App() {
 	const handleRunAudit = useCallback(async () => {
 		setAuditing(true);
 		setAuditProgress(null);
+		setAuditErrors([]);
 		try {
-			const res = await fetch("/api/projects");
-			const allProjects = (await res.json()) as ProjectListItem[];
+			const allProjects = await fetchJson<ProjectListItem[]>("/api/projects");
 			const projectsToAudit = allProjects.filter((p) => !p.ignored);
 
 			let current = 1;
@@ -121,14 +140,33 @@ export function App() {
 			};
 			const reportDetails: ReportDetail[] = [];
 
+			// N6 : les projets en échec sont recensés, pas ignorés. Les compter zéro
+			// vulnérabilité produisait un compte-rendu faux — « 20 projets, 0
+			// vulnérabilité » quand les vingt avaient échoué — puis l'archivait.
+			const echecs: string[] = [];
+
 			for (const p of projectsToAudit) {
 				setAuditProgress({ current, total, name: p.name });
-				const auditRes = await fetch(`/api/projects/${p.id}/audit`, {
-					method: "POST",
-				});
-				const auditData = await auditRes.json();
 
-				if (auditData.run?.counts) {
+				let auditData: AuditRunResponse | null = null;
+				try {
+					auditData = await fetchJson<AuditRunResponse>(
+						`/api/projects/${p.id}/audit`,
+						{ method: "POST" },
+					);
+				} catch (err) {
+					echecs.push(`${p.name} : ${apiErrorMessage(err)}`);
+				}
+
+				// Un run en erreur a des compteurs à zéro : c'est un échec, pas un
+				// projet sain.
+				if (auditData?.run?.status === "error") {
+					echecs.push(
+						`${p.name} : ${auditData.run.error ?? "audit en erreur"}`,
+					);
+				}
+
+				if (auditData?.run?.counts && auditData.run.status !== "error") {
 					totalVulns += auditData.run.total || 0;
 					counts.critical += auditData.run.counts.critical || 0;
 					counts.high += auditData.run.counts.high || 0;
@@ -152,22 +190,23 @@ export function App() {
 				current++;
 			}
 
-			const reportRes = await fetch("/api/reports", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					projects_audited: projectsToAudit.length,
+			const generatedReport = await fetchJson<Report>(
+				"/api/reports",
+				jsonInit("POST", {
+					// Seuls les projets réellement audités sont comptés : le total et
+					// le nombre de projets doivent décrire la même chose.
+					projects_audited: projectsToAudit.length - echecs.length,
 					total_vulnerabilities: totalVulns,
 					counts: counts,
 					details: reportDetails,
 				}),
-			});
-			const generatedReport = await reportRes.json();
+			);
 			setReportModal(generatedReport);
+			setAuditErrors(echecs);
 
 			await fetchStats();
 		} catch (err) {
-			console.error(err);
+			setAuditErrors([apiErrorMessage(err)]);
 		} finally {
 			setAuditing(false);
 			setAuditProgress(null);
@@ -215,6 +254,8 @@ export function App() {
 							element={
 								<Overview
 									stats={stats}
+									error={statsError}
+									onRetry={() => fetchStats()}
 									loading={loading}
 									syncDisplay={syncDisplay}
 								/>
@@ -232,7 +273,11 @@ export function App() {
 				</Routes>
 			</div>
 
-			<ReportModal reportModal={reportModal} setReportModal={setReportModal} />
+			<ReportModal
+				reportModal={reportModal}
+				setReportModal={setReportModal}
+				auditErrors={auditErrors}
+			/>
 		</>
 	);
 }

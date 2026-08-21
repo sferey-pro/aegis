@@ -243,6 +243,58 @@ function matchBestFix(
 	return only?.patched || originalFixedIn || null;
 }
 
+/**
+ * Résolution **hors ligne** : lit le cache d'avis, n'émet aucune requête.
+ *
+ * C'est ce que le chemin d'audit utilise (N1). CONTEXT.md §2 impose « aucun
+ * appel réseau (GitHub) pendant l'audit » et §6 réserve l'interrogation de
+ * l'API à la porte manuelle par CVE. Une requête par vulnérabilité sur le
+ * chemin d'audit épuisait le quota au premier « Tout auditer », rendait la durée
+ * d'un audit dépendante du réseau — verrou global tenu pendant ce temps — et
+ * faisait dépendre le contenu d'un run de la disponibilité d'un tiers.
+ *
+ * En cas d'absence dans le cache, `originalFixedIn` est préservé : c'est la
+ * valeur que `npm`/`yarn` avaient fournie, et l'écraser par `null` faisait lire
+ * « aucune correction disponible » à tort (N18).
+ */
+export function resolveFixedVersionFromCache(params: {
+	tool: ProjectTool;
+	package: string;
+	cve?: string | null;
+	link?: string | null;
+	versionRange?: string | null;
+	originalFixedIn?: string | null;
+}): ResolveResult {
+	const repli: ResolveResult = {
+		fixedIn: params.originalFixedIn || null,
+		rateLimited: false,
+		resolvable: false,
+		severity: "unknown",
+	};
+
+	const key = keyFrom(params.cve, params.link);
+	if (!key) return repli;
+
+	const cached = getCachedAdvisory(key.id);
+	// Avis inconnu du cache : résoluble en principe, mais pas ici et maintenant.
+	if (!cached) return { ...repli, resolvable: true };
+
+	const ecoKey = `${mapEcosystem(params.tool)}:${params.package}`;
+	return {
+		fixedIn: matchBestFix(
+			cached.fixes[ecoKey],
+			params.versionRange,
+			params.originalFixedIn,
+		),
+		rateLimited: false,
+		resolvable: true,
+		severity: cached.severity,
+		html_url: cached.html_url,
+		cvss_vector: cached.cvss_vector,
+		published_at: cached.published_at,
+	};
+}
+
 export async function resolveFixedVersion(params: {
 	tool: ProjectTool;
 	package: string;

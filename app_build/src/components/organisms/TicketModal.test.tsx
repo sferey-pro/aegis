@@ -163,9 +163,13 @@ describe("TicketModal", () => {
 	});
 
 	test("un échec applicatif remonte un toast et laisse la modale ouverte", async () => {
+		// Forme réelle de la route, vérifiée par `src/routes/tickets.test.ts` : un
+		// statut d'erreur et `{ error }`. Elle ne renvoie jamais 200 avec
+		// `success:false`, et `fetchJson` reprend ce message tel quel.
 		mockFetch({
 			"POST /api/tickets/create": {
-				body: { success: false, error: "Projet Jira non configuré" },
+				status: 400,
+				body: { error: "Projet Jira non configuré" },
 			},
 		});
 		const { props: p, appels } = props();

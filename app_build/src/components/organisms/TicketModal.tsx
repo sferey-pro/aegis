@@ -1,6 +1,6 @@
 import { CheckCircle2, Copy, FileText, RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
-import { errorMessage } from "@/lib/utils";
+import { apiErrorMessage, fetchJson, jsonInit } from "@/lib/api";
 import { Button } from "../ui/button";
 import {
 	Dialog,
@@ -105,17 +105,21 @@ export function TicketModal({
 							if (!ticketModal.group) return;
 							setCreating(true);
 							try {
-								const res = await fetch("/api/tickets/create", {
-									method: "POST",
-									headers: { "Content-Type": "application/json" },
-									body: JSON.stringify({
+								// `fetchJson` lève sur 400/409/500 en reprenant le message du
+								// serveur — dont « un ticket identique existe déjà (Réf: …) »,
+								// qui est précisément ce que l'utilisateur doit lire.
+								const data = await fetchJson<{
+									success?: boolean;
+									ticketRef?: string;
+								}>(
+									"/api/tickets/create",
+									jsonInit("POST", {
 										projectId: ticketModal.group.projectId,
 										packageName: ticketModal.group.package,
 										cves: ticketModal.group.cves.map((c) => c.cve),
 										notes: notes,
 									}),
-								});
-								const data = await res.json();
+								);
 								if (data.success) {
 									setToast({
 										isOpen: true,
@@ -130,8 +134,7 @@ export function TicketModal({
 										isOpen: true,
 										type: "error",
 										title: "Erreur",
-										message:
-											data.error || "Erreur lors de la création du ticket.",
+										message: "Erreur lors de la création du ticket.",
 									});
 								}
 							} catch (err: unknown) {
@@ -139,7 +142,7 @@ export function TicketModal({
 									isOpen: true,
 									type: "error",
 									title: "Erreur",
-									message: errorMessage(err),
+									message: apiErrorMessage(err),
 								});
 							} finally {
 								setCreating(false);

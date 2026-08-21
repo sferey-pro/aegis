@@ -22,20 +22,29 @@ export interface NewCve {
 	severity: Severity;
 }
 
+/**
+ * Complète les vulnérabilités d'un run avec ce que l'on sait déjà.
+ *
+ * **Aucun appel réseau** (CONTEXT.md §2, défaut N1) : l'enrichissement lit le
+ * cache d'avis local. Ce qu'il n'y trouve pas reste tel que l'outil d'audit l'a
+ * rapporté, et sera complété par la porte manuelle de `/api/advisories/sync`.
+ * Un audit est donc hors ligne, déterministe et borné par le disque.
+ */
 async function enhanceVulnerabilities(
 	projectId: number,
 	tool: ProjectTool,
 	parsedVulns: Vulnerability[],
 	isBaseline: boolean,
 ) {
-	const { resolveFixedVersion } = await import("../github");
+	const { resolveFixedVersionFromCache } = await import("../github");
+	const { sortVulnerabilities } = await import("../parsers/utils");
 
 	// Ensure occurrences to freeze first_seen_at
 	const occurrencesMap = ensureOccurrences(projectId, parsedVulns, isBaseline);
 
 	const enhancedVulns = [];
 	for (const v of parsedVulns) {
-		const res = await resolveFixedVersion({
+		const res = resolveFixedVersionFromCache({
 			tool: tool,
 			package: v.package,
 			cve: v.cve,
@@ -62,6 +71,12 @@ async function enhanceVulnerabilities(
 		});
 	}
 
+	// L'enrichissement peut relever une sévérité : le tri du parseur (§3) n'est
+	// plus valide, et la liste persistée n'était donc plus ordonnée par gravité.
+	// On retrie avant de compter, pour que l'ordre et les compteurs décrivent la
+	// même chose.
+	const triees = sortVulnerabilities(enhancedVulns);
+
 	const counts = {
 		critical: 0,
 		high: 0,
@@ -70,13 +85,13 @@ async function enhanceVulnerabilities(
 		info: 0,
 		unknown: 0,
 	};
-	for (const v of enhancedVulns) {
+	for (const v of triees) {
 		const sev = (v.severity || "unknown") as Severity;
 		if (sev in counts) counts[sev]++;
 		else counts.unknown++;
 	}
 
-	return { enhancedVulns, counts };
+	return { enhancedVulns: triees, counts };
 }
 
 function getAuditMaxAgeHours(): number {

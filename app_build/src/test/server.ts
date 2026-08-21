@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { closeDb, getDb } from "../db";
 
 /**
  * Serveur Aegis réel, pour les tests fonctionnels de bout en bout.
@@ -20,6 +21,13 @@ import { join } from "node:path";
  *    `localhost:3001` et le serveur sur un autre port, il refuse la requête avec
  *    « Cross-Origin Request Blocked ». `setupTests.ts` conserve le `fetch` natif
  *    avant l'installation du DOM, et c'est celui-ci qu'on utilise.
+ *
+ * ⚠️ `bun test` n'isole **pas** les modules par fichier : plusieurs fichiers de
+ * test d'un même run partagent le cache de modules, donc `src/index` n'est
+ * évalué — et `serve()` appelé — qu'une seule fois. Un second fichier ne peut
+ * pas démarrer son propre serveur ; il réutilise celui déjà en écoute et le
+ * rebranche sur une base neuve. C'est pourquoi `stop()` ne coupe pas le serveur :
+ * le premier fichier terminé arrêterait celui des suivants.
  */
 
 export interface TestServer {
@@ -51,28 +59,41 @@ function nativeFetch(): typeof fetch {
 	return f;
 }
 
+/** Serveur déjà en écoute dans ce process, s'il y en a un. */
+let partage: { url: string; port: number } | null = null;
+
 /**
- * Démarre le serveur sur un port libre, adossé à une base jetable.
+ * Démarre le serveur sur un port libre, adossé à une base jetable — ou, si un
+ * autre fichier de test l'a déjà démarré dans ce process, réutilise celui-ci en
+ * le rebranchant sur une base neuve.
  *
- * À appeler dans un `beforeAll` : le module `src/index` s'exécute une seule fois
- * par fichier de test (Bun isole les modules et les globales par fichier), donc
- * un fichier ne peut pas démarrer deux serveurs.
+ * À appeler dans un `beforeAll`.
  */
 export async function startTestServer(label = "fn"): Promise<TestServer> {
 	const dbPath = join(tmpdir(), `aegis-${label}-${randomUUID()}.sqlite`);
 
-	// À poser avant l'import : `src/index.ts` appelle `serve()` et `getDb()` au
-	// chargement du module.
-	process.env.AEGIS_PORT = "0";
-	process.env.DB_PATH = dbPath;
+	if (!partage) {
+		// À poser avant l'import : `src/index.ts` appelle `serve()` et `getDb()` au
+		// chargement du module.
+		process.env.AEGIS_PORT = "0";
+		process.env.DB_PATH = dbPath;
 
-	const { server } = await import("../index");
-	const url = String(server.url);
+		const { server } = await import("../index");
+		partage = { url: String(server.url), port: Number(server.port) };
+	} else {
+		// Le serveur écoute déjà : on ne peut pas en ouvrir un second, mais la
+		// connexion SQLite, elle, se rouvre à la demande.
+		closeDb();
+		process.env.DB_PATH = dbPath;
+		getDb();
+	}
+
+	const url = partage.url;
 	const doFetch = nativeFetch();
 
 	return {
 		url,
-		port: Number(server.port),
+		port: partage.port,
 		dbPath,
 		request(path, init) {
 			return doFetch(new URL(path, url), init);
@@ -88,7 +109,9 @@ export async function startTestServer(label = "fn"): Promise<TestServer> {
 			return { status: res.status, data: data as T };
 		},
 		stop() {
-			server.stop(true);
+			// Le serveur reste en écoute : il est partagé avec les fichiers de test
+			// suivants du même run. Seule la base de ce fichier est libérée.
+			closeDb();
 			for (const suffixe of ["", "-wal", "-shm"]) {
 				const f = `${dbPath}${suffixe}`;
 				if (existsSync(f)) rmSync(f, { force: true });

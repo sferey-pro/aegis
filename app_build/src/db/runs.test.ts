@@ -211,7 +211,7 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 				},
 			}),
 		);
-		daterRun(r.id, new Date().toISOString().slice(0, 10) + " 10:00:00");
+		daterRun(r.id, `${new Date().toISOString().slice(0, 10)} 10:00:00`);
 
 		const points = getGlobalHistory(7);
 		const dernier = points[points.length - 1];
@@ -269,7 +269,7 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 				},
 			}),
 		);
-		daterRun(r.id, new Date().toISOString().slice(0, 10) + " 10:00:00");
+		daterRun(r.id, `${new Date().toISOString().slice(0, 10)} 10:00:00`);
 		getDb().query("UPDATE projects SET ignored = 1 WHERE id = ?").run(p.id);
 
 		const points = getGlobalHistory(7);
@@ -292,7 +292,7 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 				},
 			}),
 		);
-		daterRun(r.id, new Date().toISOString().slice(0, 10) + " 10:00:00");
+		daterRun(r.id, `${new Date().toISOString().slice(0, 10)} 10:00:00`);
 
 		const dernier = getGlobalHistory(7).at(-1) as Record<string, unknown>;
 		expect(dernier.info).toBeUndefined();

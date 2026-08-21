@@ -169,21 +169,6 @@ describe("POST /api/advisories/sync", () => {
 		expect(status).toBe(200);
 		expect(data.success).toBe(false);
 	});
-
-	test("un JSON illisible renvoie 500 — écart documenté", async () => {
-		// La route lit `req.json()` dans son propre try/catch et renvoie 500, là où
-		// les routes validées par `parseBody` répondent 400 « JSON invalide ».
-		const { status, data } = await srv.json<{ success: boolean }>(
-			"/api/advisories/sync",
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: "{",
-			},
-		);
-		expect(status).toBe(500);
-		expect(data.success).toBe(false);
-	});
 });
 
 describe("DELETE /api/advisories/cache", () => {
@@ -227,7 +212,7 @@ describe("DELETE /api/advisories/cache", () => {
 describe("contrats attendus — à activer au correctif", () => {
 	// N35 — un corps illisible doit répondre 400 « JSON invalide », comme partout
 	// ailleurs, plutôt que 500 via le gestionnaire d'erreur global.
-	test.failing("un JSON illisible renvoie 400 « JSON invalide » (N35)", async () => {
+	test("un JSON illisible renvoie 400 « JSON invalide » (N35)", async () => {
 		const { status, data } = await srv.json("/api/advisories/sync", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },

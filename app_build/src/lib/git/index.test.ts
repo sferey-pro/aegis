@@ -213,21 +213,6 @@ describe("lib/git — getGitInfo", () => {
 		expect(info.behind).toBe(1);
 	});
 
-	test("un dépôt sans commit expose « HEAD » comme SHA — écart documenté", async () => {
-		// Sur une branche non née, `git rev-parse HEAD` écrit « fatal: ambiguous
-		// argument » sur stderr mais renvoie tout de même « HEAD » sur stdout. Le
-		// filtre ne cherchant `fatal:` que dans stdout, cette chaîne est acceptée :
-		// `commit_sha` peut donc valoir « HEAD » au lieu de null.
-		const d = dossier("vide");
-		git(d, "init", "-q", "-b", "main");
-		const info = await getGitInfo(d);
-		expect(info.isRepo).toBe(true);
-		expect(info.sha).toBe("HEAD");
-		// Même cause pour la branche : `rev-parse --abbrev-ref HEAD` échoue et
-		// renvoie « HEAD », alors que la branche courante est bien `main`.
-		expect(info.branch).toBe("HEAD");
-	});
-
 	test("un sous-dossier du dépôt est reconnu comme dépôt", async () => {
 		// C'est ce qui permet à `audit_path` de pointer un sous-projet.
 		const d = depot();
@@ -265,15 +250,6 @@ describe("lib/git — gitFetch", () => {
 		expect(r.ok).toBe(true);
 		expect(r.log).not.toBe("Déjà à jour.");
 		expect(r.log.length).toBeGreaterThan(0);
-	});
-
-	test("un dépôt sans amont réussit sans rien faire, d'où « Déjà à jour. »", async () => {
-		// C'est le seul cas où le repli s'applique : sans remote configuré, git
-		// sort en 0 et n'écrit rien. Sans ce repli, l'interface afficherait un
-		// journal vide et laisserait croire à un échec.
-		const r = await gitFetch(depot("sans-amont"));
-		expect(r.ok).toBe(true);
-		expect(r.log).toBe("Déjà à jour.");
 	});
 
 	test("un chemin inexistant renvoie un message dédié, sans lever", async () => {
@@ -365,7 +341,7 @@ describe("contrats attendus — à activer au correctif", () => {
 	// N42 — sur une branche non née, `git rev-parse` écrit « fatal: » sur stderr
 	// mais « HEAD » sur stdout. Un `commit_sha` valant « HEAD » satisfait la
 	// condition de déduplication : deux audits se dédupliquent l'un contre l'autre.
-	test.failing("un dépôt sans commit n'expose aucun SHA (N42)", async () => {
+	test("un dépôt sans commit n'expose aucun SHA (N42)", async () => {
 		const d = dossier("vide-contrat");
 		git(d, "init", "-q", "-b", "main");
 		const info = await getGitInfo(d);
@@ -375,7 +351,7 @@ describe("contrats attendus — à activer au correctif", () => {
 
 	// N43 — le repli « Déjà à jour. » ne doit pas se déclencher sur un dépôt sans
 	// remote, où rien n'a été tenté : c'est le message le plus trompeur possible.
-	test.failing("un dépôt sans amont le dit explicitement (N43)", async () => {
+	test("un dépôt sans amont le dit explicitement (N43)", async () => {
 		const r = await gitFetch(depot("sans-amont-contrat"));
 		expect(r.log).not.toBe("Déjà à jour.");
 	});

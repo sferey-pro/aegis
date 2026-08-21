@@ -32,6 +32,32 @@ const tagNames = z
 	});
 
 /**
+ * Booléen tolérant, mais **pas** complaisant (défaut N33).
+ *
+ * `z.coerce.boolean()` applique la conversion JavaScript : toute chaîne non vide
+ * est vraie, `"false"` comprise. Un client qui sérialise ses booléens en texte —
+ * un formulaire HTML, un script `curl`, un pipeline CI — activait donc « ignoré »
+ * en croyant le désactiver, et le projet disparaissait de l'agrégation CVE sans
+ * message. Les formes usuelles sont acceptées, une valeur inattendue retombe sur
+ * `false` plutôt que de faire échouer la création du projet — le champ est un
+ * réglage d'affichage, pas une donnée de sécurité.
+ */
+const boolStrict = z
+	.union([
+		z.boolean(),
+		z
+			.enum(["true", "false", "1", "0", "yes", "no", "on", "off"])
+			.transform((v) => v === "true" || v === "1" || v === "yes" || v === "on"),
+		z
+			.number()
+			.int()
+			.min(0)
+			.max(1)
+			.transform((v) => v === 1),
+	])
+	.catch(false);
+
+/**
  * Chaîne trimée dont la version vide devient `null` (CONTEXT.md §1). L'absence
  * devient `null` elle aussi — c'est ce qu'attend `audit_path`, dont la colonne
  * est nullable et n'a pas de notion de « ne pas toucher ».
@@ -78,8 +104,8 @@ export const projectBodySchema = z.object({
 	type: projectTypeSchema,
 	tool: projectToolSchema,
 	tags: tagNames.default([]),
-	ignored: z.coerce.boolean().default(false),
-	is_remote: z.coerce.boolean().default(false),
+	ignored: boolStrict.default(false),
+	is_remote: boolStrict.default(false),
 });
 
 export type ProjectBody = z.infer<typeof projectBodySchema>;
@@ -122,6 +148,16 @@ export type AnnotationBody = z.infer<typeof annotationBodySchema>;
  * schéma, ce qui évite d'entretenir un type de requête séparé.
  */
 export type AnnotationInput = z.input<typeof annotationBodySchema>;
+
+/**
+ * `POST /api/advisories/sync` — porte manuelle d'interrogation de GitHub.
+ * Les deux champs sont facultatifs : `keyFrom` sait n'en exploiter qu'un, et une
+ * requête sans identifiant exploitable répond `{ success: false }`.
+ */
+export const advisorySyncBodySchema = z.object({
+	cve: z.string().trim().nullish(),
+	link: z.string().trim().nullish(),
+});
 
 // ---------------------------------------------------------------- tags
 
@@ -222,6 +258,49 @@ export const settingsBodySchema = z
 	});
 
 export type SettingsBody = z.infer<typeof settingsBodySchema>;
+
+/**
+ * `POST /api/config/import` — restauration d'un export.
+ *
+ * Volontairement permissif sur le contenu des sections : l'import doit accepter
+ * un export produit par une version antérieure. Ce que le schéma garantit, c'est
+ * que le corps est bien un objet lisible — assez pour rendre 400 au lieu de 500
+ * sur un fichier tronqué ou collé de travers (N35).
+ */
+const importedProjectSchema = z
+	.object({
+		// Présents dans un export, utiles à la correspondance des identifiants.
+		id: z.coerce.number().int().optional(),
+		slug: z.string().optional(),
+		name: z.string().trim().min(1, "Nom requis"),
+		path: z.string().trim().min(1, "Chemin requis"),
+		audit_path: emptyToNull,
+		type: projectTypeSchema,
+		tool: projectToolSchema,
+		tags: tagNames.default([]),
+		ignored: boolStrict.default(false),
+		is_remote: boolStrict.default(false),
+	})
+	// `.loose()` : un export porte aussi `created_at` et d'autres colonnes que
+	// l'import n'a pas à connaître. Les refuser rendrait tout export non
+	// réimportable au premier ajout de colonne.
+	.loose();
+
+const importedAnnotationSchema = z
+	.object({
+		cve: z.string().trim().min(1, "CVE requise"),
+		project_id: z.coerce.number().int(),
+		status: annotationStatusSchema.catch("pending").default("pending"),
+		note: z.string().optional(),
+		fixed_in: z.string().nullish(),
+	})
+	.loose();
+
+export const configImportBodySchema = z.object({
+	settings: z.record(z.string(), z.coerce.string()).optional(),
+	projects: z.array(importedProjectSchema).optional(),
+	annotations: z.array(importedAnnotationSchema).optional(),
+});
 
 // ---------------------------------------------------------------- snapshots
 

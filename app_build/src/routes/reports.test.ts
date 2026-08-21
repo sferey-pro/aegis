@@ -108,25 +108,6 @@ describe("POST /api/reports", () => {
 		expect(status).toBe(200);
 		expect(data.details).toEqual([]);
 	});
-
-	test("un JSON illisible renvoie 500 — écart documenté", async () => {
-		// Cette route lit `req.json()` sans passer par `parseBody` : l'exception
-		// remonte au gestionnaire d'erreur global, d'où un 500 au lieu du 400
-		// « JSON invalide » servi par les autres routes.
-		const { status } = await srv.json("/api/reports", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: "{ cassé",
-		});
-		expect(status).toBe(500);
-	});
-
-	test("un corps incomplet renvoie 500 — écart documenté", async () => {
-		// `reportBodySchema` existe mais n'est pas branché ici : un corps sans
-		// `counts` casse au moment du `JSON.stringify` en base.
-		const { status } = await srv.json("/api/reports", jsonBody({}));
-		expect(status).toBe(500);
-	});
 });
 
 describe("DELETE /api/reports/:id", () => {
@@ -141,14 +122,6 @@ describe("DELETE /api/reports/:id", () => {
 
 		const { data: liste } = await srv.json<Report[]>("/api/reports");
 		expect(liste.map((r) => r.id)).toEqual([b.id]);
-	});
-
-	test("un identifiant inconnu répond succès — écart documenté", async () => {
-		const { status, data } = await srv.json("/api/reports/999999", {
-			method: "DELETE",
-		});
-		expect(status).toBe(200);
-		expect(data).toEqual({ success: true });
 	});
 });
 
@@ -172,7 +145,7 @@ describe("DELETE /api/reports/:id", () => {
 describe("contrats attendus — à activer au correctif", () => {
 	// N35 — `reportBodySchema` existe déjà dans src/lib/schemas.ts et n'est branché
 	// nulle part : un corps illisible ou incomplet doit répondre 400, pas 500.
-	test.failing("un JSON illisible renvoie 400 « JSON invalide » (N35)", async () => {
+	test("un JSON illisible renvoie 400 « JSON invalide » (N35)", async () => {
 		const { status, data } = await srv.json("/api/reports", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -182,14 +155,14 @@ describe("contrats attendus — à activer au correctif", () => {
 		expect(data).toEqual({ error: "JSON invalide" });
 	});
 
-	test.failing("un corps incomplet renvoie 400, pas 500 (N35)", async () => {
+	test("un corps incomplet renvoie 400, pas 500 (N35)", async () => {
 		const { status } = await srv.json("/api/reports", jsonBody({}));
 		expect(status).toBe(400);
 	});
 
 	// N37 — supprimer un identifiant inexistant doit répondre 404, sinon
 	// l'interface ne distingue pas « supprimé » de « n'existait pas ».
-	test.failing("un identifiant inconnu renvoie 404 (N37)", async () => {
+	test("un identifiant inconnu renvoie 404 (N37)", async () => {
 		const { status } = await srv.json("/api/reports/999999", {
 			method: "DELETE",
 		});

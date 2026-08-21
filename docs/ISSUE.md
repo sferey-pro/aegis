@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**40 entrées ouvertes (34 🔴) ou partielles (6 🟡) · 24 fermées · 22 épinglées par un test.**
+**30 entrées ouvertes (24 🔴) ou partielles (6 🟡) · 34 fermées · 12 épinglées par un test.**
 
 ### Priorité 1 — Sécurité
 
@@ -35,12 +35,10 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 |---|---|:-:|:-:|
 | [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | La restauration de snapshot ne restaure rien | 🔴 | 🧪 |
 | [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours) | Annotations globales impossibles, import de config non transactionnel | 🔴 | 🧪 |
-| [N11](#n11-force1-est-inopérant) | `?force=1` est inopérant | 🔴 | — |
 | [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) | La suppression d'un tag laisse des tags fantômes | 🔴 | 🧪 |
 | [N13](#n13-apihistory-global--deux-sévérités-perdues-pas-de-total-fuseau-local-days-non-validé) | `/api/history-global` : sévérités perdues, `days` non validé | 🔴 | 🧪 |
 | [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil) | Rate-limit ignoré, perte du `fixedIn` de l'outil | 🔴 | 🧪 |
 | [N20](#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile) | Aucune vérification préalable du chemin d'audit ni du lockfile | 🔴 | — |
-| [N33](#n33-zcoerceboolean-rend-la-chaîne-false-vraie) | `z.coerce.boolean` rend la chaîne `"false"` vraie | 🔴 | 🧪 |
 | [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) | `syncAdvisory` vide le cache avant de refetcher | 🔴 | 🧪 |
 | [N45](#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte) | La porte CI d'un projet ignoré est toujours verte | 🔴 | 🧪 |
 | [C4](#c4-apiconfigimport-ne-restaure-que-trois-sections-sur-cinq) | `/api/config/import` ne restaure que trois sections sur cinq | 🟡 | — |
@@ -58,15 +56,8 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N26](#n26-setinterval-jamais-nettoyé-état-de-module-perdu-sous-bun---hot) | `setInterval` jamais nettoyé, état de module perdu sous `bun --hot` | 🔴 | — |
 | [N29](#n29-deux-définitions-du--dernier-run--coexistent) | Deux définitions du « dernier run » coexistent | 🔴 | 🧪 |
 | [N30](#n30-le-contexte-projet-nenveloppe-pas-les-commandes-git-du-listing) | Le contexte projet n'enveloppe pas les commandes git du listing | 🔴 | — |
-| [N34](#n34-parsecvssvector-écarte-toujours-le-premier-segment) | `parseCvssVector` écarte toujours le premier segment | 🔴 | 🧪 |
-| [N35](#n35-500-au-lieu-de-400-sur-les-routes-qui-lisent-reqjson-directement) | 500 au lieu de 400 sur les routes lisant `req.json()` | 🔴 | 🧪 |
-| [N36](#n36-une-méthode-non-déclarée-renvoie-du-html-en-200) | Une méthode non déclarée renvoie du HTML en 200 | 🔴 | 🧪 |
-| [N37](#n37-delete-sur-un-identifiant-inconnu-répond-succès) | `DELETE` sur un identifiant inconnu répond succès | 🔴 | 🧪 |
-| [N38](#n38-getreports-trie-par-created_at-seul) | `getReports` trie par `created_at` seul | 🔴 | 🧪 |
 | [N39](#n39-la-progression-du-lot-daudit-nest-pas-observable-après-coup) | La progression du lot d'audit n'est pas observable après coup | 🔴 | 🧪 |
 | [N41](#n41-content_hash-nest-pas-unique-en-base) | `content_hash` n'est pas unique en base | 🔴 | 🧪 |
-| [N42](#n42-commit_sha-peut-valoir-la-chaîne-head) | `commit_sha` peut valoir la chaîne `"HEAD"` | 🔴 | 🧪 |
-| [N43](#n43-le-repli--déjà-à-jour--de-gitfetch-est-inatteignable) | Le repli « Déjà à jour. » de `gitFetch` est inatteignable | 🔴 | 🧪 |
 | [C9](#c9-initdb-ignore-son-paramètre) | `initDb` ignore son paramètre | 🔴 | — |
 
 ### Priorité 4 — UX & accessibilité
@@ -80,7 +71,6 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N24](#n24-filtres-et-pagination-hors-de-lurl) | Filtres et pagination hors de l'URL | 🔴 | — |
 | [N25](#n25-ticketmodal--les-notes-fuient-dun-ticket-à-lautre) | `TicketModal` : les notes fuient d'un ticket à l'autre | 🔴 | — |
 | [N27](#n27-design-system-contourné) | Design system contourné | 🟡 | — |
-| [N40](#n40-les-noms-de-tags-sont-sensibles-à-la-casse) | Les noms de tags sont sensibles à la casse | 🔴 | 🧪 |
 
 ### Priorité 5 — Écart de contrat à arbitrer
 
@@ -108,6 +98,16 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | C1 | Aucune authentification sur l'API | résiduel → [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin) : la brèche `PUT` est fermée, celle de `git-fetch`/`git-pull` non |
 | C2 | Fuite des secrets par `/api/config/export` | résiduel → [N5](#n5-get-apisettings-expose-les-secrets-en-clair) |
 | C8 | `/api/audit/run` sans garde de concurrence | résiduel → [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) |
+| N11 | `?force=1` est inopérant | 🟢 **corrigé le 22/08/2026.** `1` et `true` sont acceptés. Un forçage silencieusement ignoré était plus dangereux qu'un forçage absent : l'appelant recevait un rapport dédupliqué en croyant avoir réaudité. |
+| N33 | `z.coerce.boolean` rend `"false"` vraie | 🟢 **corrigé le 22/08/2026.** Union explicite (`true`/`false`, `1`/`0`, `yes`/`no`, `on`/`off`, booléen, 0/1) avec repli sur `false`. Le champ est un réglage d'affichage : une valeur inattendue ne doit pas faire échouer la création du projet. |
+| N34 | `parseCvssVector` écarte le premier segment | 🟢 **corrigé le 22/08/2026.** Le segment n'est écarté que s'il correspond à `/^CVSS:\d/`. |
+| N35 | 500 au lieu de 400 sur les routes lisant `req.json()` | 🟢 **corrigé le 22/08/2026.** `parseBody` branché sur `reports` (avec `reportBodySchema`, qui existait sans être utilisé), `advisories/sync` et `config/import`. **Effet de bord utile :** le typage a révélé que l'import passait des données non validées à `createProject` — les sections sont désormais typées, ce qui referme au passage une partie de l'écart §1 relevé par [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher). |
+| N36 | Une méthode non déclarée renvoie du HTML en 200 | 🟢 **corrigé le 22/08/2026.** Route `"/api/*"` répondant 404 en JSON, placée **avant** le fourre-tout `"/*"` — l'ordre de déclaration décide. |
+| N37 | `DELETE` sur un identifiant inconnu répond succès | 🟢 **corrigé le 22/08/2026.** Les quatre fonctions de suppression retournent `changes > 0`, et les quatre routes répondent 404 sinon. |
+| N38 | `getReports` trie par `created_at` seul | 🟢 **corrigé le 22/08/2026.** `ORDER BY created_at DESC, id DESC`, même règle que `getLatestRun`. |
+| N40 | Noms de tags sensibles à la casse | 🟢 **corrigé le 22/08/2026.** Index unique `COLLATE NOCASE` — `CREATE TABLE IF NOT EXISTS` ne modifiant pas une table existante. Les collisions déjà en base sont fusionnées avant création de l'index, en conservant l'orthographe du plus petit `id`, **et en réécrivant `projects.tags`** : ne pas le faire aurait créé exactement les tags fantômes de [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs). |
+| N42 | `commit_sha` peut valoir `"HEAD"` | 🟢 **corrigé le 22/08/2026.** `runGit` retourne son code de sortie, et `getGitInfo` s'y fie au lieu de chercher `fatal:` dans stdout. Le SHA est en outre validé sur la forme `/^[0-9a-f]{40}$/` — une valeur non hexadécimale satisfaisait la déduplication d'un run au suivant. |
+| N43 | Repli « Déjà à jour. » inatteignable | 🟢 **corrigé le 22/08/2026.** Trois situations distinguées : pas de remote (« Aucun dépôt distant configuré »), à jour, mis à jour. Le repli se déclenchait au contraire sur un dépôt **sans** remote, où rien n'avait été tenté. |
 | N10 | Clé d'identité de la table d'occurrences | 🟢 **corrigé le 21/08/2026.** `src/lib/vuln-identity.ts` porte les fonctions partagées, et la colonne `cve` de `cve_occurrences` stocke désormais `occurrenceRef` — la CVE, **repli sur le titre**, conformément à la clé de `newCves` (§2). Une migration purge les lignes de l'ancienne convention (`cve = package`), ambiguës par construction. **Correction de cadrage :** le correctif annoncé (« une clé unique pour parsing, table et agrégation ») allait trop loin — `CONTEXT.md` §3 et §2 **spécifient** les clés du dédoublonnage et du diff, volontairement plus fines. Le défaut n'était pas d'avoir trois clés mais d'en avoir une quatrième, non spécifiée. |
 | N28 | Verrou de non-régression de C3 | 🟢 **écrit le 21/08/2026** — et il a appris quelque chose. En cassant la garde de `enhanceVulnerabilities` pour vérifier que le verrou rougissait, **rien n'a rougi** : la garde est inatteignable, les quatre parseurs et `getCachedAdvisory` normalisant tous la sévérité en amont. Le verrou porte donc sur l'**invariant** — compteurs finis, somme égale au total, quelle que soit la charge — plutôt que sur une garde redondante qui pourrait rester verte en laissant entrer le défaut par une autre porte. Le cas de N10 y est ajouté de bout en bout, comme la vague 1 le demandait. |
 | N1 | GitHub est appelé pendant chaque audit | 🟢 **corrigé le 21/08/2026.** Le chemin d'audit passe par `resolveFixedVersionFromCache`, qui lit le cache d'avis local et **n'émet aucune requête** — vérifié par un compteur d'appels sortants, pas seulement par un audit qui aboutit hors ligne. Un audit est donc hors ligne, déterministe et borné par le disque. L'enrichissement n'est pas supprimé : ce qui est déjà connu est appliqué, le reste attend `/api/advisories/sync`. Au passage, la liste persistée est **retriée** après enrichissement — une sévérité relevée invalidait l'ordre du parseur (§3). |
@@ -220,7 +220,7 @@ Conséquence : le panneau de triage envoyant un seul champ à la fois, **enregis
 > ⚠️ **Piège évité.** Le correctif naïf — remplacer `emptyToNull` par `z.string().trim().nullish()` — faisait passer **trois** tests au rouge, pas deux : `emptyToNull` portait **aussi** la normalisation `"   "` → `null` exigée par §1. Le correctif retenu sépare les deux comportements, et le test « une version corrigée blanche est enregistrée à null » passe toujours.
 
 ### N33. `z.coerce.boolean` rend la chaîne `"false"` vraie
-🔴 **Ouvert — relevé par la suite de tests** — `src/lib/schemas.ts` (`projectBodySchema`, champs `ignored` et `is_remote`)
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/lib/schemas.ts` (`projectBodySchema`, champs `ignored` et `is_remote`)
 
 `z.coerce.boolean()` applique la conversion JavaScript : toute chaîne non vide est vraie, `"false"` comprise. Un client qui sérialise ses booléens en texte — un formulaire HTML, un script `curl`, un pipeline CI — active donc « ignoré » en croyant le désactiver, et le projet **disparaît de l'agrégation CVE** sans message.
 
@@ -374,7 +374,7 @@ C'est le résiduel de [C12](#-fermé-vérifié-le-21082026) : la structure est b
 **Correctif :** une **fonction unique** de clé d'identité de vulnérabilité, incluant le titre en repli, utilisée par le parsing, la table d'occurrences et l'agrégation. À traiter avant d'accumuler davantage de données SLA fausses — les lignes déjà écrites devront être migrées ou purgées.
 
 ### N11. `?force=1` est inopérant
-🔴 **Ouvert — vérifié le 21/08/2026.** `src/routes/projects.ts:250` teste toujours `=== "true"` exclusivement. Les tests de route utilisent `?force=true`, la forme que le code accepte : ils ne couvrent donc pas la forme contractuelle `?force=1`.
+🟢 **Corrigé le 22/08/2026.** Les deux formes sont acceptées. 🧪 Le test isole bien le forçage : il vérifie d'abord qu'un appel **sans** forçage est dédupliqué — sinon `deduped: false` ne prouverait rien, un run en erreur n'étant jamais dédupliqué. C'est l'erreur commise à la première écriture de ce test.
 
 **⊕3** — `src/routes/projects.ts:178`
 
@@ -611,7 +611,7 @@ CONTEXT.md §11 : « Aux points d'entrée liés à un projet, l'exécution est *
 **Correctif :** envelopper `getGitInfo` dans `projectContext.run({ project: p.name }, …)` dans les deux handlers.
 
 ### N34. `parseCvssVector` écarte toujours le premier segment
-🔴 **Ouvert — relevé par la suite de tests** — `src/lib/cvss.ts`
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/lib/cvss.ts`
 
 ```ts
 const parts = vector.split("/");
@@ -625,7 +625,7 @@ Le `slice(1)` suppose que le premier segment est toujours le préfixe de version
 **Correctif :** n'écarter le premier segment que s'il correspond à `/^CVSS:\d/`.
 
 ### N35. 500 au lieu de 400 sur les routes qui lisent `req.json()` directement
-🔴 **Ouvert — relevé par la suite de tests** — `src/routes/reports.ts`, `src/routes/cves.ts` (`/api/advisories/sync`), `src/routes/settings.ts` (`/api/config/import`), `src/routes/tickets.ts`
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/routes/reports.ts`, `src/routes/cves.ts` (`/api/advisories/sync`), `src/routes/settings.ts` (`/api/config/import`), `src/routes/tickets.ts`
 
 Trois routes n'utilisent pas `parseBody` et appellent `await req.json()` à nu. Sur un corps malformé, l'exception remonte au gestionnaire d'erreur global de `Bun.serve`, qui répond **500 « Internal Server Error »** — là où toutes les routes validées répondent 400 `{ error: "JSON invalide" }`.
 
@@ -636,7 +636,7 @@ Le contrat d'erreur de l'API n'est donc pas uniforme, et un client ne peut pas d
 **Correctif :** brancher `parseBody` sur ces routes, en commençant par `reportBodySchema`, déjà écrit.
 
 ### N36. Une méthode non déclarée renvoie du HTML en 200
-🔴 **Ouvert — relevé par la suite de tests** — `src/index.ts` (fourre-tout `"/*"`)
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/index.ts` (fourre-tout `"/*"`)
 
 Un chemin `/api/…` inconnu, ou une route déclarée atteinte avec une méthode qu'elle n'expose pas (`GET /api/annotations`, qui n'existe qu'en `POST`), ne reçoit ni 404 ni 405 : la requête tombe dans le fourre-tout `"/*"` et récupère `index.html`. Le client obtient **200 avec du `text/html`**, échoue à son `res.json()` sur une `SyntaxError` — « Unexpected token < » — et n'a aucun indice sur la cause réelle.
 
@@ -645,7 +645,7 @@ Un chemin `/api/…` inconnu, ou une route déclarée atteinte avec une méthode
 **Correctif :** placer avant le fourre-tout une route `"/api/*"` répondant 404 en JSON, afin que le fallback SPA ne capte que la navigation client.
 
 ### N37. `DELETE` sur un identifiant inconnu répond succès
-🔴 **Ouvert — relevé par la suite de tests** — `src/routes/projects.ts`, `src/routes/tags.ts`, `src/routes/prompts.ts`, `src/routes/reports.ts`
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/routes/projects.ts`, `src/routes/tags.ts`, `src/routes/prompts.ts`, `src/routes/reports.ts`
 
 Aucune des quatre routes de suppression ne vérifie l'existence de la ligne : `DELETE FROM … WHERE id = ?` est idempotent côté SQL, et le handler répond `{success:true}` ou 204 dans tous les cas. L'interface ne peut donc pas distinguer « supprimé » de « n'existait pas », ce qui masque une désynchronisation entre la liste affichée et l'état réel — précisément le symptôme de [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation).
 
@@ -654,7 +654,7 @@ Aucune des quatre routes de suppression ne vérifie l'existence de la ligne : `D
 **Correctif :** renvoyer 404 quand aucune ligne n'est affectée (`changes === 0`).
 
 ### N38. `getReports` trie par `created_at` seul
-🔴 **Ouvert — relevé par la suite de tests** — `src/db/reports.ts`
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/db/reports.ts`
 
 `ORDER BY created_at DESC` sans départage par `id`, sur un horodatage à la seconde. Deux « Tout auditer » lancés dans la même seconde remontent dans un ordre **indéfini** — et c'est l'ordre qui détermine quel compte-rendu l'écran Rapports compare au précédent. Le même défaut a déjà été traité sur les runs (`getLatestRun` départage par `ran_at DESC, id DESC`).
 
@@ -683,7 +683,7 @@ Défaut connexe déjà noté en [N21](#n21-n1-systématiques-et-double-déséria
 **Correctif :** inclure `project_id` dans le hash — deux projets ne devant jamais produire la même empreinte — et ajouter un index sur la colonne.
 
 ### N42. `commit_sha` peut valoir la chaîne `"HEAD"`
-🔴 **Ouvert — relevé par la suite de tests** — `src/lib/git/index.ts` (`getGitInfo`)
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/lib/git/index.ts` (`getGitInfo`)
 
 Sur une branche non née — dépôt fraîchement `git init`, sans commit — `git rev-parse HEAD` écrit « fatal: ambiguous argument 'HEAD' » sur **stderr** mais renvoie la chaîne littérale `HEAD` sur **stdout**. Le filtre ne cherche `fatal:` que dans stdout :
 
@@ -699,7 +699,7 @@ if (sha && !sha.includes("fatal:")) info.sha = sha;   // ← accepte « HEAD »
 **Correctif :** tester le code de sortie de `git rev-parse` plutôt que d'inspecter stdout, ou valider la forme `/^[0-9a-f]{40}$/`.
 
 ### N43. Le repli « Déjà à jour. » de `gitFetch` est inatteignable
-🔴 **Ouvert — relevé par la suite de tests** — `src/lib/git/index.ts` (`gitFetch`)
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/lib/git/index.ts` (`gitFetch`)
 
 Le repli existe pour éviter d'afficher un journal vide, qui se lit comme un échec. Mais la commande est lancée avec `--verbose`, ce qui fait écrire à git `= [up to date]  main -> origin/main` même quand rien ne change : `log.trim() === ""` n'est donc jamais vrai dès qu'un amont existe. Le seul cas où le repli s'applique est un dépôt **sans remote configuré** — où il affiche « Déjà à jour. » alors que rien n'a été tenté, ce qui est le message le plus trompeur possible.
 
@@ -827,7 +827,7 @@ Le référent rédige une recommandation pour `lodash`, annule, ouvre le ticket 
 **Correctif :** réinitialiser `notes` à l'ouverture, ou donner au dialogue une `key` dérivée de `group.key` pour forcer un état neuf par ticket.
 
 ### N40. Les noms de tags sont sensibles à la casse
-🔴 **Ouvert — relevé par la suite de tests** — `src/db/index.ts` (table `tags`), `src/db/tags.ts`
+🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/db/index.ts` (table `tags`), `src/db/tags.ts`
 
 `name TEXT NOT NULL UNIQUE` sans `COLLATE NOCASE` : « backend » et « Backend » coexistent, produisant **deux filtres visuellement identiques** dans la barre de la page Projets, chacun ne matchant qu'une partie des projets. L'erreur est invisible à la lecture, et le message « Un tag avec ce nom existe déjà » ne se déclenche pas.
 
@@ -860,7 +860,7 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1151** |
+| `src/pages/Projects.tsx` | **1136** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |
@@ -919,7 +919,7 @@ Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points :
 4. **[N1](#n1-github-est-appelé-pendant-chaque-audit)** — sortir l'enrichissement du chemin d'audit. Débloque mécaniquement [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil), [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) et une bonne part de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire).
 5. ~~**N10** puis **N28**~~ — ✅ **faits le 21/08/2026.** La table d'occurrences porte la clé de §2, les lignes ambiguës sont purgées, et l'invariant des compteurs est verrouillé.
 6. **[C9](#c9-initdb-ignore-son-paramètre) puis [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) et [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours)** — sauvegarde et restauration. Aujourd'hui l'outil affiche « restauration effectuée » sans rien restaurer : c'est le comportement le plus mensonger de l'application.
-7. **Le lot bon marché** — [N33](#n33-zcoerceboolean-rend-la-chaîne-false-vraie), [N34](#n34-parsecvssvector-écarte-toujours-le-premier-segment), [N35](#n35-500-au-lieu-de-400-sur-les-routes-qui-lisent-reqjson-directement), [N36](#n36-une-méthode-non-déclarée-renvoie-du-html-en-200), [N37](#n37-delete-sur-un-identifiant-inconnu-répond-succès), [N38](#n38-getreports-trie-par-created_at-seul), [N40](#n40-les-noms-de-tags-sont-sensibles-à-la-casse), [N42](#n42-commit_sha-peut-valoir-la-chaîne-head), [N43](#n43-le-repli--déjà-à-jour--de-gitfetch-est-inatteignable), [N11](#n11-force1-est-inopérant). Dix correctifs de quelques lignes chacun, tous déjà épinglés par un test à retourner. Bon lot pour une passe unique.
+7. ~~**Le lot bon marché**~~ — ✅ **fait le 22/08/2026.** Les dix correctifs, en une passe. Deux ont dépassé leur périmètre annoncé : N35 a révélé que l'import de configuration passait des données non validées à `createProject`, et N40 a exigé de réécrire `projects.tags` pour ne pas créer les tags fantômes de N12.
 8. **[N9](#n9-le-triage-est-impraticable-au-delà-de-quelques-cve) et [N14](#n14-sévérité-illisible--palette-sans-couleur-de-texte-et-préfixes-dark-amputés)** — les deux défauts qui rendent l'écran de triage inutilisable en pratique, alors qu'il est la raison d'être du produit. N14 commence par un `grep` sur les préfixes `dark:` amputés.
 9. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — arbitrage du contrat. À trancher avant d'engager le reste : plusieurs entrées sont des fonctionnalités délibérément remplacées, pas des oublis.
 

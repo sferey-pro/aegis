@@ -170,9 +170,14 @@ export function updateProject(
 	return parseProject(row as ProjectRow);
 }
 
-export function deleteProject(id: number): void {
+export function deleteProject(id: number): boolean {
 	const db = getDb();
-	db.query(`DELETE FROM projects WHERE id = ?`).run(id);
+	// N37 : retourne s'il y a bien eu suppression, pour que la route réponde
+	// 404 sur un identifiant inconnu. Sans cela, l'interface ne distinguait
+	// pas « supprimé » de « n'existait pas », ce qui masquait une
+	// désynchronisation entre la liste affichée et l'état réel.
+	const info = db.query(`DELETE FROM projects WHERE id = ?`).run(id);
+	return info.changes > 0;
 }
 
 export function toggleIgnoreProject(id: number): Project {

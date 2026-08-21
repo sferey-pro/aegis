@@ -107,16 +107,10 @@ describe("DELETE /api/tags/:id", () => {
 		expect(liste).toEqual([]);
 	});
 
-	test("un identifiant inconnu renvoie aussi 204 — écart documenté", async () => {
-		// La suppression est idempotente et la route ne vérifie pas l'existence :
-		// l'interface ne peut pas distinguer « supprimé » de « inexistant ».
-		const res = await srv.request("/api/tags/999999", { method: "DELETE" });
-		expect(res.status).toBe(204);
-	});
-
-	test("un identifiant non numérique ne lève pas", async () => {
+	test("un identifiant non numérique renvoie 404, sans lever", async () => {
+		// `parseInt("abc")` vaut NaN : aucune ligne ne correspond, donc 404 (N37).
 		const res = await srv.request("/api/tags/abc", { method: "DELETE" });
-		expect(res.status).toBe(204);
+		expect(res.status).toBe(404);
 	});
 });
 
@@ -139,7 +133,7 @@ describe("DELETE /api/tags/:id", () => {
 
 describe("contrats attendus — à activer au correctif", () => {
 	// N37 — 404 sur un identifiant inexistant.
-	test.failing("un identifiant inconnu renvoie 404 (N37)", async () => {
+	test("un identifiant inconnu renvoie 404 (N37)", async () => {
 		const res = await srv.request("/api/tags/999999", { method: "DELETE" });
 		expect(res.status).toBe(404);
 	});

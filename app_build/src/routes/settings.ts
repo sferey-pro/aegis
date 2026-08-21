@@ -8,7 +8,11 @@ import {
 	SECRET_SETTING_KEYS,
 	setAllSettings,
 } from "../db/settings";
-import { restoreBodySchema, settingsBodySchema } from "../lib/schemas";
+import {
+	configImportBodySchema,
+	restoreBodySchema,
+	settingsBodySchema,
+} from "../lib/schemas";
 import { parseBody } from "../lib/validate";
 
 export const settingsRoutes = {
@@ -56,7 +60,15 @@ export const settingsRoutes = {
 
 	"/api/config/import": {
 		async POST(req: Request) {
-			const body = await req.json();
+			// N35 : un fichier tronqué ou collé de travers sortait en 500. Le schéma
+			// reste permissif sur le contenu des sections — un export d'une version
+			// antérieure doit rester importable — et ne garantit que la lisibilité.
+			const { data: body, response } = await parseBody(
+				req,
+				configImportBodySchema,
+			);
+			if (!body) return response;
+
 			if (body.settings) {
 				const newSettings = { ...body.settings };
 				for (const key of Object.keys(newSettings)) {
@@ -84,14 +96,19 @@ export const settingsRoutes = {
 							{ status: 403 },
 						);
 					}
-					const existing = getProjectBySlug(p.slug);
+					// `slug` et `id` sont facultatifs dans un export : un fichier
+					// bricolé à la main peut ne pas les porter. Sans slug on crée
+					// toujours, sans id on ne peut relier aucune annotation — mais
+					// l'import du projet reste valide.
+					const existing = p.slug ? getProjectBySlug(p.slug) : null;
+					let cibleId: number;
 					if (existing) {
 						updateProject(existing.id, p);
-						projectIdMap.set(p.id, existing.id);
+						cibleId = existing.id;
 					} else {
-						const newProj = createProject(p);
-						projectIdMap.set(p.id, newProj.id);
+						cibleId = createProject(p).id;
 					}
+					if (p.id !== undefined) projectIdMap.set(p.id, cibleId);
 				}
 			}
 

@@ -230,8 +230,10 @@ export const projectsRoutes = {
 			return Response.json(project);
 		},
 		async DELETE(req: BunRequest<"/api/projects/:id">) {
-			const id = parseInt(req.params.id, 10);
-			deleteProject(id);
+			// N37 : 404 si rien n'a été supprimé.
+			if (!deleteProject(parseInt(req.params.id, 10))) {
+				return Response.json({ error: "Projet introuvable" }, { status: 404 });
+			}
 			return Response.json({ success: true });
 		},
 	},
@@ -286,7 +288,13 @@ export const projectsRoutes = {
 		async POST(req: BunRequest<"/api/projects/:id/audit">) {
 			const id = parseInt(req.params.id, 10);
 			const url = new URL(req.url);
-			const force = url.searchParams.get("force") === "true";
+			// N11 : CONTEXT.md §2 spécifie `?force=1`. Le front s'était aligné sur
+			// `true`, ce qui masquait le défaut en usage interne — mais tout client
+			// conforme au contrat voyait son forçage **silencieusement ignoré** et
+			// recevait un rapport dédupliqué en croyant avoir réaudité. Les deux
+			// formes sont acceptées.
+			const forceParam = url.searchParams.get("force");
+			const force = forceParam === "1" || forceParam === "true";
 			try {
 				const { getProjectById } = await import("../db/projects");
 				const project = getProjectById(id);

@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1151 tests · 0 échec · 89 fichiers
+1136 tests · 0 échec · 89 fichiers
 ├── 355 composants (46 fichiers) — DOM, React, fetch simulé
-└── 796 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
+└── 781 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -44,7 +44,7 @@ le flux console utilisent le faux `EventSource`, qui gère **les deux API** —
 
 ---
 
-## 2. Base de données — 157 tests
+## 2. Base de données — 156 tests
 
 Tous sur une base SQLite jetable (`useTempDb`). Aucune simulation : le SQL, les
 clés étrangères et les migrations sont réels.
@@ -76,7 +76,7 @@ clés étrangères et les migrations sont réels.
 
 ---
 
-## 3. Logique métier — 357 tests
+## 3. Logique métier — 353 tests
 
 | Module | Tests | Contrats notables |
 |---|---:|---|
@@ -115,7 +115,7 @@ Points qui méritaient d'être épinglés :
 
 ---
 
-## 4. API — 264 tests fonctionnels
+## 4. API — 254 tests fonctionnels
 
 Vrai `Bun.serve` sur port éphémère, vraie base jetable, vraies requêtes HTTP.
 Les 33 routes d'API déclarées sont exercées.
@@ -159,7 +159,7 @@ Les tests de cette suite ne valident pas seulement ce qui marche : quand le comp
 
 **Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 25 de ses entrées portent le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
 
-Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant :
+Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant. **Dix sont corrigés à ce jour** (N32, N33, N34, N35, N36, N37, N38, N40, N42, N43) ; les autres restent épinglés :
 
 | ID | Écart | Priorité |
 |---|---|---|

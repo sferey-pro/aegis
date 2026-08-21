@@ -37,11 +37,21 @@ export function expandPath(path: string): string {
  * Helper to run a git command and return its output.
  * Throws if the command fails, unless tolerateFailure is true.
  */
+/**
+ * Exécute une commande git et retourne sa sortie **avec son code de sortie**.
+ *
+ * Le code de sortie est la seule façon fiable de savoir si la commande a
+ * réussi : sur une branche non née, `git rev-parse HEAD` écrit
+ * « fatal: ambiguous argument » sur **stderr** mais la chaîne littérale `HEAD`
+ * sur **stdout**. Inspecter stdout à la recherche de `fatal:` laissait donc
+ * passer cette valeur, et `commit_sha` pouvait valoir `"HEAD"` — ce qui
+ * satisfaisait la condition de déduplication d'audit (défaut N42).
+ */
 async function runGit(
 	args: string[],
 	cwd: string,
 	tolerateFailure = false,
-): Promise<string> {
+): Promise<{ out: string; exitCode: number }> {
 	const cmdLine = `git ${args.join(" ")}`;
 	const startTime = Date.now();
 	const eventId = emitConsoleStart({ cmd: cmdLine, cwd, label: "git" });
@@ -67,7 +77,12 @@ async function runGit(
 	if (exitCode !== 0 && !tolerateFailure) {
 		throw new Error(`Git command failed with code ${exitCode}`);
 	}
-	return stdout.trim();
+	return { out: stdout.trim(), exitCode };
+}
+
+/** Sortie de la commande si elle a réussi, `null` sinon. */
+function siOk(res: { out: string; exitCode: number }): string | null {
+	return res.exitCode === 0 && res.out !== "" ? res.out : null;
 }
 
 export async function getGitInfo(rawPath: string): Promise<GitInfo> {
@@ -85,10 +100,8 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
 
 	try {
 		// 1. isRepo
-		const isInside = await runGit(
-			["rev-parse", "--is-inside-work-tree"],
-			cwd,
-			true,
+		const isInside = siOk(
+			await runGit(["rev-parse", "--is-inside-work-tree"], cwd, true),
 		);
 		if (isInside !== "true") {
 			return info; // not a repo
@@ -96,33 +109,36 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
 		info.isRepo = true;
 
 		// 2. branch
-		const branch = await runGit(
-			["rev-parse", "--abbrev-ref", "HEAD"],
-			cwd,
-			true,
+		info.branch = siOk(
+			await runGit(["rev-parse", "--abbrev-ref", "HEAD"], cwd, true),
 		);
-		if (branch && !branch.includes("fatal:")) info.branch = branch;
 
-		// 3. sha
-		const sha = await runGit(["rev-parse", "HEAD"], cwd, true);
-		if (sha && !sha.includes("fatal:")) info.sha = sha;
+		// 3. sha — N42 : la forme est vérifiée en plus du code de sortie. Une
+		// branche non née fait écrire « HEAD » sur stdout, et un `commit_sha` non
+		// hexadécimal satisferait la déduplication d'audit d'un run au suivant.
+		const sha = siOk(await runGit(["rev-parse", "HEAD"], cwd, true));
+		info.sha = sha && /^[0-9a-f]{40}$/.test(sha) ? sha : null;
 
 		// 4. upstream
-		const upstream = await runGit(
-			["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-			cwd,
-			true,
+		const upstream = siOk(
+			await runGit(
+				["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+				cwd,
+				true,
+			),
 		);
-		if (upstream && !upstream.includes("fatal:")) {
+		if (upstream) {
 			info.upstream = upstream;
 
 			// 5. ahead / behind (only if upstream exists)
-			const counts = await runGit(
-				["rev-list", "--left-right", "--count", "@{u}...HEAD"],
-				cwd,
-				true,
+			const counts = siOk(
+				await runGit(
+					["rev-list", "--left-right", "--count", "@{u}...HEAD"],
+					cwd,
+					true,
+				),
 			);
-			if (counts && !counts.includes("fatal:")) {
+			if (counts) {
 				// Output format: "<behind>\t<ahead>" (left is upstream, right is HEAD)
 				const [behindStr, aheadStr] = counts.split("\t");
 				if (behindStr !== undefined && aheadStr !== undefined) {
@@ -134,8 +150,8 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
 
 		// 6. dirty
 		const status = await runGit(["status", "--porcelain"], cwd, true);
-		if (!status.includes("fatal:")) {
-			info.dirty = status.length > 0;
+		if (status.exitCode === 0) {
+			info.dirty = status.out.length > 0;
 		}
 	} catch (_e) {
 		// if cwd doesn't exist, spawn will throw or runGit will throw
@@ -175,13 +191,21 @@ export async function gitFetch(
 			errorText: exitCode !== 0 ? stderr.trim() : undefined,
 		});
 
-		let log = stderr + stdout;
+		let log = (stderr + stdout).trim();
 
-		if (exitCode === 0 && log.trim() === "") {
-			log = "Déjà à jour.";
+		// N43 : trois situations distinctes, et non plus « journal vide ou pas ».
+		// Le repli « Déjà à jour. » était inatteignable dès qu'un amont existait —
+		// `--verbose` écrit toujours « = [up to date] » — et se déclenchait au
+		// contraire sur un dépôt **sans remote**, où rien n'avait été tenté. C'était
+		// le message le plus trompeur possible.
+		if (exitCode === 0 && log === "") {
+			const remotes = siOk(await runGit(["remote"], cwd, true));
+			log = remotes
+				? "Déjà à jour."
+				: "Aucun dépôt distant configuré : rien à récupérer.";
 		}
 
-		return { ok: exitCode === 0, log: log.trim() };
+		return { ok: exitCode === 0, log };
 	} catch (e: unknown) {
 		emitConsoleEnd(eventId, {
 			exitCode: 1,

@@ -136,14 +136,6 @@ describe("schemas — projectBodySchema", () => {
 		expect(r.is_remote).toBe(true);
 	});
 
-	test("z.coerce.boolean rend toute chaîne non vide vraie — écart documenté", () => {
-		// `"false"` est une chaîne non vide, donc vraie. Un client qui sérialise
-		// ses booléens en texte activerait « ignoré » en croyant le désactiver.
-		expect(
-			projectBodySchema.parse({ ...projetValide, ignored: "false" }).ignored,
-		).toBe(true);
-	});
-
 	test("les champs inconnus sont écartés du résultat", () => {
 		const r = projectBodySchema.parse({ ...projetValide, id: 99, evil: true });
 		expect(r).not.toHaveProperty("id");
@@ -469,7 +461,7 @@ describe("contrats attendus — à activer au correctif", () => {
 	// N33 — `z.coerce.boolean` rend vraie toute chaîne non vide. Un client qui
 	// sérialise ses booléens en texte active « ignoré » en croyant le désactiver,
 	// et le projet disparaît de l'agrégation CVE sans message.
-	test.failing('la chaîne "false" vaut faux (N33)', () => {
+	test('la chaîne "false" vaut faux (N33)', () => {
 		const r = projectBodySchema.parse({
 			...projetValide,
 			ignored: "false",

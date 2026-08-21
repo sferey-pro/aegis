@@ -29,15 +29,6 @@ describe("point d'entrée du serveur", () => {
 		expect(res.headers.get("content-type")).toContain("application/json");
 	});
 
-	test("un chemin d'API inconnu n'est pas une erreur mais l'application", async () => {
-		// Il tombe dans le fourre-tout `/*` : le client reçoit l'application, pas
-		// un 404 JSON. C'est un écart à connaître pour le débogage d'un appel mal
-		// orthographié.
-		const res = await srv.request("/api/inexistant");
-		expect(res.status).toBe(200);
-		expect(res.headers.get("content-type")).not.toContain("application/json");
-	});
-
 	test("une route cliente en profondeur renvoie l'application", async () => {
 		const res = await srv.request("/projects/42/history");
 		expect(res.status).toBe(200);
@@ -48,16 +39,6 @@ describe("point d'entrée du serveur", () => {
 		const res = await srv.request("/");
 		expect(res.status).toBe(200);
 		expect(await res.text()).toContain("<html");
-	});
-
-	test("une méthode non déclarée renvoie l'application — écart documenté", async () => {
-		// `/api/annotations` n'est déclarée qu'en POST. Un `GET` ne reçoit ni 404 ni
-		// 405 : il tombe dans le fourre-tout `/*` et récupère du HTML. Un client qui
-		// se trompe de verbe voit donc une page là où il attend du JSON, et échoue
-		// au `res.json()` sans indice sur la cause.
-		const res = await srv.request("/api/annotations");
-		expect(res.status).toBe(200);
-		expect(res.headers.get("content-type")).toContain("text/html");
 	});
 
 	test("le logo est servi depuis le disque", async () => {
@@ -86,14 +67,14 @@ describe("point d'entrée du serveur", () => {
 
 describe("contrats attendus — à activer au correctif", () => {
 	// N36 — un chemin d'API inconnu doit répondre 404 en JSON, pas servir la SPA.
-	test.failing("un chemin d'API inconnu renvoie 404 en JSON (N36)", async () => {
+	test("un chemin d'API inconnu renvoie 404 en JSON (N36)", async () => {
 		const res = await srv.request("/api/inexistant");
 		expect(res.status).toBe(404);
 		expect(res.headers.get("content-type")).toContain("application/json");
 	});
 
 	// N36 — une méthode non déclarée doit répondre 404 ou 405, jamais du HTML.
-	test.failing("une méthode non déclarée ne renvoie pas l'application (N36)", async () => {
+	test("une méthode non déclarée ne renvoie pas l'application (N36)", async () => {
 		const res = await srv.request("/api/annotations");
 		expect([404, 405]).toContain(res.status);
 		expect(res.headers.get("content-type")).not.toContain("text/html");

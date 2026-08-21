@@ -42,7 +42,10 @@ export const promptsRoutes = {
 			}
 		},
 		async DELETE(req: BunRequest<"/api/prompts/:id">) {
-			deletePrompt(parseInt(req.params.id, 10));
+			// N37 : 404 si rien n'a été supprimé.
+			if (!deletePrompt(parseInt(req.params.id, 10))) {
+				return Response.json({ error: "Prompt introuvable" }, { status: 404 });
+			}
 			return new Response(null, { status: 204 });
 		},
 	},

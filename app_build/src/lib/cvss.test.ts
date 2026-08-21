@@ -61,14 +61,6 @@ describe("lib/cvss — parseCvssVector", () => {
 		expect(parseCvssVector("")).toEqual({});
 	});
 
-	test("le premier segment est toujours écarté — écart documenté", () => {
-		// `split("/").slice(1)` suppose le préfixe `CVSS:x.y`. Un vecteur transmis
-		// sans préfixe perd donc sa première métrique, silencieusement.
-		expect(parseCvssVector("AV:N/AC:L")["Exploitability Metrics"]).toHaveLength(
-			1,
-		);
-	});
-
 	test("chaque métrique porte son groupe en propre", () => {
 		const m = parseCvssVector(V31)["Scope Metrics"]?.[0];
 		expect(m?.group).toBe("Scope Metrics");
@@ -125,7 +117,7 @@ describe("lib/cvss — buildCvssTooltip", () => {
 describe("contrats attendus — à activer au correctif", () => {
 	// N34 — `slice(1)` suppose le préfixe `CVSS:x.y`. Un vecteur transmis sans
 	// préfixe perd sa première métrique, silencieusement.
-	test.failing("un vecteur sans préfixe garde toutes ses métriques (N34)", () => {
+	test("un vecteur sans préfixe garde toutes ses métriques (N34)", () => {
 		const g = parseCvssVector("AV:N/AC:L");
 		expect(g["Exploitability Metrics"]).toHaveLength(2);
 	});

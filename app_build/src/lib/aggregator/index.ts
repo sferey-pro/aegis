@@ -5,6 +5,7 @@ import {
 import { listProjects } from "../../db/projects";
 import { getLatestRun } from "../../db/runs";
 import type { Severity, Vulnerability } from "../parsers/types";
+import { vulnKey, vulnRef } from "../vuln-identity";
 
 const SEV_ORDER: Record<Severity, number> = {
 	critical: 0,
@@ -67,9 +68,7 @@ export function buildCveGroups(): CveGroup[] {
 		const projectOccurrences = new Map<string, Vulnerability>();
 
 		for (const vuln of latestRun.vulnerabilities) {
-			const cveTrimmed = vuln.cve?.trim();
-			const ref = cveTrimmed && cveTrimmed.length > 0 ? cveTrimmed : null;
-			const groupKey = ref ? ref : `${vuln.package}: ${vuln.title}`;
+			const groupKey = vulnKey(vuln);
 
 			const existing = projectOccurrences.get(groupKey);
 			if (
@@ -82,8 +81,7 @@ export function buildCveGroups(): CveGroup[] {
 
 		// Intégrer aux groupes globaux
 		for (const [groupKey, vuln] of projectOccurrences.entries()) {
-			const cveTrimmed = vuln.cve?.trim();
-			const ref = cveTrimmed && cveTrimmed.length > 0 ? cveTrimmed : null;
+			const ref = vulnRef(vuln.cve);
 
 			const ann = annMap.get(groupKey);
 			const status = ann?.status || "pending";

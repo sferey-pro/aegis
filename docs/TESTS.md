@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1142 tests · 0 échec · 88 fichiers
+1151 tests · 0 échec · 89 fichiers
 ├── 355 composants (46 fichiers) — DOM, React, fetch simulé
-└── 787 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
+└── 796 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -44,7 +44,7 @@ le flux console utilisent le faux `EventSource`, qui gère **les deux API** —
 
 ---
 
-## 2. Base de données — 151 tests
+## 2. Base de données — 157 tests
 
 Tous sur une base SQLite jetable (`useTempDb`). Aucune simulation : le SQL, les
 clés étrangères et les migrations sont réels.
@@ -76,7 +76,7 @@ clés étrangères et les migrations sont réels.
 
 ---
 
-## 3. Logique métier — 354 tests
+## 3. Logique métier — 357 tests
 
 | Module | Tests | Contrats notables |
 |---|---:|---|

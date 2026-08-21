@@ -33,8 +33,8 @@ describe("ensureOccurrences", () => {
 		const map = ensureOccurrences(
 			p.id,
 			[
-				{ package: "lodash", cve: "CVE-1" },
-				{ package: "axios", cve: "CVE-2" },
+				{ package: "lodash", title: "T", cve: "CVE-1" },
+				{ package: "axios", title: "T", cve: "CVE-2" },
 			],
 			false,
 		);
@@ -43,21 +43,25 @@ describe("ensureOccurrences", () => {
 		expect(map.get("axios::CVE-2")).toBeDefined();
 	});
 
-	test("une CVE absente retombe sur le nom du package comme clé", () => {
+	test("une CVE absente retombe sur le titre, pas sur le nom du paquet", () => {
+		// Clé de `newCves` (CONTEXT.md §2) : `package::cve`, repli `package::title`.
+		// Le repli était le nom du paquet, donc identique pour tous les avis sans
+		// CVE de ce paquet (N10).
 		const p = projet();
 		const map = ensureOccurrences(
 			p.id,
-			[{ package: "lodash", cve: null }],
+			[{ package: "lodash", title: "Prototype pollution", cve: null }],
 			false,
 		);
-		expect(map.get("lodash::lodash")).toBeDefined();
+		expect(map.get("lodash::Prototype pollution")).toBeDefined();
+		expect(map.get("lodash::lodash")).toBeUndefined();
 	});
 
 	test("la date est exposée en ISO, avec le Z que SQLite n'écrit pas", () => {
 		const p = projet();
 		const map = ensureOccurrences(
 			p.id,
-			[{ package: "lodash", cve: "CVE-1" }],
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
 			false,
 		);
 		const iso = map.get("lodash::CVE-1")?.firstSeenAt ?? "";
@@ -70,7 +74,7 @@ describe("ensureOccurrences", () => {
 		const p = projet();
 		const premier = ensureOccurrences(
 			p.id,
-			[{ package: "lodash", cve: "CVE-1" }],
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
 			false,
 		);
 		const date = premier.get("lodash::CVE-1")?.firstSeenAt;
@@ -85,7 +89,7 @@ describe("ensureOccurrences", () => {
 
 		const second = ensureOccurrences(
 			p.id,
-			[{ package: "lodash", cve: "CVE-1" }],
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
 			false,
 		);
 		expect(second.get("lodash::CVE-1")?.firstSeenAt).toBe(
@@ -98,7 +102,11 @@ describe("ensureOccurrences", () => {
 		// Le scénario exact demandé par la vague 1 : run 1 détecte, run 2 ne voit
 		// rien (erreur, réseau coupé, lockfile absent), run 3 redétecte.
 		const p = projet();
-		ensureOccurrences(p.id, [{ package: "lodash", cve: "CVE-1" }], true);
+		ensureOccurrences(
+			p.id,
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
+			true,
+		);
 		getDb()
 			.query(
 				`UPDATE cve_occurrences SET first_seen_at = '2020-01-01 00:00:00'
@@ -111,7 +119,7 @@ describe("ensureOccurrences", () => {
 		// Run 3 : la CVE réapparaît.
 		const apres = ensureOccurrences(
 			p.id,
-			[{ package: "lodash", cve: "CVE-1" }],
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
 			false,
 		);
 
@@ -124,10 +132,14 @@ describe("ensureOccurrences", () => {
 		// La dette héritée reste de la dette : le premier run réussi la qualifie
 		// définitivement.
 		const p = projet();
-		ensureOccurrences(p.id, [{ package: "lodash", cve: "CVE-1" }], true);
+		ensureOccurrences(
+			p.id,
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
+			true,
+		);
 		const apres = ensureOccurrences(
 			p.id,
-			[{ package: "lodash", cve: "CVE-1" }],
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
 			false,
 		);
 		expect(apres.get("lodash::CVE-1")?.isBaseline).toBe(true);
@@ -137,7 +149,7 @@ describe("ensureOccurrences", () => {
 		const p = projet();
 		const map = ensureOccurrences(
 			p.id,
-			[{ package: "lodash", cve: "CVE-1" }],
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
 			false,
 		);
 		expect(map.get("lodash::CVE-1")?.isBaseline).toBe(false);
@@ -151,10 +163,14 @@ describe("ensureOccurrences", () => {
 			type: "node",
 			tool: "npm",
 		});
-		ensureOccurrences(a.id, [{ package: "lodash", cve: "CVE-1" }], false);
+		ensureOccurrences(
+			a.id,
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
+			false,
+		);
 		const mapB = ensureOccurrences(
 			b.id,
-			[{ package: "axios", cve: "CVE-2" }],
+			[{ package: "axios", title: "T", cve: "CVE-2" }],
 			false,
 		);
 
@@ -164,7 +180,11 @@ describe("ensureOccurrences", () => {
 
 	test("une liste vide renvoie les occurrences déjà connues", () => {
 		const p = projet();
-		ensureOccurrences(p.id, [{ package: "lodash", cve: "CVE-1" }], false);
+		ensureOccurrences(
+			p.id,
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
+			false,
+		);
 		const map = ensureOccurrences(p.id, [], false);
 		// Rien n'est inséré, mais l'état existant est renvoyé.
 		expect(map.size).toBe(1);
@@ -172,7 +192,11 @@ describe("ensureOccurrences", () => {
 
 	test("supprimer le projet supprime ses occurrences en cascade", () => {
 		const p = projet();
-		ensureOccurrences(p.id, [{ package: "lodash", cve: "CVE-1" }], false);
+		ensureOccurrences(
+			p.id,
+			[{ package: "lodash", title: "T", cve: "CVE-1" }],
+			false,
+		);
 
 		getDb().query("DELETE FROM projects WHERE id = ?").run(p.id);
 
@@ -182,23 +206,69 @@ describe("ensureOccurrences", () => {
 		expect(restantes.n).toBe(0);
 	});
 
-	test("deux avis sans CVE sur un même package partagent une occurrence", () => {
-		// Défaut N10 : la clé de la table est (project, package, cve) avec
-		// `cve || package` en repli. Deux avis distincts sans CVE — le cas de `bun
-		// audit`, dont le parseur ne remplit `cve` que depuis les CWE — se fondent
-		// donc en une seule ligne et héritent de la même date.
-		//
-		// Comportement documenté, pas validé : c'est le résiduel de C12.
+	test("deux avis identiques sans CVE ne comptent que pour une occurrence", () => {
+		// Même paquet, même titre : c'est bien la même vulnérabilité.
 		const p = projet();
 		const map = ensureOccurrences(
 			p.id,
 			[
-				{ package: "lodash", cve: null },
-				{ package: "lodash", cve: null },
+				{ package: "lodash", title: "T", cve: null },
+				{ package: "lodash", title: "T", cve: null },
 			],
 			false,
 		);
 		expect(map.size).toBe(1);
+	});
+
+	test("deux avis distincts sans CVE gardent des dates distinctes (N10)", () => {
+		// Le cas de `bun audit`, dont le parseur ne remplit `cve` que depuis les
+		// CWE. Les deux avis partageaient auparavant une ligne, donc un
+		// `first_seen_at` et un `is_baseline` : un avis découvert ce matin
+		// s'affichait avec l'âge d'une faille vue il y a six mois.
+		const p = projet();
+		const map = ensureOccurrences(
+			p.id,
+			[
+				{ package: "lodash", title: "Prototype pollution", cve: null },
+				{ package: "lodash", title: "ReDoS", cve: null },
+			],
+			false,
+		);
+		expect(map.size).toBe(2);
+		expect(map.get("lodash::Prototype pollution")).toBeDefined();
+		expect(map.get("lodash::ReDoS")).toBeDefined();
+	});
+
+	test("la date du second avis n'écrase pas celle du premier (N10 + C12)", () => {
+		// Les deux mécanismes se combinent : identités distinctes **et** gel de la
+		// date. Le premier avis est antidaté pour rendre une réécriture observable.
+		const p = projet();
+		ensureOccurrences(
+			p.id,
+			[{ package: "lodash", title: "Prototype pollution", cve: null }],
+			true,
+		);
+		getDb()
+			.query(
+				"UPDATE cve_occurrences SET first_seen_at = '2020-01-01 00:00:00' WHERE cve = ?",
+			)
+			.run("Prototype pollution");
+
+		const map = ensureOccurrences(
+			p.id,
+			[
+				{ package: "lodash", title: "Prototype pollution", cve: null },
+				{ package: "lodash", title: "ReDoS", cve: null },
+			],
+			false,
+		);
+		expect(map.get("lodash::Prototype pollution")?.firstSeenAt).toBe(
+			"2020-01-01T00:00:00Z",
+		);
+		// L'ancien s'est vu conserver sa qualification de dette héritée…
+		expect(map.get("lodash::Prototype pollution")?.isBaseline).toBe(true);
+		// …et le nouveau est bien une découverte nette.
+		expect(map.get("lodash::ReDoS")?.isBaseline).toBe(false);
 	});
 });
 
@@ -234,7 +304,7 @@ describe("contrats attendus — à activer au correctif", () => {
 	// correctif doit l'y ajouter, puisque la fonction ne peut pas distinguer deux
 	// avis sans lui. Le transtypage rend cette exigence explicite plutôt que de
 	// laisser le test ne pas compiler.
-	test.failing("deux avis sans CVE gardent des identités distinctes (N10)", () => {
+	test("deux avis sans CVE gardent des identités distinctes (N10)", () => {
 		const p = createProject({
 			name: "occ-contrat",
 			path: "/srv/occ-contrat",

@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { spawn } from "bun";
 import { errorMessage } from "@/lib/utils";
+import { occurrenceKey, vulnRef } from "@/lib/vuln-identity";
 import { getDb } from "../../db";
 import { ensureOccurrences } from "../../db/occurrences";
 import {
@@ -53,7 +54,7 @@ async function enhanceVulnerabilities(
 			originalFixedIn: v.fixedIn,
 		});
 
-		const key = `${v.package}::${v.cve || v.package}`;
+		const key = occurrenceKey(v);
 		const occ = occurrencesMap.get(key) || {
 			firstSeenAt: new Date().toISOString(),
 			isBaseline: isBaseline,
@@ -310,15 +311,13 @@ export async function runAudit(
 			const newCves = [];
 			if (lastRun && lastRun.status !== "error") {
 				const oldSet = new Set(
-					lastRun.vulnerabilities.map(
-						(v) => `${v.package}::${v.cve || v.title}`,
-					),
+					lastRun.vulnerabilities.map((v) => occurrenceKey(v)),
 				);
 				for (const v of enhancedVulns) {
-					const key = `${v.package}::${v.cve || v.title}`;
+					const key = occurrenceKey(v);
 					if (!oldSet.has(key)) {
 						newCves.push({
-							ref: v.cve || v.package,
+							ref: vulnRef(v.cve) ?? v.package,
 							package: v.package,
 							severity: v.severity,
 						});
@@ -328,7 +327,7 @@ export async function runAudit(
 				// Premier run ou précédent en erreur -> toutes les failles trouvées sont considérées "nouvelles"
 				for (const v of enhancedVulns) {
 					newCves.push({
-						ref: v.cve || v.package,
+						ref: vulnRef(v.cve) ?? v.package,
 						package: v.package,
 						severity: v.severity,
 					});

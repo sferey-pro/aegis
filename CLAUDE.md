@@ -17,7 +17,7 @@ cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
 bun run test:ui     # 355 tests composants — happy-dom actif
-bun run test:api    # 787 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:api    # 796 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1142 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1151 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -61,6 +61,8 @@ Un seul process Bun sert à la fois l'API et la SPA React. SQLite est le seul st
 5. `enhanceVulnerabilities` appelle `ensureOccurrences` (gèle `first_seen_at` par `(project, package, cve)`, en marquant le tout premier run comme `is_baseline`) puis `resolveFixedVersion` de `src/lib/github` (GitHub Advisory Database, mise en cache dans `advisory_cache`, gestion du rate-limit) pour compléter `fixedIn`/sévérité/CVSS.
 6. Chaque issue persiste un run — les échecs deviennent des lignes `status: "error"` avec un champ `error` multi-ligne (raison, `cwd:`, `exit:`, stderr brut, stdout brut). Ne jamais avaler un échec d'audit.
 7. `newCves` diffe le nouveau run contre le précédent non-erreur sur la clé `package::cve` (repli sur `package::title`). Calculé à chaque réponse, **jamais persisté**.
+
+**Identité d'une vulnérabilité** (`src/lib/vuln-identity.ts`) : `CONTEXT.md` définit **trois** clés distinctes, et c'est délibéré — `dedupe` (§3) emploie `` `${package}|${title}|${cve ?? ""}` ``, le diff `newCves` (§2) emploie `package::cve` avec repli `package::title`, et le regroupement du triage (§7) emploie `cve` avec repli `` `${package}: ${title}` ``. Elles servent des granularités différentes ; **ne les unifiez pas**. La table `cve_occurrences` en avait une quatrième, non spécifiée (`cve || package`), seule à laisser tomber le titre — d'où deux avis sans CVE d'un même paquet partageant leur `first_seen_at` (défaut N10, corrigé). Elle emploie désormais `occurrenceRef`, la clé de §2.
 
 **Agrégation** (`src/lib/aggregator/index.ts`) : `buildCveGroups()` ne lit que le *dernier* run de chaque projet non ignoré, déduplique à l'intérieur d'un projet en gardant la pire sévérité, puis regroupe entre projets par référence CVE — ou par `"${package}: ${title}"` en l'absence de CVE. Les annotations de triage sont fusionnées ici, et le `fixed_in` d'une annotation écrase la valeur du scanner. Cette clé de regroupement est structurante : `/api/cves`, le triage et les stats la lisent tous.
 

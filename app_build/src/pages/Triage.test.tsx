@@ -205,11 +205,13 @@ describe("Triage", () => {
 			expect(posts()).toHaveLength(1);
 		});
 		expect(posts()[0]?.url).toBe("/api/annotations");
+		// N32 : un changement de statut n'envoie que le statut. La note absente du
+		// corps est préservée en base par `upsertAnnotation` ; l'envoyer à `""`
+		// détruisait l'analyse du référent à chaque passage en « faux positif ».
 		expect(posts()[0]?.body).toEqual({
 			cve: "CVE-2024-1",
 			projectId: 7,
 			status: "ignored",
-			note: "",
 		});
 	});
 

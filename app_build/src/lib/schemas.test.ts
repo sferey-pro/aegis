@@ -165,11 +165,30 @@ describe("schemas — detectBodySchema", () => {
 });
 
 describe("schemas — annotationBodySchema", () => {
-	test("un corps minimal est complété par les défauts du contrat", () => {
+	test("un corps minimal ne porte que le statut par défaut", () => {
+		// `status` a un défaut — l'état neutre du triage. `note` et `fixedIn` n'en
+		// ont pas : leur absence doit rester `undefined` pour traverser jusqu'à
+		// `upsertAnnotation`, qui préserve alors la valeur en base (N32). Leur
+		// donner un défaut effaçait la note et la version corrigée saisies à la
+		// main dès qu'on enregistrait un statut.
 		const r = annotationBodySchema.parse({ cve: "CVE-2024-1", projectId: 1 });
 		expect(r.status).toBe("pending");
-		expect(r.note).toBe("");
-		expect(r.fixedIn).toBeNull();
+		expect(r.note).toBeUndefined();
+		expect(r.fixedIn).toBeUndefined();
+	});
+
+	test("une note vide explicite reste une chaîne vide", () => {
+		// `""` est une intention — « vide ce champ » — distincte de l'absence.
+		expect(
+			annotationBodySchema.parse({ cve: "CVE-1", projectId: 1, note: "" }).note,
+		).toBe("");
+	});
+
+	test("un fixedIn null explicite reste null", () => {
+		expect(
+			annotationBodySchema.parse({ cve: "CVE-1", projectId: 1, fixedIn: null })
+				.fixedIn,
+		).toBeNull();
 	});
 
 	test("une CVE vide est refusée", () => {

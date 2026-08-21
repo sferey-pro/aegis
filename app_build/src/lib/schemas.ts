@@ -31,13 +31,33 @@ const tagNames = z
 		return out;
 	});
 
-/** Chaîne trimée dont la version vide devient `null` (CONTEXT.md §1). */
+/**
+ * Chaîne trimée dont la version vide devient `null` (CONTEXT.md §1). L'absence
+ * devient `null` elle aussi — c'est ce qu'attend `audit_path`, dont la colonne
+ * est nullable et n'a pas de notion de « ne pas toucher ».
+ */
 const emptyToNull = z
 	.string()
 	.trim()
 	.transform((v) => (v === "" ? null : v))
 	.nullish()
 	.transform((v) => v ?? null);
+
+/**
+ * Même normalisation, mais **l'absence reste `undefined`**.
+ *
+ * La distinction est porteuse de sens pour les champs d'annotation : `undefined`
+ * signifie « ne touche pas à ce champ », `null` ou `""` signifie « vide-le ».
+ * `upsertAnnotation` est écrite pour préserver les champs non fournis, et c'est
+ * `emptyToNull` — qui écrasait l'absence en `null` — qui rendait cette logique
+ * inopérante (défaut N32).
+ */
+const emptyToNullOptional = z
+	.string()
+	.trim()
+	.transform((v) => (v === "" ? null : v))
+	.nullable()
+	.optional();
 
 // ---------------------------------------------------------------- projets
 
@@ -84,8 +104,13 @@ export const annotationBodySchema = z.object({
 	projectId: z.coerce.number({ message: "Projet introuvable" }).int(),
 	// Un statut hors énumération retombe sur `pending` (CONTEXT.md §7).
 	status: annotationStatusSchema.catch("pending").default("pending"),
-	note: z.string().default(""),
-	fixedIn: emptyToNull,
+	// `note` et `fixedIn` sont **facultatifs sans valeur par défaut** : le panneau
+	// de triage n'envoie qu'un champ à la fois, et l'absence doit traverser
+	// jusqu'à `upsertAnnotation` pour que celle-ci préserve la valeur en base.
+	// Leur donner un défaut effaçait la note et la version corrigée saisies à la
+	// main dès qu'on enregistrait un statut (N32).
+	note: z.string().optional(),
+	fixedIn: emptyToNullOptional,
 });
 
 /** Forme reçue par la route, après application des valeurs par défaut. */

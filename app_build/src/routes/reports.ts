@@ -1,3 +1,4 @@
+import type { BunRequest } from "bun";
 import { createReport, deleteReport, getReports } from "../db/reports";
 
 export const reportsRoutes = {
@@ -12,8 +13,8 @@ export const reportsRoutes = {
 	},
 
 	"/api/reports/:id": {
-		async DELETE(req: any) {
-			const id = parseInt(req.params.id);
+		async DELETE(req: BunRequest<"/api/reports/:id">) {
+			const id = parseInt(req.params.id, 10);
 			deleteReport(id);
 			return Response.json({ success: true });
 		},

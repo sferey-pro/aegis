@@ -6,6 +6,9 @@ import {
 	RefreshCw,
 	X,
 } from "lucide-react";
+import type { AnnotationStatus } from "@/db/annotations";
+import type { CachedAdvisory } from "@/lib/github";
+import { errorMessage } from "@/lib/utils";
 import { buildCvssTooltip } from "../../lib/cvss";
 import { SEVERITY_COLORS } from "../../lib/triage-constants";
 import { Button } from "../ui/button";
@@ -15,6 +18,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "../ui/tooltip";
+import type { PackageGroupCve, Toast } from "./triage-types";
 
 export function CveCard({
 	cveObj,
@@ -25,14 +29,14 @@ export function CveCard({
 	handleConfirmCve,
 	onActionComplete,
 }: {
-	cveObj: any;
+	cveObj: PackageGroupCve;
 	packageName: string;
 	projectId: number;
-	setToast: (toast: any) => void;
+	setToast: (toast: Toast | null) => void;
 	updateStatus: (
 		cve: string,
 		projectId: number,
-		newStatus: string,
+		newStatus: AnnotationStatus,
 		note?: string,
 	) => Promise<void>;
 	handleConfirmCve: (
@@ -132,11 +136,14 @@ export function CveCard({
 									const data = await res.json();
 
 									if (data.success && data.advisory) {
-										const fixes = data.advisory.fixes || {};
+										const fixes: CachedAdvisory["fixes"] =
+											data.advisory.fixes || {};
+										// Une entrée de `fixes` est soit une liste de plages
+										// corrigées, soit une version unique, soit null.
 										const patches = Object.entries(fixes)
 											.filter(([k]) => k.includes(packageName))
-											.flatMap(([_, v]: any) => v)
-											.map((v: any) => v.patched)
+											.flatMap(([, v]) => (Array.isArray(v) ? v : []))
+											.map((v) => v.patched)
 											.filter(Boolean);
 
 										const patchStr =
@@ -190,12 +197,12 @@ export function CveCard({
 										});
 										setTimeout(() => setToast(null), 5000);
 									}
-								} catch (err: any) {
+								} catch (err: unknown) {
 									setToast({
 										isOpen: true,
 										type: "error",
 										title: "Erreur",
-										message: err.message,
+										message: errorMessage(err),
 									});
 									setTimeout(() => setToast(null), 5000);
 								}

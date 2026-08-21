@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/utils";
 import { getDb } from "./index";
 
 export interface Tag {
@@ -21,8 +22,8 @@ export function createTag(name: string, color: string = "indigo"): Tag {
 		return db
 			.query(`SELECT * FROM tags WHERE id = ?`)
 			.get(info.lastInsertRowid) as Tag;
-	} catch (e: any) {
-		if (e.message.includes("UNIQUE"))
+	} catch (e: unknown) {
+		if (errorMessage(e).includes("UNIQUE"))
 			throw new Error("Un tag avec ce nom existe déjà");
 		throw e;
 	}

@@ -1,9 +1,13 @@
+import type { BunRequest } from "bun";
+import { errorMessage } from "@/lib/utils";
 import {
 	createPrompt,
 	deletePrompt,
 	listPrompts,
 	updatePrompt,
 } from "../db/prompts";
+import { promptBodySchema } from "../lib/schemas";
+import { parseBody } from "../lib/validate";
 
 export const promptsRoutes = {
 	"/api/prompts": {
@@ -11,30 +15,35 @@ export const promptsRoutes = {
 			return Response.json(listPrompts());
 		},
 		async POST(req: Request) {
-			const body = await req.json();
+			const { data, response } = await parseBody(req, promptBodySchema);
+			if (!data) return response;
+
 			try {
-				const prompt = createPrompt(body.title, body.body, body.tags || []);
-				return Response.json(prompt);
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 400 });
+				const prompt = createPrompt(data.title, data.body, data.tags);
+				return Response.json(prompt, { status: 201 });
+			} catch (e: unknown) {
+				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}
 		},
 	},
 
 	"/api/prompts/:id": {
-		async PUT(req: any) {
-			const id = parseInt(req.params.id);
-			const body = await req.json();
+		async PUT(req: BunRequest<"/api/prompts/:id">) {
+			const id = parseInt(req.params.id, 10);
+			const { data, response } = await parseBody(req, promptBodySchema);
+			if (!data) return response;
+
 			try {
-				const prompt = updatePrompt(id, body.title, body.body, body.tags || []);
+				const prompt = updatePrompt(id, data.title, data.body, data.tags);
 				return Response.json(prompt);
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 400 });
+			} catch {
+				// `updatePrompt` lève sur un id inconnu : c'est un 404, pas un 400.
+				return Response.json({ error: "Prompt introuvable" }, { status: 404 });
 			}
 		},
-		async DELETE(req: any) {
-			deletePrompt(parseInt(req.params.id));
-			return Response.json({ success: true });
+		async DELETE(req: BunRequest<"/api/prompts/:id">) {
+			deletePrompt(parseInt(req.params.id, 10));
+			return new Response(null, { status: 204 });
 		},
 	},
 };

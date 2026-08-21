@@ -1,6 +1,55 @@
 import { listProjects } from "../db/projects";
 import { getGlobalHistory, getLatestRun } from "../db/runs";
 import { buildCveGroups } from "../lib/aggregator";
+import type { Severity } from "../lib/parsers/types";
+
+/** Une entrée de « Top projets à risque ». */
+export interface ProjectRisk {
+	id: number;
+	name: string;
+	critical: number;
+	high: number;
+	risk: number;
+}
+
+/** Une entrée de « Vulnérabilités les plus fréquentes ». */
+export interface TopCve {
+	cve: string;
+	title: string;
+	worst: Severity;
+	count: number;
+}
+
+/**
+ * Réponse de `GET /api/stats`. Déclarée ici, à côté du handler qui doit la
+ * satisfaire : le `payload` typé plus bas fait échouer la compilation si l'un
+ * des deux change sans l'autre.
+ */
+export interface StatsResponse {
+	monitoredProjects: number;
+	criticalVulnerabilities: number;
+	pendingCves: number;
+	lastSync: string | null;
+	healthGrade: string;
+	topProjects: ProjectRisk[];
+	topCves: TopCve[];
+}
+
+/**
+ * Un point de la série temporelle de `GET /api/history-global`.
+ *
+ * `date` est un libellé d'affichage (« JJ/MM », ou « NNh » en vue horaire) ;
+ * `rawDate` porte la clé du bucket. `info` et `unknown` ne sont pas agrégés par
+ * l'implémentation actuelle (écart N13 dans docs/ISSUE.md).
+ */
+export interface HistoryPoint {
+	date: string;
+	rawDate: string;
+	critical: number;
+	high: number;
+	moderate: number;
+	low: number;
+}
 
 export const statsRoutes = {
 	"/api/stats": {
@@ -25,7 +74,7 @@ export const statsRoutes = {
 
 			let lastSync: string | null = null;
 
-			const projectRisks = [];
+			const projectRisks: ProjectRisk[] = [];
 
 			for (const p of projects) {
 				const run = getLatestRun(p.id);
@@ -69,7 +118,8 @@ export const statsRoutes = {
 					count: g.occurrences.length,
 				}));
 
-			return Response.json({
+			// Typé explicitement : toute divergence avec StatsResponse casse la compilation.
+			const payload: StatsResponse = {
 				monitoredProjects: projects.length,
 				criticalVulnerabilities: criticalCount,
 				pendingCves,
@@ -77,7 +127,8 @@ export const statsRoutes = {
 				healthGrade,
 				topProjects,
 				topCves,
-			});
+			};
+			return Response.json(payload);
 		},
 	},
 

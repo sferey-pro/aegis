@@ -4,6 +4,7 @@
 // invalide et regression d'accessibilite. role="button" + tabIndex + onKeyDown
 // est le compromis retenu ; a remplacer par le motif "stretched link" si la
 // carte est retravaillee.
+
 import {
 	AlertTriangle,
 	ArrowDownToLine,
@@ -23,11 +24,12 @@ import {
 	Trash2,
 } from "lucide-react";
 import React from "react";
+import type { ProjectListItem } from "@/routes/projects";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 export interface ProjectCardProps {
-	p: any;
+	p: ProjectListItem;
 	index: number;
 	auditState: Record<number, string>;
 	onViewTriage?: (id: number) => void;
@@ -38,9 +40,9 @@ export interface ProjectCardProps {
 	handleDetectGit: (id: number, e: React.MouseEvent) => void;
 	handleFetch: (id: number, e: React.MouseEvent) => void;
 	handlePull: (id: number, e: React.MouseEvent) => void;
-	toggleIgnore: (p: any, e: React.MouseEvent) => void;
+	toggleIgnore: (p: ProjectListItem, e: React.MouseEvent) => void;
 	handleForceAudit: (id: number, e: React.MouseEvent) => void;
-	handleEdit: (p: any, e: React.MouseEvent) => void;
+	handleEdit: (p: ProjectListItem, e: React.MouseEvent) => void;
 	handleDelete: (id: number, e: React.MouseEvent) => void;
 	formatDate: (dateStr: string) => string;
 }
@@ -63,10 +65,10 @@ export const ProjectCard = React.memo(function ProjectCard({
 	handleDelete,
 	formatDate,
 }: ProjectCardProps) {
-	const hasCritical = p.lastRun?.counts?.critical > 0;
+	const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 	const hasNoCves =
 		p.lastRun &&
-		Object.values(p.lastRun.counts).reduce((a: any, b: any) => a + b, 0) === 0;
+		Object.values(p.lastRun.counts).reduce((a, b) => a + b, 0) === 0;
 
 	return (
 		<div

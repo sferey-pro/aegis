@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { spawn } from "bun";
+import { errorMessage } from "@/lib/utils";
 import { emitConsoleEnd, emitConsoleStart } from "../console";
 
 export interface GitInfo {
@@ -123,10 +124,10 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
 			);
 			if (counts && !counts.includes("fatal:")) {
 				// Output format: "<behind>\t<ahead>" (left is upstream, right is HEAD)
-				const parts = counts.split("\t");
-				if (parts.length === 2) {
-					info.behind = parseInt(parts[0]!, 10) || 0;
-					info.ahead = parseInt(parts[1]!, 10) || 0;
+				const [behindStr, aheadStr] = counts.split("\t");
+				if (behindStr !== undefined && aheadStr !== undefined) {
+					info.behind = parseInt(behindStr, 10) || 0;
+					info.ahead = parseInt(aheadStr, 10) || 0;
 				}
 			}
 		}
@@ -136,7 +137,7 @@ export async function getGitInfo(rawPath: string): Promise<GitInfo> {
 		if (!status.includes("fatal:")) {
 			info.dirty = status.length > 0;
 		}
-	} catch (e) {
+	} catch (_e) {
 		// if cwd doesn't exist, spawn will throw or runGit will throw
 		// we just return isRepo = false
 	}
@@ -181,11 +182,11 @@ export async function gitFetch(
 		}
 
 		return { ok: exitCode === 0, log: log.trim() };
-	} catch (e: any) {
+	} catch (e: unknown) {
 		emitConsoleEnd(eventId, {
 			exitCode: 1,
 			ms: Date.now() - startTime,
-			errorText: e.message,
+			errorText: errorMessage(e),
 		});
 		return { ok: false, log: `chemin introuvable ou erreur système` };
 	}
@@ -227,11 +228,11 @@ export async function gitPull(
 		}
 
 		return { ok: exitCode === 0, log: log.trim() };
-	} catch (e: any) {
+	} catch (e: unknown) {
 		emitConsoleEnd(eventId, {
 			exitCode: 1,
 			ms: Date.now() - startTime,
-			errorText: e.message,
+			errorText: errorMessage(e),
 		});
 		return { ok: false, log: "chemin introuvable ou erreur système" };
 	}

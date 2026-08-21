@@ -8,17 +8,27 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import type { AnnotationStatus } from "@/db/annotations";
+import type { Ticket } from "@/db/tickets";
+import type { CveGroup } from "@/lib/aggregator";
+import type { AnnotationInput } from "@/lib/schemas";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
 import { TicketModal } from "../components/organisms/TicketModal";
 import { TriageTable } from "../components/organisms/TriageTable";
+import type {
+	ConfirmModalState,
+	PackageGroup,
+	TicketModalState,
+	Toast,
+} from "../components/organisms/triage-types";
 import { Button } from "../components/ui/button";
 import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 
 export const Triage = React.memo(function Triage() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const projectId = searchParams.get("project")
-		? parseInt(searchParams.get("project") as string)
+		? parseInt(searchParams.get("project") as string, 10)
 		: null;
 	const cveFilter = searchParams.get("cve");
 
@@ -32,31 +42,22 @@ export const Triage = React.memo(function Triage() {
 		newParams.delete("cve");
 		setSearchParams(newParams);
 	};
-	const [cves, setCves] = useState<any[]>([]);
-	const [tickets, setTickets] = useState<Record<string, any>>({});
+	const [cves, setCves] = useState<CveGroup[]>([]);
+	const [tickets, setTickets] = useState<Record<string, Ticket>>({});
 	const [jiraBaseUrl, setJiraBaseUrl] = useState("");
 	const [loading, setLoading] = useState(true);
 	const [page, setPage] = useState(1);
 	const [itemsPerPage, setItemsPerPage] = useState(10);
-	const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
-	const [ticketModal, setTicketModal] = useState<{
-		isOpen: boolean;
-		md: string;
-		copied: boolean;
-		group?: any;
-	}>({ isOpen: false, md: "", copied: false });
-	const [confirmModal, setConfirmModal] = useState<{
-		isOpen: boolean;
-		cve: string;
-		projectId: number;
-		reason: string;
-	} | null>(null);
-	const [toast, setToast] = useState<{
-		isOpen: boolean;
-		title: string;
-		message: React.ReactNode;
-		type: "success" | "error" | "info";
-	} | null>(null);
+	const [selectedGroup, setSelectedGroup] = useState<PackageGroup | null>(null);
+	const [ticketModal, setTicketModal] = useState<TicketModalState>({
+		isOpen: false,
+		md: "",
+		copied: false,
+	});
+	const [confirmModal, setConfirmModal] = useState<ConfirmModalState | null>(
+		null,
+	);
+	const [toast, setToast] = useState<Toast | null>(null);
 	const [hideProcessed, setHideProcessed] = useState(false);
 
 	const fetchCves = useCallback(async () => {
@@ -75,7 +76,7 @@ export const Triage = React.memo(function Triage() {
 		try {
 			const res = await fetch("/api/tickets/list");
 			const data = await res.json();
-			const map: Record<string, any> = {};
+			const map: Record<string, Ticket> = {};
 			for (const t of data) {
 				map[`${t.project_id}::${t.package}`] = t;
 			}
@@ -102,17 +103,18 @@ export const Triage = React.memo(function Triage() {
 	}, [fetchCves, fetchTickets, fetchSettings]);
 
 	const packageGroups = React.useMemo(() => {
-		const map = new Map<string, any>();
-		cves.forEach((cveGroup: any) => {
+		const map = new Map<string, PackageGroup>();
+		cves.forEach((cveGroup) => {
 			if (cveFilter && cveGroup.cve !== cveFilter) return;
 
-			cveGroup.occurrences.forEach((occ: any) => {
+			cveGroup.occurrences.forEach((occ) => {
 				if (projectId && occ.projectId !== projectId) return;
 				if (hideProcessed && occ.status !== "pending") return;
 
 				const key = `${occ.projectId}::${occ.package}`;
-				if (!map.has(key)) {
-					map.set(key, {
+				let g = map.get(key);
+				if (!g) {
+					g = {
 						key,
 						projectId: occ.projectId,
 						projectName: occ.projectName,
@@ -127,9 +129,9 @@ export const Triage = React.memo(function Triage() {
 						hasBaseline: false,
 						hasNetDiscovery: false,
 						targetPatch: null as string | null,
-					});
+					};
+					map.set(key, g);
 				}
-				const g = map.get(key)!;
 				if (
 					occ.fixedIn &&
 					(!g.targetPatch || compareVersions(occ.fixedIn, g.targetPatch) > 0)
@@ -159,7 +161,7 @@ export const Triage = React.memo(function Triage() {
 				g.cves.push({
 					cve: cveGroup.cve,
 					ref: cveGroup.ref,
-					title: occ.title || cveGroup.title,
+					title: occ.title || cveGroup.cve,
 					severity: occ.severity,
 					versionRange: occ.versionRange,
 					fixedIn: occ.fixedIn,
@@ -171,6 +173,7 @@ export const Triage = React.memo(function Triage() {
 					firstSeenAt: occ.firstSeenAt,
 					publishedAt: occ.publishedAt,
 					isBaseline: occ.isBaseline,
+					isGlobal: occ.isGlobal,
 				});
 			});
 		});
@@ -196,11 +199,11 @@ export const Triage = React.memo(function Triage() {
 	const updateStatus = async (
 		cve: string,
 		projectId: number,
-		newStatus: string,
+		newStatus: AnnotationStatus,
 		note?: string,
 	) => {
 		try {
-			const payload: any = { cve, projectId, status: newStatus };
+			const payload: AnnotationInput = { cve, projectId, status: newStatus };
 			if (note !== undefined) {
 				payload.note = note;
 			} else if (newStatus !== "confirmed") {
@@ -238,7 +241,7 @@ export const Triage = React.memo(function Triage() {
 		setConfirmModal(null);
 	};
 
-	const createTicket = async (e: React.MouseEvent, group: any) => {
+	const createTicket = async (e: React.MouseEvent, group: PackageGroup) => {
 		e.stopPropagation();
 		try {
 			const res = await fetch("/api/tickets", {

@@ -2,7 +2,7 @@ import { getDb } from "./index";
 
 export function ensureOccurrences(
 	projectId: number,
-	vulns: { package: string; cve: string }[],
+	vulns: { package: string; cve: string | null }[],
 	isBaseline: boolean,
 ) {
 	const db = getDb();
@@ -37,7 +37,7 @@ export function ensureOccurrences(
 	const map = new Map<string, { firstSeenAt: string; isBaseline: boolean }>();
 	for (const row of rows) {
 		// SQLite CURRENT_TIMESTAMP is UTC 'YYYY-MM-DD HH:MM:SS'. We append 'Z' for ISO parsing.
-		const isoDate = row.first_seen_at.replace(" ", "T") + "Z";
+		const isoDate = `${row.first_seen_at.replace(" ", "T")}Z`;
 		map.set(`${row.package}::${row.cve}`, {
 			firstSeenAt: isoDate,
 			isBaseline: row.is_baseline === 1,

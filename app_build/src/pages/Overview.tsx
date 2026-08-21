@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { memo } from "react";
 import { Link } from "react-router-dom";
+import type { StatsResponse } from "@/routes/stats";
 import { HistoryChart } from "../components/organisms/HistoryChart";
 
 export const Overview = memo(function Overview({
@@ -15,7 +16,7 @@ export const Overview = memo(function Overview({
 	loading,
 	syncDisplay,
 }: {
-	stats: any;
+	stats: StatsResponse | null;
 	loading: boolean;
 	syncDisplay: string;
 }) {
@@ -115,7 +116,7 @@ export const Overview = memo(function Overview({
 							</h3>
 						</div>
 						<div className="flex flex-col gap-3">
-							{stats.topProjects.map((tp: any, i: number) => (
+							{stats.topProjects.map((tp, i) => (
 								<Link
 									key={tp.id}
 									to={`/triage?project=${tp.id}`}
@@ -157,7 +158,7 @@ export const Overview = memo(function Overview({
 							</h3>
 						</div>
 						<div className="flex flex-col gap-3">
-							{stats.topCves.map((tc: any) => (
+							{stats.topCves.map((tc) => (
 								<Link
 									key={tc.cve}
 									to={`/triage?cve=${tc.cve}`}

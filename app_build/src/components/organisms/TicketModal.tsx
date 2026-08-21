@@ -1,5 +1,6 @@
 import { CheckCircle2, Copy, FileText, RefreshCw, Send } from "lucide-react";
 import { useState } from "react";
+import { errorMessage } from "@/lib/utils";
 import { Button } from "../ui/button";
 import {
 	Dialog,
@@ -10,6 +11,7 @@ import {
 	DialogTitle,
 } from "../ui/dialog";
 import { Textarea } from "../ui/textarea";
+import type { TicketModalState, Toast } from "./triage-types";
 
 export function TicketModal({
 	ticketModal,
@@ -18,10 +20,10 @@ export function TicketModal({
 	setToast,
 	fetchTickets,
 }: {
-	ticketModal: { isOpen: boolean; md: string; copied: boolean; group?: any };
-	setTicketModal: (val: any) => void;
+	ticketModal: TicketModalState;
+	setTicketModal: (val: TicketModalState) => void;
 	copyToClipboard: () => void;
-	setToast: (toast: any) => void;
+	setToast: (toast: Toast | null) => void;
 	fetchTickets: () => void;
 }) {
 	const [notes, setNotes] = useState("");
@@ -109,7 +111,7 @@ export function TicketModal({
 									body: JSON.stringify({
 										projectId: ticketModal.group.projectId,
 										packageName: ticketModal.group.package,
-										cves: ticketModal.group.cves.map((c: any) => c.cve),
+										cves: ticketModal.group.cves.map((c) => c.cve),
 										notes: notes,
 									}),
 								});
@@ -132,12 +134,12 @@ export function TicketModal({
 											data.error || "Erreur lors de la création du ticket.",
 									});
 								}
-							} catch (err: any) {
+							} catch (err: unknown) {
 								setToast({
 									isOpen: true,
 									type: "error",
 									title: "Erreur",
-									message: err.message,
+									message: errorMessage(err),
 								});
 							} finally {
 								setCreating(false);

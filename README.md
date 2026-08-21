@@ -76,7 +76,39 @@ L'application sera accessible sur `http://localhost:3001`.
 
 ### Commandes Utiles (via Bun & Make)
 - `make build` : Construit le bundle frontend de production dans `dist/`.
-- `bun run check` (dans `app_build`) : Exécute le Type checking (`tsc --noEmit`) et lance l'ensemble des tests unitaires fonctionnels de l'application.
+- `bun run check` (dans `app_build`) : Typage (`tsc --noEmit`) + l'intégralité de la suite de tests.
+
+---
+
+## 🧪 Tests
+
+**1057 tests, 0 échec.** Chaque fichier de code porte son test à côté de lui
+(colocation), et la politique **zéro warning** s'applique aux tests comme au
+code de production.
+
+La suite est coupée en deux étages, avec deux commandes distinctes — parce que
+happy-dom remplace la classe globale `Response`, ce qui empêche `Bun.serve` de
+démarrer :
+
+```bash
+cd app_build
+
+bun run test        # les deux étages (1057 tests)
+bun run test:ui     # 343 tests composants — happy-dom, React, fetch simulé
+bun run test:api    # 714 tests fonctionnels — vrai serveur, vraie base, vrai git
+bun test --watch src/db/runs.test.ts   # un fichier, en surveillance
+```
+
+L'étage fonctionnel n'est pas simulé : il démarre un vrai `Bun.serve` sur un port
+éphémère, adossé à une base SQLite jetable, et exerce les 33 routes d'API par de vraies
+requêtes HTTP. Les tests git travaillent sur de vrais dépôts jetables avec un
+dépôt nu local comme amont. **Aucun accès réseau**, aucun fichier résiduel après
+un run.
+
+- 📄 [`docs/TESTING.md`](./docs/TESTING.md) — comment on teste : les deux étages,
+  le harnais, les conventions, les pièges rencontrés et leur parade.
+- 📄 [`docs/TESTS.md`](./docs/TESTS.md) — ce qui est couvert, module par module,
+  et les 22 écarts au contrat que la suite épingle.
 
 ---
 

@@ -31,7 +31,7 @@ export interface CveOccurrence {
 	cvssVector?: string | null;
 	firstSeenAt?: string | null;
 	ageInDays?: number;
-	publishedAt?: string;
+	publishedAt?: string | null;
 	isBaseline?: boolean;
 }
 
@@ -123,7 +123,8 @@ export function buildCveGroups(): CveGroup[] {
 							: 0,
 			};
 
-			if (!groups.has(groupKey)) {
+			const existingGroup = groups.get(groupKey);
+			if (!existingGroup) {
 				groups.set(groupKey, {
 					cve: groupKey,
 					ref,
@@ -140,7 +141,6 @@ export function buildCveGroups(): CveGroup[] {
 					hasNetDiscovery: !occurrence.isBaseline,
 				});
 			} else {
-				const existingGroup = groups.get(groupKey)!;
 				existingGroup.occurrences.push(occurrence);
 				if (SEV_ORDER[vuln.severity] < SEV_ORDER[existingGroup.worst]) {
 					existingGroup.worst = vuln.severity;

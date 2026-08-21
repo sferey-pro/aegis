@@ -60,18 +60,18 @@ function initDb(database: Database) {
 		database.exec(
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);`,
 		);
-	} catch (e) {}
+	} catch (_e) {}
 
 	try {
 		database.exec(
 			`ALTER TABLE projects ADD COLUMN is_remote BOOLEAN DEFAULT 0;`,
 		);
-	} catch (e) {}
+	} catch (_e) {}
 
 	try {
 		database.exec(`ALTER TABLE advisory_cache ADD COLUMN html_url TEXT;`);
 		database.exec(`ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT;`);
-	} catch (e) {}
+	} catch (_e) {}
 
 	// Populate missing slugs
 	try {
@@ -178,26 +178,26 @@ function initDb(database: Database) {
 
 	// Migration pour ajouter details
 	try {
-		db!.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
-	} catch (e) {
+		db?.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
+	} catch (_e) {
 		// La colonne existe probablement déjà
 	}
 
 	// Migration pour ajouter published_at, html_url, cvss_vector à advisory_cache
 	try {
-		db!
-			.query("ALTER TABLE advisory_cache ADD COLUMN published_at DATETIME")
-			.run();
-	} catch (e) {
+		db?.query(
+			"ALTER TABLE advisory_cache ADD COLUMN published_at DATETIME",
+		).run();
+	} catch (_e) {
 		// La colonne existe probablement déjà
 	}
 	try {
-		db!.query("ALTER TABLE advisory_cache ADD COLUMN html_url TEXT").run();
-	} catch (e) {}
+		db?.query("ALTER TABLE advisory_cache ADD COLUMN html_url TEXT").run();
+	} catch (_e) {}
 	try {
-		db!.query("ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT").run();
-	} catch (e) {}
+		db?.query("ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT").run();
+	} catch (_e) {}
 	try {
-		db!.query("ALTER TABLE tickets ADD COLUMN content_hash TEXT").run();
-	} catch (e) {}
+		db?.query("ALTER TABLE tickets ADD COLUMN content_hash TEXT").run();
+	} catch (_e) {}
 }

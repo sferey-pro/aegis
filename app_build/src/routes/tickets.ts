@@ -1,3 +1,4 @@
+import { PanelType } from "@atlaskit/adf-schema";
 import {
 	doc,
 	heading,
@@ -11,6 +12,7 @@ import {
 	tableRow,
 	text,
 } from "@atlaskit/adf-utils/builders";
+import { errorMessage } from "@/lib/utils";
 import { buildCveGroups } from "../lib/aggregator";
 
 export const ticketsRoutes = {
@@ -33,14 +35,15 @@ export const ticketsRoutes = {
 				}
 			}
 
-			if (occurrences.length === 0)
+			const [first] = occurrences;
+			if (!first)
 				return Response.json({ error: "Non trouvé" }, { status: 404 });
 
-			const projectName = occurrences[0]!.projectName;
+			const projectName = first.projectName;
 			const title = `[Aegis] Remédiation ${packageName} - ${projectName}`;
 
 			let md = `# ${title}\n\n`;
-			md += `**Projet:** ${projectName} (${occurrences[0]!.tool})\n`;
+			md += `**Projet:** ${projectName} (${first.tool})\n`;
 			md += `**Package:** \`${packageName}\`\n\n`;
 			md += `## Vulnérabilités (${occurrences.length})\n\n`;
 
@@ -126,14 +129,15 @@ export const ticketsRoutes = {
 				}
 			}
 
-			if (occurrences.length === 0) {
+			const [first] = occurrences;
+			if (!first) {
 				return Response.json(
 					{ error: "Aucune vulnérabilité trouvée pour ce package." },
 					{ status: 404 },
 				);
 			}
-			const projectName = occurrences[0]!.projectName;
-			const tool = occurrences[0]!.tool;
+			const projectName = first.projectName;
+			const tool = first.tool;
 
 			// Build the ADF Document
 			const adfDoc = doc(
@@ -171,14 +175,32 @@ export const ticketsRoutes = {
 			// Append notes if provided
 			if (notes && notes.trim().length > 0) {
 				adfDoc.content.push(
-					panel({ panelType: "info" as any })(
+					// `panelType` est un enum ADF, pas une chaîne libre : on l'emploie
+					// tel quel plutôt que de caster "info".
+					panel({ panelType: PanelType.INFO })(
 						paragraph(strong("Notes additionnelles / Recommandations :")),
 						paragraph(text(notes)),
 					),
 				);
 			}
 
-			const issueData: any = {
+			/**
+			 * Charge d'une création d'issue Jira (API v3). Seuls les champs
+			 * réellement envoyés sont décrits ; `parent` et `components` sont
+			 * ajoutés plus bas quand la configuration les fournit.
+			 */
+			interface JiraIssuePayload {
+				fields: {
+					project: { key: string };
+					summary: string;
+					description: unknown;
+					issuetype: { name: string };
+					parent?: { key: string };
+					components?: { id: string }[];
+				};
+			}
+
+			const issueData: JiraIssuePayload = {
 				fields: {
 					project: { key: project },
 					summary: `[Aegis] Remédiation ${packageName}`,
@@ -195,7 +217,7 @@ export const ticketsRoutes = {
 				issueData.fields.components = [{ id: component }];
 			}
 
-			const crypto = await import("crypto");
+			const crypto = await import("node:crypto");
 			const contentHash = crypto
 				.createHash("sha256")
 				.update(JSON.stringify(issueData))
@@ -267,9 +289,9 @@ export const ticketsRoutes = {
 
 				const data = await response.json();
 				return Response.json({ success: true, user: data.displayName });
-			} catch (e: any) {
+			} catch (e: unknown) {
 				return Response.json(
-					{ success: false, error: e.message },
+					{ success: false, error: errorMessage(e) },
 					{ status: 400 },
 				);
 			}

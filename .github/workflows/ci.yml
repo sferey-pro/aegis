@@ -29,10 +29,16 @@ jobs:
         run: bun install
         
       - name: Lint and Format (Biome)
-        run: bunx biome ci .
+        # Politique zéro warning : `biome ci` seul sort en 0 sur des warnings, et
+        # laisserait donc réapparaître un `any` ou une variable inutilisée sans
+        # bruit. `--error-on-warnings` fait échouer sur tout diagnostic.
+        run: bunx biome ci . --error-on-warnings
         
       - name: Typecheck
         run: bun run typecheck
         
       - name: Run tests
-        run: bun test
+        # `bun run test` enchaîne les deux étages : composants (avec DOM) puis
+        # fonctionnel (sans DOM). happy-dom remplace la classe globale Response,
+        # ce qui empêche `Bun.serve` de démarrer, d'où la séparation.
+        run: bun run test

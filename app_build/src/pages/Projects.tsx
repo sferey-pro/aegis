@@ -21,6 +21,9 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { ProjectTool } from "@/db/projects";
+import type { Tag } from "@/db/tags";
+import type { ProjectListItem } from "@/routes/projects";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
 import { Badge } from "../components/ui/badge";
@@ -51,10 +54,10 @@ import {
 
 export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
-	const [projects, setProjects] = useState<any[]>([]);
+	const [projects, setProjects] = useState<ProjectListItem[]>([]);
 	const [loading, setLoading] = useState(true);
 
-	const [availableTags, setAvailableTags] = useState<any[]>([]);
+	const [availableTags, setAvailableTags] = useState<Tag[]>([]);
 	const [filterTag, setFilterTag] = useState<string | null>(null);
 
 	const [isAdding, setIsAdding] = useState(false);
@@ -68,7 +71,7 @@ export const Projects = React.memo(function Projects() {
 	const [copiedSlug, setCopiedSlug] = useState<number | null>(null);
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [auditState, setAuditState] = useState<Record<number, string>>({});
-	const projectsRef = useRef<any[]>([]);
+	const projectsRef = useRef<ProjectListItem[]>([]);
 
 	useEffect(() => {
 		projectsRef.current = projects;
@@ -92,7 +95,7 @@ export const Projects = React.memo(function Projects() {
 
 					setAuditState((prev) => {
 						const p = projectsRef.current.find(
-							(proj: any) => proj.name === data.project,
+							(proj) => proj.name === data.project,
 						);
 						if (p) return { ...prev, [p.id]: msg };
 						return prev;
@@ -100,7 +103,7 @@ export const Projects = React.memo(function Projects() {
 				} else if (data.phase === "end" && data.project) {
 					setAuditState((prev) => {
 						const p = projectsRef.current.find(
-							(proj: any) => proj.name === data.project,
+							(proj) => proj.name === data.project,
 						);
 						if (p) {
 							const next = { ...prev };
@@ -110,7 +113,7 @@ export const Projects = React.memo(function Projects() {
 						return prev;
 					});
 				}
-			} catch (e) {}
+			} catch (_e) {}
 		});
 		return () => evtSource.close();
 	}, []);
@@ -149,8 +152,8 @@ export const Projects = React.memo(function Projects() {
 
 	const formatDate = (dateStr: string) => {
 		if (!dateStr) return "Inconnu";
-		const parsed = new Date(dateStr.replace(" ", "T") + "Z");
-		return isNaN(parsed.getTime())
+		const parsed = new Date(`${dateStr.replace(" ", "T")}Z`);
+		return Number.isNaN(parsed.getTime())
 			? "Inconnu"
 			: parsed.toLocaleString("fr-FR", {
 					day: "2-digit",
@@ -203,7 +206,7 @@ export const Projects = React.memo(function Projects() {
 		});
 	};
 
-	const handleEdit = (p: any, e?: React.MouseEvent) => {
+	const handleEdit = (p: ProjectListItem, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		setFormData({
 			name: p.name,
@@ -290,7 +293,10 @@ export const Projects = React.memo(function Projects() {
 		}
 	};
 
-	const toggleIgnore = async (project: any, e?: React.MouseEvent) => {
+	const toggleIgnore = async (
+		project: ProjectListItem,
+		e?: React.MouseEvent,
+	) => {
 		if (e) e.stopPropagation();
 		try {
 			await fetch(`/api/projects/${project.id}`, {
@@ -654,10 +660,11 @@ export const Projects = React.memo(function Projects() {
 									</label>
 									<Select
 										value={formData.tool}
-										onValueChange={(val: any) =>
+										onValueChange={(val) =>
 											setFormData({
 												...formData,
-												tool: val,
+												// Valeurs bornées par les <SelectItem> déclarés juste en dessous.
+												tool: val as ProjectTool,
 												type: val === "composer" ? "composer" : "node",
 											})
 										}
@@ -809,7 +816,7 @@ export const Projects = React.memo(function Projects() {
 			) : viewMode === "grid" ? (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{(filterTag
-						? projects.filter((p) => p.tags && p.tags.includes(filterTag))
+						? projects.filter((p) => p.tags?.includes(filterTag))
 						: projects
 					).map((p, index) => (
 						<ProjectCard
@@ -846,16 +853,14 @@ export const Projects = React.memo(function Projects() {
 						</TableHeader>
 						<TableBody>
 							{(filterTag
-								? projects.filter((p) => p.tags && p.tags.includes(filterTag))
+								? projects.filter((p) => p.tags?.includes(filterTag))
 								: projects
 							).map((p) => {
-								const hasCritical = p.lastRun?.counts?.critical > 0;
+								const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 								const hasNoCves =
 									p.lastRun &&
-									Object.values(p.lastRun.counts).reduce(
-										(a: any, b: any) => a + b,
-										0,
-									) === 0;
+									Object.values(p.lastRun.counts).reduce((a, b) => a + b, 0) ===
+										0;
 								return (
 									<TableRow
 										key={p.id}

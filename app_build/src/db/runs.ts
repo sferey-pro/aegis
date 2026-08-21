@@ -26,19 +26,38 @@ export interface Run {
 	ran_at: string;
 }
 
+/**
+ * Représentation d'une ligne `runs` telle que SQLite la renvoie : les colonnes
+ * JSON arrivent en chaîne. `parseRun` les réhydrate ; le type tolère les deux
+ * formes car certaines requêtes (RETURNING) peuvent déjà renvoyer l'objet.
+ */
+type RunRow = Omit<Run, "counts" | "vulnerabilities"> & {
+	counts: string | RunCounts;
+	vulnerabilities: string | Vulnerability[];
+};
+
 export interface CreateRunInput {
 	project_id: number;
 	status: RunStatus;
 	total: number;
 	counts: RunCounts;
-	vulnerabilities: any[];
+	vulnerabilities: Vulnerability[];
 	command?: string | null;
 	commit_sha?: string | null;
 	error?: string | null;
 	duration_ms: number;
 }
 
-function parseRun(row: any): Run {
+/**
+ * Projection réduite utilisée par l'historique global : seules les colonnes
+ * nécessaires au calcul de la série sont chargées.
+ */
+type HistoryRow = Pick<Run, "project_id" | "status"> & {
+	ran_at: string;
+	counts: string | RunCounts;
+};
+
+function parseRun(row: RunRow): Run {
 	return {
 		...row,
 		counts:
@@ -76,7 +95,7 @@ export function addRun(input: CreateRunInput): Run {
 		$duration_ms: input.duration_ms,
 	});
 
-	return parseRun(row);
+	return parseRun(row as RunRow);
 }
 
 export function getRunsForProject(projectId: number, limit = 30): Run[] {
@@ -88,7 +107,7 @@ export function getRunsForProject(projectId: number, limit = 30): Run[] {
     ORDER BY ran_at DESC, id DESC 
     LIMIT ?
   `)
-		.all(projectId, limit);
+		.all(projectId, limit) as RunRow[];
 
 	return rows.map(parseRun);
 }
@@ -102,7 +121,7 @@ export function getLatestRun(projectId: number): Run | null {
     ORDER BY ran_at DESC, id DESC 
     LIMIT 1
   `)
-		.get(projectId);
+		.get(projectId) as RunRow | null;
 
 	return row ? parseRun(row) : null;
 }
@@ -124,7 +143,7 @@ export function getLatestRunsByProjectIds(
 			GROUP BY project_id
 		) max_runs ON r.project_id = max_runs.project_id AND r.id = max_runs.max_id
 	`)
-		.all() as any[];
+		.all() as RunRow[];
 
 	const res: Record<number, Run> = {};
 	for (const row of rows) {
@@ -173,8 +192,8 @@ export function getGlobalHistory(days = 30) {
 	if (!projectIds) {
 		return buckets.map((b) => ({
 			date: isHourly
-				? b.split(" ")[1] + "h"
-				: b.split("-")[2] + "/" + b.split("-")[1],
+				? `${b.split(" ")[1]}h`
+				: `${b.split("-")[2]}/${b.split("-")[1]}`,
 			rawDate: b,
 			critical: 0,
 			high: 0,
@@ -190,14 +209,14 @@ export function getGlobalHistory(days = 30) {
     WHERE project_id IN (${projectIds})
     ORDER BY ran_at ASC
   `)
-		.all() as any[];
+		.all() as HistoryRow[];
 
 	const latestCounts = new Map<number, RunCounts>();
-	const rowsByBucket = new Map<string, any[]>();
+	const rowsByBucket = new Map<string, HistoryRow[]>();
 
 	for (const r of rows) {
-		const runDate = new Date(r.ran_at.replace(" ", "T") + "Z");
-		if (isNaN(runDate.getTime())) continue;
+		const runDate = new Date(`${r.ran_at.replace(" ", "T")}Z`);
+		if (Number.isNaN(runDate.getTime())) continue;
 
 		const y = runDate.getFullYear();
 		const m = String(runDate.getMonth() + 1).padStart(2, "0");
@@ -206,17 +225,17 @@ export function getGlobalHistory(days = 30) {
 
 		const bucket = isHourly ? `${y}-${m}-${day} ${h}` : `${y}-${m}-${day}`;
 		if (!rowsByBucket.has(bucket)) rowsByBucket.set(bucket, []);
-		rowsByBucket.get(bucket)!.push(r);
+		rowsByBucket.get(bucket)?.push(r);
 	}
 
 	const firstBucketDateStr = isHourly
-		? buckets[0] + ":00:00"
-		: buckets[0] + " 00:00:00";
+		? `${buckets[0]}:00:00`
+		: `${buckets[0]} 00:00:00`;
 	const firstBucketDate = new Date(firstBucketDateStr.replace(" ", "T"));
 
 	for (const r of rows) {
-		const runDate = new Date(r.ran_at.replace(" ", "T") + "Z");
-		if (isNaN(runDate.getTime())) continue;
+		const runDate = new Date(`${r.ran_at.replace(" ", "T")}Z`);
+		if (Number.isNaN(runDate.getTime())) continue;
 		if (runDate < firstBucketDate) {
 			if (r.status === "ok" || r.status === "vulnerable") {
 				latestCounts.set(
@@ -251,8 +270,8 @@ export function getGlobalHistory(days = 30) {
 		}
 
 		const label = isHourly
-			? b.split(" ")[1] + "h"
-			: b.split("-")[2] + "/" + b.split("-")[1];
+			? `${b.split(" ")[1]}h`
+			: `${b.split("-")[2]}/${b.split("-")[1]}`;
 		result.push({ date: label, rawDate: b, critical, high, moderate, low });
 	}
 

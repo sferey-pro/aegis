@@ -1,18 +1,31 @@
 import { resolve } from "node:path";
 import { spawn } from "bun";
+import { errorMessage } from "@/lib/utils";
 import { getDb } from "../../db";
 import { ensureOccurrences } from "../../db/occurrences";
-import { getProjectById, type Project } from "../../db/projects";
+import {
+	getProjectById,
+	type Project,
+	type ProjectTool,
+} from "../../db/projects";
 import { addRun, getLatestRun, type Run } from "../../db/runs";
+import type { CveGroup } from "../aggregator";
 import { emitConsoleEnd, emitConsoleStart, projectContext } from "../console";
 import { expandPath, getGitInfo } from "../git";
 import { parseAuditOutput } from "../parsers";
-import type { Severity } from "../parsers/types";
+import type { Severity, Vulnerability } from "../parsers/types";
+
+/** Entrée du diff « nouvelles CVE » d'un run (CONTEXT.md §2). */
+export interface NewCve {
+	ref: string;
+	package: string;
+	severity: Severity;
+}
 
 async function enhanceVulnerabilities(
 	projectId: number,
-	tool: any,
-	parsedVulns: any[],
+	tool: ProjectTool,
+	parsedVulns: Vulnerability[],
 	isBaseline: boolean,
 ) {
 	const { resolveFixedVersion } = await import("../github");
@@ -70,10 +83,10 @@ function getAuditMaxAgeHours(): number {
 	const db = getDb();
 	const row = db
 		.query(`SELECT value FROM settings WHERE key = 'AUDIT_MAX_AGE_HOURS'`)
-		.get() as any;
+		.get() as { value: string } | null;
 	if (!row) return 24;
 	const val = parseFloat(row.value);
-	if (isNaN(val)) return 24;
+	if (Number.isNaN(val)) return 24;
 	return val;
 }
 
@@ -81,34 +94,58 @@ function isFresh(ranAtStr: string, maxAgeHours: number): boolean {
 	if (maxAgeHours < 0) return false;
 	if (maxAgeHours === 0) return true;
 
-	const ranAt = new Date(ranAtStr + "Z"); // SQLite CURRENT_TIMESTAMP is UTC
-	if (isNaN(ranAt.getTime())) return true; // Date illisible -> on garde frais par sécurité
+	const ranAt = new Date(`${ranAtStr}Z`); // SQLite CURRENT_TIMESTAMP is UTC
+	if (Number.isNaN(ranAt.getTime())) return true; // Date illisible -> on garde frais par sécurité
 
 	const now = new Date();
 	const diffHours = (now.getTime() - ranAt.getTime()) / (1000 * 60 * 60);
 	return diffHours <= maxAgeHours;
 }
 
-export function getAuditTarget(project: Project): string {
-	const root = expandPath(project.path);
-	if (!project.audit_path) return root;
+/**
+ * Résout le dossier réellement audité depuis un couple (racine git, sous-dossier).
+ *
+ * Source de vérité unique : les contrôles d'autorisation de chemin et la
+ * détection de doublon doivent appeler cette fonction, jamais recomposer le
+ * chemin de leur côté. Les deux calculs avaient divergé, si bien qu'un
+ * `audit_path` absolu était validé comme relatif puis exécuté comme absolu.
+ */
+export function resolveAuditTarget(
+	path: string,
+	auditPath?: string | null,
+): string {
+	const root = expandPath(path);
+	if (!auditPath) return root;
 
 	// Si le chemin commence par / ou ~, c'est un chemin absolu à part entière
-	if (
-		project.audit_path.startsWith("/") ||
-		project.audit_path.startsWith("~")
-	) {
-		return expandPath(project.audit_path);
+	if (auditPath.startsWith("/") || auditPath.startsWith("~")) {
+		return expandPath(auditPath);
 	}
 
 	// Sinon, c'est relatif à la racine Git (root)
-	return resolve(root, project.audit_path);
+	return resolve(root, auditPath);
+}
+
+export function getAuditTarget(project: Project): string {
+	return resolveAuditTarget(project.path, project.audit_path);
+}
+
+/**
+ * Clé d'unicité d'un projet : cible d'audit résolue, `/` finaux retirés
+ * (CONTEXT.md §1). `~/app`, `/home/u/app` et `/home/u/app/` donnent la même clé.
+ */
+export function auditTargetKey(
+	path: string,
+	auditPath?: string | null,
+): string {
+	const target = resolveAuditTarget(path, auditPath);
+	return target.length > 1 ? target.replace(/\/+$/, "") : target;
 }
 
 export async function runAudit(
 	projectId: number,
 	force = false,
-): Promise<{ run: Run | null; deduped: boolean; newCves: any[] }> {
+): Promise<{ run: Run | null; deduped: boolean; newCves: NewCve[] }> {
 	const project = getProjectById(projectId);
 	if (!project) throw new Error("Projet introuvable");
 
@@ -180,8 +217,8 @@ export async function runAudit(
 			stdout = stdoutText;
 			stderr = stderrText;
 			exitCode = await proc.exited;
-		} catch (err: any) {
-			systemError = err.message;
+		} catch (err: unknown) {
+			systemError = errorMessage(err);
 		}
 
 		const duration_ms = Date.now() - startTime;
@@ -246,7 +283,7 @@ export async function runAudit(
 				project_id: projectId,
 				status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
 				total: enhancedVulns.length,
-				counts: counts as any,
+				counts,
 				vulnerabilities: enhancedVulns,
 				command: commandStr,
 				commit_sha: gitInfo.sha,
@@ -259,7 +296,7 @@ export async function runAudit(
 			if (lastRun && lastRun.status !== "error") {
 				const oldSet = new Set(
 					lastRun.vulnerabilities.map(
-						(v: any) => `${v.package}::${v.cve || v.title}`,
+						(v) => `${v.package}::${v.cve || v.title}`,
 					),
 				);
 				for (const v of enhancedVulns) {
@@ -284,9 +321,9 @@ export async function runAudit(
 			}
 
 			return { run: successRun, deduped: false, newCves };
-		} catch (err: any) {
+		} catch (err: unknown) {
 			const errorBody = [
-				err.message,
+				errorMessage(err),
 				`cwd: ${cwd}`,
 				`exit: ${exitCode}`,
 				stderr,
@@ -322,7 +359,7 @@ export async function ingestAudit(
 	projectId: number,
 	stdout: string,
 	commitSha: string = "",
-): Promise<{ run: Run | null; newCves: any[] }> {
+): Promise<{ run: Run | null; newCves: CveGroup[] }> {
 	const project = getProjectById(projectId);
 	if (!project) throw new Error("Projet introuvable");
 

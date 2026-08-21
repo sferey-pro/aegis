@@ -1,6 +1,15 @@
 import type { ParseResult, Vulnerability } from "./types";
 import { buildParseResult, normSeverity } from "./utils";
 
+/** Attente sur la sortie de l'outil ; voir la note de `npm.ts`. */
+interface RawBunAdvisory {
+	title?: string;
+	url?: string;
+	severity?: string;
+	vulnerable_versions?: string;
+	cwe?: unknown;
+}
+
 export function parseBun(output: string): ParseResult {
 	let jsonStr = output;
 	const firstBrace = output.indexOf("{");
@@ -8,7 +17,7 @@ export function parseBun(output: string): ParseResult {
 		jsonStr = output.substring(firstBrace);
 	}
 
-	let parsed: any;
+	let parsed: unknown;
 	try {
 		parsed = JSON.parse(jsonStr);
 	} catch (e) {
@@ -17,8 +26,10 @@ export function parseBun(output: string): ParseResult {
 
 	const rawVulns: Vulnerability[] = [];
 
-	for (const pkgName of Object.keys(parsed)) {
-		const advisories = parsed[pkgName];
+	// `bun audit --json` renvoie un objet indexé par package.
+	const byPackage = (parsed ?? {}) as Record<string, unknown>;
+	for (const pkgName of Object.keys(byPackage)) {
+		const advisories = byPackage[pkgName] as RawBunAdvisory[] | undefined;
 		if (!Array.isArray(advisories)) continue;
 
 		for (const adv of advisories) {

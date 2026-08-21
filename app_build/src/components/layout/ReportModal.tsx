@@ -1,5 +1,6 @@
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import type { Report } from "@/db/reports";
 import { Button } from "../ui/button";
 import {
 	Dialog,
@@ -14,8 +15,8 @@ export function ReportModal({
 	reportModal,
 	setReportModal,
 }: {
-	reportModal: any;
-	setReportModal: (val: any) => void;
+	reportModal: Report | null;
+	setReportModal: (val: Report | null) => void;
 }) {
 	const navigate = useNavigate();
 	return (

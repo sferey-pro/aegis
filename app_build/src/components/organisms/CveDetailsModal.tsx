@@ -1,4 +1,6 @@
 import { Link as LinkIcon } from "lucide-react";
+import type { AnnotationStatus } from "@/db/annotations";
+import type { Ticket } from "@/db/tickets";
 import { Button } from "../ui/button";
 import {
 	Dialog,
@@ -9,6 +11,7 @@ import {
 	DialogTitle,
 } from "../ui/dialog";
 import { CveCard } from "./CveCard";
+import type { PackageGroup, Toast } from "./triage-types";
 
 export function CveDetailsModal({
 	selectedGroup,
@@ -19,12 +22,12 @@ export function CveDetailsModal({
 	tickets,
 	jiraBaseUrl,
 }: {
-	selectedGroup: any;
-	setSelectedGroup: (group: any | null) => void;
+	selectedGroup: PackageGroup | null;
+	setSelectedGroup: (group: PackageGroup | null) => void;
 	updateStatus: (
 		cve: string,
 		projectId: number,
-		newStatus: string,
+		newStatus: AnnotationStatus,
 		note?: string,
 	) => Promise<void>;
 	handleConfirmCve: (
@@ -32,10 +35,13 @@ export function CveDetailsModal({
 		projectId: number,
 		initialReason?: string,
 	) => void;
-	setToast: (toast: any) => void;
-	tickets: Record<string, any>;
+	setToast: (toast: Toast | null) => void;
+	tickets: Record<string, Ticket>;
 	jiraBaseUrl: string;
 }) {
+	// Une seule lecture de la map : l'entrée peut être absente.
+	const ticket = selectedGroup ? tickets[selectedGroup.key] : undefined;
+
 	return (
 		<Dialog
 			open={!!selectedGroup}
@@ -52,15 +58,15 @@ export function CveDetailsModal({
 									<DialogTitle className="text-xl font-bold font-mono text-foreground flex items-center gap-3">
 										{selectedGroup?.package}
 									</DialogTitle>
-									{selectedGroup && tickets[selectedGroup.key] && (
+									{ticket && (
 										<a
-											href={`${jiraBaseUrl.replace(/\/$/, "")}/browse/${tickets[selectedGroup.key].url}`}
+											href={`${jiraBaseUrl.replace(/\/$/, "")}/browse/${ticket.url}`}
 											target="_blank"
 											rel="noreferrer"
 											className="px-2.5 py-1 rounded-md border text-xs font-bold flex items-center gap-1.5"
 										>
 											<LinkIcon className="w-3 h-3" />
-											Ticket Jira : {tickets[selectedGroup.key].url}
+											Ticket Jira : {ticket.url}
 										</a>
 									)}
 								</div>
@@ -74,7 +80,7 @@ export function CveDetailsModal({
 						</DialogHeader>
 						<div className="flex-1 overflow-y-auto p-6">
 							<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-								{selectedGroup?.cves?.map((cveObj: any) => (
+								{selectedGroup?.cves?.map((cveObj) => (
 									<CveCard
 										key={cveObj.cve}
 										cveObj={cveObj}

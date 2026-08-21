@@ -1,8 +1,44 @@
 import type { ParseResult, Vulnerability } from "./types";
 import { buildParseResult, normSeverity } from "./utils";
 
+/**
+ * Formes attendues de la sortie de l'outil.
+ *
+ * Ce sont des *attentes*, pas des garanties : la sortie vient d'un exécutable
+ * externe dont on ne maîtrise ni la version ni le format. Les vraies protections
+ * restent les gardes du parseur (`typeof`, `Array.isArray`), que le contrat
+ * impose d'ailleurs d'être tolérantes — section absente, valeur non-tableau et
+ * champ manquant doivent être ignorés, pas rejetés (CONTEXT.md §3).
+ *
+ * C'est pourquoi ces formes sont déclarées en TypeScript plutôt que validées par
+ * un schéma Zod : une validation stricte casserait cette tolérance, et son coût
+ * d'exécution serait payé sur chaque vulnérabilité de chaque audit.
+ */
+
+interface RawNpmAdvisory {
+	title?: string;
+	url?: string;
+	range?: string;
+	severity?: string;
+	cwe?: unknown;
+}
+
+interface RawNpmVuln {
+	name?: string;
+	severity?: string;
+	range?: string;
+	/** Objet `{ version }` quand un correctif existe, `true`/`false` sinon. */
+	fixAvailable?: unknown;
+	/** Mélange de chaînes (dépendances parentes) et d'objets (avis). */
+	via?: unknown;
+}
+
+interface RawNpmOutput {
+	vulnerabilities?: Record<string, RawNpmVuln>;
+}
+
 export function parseNpm(output: string): ParseResult {
-	let parsed: any;
+	let parsed: RawNpmOutput | null;
 	try {
 		parsed = JSON.parse(output);
 	} catch (e) {
@@ -10,7 +46,7 @@ export function parseNpm(output: string): ParseResult {
 	}
 
 	const rawVulns: Vulnerability[] = [];
-	const vulnsMap = parsed?.vulnerabilities || {};
+	const vulnsMap: Record<string, RawNpmVuln> = parsed?.vulnerabilities ?? {};
 
 	for (const pkgName of Object.keys(vulnsMap)) {
 		const v = vulnsMap[pkgName];
@@ -20,19 +56,19 @@ export function parseNpm(output: string): ParseResult {
 		const range = v.range || null;
 		let fixedIn = null;
 
-		if (
-			v.fixAvailable &&
-			typeof v.fixAvailable === "object" &&
-			typeof v.fixAvailable.version === "string"
-		) {
-			fixedIn = v.fixAvailable.version;
+		if (v.fixAvailable && typeof v.fixAvailable === "object") {
+			const { version } = v.fixAvailable as { version?: unknown };
+			if (typeof version === "string") fixedIn = version;
 		}
 
-		const via = Array.isArray(v.via) ? v.via : [];
+		const via: unknown[] = Array.isArray(v.via) ? v.via : [];
 		const advisories = via.filter(
-			(item: any) => typeof item === "object" && item !== null,
+			(item: unknown): item is RawNpmAdvisory =>
+				typeof item === "object" && item !== null,
 		);
-		const stringVias = via.filter((item: any) => typeof item === "string");
+		const stringVias = via.filter(
+			(item: unknown): item is string => typeof item === "string",
+		);
 
 		if (advisories.length === 0) {
 			// Cas A : Aucune advisory, juste une ou des dépendances parentes (transitives)

@@ -1,4 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
+import type { BunRequest } from "bun";
+import { errorMessage } from "@/lib/utils";
 import { getProjectBySlug, listProjects } from "../db/projects";
 import { ingestAudit } from "../lib/audit";
 import { enqueueGlobalAudit, getAuditStatus } from "../lib/audit/queue";
@@ -10,8 +12,8 @@ export const auditRoutes = {
 			try {
 				enqueueGlobalAudit(projects.map((p) => p.id));
 				return Response.json({ status: "started", count: projects.length });
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 429 });
+			} catch (e: unknown) {
+				return Response.json({ error: errorMessage(e) }, { status: 429 });
 			}
 		},
 	},
@@ -23,7 +25,7 @@ export const auditRoutes = {
 	},
 
 	"/api/ingest/:slug": {
-		async POST(req: any) {
+		async POST(req: BunRequest<"/api/ingest/:slug">) {
 			const expectedToken = process.env.AEGIS_INGEST_TOKEN;
 			if (!expectedToken) {
 				return Response.json(
@@ -57,8 +59,8 @@ export const auditRoutes = {
 					run: res.run,
 					newCvesCount: res.newCves.length,
 				});
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 400 });
+			} catch (e: unknown) {
+				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}
 		},
 	},

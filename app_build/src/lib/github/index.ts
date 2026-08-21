@@ -2,6 +2,7 @@ import { getDb } from "../../db";
 import type { ProjectTool } from "../../db/projects";
 import { getSetting } from "../../db/settings";
 import { emitConsoleEnd, emitConsoleStart } from "../console";
+import type { Severity } from "../parsers/types";
 import { normSeverity } from "../parsers/utils";
 
 const GHSA_REGEX = /(GHSA-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4})/i;
@@ -18,20 +19,20 @@ export function keyFrom(
 ): AdvisoryKey | null {
 	if (link) {
 		const match = link.match(GHSA_REGEX);
-		if (match) return { kind: "ghsa", id: match[1]!.toUpperCase() };
+		if (match?.[1]) return { kind: "ghsa", id: match[1].toUpperCase() };
 	}
 	if (cve) {
 		const matchGH = cve.match(GHSA_REGEX);
-		if (matchGH) return { kind: "ghsa", id: matchGH[1]!.toUpperCase() };
+		if (matchGH?.[1]) return { kind: "ghsa", id: matchGH[1].toUpperCase() };
 
 		const matchCVE = cve.match(CVE_REGEX);
-		if (matchCVE) return { kind: "cve", id: matchCVE[1]!.toUpperCase() };
+		if (matchCVE?.[1]) return { kind: "cve", id: matchCVE[1].toUpperCase() };
 	}
 	return null;
 }
 
 export interface CachedAdvisory {
-	severity: string;
+	severity: Severity;
 	fixes: Record<
 		string,
 		Array<{ range: string; patched: string | null }> | string | null
@@ -41,16 +42,26 @@ export interface CachedAdvisory {
 	published_at?: string | null;
 }
 
+/** Ligne `advisory_cache` brute : `fixes` est du JSON en chaîne. */
+type AdvisoryCacheRow = {
+	severity: string | null;
+	fixes: string | null;
+	html_url: string | null;
+	cvss_vector: string | null;
+	published_at: string | null;
+};
+
 export function getCachedAdvisory(id: string): CachedAdvisory | null {
 	const db = getDb();
 	const row = db
 		.query(
 			`SELECT severity, fixes, html_url, cvss_vector, published_at FROM advisory_cache WHERE id = ?`,
 		)
-		.get(id) as any;
+		.get(id) as AdvisoryCacheRow | null;
 	if (!row) return null;
 	return {
-		severity: row.severity,
+		// Une ligne de cache corrompue ne doit pas propager une sévérité arbitraire.
+		severity: normSeverity(row.severity),
 		fixes:
 			typeof row.fixes === "string" ? JSON.parse(row.fixes) : row.fixes || {},
 		html_url: row.html_url,
@@ -61,8 +72,8 @@ export function getCachedAdvisory(id: string): CachedAdvisory | null {
 
 export function putCachedAdvisory(
 	id: string,
-	severity: string,
-	fixes: Record<string, any>,
+	severity: Severity,
+	fixes: Record<string, unknown>,
 	html_url?: string | null,
 	cvss_vector?: string | null,
 	published_at?: string | null,
@@ -96,7 +107,7 @@ export interface ResolveResult {
 	fixedIn: string | null;
 	rateLimited: boolean;
 	resolvable: boolean;
-	severity: string;
+	severity: Severity;
 	html_url?: string | null;
 	cvss_vector?: string | null;
 	published_at?: string | null;
@@ -118,7 +129,7 @@ async function fetchAdvisory(
 
 	const token = getSetting("GITHUB_TOKEN", process.env.GITHUB_TOKEN);
 	if (token) {
-		headers["authorization"] = `Bearer ${token}`;
+		headers.authorization = `Bearer ${token}`;
 	}
 
 	const startTime = Date.now();
@@ -168,7 +179,7 @@ async function fetchAdvisory(
 
 		if (Array.isArray(data.vulnerabilities)) {
 			for (const v of data.vulnerabilities) {
-				if (v.package && v.package.ecosystem && v.package.name) {
+				if (v.package?.ecosystem && v.package.name) {
 					// GitHub API returns "npm" or "Packagist". We map Composer to composer/packagist logic if needed
 					let eco = v.package.ecosystem.toLowerCase();
 					if (eco === "packagist") eco = "composer"; // normalization to match our mapEcosystem
@@ -193,14 +204,14 @@ async function fetchAdvisory(
 			advisory: { severity, fixes, html_url, cvss_vector, published_at },
 			rateLimited: false,
 		};
-	} catch (e) {
+	} catch (_e) {
 		emitConsoleEnd(eventId, { exitCode: 0, ms: Date.now() - startTime });
 		return { advisory: null, rateLimited: false };
 	}
 }
 
 function matchBestFix(
-	fixesList: any,
+	fixesList: CachedAdvisory["fixes"][string] | undefined,
 	versionRange?: string | null,
 	originalFixedIn?: string | null,
 ): string | null {
@@ -209,12 +220,13 @@ function matchBestFix(
 	if (!Array.isArray(fixesList) || fixesList.length === 0)
 		return originalFixedIn || null;
 
-	if (fixesList.length === 1)
-		return fixesList[0].patched || originalFixedIn || null;
+	const [only] = fixesList;
+	if (fixesList.length === 1 && only)
+		return only.patched || originalFixedIn || null;
 
 	if (versionRange) {
 		const exact = fixesList.find((f) => f.range === versionRange);
-		if (exact && exact.patched) return exact.patched;
+		if (exact?.patched) return exact.patched;
 
 		const majors = new Set(
 			Array.from(versionRange.matchAll(/\b(\d+)\./g)).map((m) => m[1]),
@@ -228,7 +240,7 @@ function matchBestFix(
 	}
 
 	// Fallback: pick the first one or original
-	return fixesList[0].patched || originalFixedIn || null;
+	return only?.patched || originalFixedIn || null;
 }
 
 export async function resolveFixedVersion(params: {

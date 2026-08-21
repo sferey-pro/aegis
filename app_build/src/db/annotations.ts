@@ -25,7 +25,7 @@ export function upsertAnnotation(
 
 	const current = db
 		.query(`SELECT * FROM annotations WHERE cve = ? AND project_id = ?`)
-		.get(cve, projectId) as any;
+		.get(cve, projectId) as Annotation | null;
 
 	let status = current ? current.status : "pending";
 	let note = current ? current.note : "";

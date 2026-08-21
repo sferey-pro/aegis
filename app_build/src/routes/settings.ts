@@ -1,7 +1,10 @@
+import { errorMessage } from "@/lib/utils";
 import { getAllAnnotations } from "../db/annotations";
 import { createSnapshot, restoreSnapshot } from "../db/backup";
 import { listProjects } from "../db/projects";
 import { getAllSettings, setAllSettings } from "../db/settings";
+import { restoreBodySchema, settingsBodySchema } from "../lib/schemas";
+import { parseBody } from "../lib/validate";
 
 export const settingsRoutes = {
 	"/api/settings": {
@@ -9,8 +12,12 @@ export const settingsRoutes = {
 			return Response.json(getAllSettings());
 		},
 		async PUT(req: Request) {
-			const body = await req.json();
-			setAllSettings(body);
+			// Seule `AUDIT_MAX_AGE_HOURS` est contrainte (nombre fini ≥ -1) ; les
+			// autres clés passent telles quelles (CONTEXT.md §12).
+			const { data, response } = await parseBody(req, settingsBodySchema);
+			if (!data) return response;
+
+			setAllSettings(data);
 			return Response.json({ success: true });
 		},
 	},
@@ -90,11 +97,14 @@ export const settingsRoutes = {
 	},
 
 	"/api/snapshots/restore": {
-		async POST() {
+		async POST(req: Request) {
+			const { data, response } = await parseBody(req, restoreBodySchema);
+			if (!data) return response;
+
 			try {
 				return Response.json(restoreSnapshot());
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 400 });
+			} catch (e: unknown) {
+				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}
 		},
 	},

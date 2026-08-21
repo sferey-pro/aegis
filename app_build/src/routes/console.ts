@@ -21,13 +21,18 @@ export const consoleRoutes = {
 					},
 				);
 			}
+			let streamController: ReadableStreamDefaultController<string> | undefined;
 			return new Response(
-				new ReadableStream({
+				new ReadableStream<string>({
+					// `cancel` reçoit la raison de l'annulation, pas le contrôleur : il faut
+					// donc retenir ce dernier depuis `start`, sinon le client n'est jamais
+					// retiré du Set à la fermeture du flux.
 					start(controller) {
-						addConsoleClient(controller as any);
+						streamController = controller;
+						addConsoleClient(controller);
 					},
-					cancel(controller) {
-						removeConsoleClient(controller as any);
+					cancel() {
+						if (streamController) removeConsoleClient(streamController);
 					},
 				}),
 				{

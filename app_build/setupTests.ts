@@ -1,9 +1,27 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
-// 1. Installer d'abord un DOM dans le process Bun. `bun test` fournit
-//    l'exécuteur, pas l'environnement navigateur : sans ceci, `render()` n'a
-//    aucun `document` où monter les composants.
-GlobalRegistrator.register({ url: "http://localhost:3001" });
+// 0. Conserver le `fetch` natif de Bun AVANT que happy-dom ne le remplace.
+//
+//    Le `fetch` du DOM applique la politique de même origine : le document de
+//    test étant servi depuis `localhost:3001`, toute requête vers un serveur
+//    lancé sur un autre port est refusée avec « Cross-Origin Request Blocked ».
+//    Les tests fonctionnels, qui démarrent un vrai serveur sur port éphémère, ont
+//    besoin de cette référence. Voir `src/test/server.ts`.
+(globalThis as { __nativeFetch?: typeof fetch }).__nativeFetch =
+	globalThis.fetch;
+
+// 1. Installer un DOM dans le process Bun. `bun test` fournit l'exécuteur, pas
+//    l'environnement navigateur : sans ceci, `render()` n'a aucun `document` où
+//    monter les composants.
+// Le DOM est installé sauf demande contraire. Les tests fonctionnels le
+// désactivent via AEGIS_TEST_NO_DOM : happy-dom remplace la classe globale
+// `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec
+// elle. Un serveur réel démarré sous DOM échoue donc avec « Expected a Response
+// object, but received 'Response {…}' ».
+const domActif = !process.env.AEGIS_TEST_NO_DOM;
+if (domActif) {
+	GlobalRegistrator.register({ url: "http://localhost:3001" });
+}
 
 // 2. Charger ensuite Testing Library, et seulement ensuite.
 //
@@ -18,7 +36,9 @@ GlobalRegistrator.register({ url: "http://localhost:3001" });
 //    global document has to be available », et tout test l'utilisant échoue —
 //    alors que `typeof document` vaut bien "object" dans le corps du test, ce
 //    qui rend le symptôme très trompeur.
-await import("@testing-library/react");
+if (domActif) {
+	await import("@testing-library/react");
+}
 
 // 3. Brancher les matchers jest-dom sur l'`expect` de Bun.
 //
@@ -27,9 +47,11 @@ await import("@testing-library/react");
 //    `tsc` la rejette avec « is not a module ». `/matchers` exporte les matchers
 //    et porte de vrais types. Leur rattachement au typage de `expect` est
 //    déclaré dans `src/matchers.d.ts`.
-const { expect } = await import("bun:test");
-const matchers = await import("@testing-library/jest-dom/matchers");
-expect.extend(matchers.default ?? matchers);
+if (domActif) {
+	const { expect } = await import("bun:test");
+	const matchers = await import("@testing-library/jest-dom/matchers");
+	expect.extend(matchers.default ?? matchers);
+}
 
 // 4. Signaler à React qu'il tourne dans un environnement de test, afin que les
 //    mises à jour d'état déclenchées par les composants Radix soient traitées

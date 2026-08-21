@@ -35,4 +35,7 @@ jobs:
         run: bun run typecheck
         
       - name: Run tests
-        run: bun test
+        # `bun run test` enchaîne les deux étages : composants (avec DOM) puis
+        # fonctionnel (sans DOM). happy-dom remplace la classe globale Response,
+        # ce qui empêche `Bun.serve` de démarrer, d'où la séparation.
+        run: bun run test

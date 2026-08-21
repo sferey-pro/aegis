@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**42 entrées ouvertes (35 🔴) ou partielles (7 🟡) · 22 fermées · 23 épinglées par un test.**
+**40 entrées ouvertes (34 🔴) ou partielles (6 🟡) · 24 fermées · 22 épinglées par un test.**
 
 ### Priorité 1 — Sécurité
 
@@ -35,7 +35,6 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 |---|---|:-:|:-:|
 | [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | La restauration de snapshot ne restaure rien | 🔴 | 🧪 |
 | [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours) | Annotations globales impossibles, import de config non transactionnel | 🔴 | 🧪 |
-| [N10](#n10-trois-clés-didentité-différentes-pour-la-même-vulnérabilité) | Trois clés d'identité pour la même vulnérabilité | 🔴 | 🧪 |
 | [N11](#n11-force1-est-inopérant) | `?force=1` est inopérant | 🔴 | — |
 | [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) | La suppression d'un tag laisse des tags fantômes | 🔴 | 🧪 |
 | [N13](#n13-apihistory-global--deux-sévérités-perdues-pas-de-total-fuseau-local-days-non-validé) | `/api/history-global` : sévérités perdues, `days` non validé | 🔴 | 🧪 |
@@ -44,7 +43,6 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N33](#n33-zcoerceboolean-rend-la-chaîne-false-vraie) | `z.coerce.boolean` rend la chaîne `"false"` vraie | 🔴 | 🧪 |
 | [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) | `syncAdvisory` vide le cache avant de refetcher | 🔴 | 🧪 |
 | [N45](#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte) | La porte CI d'un projet ignoré est toujours verte | 🔴 | 🧪 |
-| [N28](#n28-le-verrou-de-non-régression-de-c3-nexiste-toujours-pas) | Le verrou de non-régression de C3 n'existe toujours pas | 🟡 | — |
 | [C4](#c4-apiconfigimport-ne-restaure-que-trois-sections-sur-cinq) | `/api/config/import` ne restaure que trois sections sur cinq | 🟡 | — |
 
 ### Priorité 3 — Robustesse & performance
@@ -110,13 +108,15 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | C1 | Aucune authentification sur l'API | résiduel → [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin) : la brèche `PUT` est fermée, celle de `git-fetch`/`git-pull` non |
 | C2 | Fuite des secrets par `/api/config/export` | résiduel → [N5](#n5-get-apisettings-expose-les-secrets-en-clair) |
 | C8 | `/api/audit/run` sans garde de concurrence | résiduel → [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) |
+| N10 | Clé d'identité de la table d'occurrences | 🟢 **corrigé le 21/08/2026.** `src/lib/vuln-identity.ts` porte les fonctions partagées, et la colonne `cve` de `cve_occurrences` stocke désormais `occurrenceRef` — la CVE, **repli sur le titre**, conformément à la clé de `newCves` (§2). Une migration purge les lignes de l'ancienne convention (`cve = package`), ambiguës par construction. **Correction de cadrage :** le correctif annoncé (« une clé unique pour parsing, table et agrégation ») allait trop loin — `CONTEXT.md` §3 et §2 **spécifient** les clés du dédoublonnage et du diff, volontairement plus fines. Le défaut n'était pas d'avoir trois clés mais d'en avoir une quatrième, non spécifiée. |
+| N28 | Verrou de non-régression de C3 | 🟢 **écrit le 21/08/2026** — et il a appris quelque chose. En cassant la garde de `enhanceVulnerabilities` pour vérifier que le verrou rougissait, **rien n'a rougi** : la garde est inatteignable, les quatre parseurs et `getCachedAdvisory` normalisant tous la sévérité en amont. Le verrou porte donc sur l'**invariant** — compteurs finis, somme égale au total, quelle que soit la charge — plutôt que sur une garde redondante qui pourrait rester verte en laissant entrer le défaut par une autre porte. Le cas de N10 y est ajouté de bout en bout, comme la vague 1 le demandait. |
 | N1 | GitHub est appelé pendant chaque audit | 🟢 **corrigé le 21/08/2026.** Le chemin d'audit passe par `resolveFixedVersionFromCache`, qui lit le cache d'avis local et **n'émet aucune requête** — vérifié par un compteur d'appels sortants, pas seulement par un audit qui aboutit hors ligne. Un audit est donc hors ligne, déterministe et borné par le disque. L'enrichissement n'est pas supprimé : ce qui est déjà connu est appliqué, le reste attend `/api/advisories/sync`. Au passage, la liste persistée est **retriée** après enrichissement — une sévérité relevée invalidait l'ordre du parseur (§3). |
 | N6 | Les erreurs HTTP sont consommées comme des succès | 🟢 **corrigé le 21/08/2026.** Point de passage unique `src/lib/api.ts` (`fetchJson`, `fetchVoid`, `apiErrorMessage`), appliqué aux **43** appels : il ne reste aucun `fetch` brut dans `pages/`, `components/` ni `App.tsx`. Les trois conséquences nommées sont fermées — le triage a un état d'échec distinct de « écosystème sain », un audit en échec n'est plus compté zéro vulnérabilité ni archivé comme tel, et la page Réglages sort de son chargement. Les suppressions en lot passent par `Promise.allSettled` et annoncent les échecs partiels. **Résiduel :** aucun `AbortController` — l'annulation relève de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire). |
 | N3 | Garde de chemin incomplète, défaut ouvert | 🟢 **corrigé le 21/08/2026.** `pathGuard` couvre désormais les sept points d'entrée touchant un chemin — création, modification, détection, `git-fetch`, `git-pull`, audit et import de configuration — et le contrôle a lieu **juste avant** chaque sous-processus, pas seulement à l'enregistrement. `isPathAllowed` est passé en **défaut fermé** : sans `AEGIS_ALLOWED_ROOTS`, rien n'est autorisé (`AEGIS_ALLOWED_ROOTS=/` ouvre explicitement). Bug trouvé au passage : la racine du système n'autorisait rien, `root + sep` donnant `"//"`. |
 | N4 | SSRF authentifié via `/api/tickets/test-connection` | 🟢 **corrigé le 21/08/2026.** La route ne lit plus l'URL ni les identifiants dans le corps : elle vérifie la configuration **enregistrée**. `JIRA_BASE_URL` est validée en https à l'écriture (`jiraBaseUrlSchema`) et re-validée au point d'utilisation par `jiraEndpoint`, sur les deux appels sortants Jira. Conséquence d'usage : il faut enregistrer avant de tester. |
 | N5 | `GET /api/settings` expose les secrets en clair | 🟢 **corrigé le 21/08/2026.** Liste blanche `PUBLIC_SETTING_KEYS`, et un booléen `<CLÉ>_CONFIGURED` par secret. Liste blanche et non liste noire : c'était le défaut du correctif C2. En écriture, un secret vide est ignoré, sinon le formulaire — qui ne connaît plus la valeur — l'effacerait à chaque enregistrement. **Résiduel :** effacer un secret depuis l'interface n'est plus possible, il faudra une action explicite. |
 | N32 | `POST /api/annotations` efface les champs omis | 🟢 **corrigé le 21/08/2026.** `note` et `fixedIn` n'ont plus de valeur par défaut dans `annotationBodySchema` : l'absence traverse jusqu'à `upsertAnnotation`, qui préserve alors la valeur en base. Côté client, `updateStatus` n'envoie plus `note: ""` pour les statuts autres que « confirmé » — c'était la seconde moitié du défaut, et elle laissait le symptôme intact sur deux des trois actions de triage. Le test « écart documenté » a été supprimé, son test de contrat activé. |
-| N28 | Les deux tests de non-régression de la vague 1 | 🟡 **un sur deux** : le verrou C12 est écrit, celui de C3 non. Reste ouvert à ce titre → [N28](#n28-le-verrou-de-non-régression-de-c3-nexiste-toujours-pas) |
+| N28 | Les deux tests de non-régression de la vague 1 | 🟡 **un sur deux** : le verrou C12 est écrit, celui de C3 non. Reste ouvert à ce titre → [N28](#n28-le-verrou-de-non-régression-de-c3) |
 
 > *Leçon confirmée par cette seconde vérification : C3 et C12 avaient été « corrigés » une fois avant d'être re-cassés par la duplication C5. C12 est aujourd'hui verrouillé par un test, C3 ne l'est pas — il reste donc exactement aussi fragile qu'avant.*
 
@@ -347,7 +347,15 @@ Aggravant : l'import n'est pas encapsulé dans une transaction. L'exception remo
 2. Envelopper l'import complet dans **une seule transaction**, et retourner les compteurs `{tagsAdded, projectsAdded, annotationsAdded, …}` prévus par §12.
 
 ### N10. Trois clés d'identité différentes pour la même vulnérabilité
-🔴 **Ouvert — vérifié le 21/08/2026.** Les trois clés divergent toujours : `v.cve || v.package` dans `src/db/occurrences.ts:20` et `src/lib/audit/index.ts:47`, contre `v.cve || v.title` dans le calcul de `newCves` (`:299,303`). 🧪 Le scénario exact est épinglé dans `src/db/occurrences.test.ts` : « deux avis sans CVE sur un même package partagent une occurrence ». C'est le résiduel de C12, et le seul défaut de cette liste qui **corrompt des données déjà écrites** : les lignes existantes devront être migrées ou purgées.
+🟢 **Corrigé le 21/08/2026.**
+
+**Le cadrage initial de cette entrée était faux sur un point.** Elle présentait les trois clés comme une incohérence à unifier. Or `CONTEXT.md` **spécifie** deux d'entre elles : §3 fixe la clé de `dedupe` à `` `${package}|${title}|${cve ?? ""}` `` et §2 celle de `newCves` à `package::cve` avec repli `package::title`. Elles sont volontairement de granularités différentes — la première est la plus fine, la dernière regroupe entre projets. Les aligner aurait **cassé** la conformité à §3 : deux avis de même CVE mais de titres différents auraient fusionné au dédoublonnage. Trois tests l'ont montré immédiatement.
+
+Le défaut réel était plus étroit : la table `cve_occurrences` employait une **quatrième** clé, non spécifiée, `cve || package` — la seule à laisser tomber le titre. Elle stocke désormais `occurrenceRef` (la CVE, repli sur le titre), c'est-à-dire la clé de §2, qui est exactement sa granularité : une vulnérabilité, dans un projet.
+
+🧪 Épinglé par quatre tests, dont celui qui combine N10 et C12 : le premier avis est antidaté, puis un second avis sans CVE est ingéré, et l'on vérifie que le premier garde sa date **et** sa qualification de dette héritée tandis que le second est une découverte nette.
+
+**Migration.** Les lignes de l'ancienne convention (`cve = package`) sont purgées à l'ouverture de la base. Elles sont ambiguës par construction : le titre qui les distinguait n'a jamais été stocké, on ne peut pas les réparer. Conséquence assumée — les vulnérabilités sans CVE repartent d'un `first_seen_at` à la date du prochain audit. C'est une perte réelle, mais la date conservée était fausse pour une partie d'entre elles, et c'est précisément la population que la baseline devait qualifier. Les lignes portant une vraie CVE ne sont pas touchées, et la migration est couverte par quatre tests dont un d'idempotence.
 
 **⊕1** — `src/lib/parsers/utils.ts:29` · `src/db/occurrences.ts:20` + PK `src/db/index.ts:128-138` · `src/lib/aggregator/index.ts:72`
 
@@ -447,8 +455,8 @@ Défaut connexe : si `project.tool` n'est aucune des quatre valeurs — possible
 
 **Correctifs :** ajouter les deux `existsSync` avec les messages exacts du contrat avant tout `spawn` ; rejeter en amont un `tool` hors énumération.
 
-### N28. Le verrou de non-régression de C3 n'existe toujours pas
-🟡 **Un des deux exigés — vérifié le 21/08/2026** — `src/lib/audit/index.test.ts`
+### N28. Le verrou de non-régression de C3
+🟢 **Écrit le 21/08/2026** — `src/lib/audit/index.test.ts`
 
 La vague 1 exigeait nommément deux tests de non-régression. Le second existe désormais ; le premier, non.
 
@@ -459,7 +467,11 @@ La vague 1 exigeait nommément deux tests de non-régression. Le second existe d
 
 C3 est donc **corrigé sans être verrouillé** — exactement l'état dans lequel il se trouvait avant d'être re-cassé par la duplication C5. La leçon de la vague 1 s'applique telle quelle : sur ce périmètre, un correctif non couvert par un test est un correctif temporaire.
 
-**Correctif :** un test d'ingestion avec `severity: "banana"` dans la charge, vérifiant que la vulnérabilité est comptée en `unknown` et qu'aucun `NaN` n'atteint la colonne `counts`. Y ajouter le cas de [N10](#n10-trois-clés-didentité-différentes-pour-la-même-vulnérabilité) : deux avis sans CVE sur le même package doivent porter des `first_seen_at` distincts — ce test échouera, et c'est le but.
+**Écrit, et il a appris quelque chose.** Trois tests d'ingestion ont été ajoutés : sévérité `"banana"` comptée en `unknown`, aucun `NaN` dans `counts` quelle que soit la charge, et le cas de [N10](#n10-trois-clés-didentité-différentes-pour-la-même-vulnérabilité) de bout en bout.
+
+> ⚠️ **La garde qu'ils devaient verrouiller est inatteignable.** Vérification faite en retirant le `if (sev in counts)` de `enhanceVulnerabilities` : **aucun test n'a rougi**. La normalisation a lieu en amont, à chaque point d'entrée — les quatre parseurs appellent `normSeverity`, et `getCachedAdvisory` le fait aussi à la relecture du cache. Aucune sévérité non normalisée ne peut donc atteindre le comptage ; la garde est une ceinture par-dessus des bretelles.
+>
+> Les tests portent donc sur l'**invariant** que la garde protégeait — compteurs finis, somme égale au total — et non sur la garde elle-même. C'est plus solide : un test de la garde resterait vert si le défaut entrait par une autre porte, alors que l'invariant se casse quelle que soit la porte. C'est aussi la leçon générale de cet exercice : un verrou qu'on n'a pas vu échouer ne verrouille rien de démontré.
 
 ### C4. `/api/config/import` ne restaure que trois sections sur cinq
 🟡 **Inchangé — vérifié le 21/08/2026.** Toujours trois sections (`settings`, `projects`, `annotations`), aucune transaction, aucun compteur en réponse. Les tests couvrent le comportement actuel — dont le fait qu'un import est rejouable par `slug` — sans affirmer la conformité à §12.
@@ -848,7 +860,7 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1142** |
+| `src/pages/Projects.tsx` | **1151** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |
@@ -905,7 +917,7 @@ Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points :
 2. **[N5](#n5-get-apisettings-expose-les-secrets-en-clair), [N4](#n4-ssrf-authentifié-via-apiticketstest-connection), résiduel de [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin)** — surface d'attaque. Le résiduel de N3 se limite désormais à trois points : `pathGuard` sur `git-fetch`/`git-pull`, garde sur `/api/config/import`, et `isPathAllowed` en défaut **fermé**.
 3. **[N6](#n6-les-erreurs-http-sont-consommées-comme-des-succès)** — un wrapper `fetchJson` unique couvre les 43 appels et supprime d'un coup le faux négatif « écosystème sain » et les rapports d'audit faux persistés en base.
 4. **[N1](#n1-github-est-appelé-pendant-chaque-audit)** — sortir l'enrichissement du chemin d'audit. Débloque mécaniquement [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil), [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) et une bonne part de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire).
-5. **[N10](#n10-trois-clés-didentité-différentes-pour-la-même-vulnérabilité) puis [N28](#n28-le-verrou-de-non-régression-de-c3-nexiste-toujours-pas)** — une fonction unique de clé d'identité, **avant** d'accumuler davantage de données SLA fausses ; les lignes déjà écrites devront être migrées. Puis le verrou C3 manquant, en y ajoutant le cas de N10. Sans ce test, les points 4 et 5 se re-casseront comme C3 et C12 l'ont déjà fait.
+5. ~~**N10** puis **N28**~~ — ✅ **faits le 21/08/2026.** La table d'occurrences porte la clé de §2, les lignes ambiguës sont purgées, et l'invariant des compteurs est verrouillé.
 6. **[C9](#c9-initdb-ignore-son-paramètre) puis [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) et [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours)** — sauvegarde et restauration. Aujourd'hui l'outil affiche « restauration effectuée » sans rien restaurer : c'est le comportement le plus mensonger de l'application.
 7. **Le lot bon marché** — [N33](#n33-zcoerceboolean-rend-la-chaîne-false-vraie), [N34](#n34-parsecvssvector-écarte-toujours-le-premier-segment), [N35](#n35-500-au-lieu-de-400-sur-les-routes-qui-lisent-reqjson-directement), [N36](#n36-une-méthode-non-déclarée-renvoie-du-html-en-200), [N37](#n37-delete-sur-un-identifiant-inconnu-répond-succès), [N38](#n38-getreports-trie-par-created_at-seul), [N40](#n40-les-noms-de-tags-sont-sensibles-à-la-casse), [N42](#n42-commit_sha-peut-valoir-la-chaîne-head), [N43](#n43-le-repli--déjà-à-jour--de-gitfetch-est-inatteignable), [N11](#n11-force1-est-inopérant). Dix correctifs de quelques lignes chacun, tous déjà épinglés par un test à retourner. Bon lot pour une passe unique.
 8. **[N9](#n9-le-triage-est-impraticable-au-delà-de-quelques-cve) et [N14](#n14-sévérité-illisible--palette-sans-couleur-de-texte-et-préfixes-dark-amputés)** — les deux défauts qui rendent l'écran de triage inutilisable en pratique, alors qu'il est la raison d'être du produit. N14 commence par un `grep` sur les préfixes `dark:` amputés.

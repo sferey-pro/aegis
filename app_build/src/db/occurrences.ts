@@ -1,8 +1,18 @@
+import { occurrenceRef } from "@/lib/vuln-identity";
 import { getDb } from "./index";
 
+/**
+ * Fige la date de première détection de chaque vulnérabilité d'un projet.
+ *
+ * La colonne `cve` porte la référence d'occurrence (`occurrenceRef`) : la CVE,
+ * **repli sur le titre**, conformément à la clé de `newCves` (CONTEXT.md §2). Le
+ * repli était le nom du paquet, donc identique pour tous les avis sans CVE d'un
+ * même paquet, qui se fondaient en une ligne et partageaient leur
+ * `first_seen_at` (défaut N10). Le `title` est donc requis dans l'entrée.
+ */
 export function ensureOccurrences(
 	projectId: number,
-	vulns: { package: string; cve: string | null }[],
+	vulns: { package: string; title: string; cve: string | null }[],
 	isBaseline: boolean,
 ) {
 	const db = getDb();
@@ -17,7 +27,7 @@ export function ensureOccurrences(
 			insertStmt.run({
 				$projectId: projectId,
 				$package: v.package,
-				$cve: v.cve || v.package,
+				$cve: occurrenceRef(v),
 				$isBaseline: isBaseline ? 1 : 0,
 			});
 		}
@@ -38,6 +48,8 @@ export function ensureOccurrences(
 	for (const row of rows) {
 		// SQLite CURRENT_TIMESTAMP is UTC 'YYYY-MM-DD HH:MM:SS'. We append 'Z' for ISO parsing.
 		const isoDate = `${row.first_seen_at.replace(" ", "T")}Z`;
+		// La colonne `cve` contient déjà la clé d'identité : la ligne se relit avec
+		// la même forme que `occurrenceKey`.
 		map.set(`${row.package}::${row.cve}`, {
 			firstSeenAt: isoDate,
 			isBaseline: row.is_baseline === 1,

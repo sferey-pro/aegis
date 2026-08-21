@@ -200,4 +200,30 @@ function initDb(database: Database) {
 	try {
 		db?.query("ALTER TABLE tickets ADD COLUMN content_hash TEXT").run();
 	} catch (_e) {}
+
+	/**
+	 * Purge des occurrences écrites sous l'ancienne clé d'identité (N10).
+	 *
+	 * Jusqu'au 21/08/2026, une vulnérabilité sans CVE était enregistrée avec
+	 * `cve = package`. Le titre ne faisait donc pas partie de son identité, et
+	 * deux avis distincts d'un même paquet partageaient une ligne — donc un
+	 * `first_seen_at` et un `is_baseline`. Ces lignes sont **ambiguës par
+	 * construction** : le titre qui les distinguait n'a jamais été stocké, on ne
+	 * peut pas les réparer, seulement les retirer.
+	 *
+	 * Conséquence assumée : les vulnérabilités sans CVE repartent d'un
+	 * `first_seen_at` à la date du prochain audit. C'est une perte réelle, mais
+	 * la date conservée était fausse pour une partie d'entre elles, et c'est
+	 * précisément la population que la baseline devait qualifier.
+	 *
+	 * Les lignes portant une vraie CVE ne sont pas touchées : leur identité était
+	 * déjà correcte. Un `cve` égal au nom du paquet est le marqueur sans ambiguïté
+	 * de l'ancienne convention — aucune référence CVE ou GHSA réelle ne peut
+	 * coïncider avec un nom de paquet.
+	 */
+	try {
+		db?.query("DELETE FROM cve_occurrences WHERE cve = package").run();
+	} catch (_e) {
+		// Table absente sur une base antérieure à `cve_occurrences`.
+	}
 }

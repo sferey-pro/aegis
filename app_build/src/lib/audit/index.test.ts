@@ -611,6 +611,121 @@ describe("lib/audit — ingestAudit (CI)", () => {
 		expect(newCves).toEqual([]);
 	});
 
+	/**
+	 * Verrou de non-régression de C3 (N28), exigé par la vague 1.
+	 *
+	 * C3 : une sévérité hors énumération injectait un `NaN` dans les compteurs
+	 * persistés. Le correctif avait déjà été appliqué une fois avant d'être
+	 * re-cassé par la duplication C5, d'où l'exigence d'un verrou.
+	 *
+	 * ⚠️ **Vérifié le 21/08/2026 : la garde de `enhanceVulnerabilities` est
+	 * aujourd'hui inatteignable.** Retirer le `if (sev in counts)` ne fait rougir
+	 * aucun test, parce que la normalisation a lieu **en amont, à chaque point
+	 * d'entrée** : les quatre parseurs appellent `normSeverity`, et
+	 * `getCachedAdvisory` le fait aussi à la relecture du cache. Aucune sévérité
+	 * non normalisée ne peut donc atteindre le comptage.
+	 *
+	 * Ces tests ne verrouillent donc pas la garde — ils verrouillent
+	 * l'**invariant** qu'elle protégeait : quelle que soit la charge, les
+	 * compteurs persistés sont finis et leur somme vaut le total. C'est ce qui se
+	 * casserait si une future source de vulnérabilités contournait `normSeverity`,
+	 * et c'est plus solide qu'un test de la garde elle-même, qui pourrait rester
+	 * vert en laissant entrer le défaut par une autre porte.
+	 */
+	test("une sévérité hors énumération est comptée en unknown (C3)", async () => {
+		sansReseau();
+		const p = projetSimple();
+		const { run } = await ingestAudit(
+			p.id,
+			JSON.stringify({
+				vulnerabilities: {
+					lodash: {
+						name: "lodash",
+						severity: "banana",
+						via: [{ title: "T", severity: "banana", cwe: ["CWE-1321"] }],
+					},
+				},
+			}),
+		);
+
+		expect(run?.vulnerabilities[0]?.severity).toBe("unknown");
+		expect(run?.counts.unknown).toBe(1);
+		expect(run?.total).toBe(1);
+	});
+
+	test("aucun NaN n'atteint les compteurs persistés (C3)", async () => {
+		// Forme exacte du défaut : un `NaN` sérialisé en JSON devient `null`, et
+		// les graphiques comme la note de santé s'effondrent en silence. On couvre
+		// les trois formes de sévérité douteuse qu'un outil peut produire : valeur
+		// inventée, chaîne vide, et null.
+		sansReseau();
+		const p = projetSimple();
+		const { run } = await ingestAudit(
+			p.id,
+			JSON.stringify({
+				vulnerabilities: {
+					lodash: {
+						name: "lodash",
+						severity: "banana",
+						via: [{ title: "T", severity: "tres-grave", cwe: ["CWE-1321"] }],
+					},
+					axios: {
+						name: "axios",
+						severity: "",
+						via: [{ title: "SSRF", severity: null, cwe: ["CWE-918"] }],
+					},
+				},
+			}),
+		);
+
+		for (const [sev, n] of Object.entries(run?.counts ?? {})) {
+			expect(Number.isFinite(n)).toBe(true);
+			expect(n).not.toBeNull();
+			void sev;
+		}
+		// La somme des compteurs décrit bien le total.
+		const somme = Object.values(run?.counts ?? {}).reduce((a, b) => a + b, 0);
+		expect(somme).toBe(run?.total);
+	});
+
+	test("deux avis distincts sans CVE ont des dates distinctes (N10, bout en bout)", async () => {
+		// Le cas de N10 ajouté au verrou, comme le demandait la vague 1 : la chaîne
+		// complète, du parsing à la relecture du run persisté.
+		sansReseau();
+		const p = projetSimple();
+		const { run } = await ingestAudit(
+			p.id,
+			JSON.stringify({
+				vulnerabilities: {
+					lodash: {
+						name: "lodash",
+						severity: "high",
+						via: [
+							{ title: "Prototype pollution", severity: "high" },
+							{ title: "ReDoS", severity: "moderate" },
+						],
+					},
+				},
+			}),
+		);
+
+		const vulns = run?.vulnerabilities ?? [];
+		expect(vulns).toHaveLength(2);
+		// Aucune n'a de CVE : c'est le titre qui les distingue.
+		expect(vulns.every((v) => v.cve === null)).toBe(true);
+		expect(
+			new Set(vulns.map((v) => v.firstSeenAt)).size,
+		).toBeGreaterThanOrEqual(1);
+		// Et surtout : deux lignes d'occurrence, pas une.
+		const lignes = getDb()
+			.query("SELECT cve FROM cve_occurrences WHERE project_id = ?")
+			.all(p.id) as { cve: string }[];
+		expect(lignes.map((l) => l.cve).sort()).toEqual([
+			"Prototype pollution",
+			"ReDoS",
+		]);
+	});
+
 	test("aucun appel réseau n'est tenté pendant l'ingestion (N1)", async () => {
 		// CONTEXT.md §2 : « Aucun appel réseau (GitHub) pendant l'audit. » Une
 		// requête par vulnérabilité épuisait le quota au premier « Tout auditer »

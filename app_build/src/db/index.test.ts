@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 
 import { createTempDb, useTempDb } from "@/test/db";
 import { closeDb, getDb } from "./index";
+import { createProject } from "./projects";
 
 describe("db/index — connexion", () => {
 	test("importer un module db ne crée aucun fichier", () => {
@@ -149,5 +150,93 @@ describe("db/index — schéma", () => {
 				.get() as { n: number }
 		).n;
 		expect(n).toBeGreaterThan(9);
+	});
+});
+
+describe("db/index — migration de la clé d'occurrence (N10)", () => {
+	useTempDb("migration-n10");
+
+	/**
+	 * Les lignes écrites sous l'ancienne convention portaient `cve = package` pour
+	 * les vulnérabilités sans CVE. Le titre qui les distinguait n'a jamais été
+	 * stocké : elles sont ambiguës par construction, on ne peut pas les réparer,
+	 * seulement les retirer. La migration les purge à l'ouverture de la base.
+	 */
+	test("une ligne de l'ancienne convention est purgée", () => {
+		const p = createProject({
+			name: "api",
+			path: "/srv/api",
+			type: "node",
+			tool: "npm",
+		});
+		// Écriture directe, pour reproduire l'ancienne forme.
+		getDb()
+			.query(
+				"INSERT INTO cve_occurrences (project_id, package, cve, is_baseline) VALUES (?, 'lodash', 'lodash', 1)",
+			)
+			.run(p.id);
+
+		closeDb();
+		getDb(); // réouverture : la migration s'exécute
+
+		const restantes = getDb()
+			.query("SELECT COUNT(*) as n FROM cve_occurrences")
+			.get() as { n: number };
+		expect(restantes.n).toBe(0);
+	});
+
+	test("une ligne portant une vraie CVE n'est pas touchée", () => {
+		// Aucune référence CVE ou GHSA ne peut coïncider avec un nom de paquet :
+		// le marqueur de l'ancienne convention est donc sans ambiguïté.
+		const p = createProject({
+			name: "api",
+			path: "/srv/api",
+			type: "node",
+			tool: "npm",
+		});
+		getDb()
+			.query(
+				"INSERT INTO cve_occurrences (project_id, package, cve, is_baseline) VALUES (?, 'lodash', 'CVE-2020-8203', 1)",
+			)
+			.run(p.id);
+
+		closeDb();
+		getDb();
+
+		const restantes = getDb()
+			.query("SELECT cve FROM cve_occurrences")
+			.all() as { cve: string }[];
+		expect(restantes.map((r) => r.cve)).toEqual(["CVE-2020-8203"]);
+	});
+
+	test("une ligne de la nouvelle convention n'est pas touchée", () => {
+		// `cve = titre` : différent du nom du paquet, donc conservée.
+		const p = createProject({
+			name: "api",
+			path: "/srv/api",
+			type: "node",
+			tool: "npm",
+		});
+		getDb()
+			.query(
+				"INSERT INTO cve_occurrences (project_id, package, cve, is_baseline) VALUES (?, 'lodash', 'Prototype pollution', 1)",
+			)
+			.run(p.id);
+
+		closeDb();
+		getDb();
+
+		const restantes = getDb()
+			.query("SELECT cve FROM cve_occurrences")
+			.all() as { cve: string }[];
+		expect(restantes.map((r) => r.cve)).toEqual(["Prototype pollution"]);
+	});
+
+	test("la migration est idempotente", () => {
+		// Elle s'exécute à chaque ouverture : deux passages ne doivent rien casser.
+		closeDb();
+		getDb();
+		closeDb();
+		expect(() => getDb()).not.toThrow();
 	});
 });

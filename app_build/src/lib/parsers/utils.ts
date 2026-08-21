@@ -26,6 +26,10 @@ export function dedupe(vulns: Vulnerability[]): Vulnerability[] {
 	const result: Vulnerability[] = [];
 
 	for (const v of vulns) {
+		// Clé spécifiée par CONTEXT.md §3, volontairement plus fine que celle du
+		// regroupement : deux avis de même CVE mais de titres différents sont deux
+		// entrées distinctes. Ne pas l'aligner sur `vulnKey` — ce sont deux usages
+		// différents (voir `src/lib/vuln-identity.ts`).
 		const key = `${v.package}|${v.title}|${v.cve ?? ""}`;
 		if (!seen.has(key)) {
 			seen.add(key);

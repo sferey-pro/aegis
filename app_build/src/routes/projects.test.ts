@@ -15,6 +15,7 @@ import { spawnSync } from "bun";
 
 import { getDb } from "@/db";
 import type { Project } from "@/db/projects";
+import { addRun } from "@/db/runs";
 import { jsonBody, startTestServer, type TestServer } from "@/test/server";
 import type { ProjectListItem } from "./projects";
 
@@ -555,6 +556,106 @@ describe("actions git et audit sur un projet", () => {
 		await srv.json(`/api/projects/${cree.id}/audit`, { method: "POST" });
 		const { data } = await srv.json<{ deduped: boolean }>(
 			`/api/projects/${cree.id}/audit?force=true`,
+			{ method: "POST" },
+		);
+		expect(data.deduped).toBe(false);
+	});
+});
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N37 — 404 sur un identifiant inexistant, sinon l'interface ne distingue pas
+	// « supprimé » de « n'existait pas ».
+	test.failing("supprimer un identifiant inconnu renvoie 404 (N37)", async () => {
+		const { status } = await srv.json("/api/projects/999999", {
+			method: "DELETE",
+		});
+		expect(status).toBe(404);
+	});
+
+	// N3 — la garde de chemin doit couvrir les opérations git, qui exécutent les
+	// hooks du dépôt visité. C'est le chemin d'exécution de code que C1 devait
+	// fermer.
+	test.failing("git-fetch respecte AEGIS_ALLOWED_ROOTS (N3)", async () => {
+		const { data: cree } = await creer({ path: "/srv/interdit" });
+		process.env.AEGIS_ALLOWED_ROOTS = "/srv/autorise";
+		const { status } = await srv.json(`/api/projects/${cree.id}/git-fetch`, {
+			method: "POST",
+		});
+		expect(status).toBe(403);
+	});
+
+	// N3 — `AEGIS_ALLOWED_ROOTS` non défini doit être un défaut **fermé**, pas
+	// ouvert : une instance déployée sans la variable ne doit pas accepter
+	// n'importe quel chemin de l'hôte.
+	test.failing("sans AEGIS_ALLOWED_ROOTS, aucun chemin n'est accepté (N3)", async () => {
+		delete process.env.AEGIS_ALLOWED_ROOTS;
+		const { status } = await creer({ path: "/n/importe/ou" });
+		expect(status).toBe(403);
+	});
+
+	// N11 — CONTEXT.md §2 spécifie `?force=1`. Un forçage silencieusement ignoré
+	// est plus dangereux qu'un forçage absent : l'appelant croit avoir réaudité.
+	//
+	// Le montage doit isoler le forçage : un run précédent **réussi** portant le
+	// SHA courant, sinon la déduplication n'aurait pas lieu de toute façon (un run
+	// en erreur n'est jamais dédupliqué) et le test passerait pour la mauvaise
+	// raison — ce qui s'est produit à la première écriture.
+	test.failing("?force=1 force le réaudit (N11)", async () => {
+		const repo = depot("force-un");
+		const { data: cree } = await creer({
+			path: repo,
+			audit_path: "cible-absente",
+		});
+		addRun({
+			project_id: cree.id,
+			status: "ok",
+			total: 0,
+			counts: {
+				critical: 0,
+				high: 0,
+				moderate: 0,
+				low: 0,
+				info: 0,
+				unknown: 0,
+			},
+			vulnerabilities: [],
+			command: "npm audit --json",
+			commit_sha: spawnSync(["git", "rev-parse", "HEAD"], {
+				cwd: repo,
+				env: process.env,
+			})
+				.stdout.toString()
+				.trim(),
+			error: null,
+			duration_ms: 5,
+		});
+
+		// Sans forçage : dédupliqué. C'est la référence du test.
+		const sansForcage = await srv.json<{ deduped: boolean }>(
+			`/api/projects/${cree.id}/audit`,
+			{ method: "POST" },
+		);
+		expect(sansForcage.data.deduped).toBe(true);
+
+		const { data } = await srv.json<{ deduped: boolean }>(
+			`/api/projects/${cree.id}/audit?force=1`,
 			{ method: "POST" },
 		);
 		expect(data.deduped).toBe(false);

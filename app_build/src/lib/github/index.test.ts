@@ -476,3 +476,63 @@ describe("lib/github — syncAdvisory", () => {
 		expect(getCachedAdvisory("CVE-2020-8203")).toBeNull();
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("github-contrats");
+
+	// N18 — CONTEXT.md §6 : « l'appelant doit s'arrêter ». `originalFixedIn` doit
+	// être le repli dans **toutes** les branches d'échec, sinon la version que
+	// npm/yarn avait fournie est effacée du run.
+	test.failing("un échec réseau préserve le originalFixedIn (N18)", async () => {
+		stubFetch({ throws: true });
+		const r = await resolveFixedVersion({
+			tool: "npm",
+			package: "lodash",
+			cve: "CVE-2020-8203",
+			originalFixedIn: "4.17.21",
+		});
+		expect(r.fixedIn).toBe("4.17.21");
+	});
+
+	// N18 — même exigence sur la branche « quota dépassé ».
+	test.failing("un quota dépassé préserve le originalFixedIn (N18)", async () => {
+		stubFetch({ status: 429 });
+		const r = await resolveFixedVersion({
+			tool: "npm",
+			package: "lodash",
+			cve: "CVE-2020-8203",
+			originalFixedIn: "4.17.21",
+		});
+		expect(r.fixedIn).toBe("4.17.21");
+	});
+
+	// N44 — la suppression précède l'appel réseau : un rafraîchissement qui échoue
+	// perd l'avis connu. `putCachedAdvisory` fait déjà un ON CONFLICT, le DELETE
+	// est superflu.
+	test.failing("un rafraîchissement échoué conserve le cache (N44)", async () => {
+		putCachedAdvisory("CVE-2020-8203", "critical", {
+			"npm:lodash": [{ range: "<4.17.21", patched: "4.17.21" }],
+		});
+		stubFetch({ throws: true });
+
+		await syncAdvisory("CVE-2020-8203");
+		expect(getCachedAdvisory("CVE-2020-8203")?.severity).toBe("critical");
+	});
+});

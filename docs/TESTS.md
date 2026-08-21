@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1057 tests · 0 échec · 87 fichiers
-├── 343 composants (46 fichiers) — DOM, React, fetch simulé
-└── 714 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
+1099 tests · 0 échec · 87 fichiers
+├── 345 composants (46 fichiers) — DOM, React, fetch simulé
+└── 754 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -21,7 +21,7 @@ Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
 
 ---
 
-## 1. Frontend — 343 tests
+## 1. Frontend — 345 tests
 
 Colocation intégrale : chaque `.tsx` a son `.test.tsx` à côté, suivant
 l'Atomic Design.
@@ -182,13 +182,17 @@ Les huit autres écarts relevés par les tests confirmaient un défaut déjà in
 
 ### Corriger un écart épinglé
 
-Le test à retourner est nommé dans l'entrée `ISSUE.md` correspondante. L'ordre compte :
+**La cible est déjà écrite.** Chaque défaut épinglé porte deux tests dans le même fichier : le test « écart documenté » qui affirme le comportement actuel, et un `test.failing` — regroupé en fin de fichier sous `describe("contrats attendus — à activer au correctif")` — qui énonce le contrat. **42 tests retournés** couvrent 27 défauts.
 
-1. Retourner l'assertion vers le comportement **attendu**, et retirer du libellé la mention « écart documenté » ainsi que le commentaire expliquant l'écart.
-2. Vérifier que le test **échoue** — c'est ce qui prouve qu'il portait sur la bonne chose.
-3. Corriger le code jusqu'à ce qu'il passe.
+`test.failing` exécute son corps et attend son échec : la suite reste verte tant que le défaut existe. Au correctif, le test se met à passer et Bun le refuse — « this test is marked as failing but it passed. Remove `.failing` if tested behavior now works ». Le correctif ne peut donc pas passer inaperçu.
 
-Corriger le code d'abord laisse un test rouge dont on ne sait plus s'il signale une régression ou un écart devenu obsolète.
+Marche à suivre :
+
+1. Corriger le code.
+2. Retirer `.failing` du test de contrat.
+3. Supprimer le test « écart documenté », devenu faux.
+
+`test.skip` et `test.todo` ne conviennent pas : Bun n'exécute pas leur corps, l'assertion serait décorative et aucun signal ne se déclencherait.
 
 ## 6. Deux bugs trouvés en écrivant ces tests
 

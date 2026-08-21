@@ -201,3 +201,54 @@ describe("ensureOccurrences", () => {
 		expect(map.size).toBe(1);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("occurrences-contrats");
+
+	// N10 — la clé d'identité doit inclure le titre en repli, comme le fait déjà
+	// l'agrégateur (`${package}: ${title}`). C'est le seul défaut de la liste qui
+	// **corrompt des données déjà écrites** : deux avis distincts sans CVE
+	// partagent aujourd'hui un `first_seen_at`, donc un avis découvert ce matin
+	// s'affiche avec l'âge d'une faille vue il y a six mois, et hérite de son
+	// `is_baseline`. Un SLA construit là-dessus s'auto-valide.
+	//
+	// Au correctif, les lignes déjà écrites devront être migrées ou purgées.
+	// Le `title` n'est pas dans la signature actuelle d'`ensureOccurrences` : le
+	// correctif doit l'y ajouter, puisque la fonction ne peut pas distinguer deux
+	// avis sans lui. Le transtypage rend cette exigence explicite plutôt que de
+	// laisser le test ne pas compiler.
+	test.failing("deux avis sans CVE gardent des identités distinctes (N10)", () => {
+		const p = createProject({
+			name: "occ-contrat",
+			path: "/srv/occ-contrat",
+			type: "node",
+			tool: "npm",
+		});
+		const map = ensureOccurrences(
+			p.id,
+			[
+				{ package: "lodash", cve: null, title: "Prototype pollution" },
+				{ package: "lodash", cve: null, title: "ReDoS" },
+			] as unknown as Parameters<typeof ensureOccurrences>[1],
+			false,
+		);
+		expect(map.size).toBe(2);
+	});
+});

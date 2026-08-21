@@ -265,7 +265,7 @@ describe("Triage", () => {
 		});
 	});
 
-	test("la pagination retombe page 1 après une annotation", async () => {
+	test("la pagination ne retombe pas page 1 après une annotation", async () => {
 		// Défaut N9/UX3, seconde moitié : `useEffect(() => setPage(1), [cves, …])`
 		// et `cves` est un tableau neuf à chaque refetch. Le référent qui
 		// travaillait page 2 est renvoyé au début après *chaque* décision.
@@ -302,14 +302,72 @@ describe("Triage", () => {
 			)[0] as HTMLElement,
 		);
 
-		// Le refetch renvoie un tableau neuf : la page revient à 1.
-		await waitFor(
-			() => {
-				expect(screen.getByText(/Affichage de/).textContent).toContain(
-					"Affichage de 1",
-				);
-			},
-			{ timeout: 3000 },
+		// Mesure du 21/08/2026 : la page **ne** revient pas à 1. Le refetch a bien
+		// lieu (deux « GET /api/cves » enregistrés) et l'effet a bien `cves` en
+		// dépendance, mais l'affichage reste sur la seconde page.
+		//
+		// L'assertion précédente — `toContain("Affichage de 1")` — passait sur un
+		// préfixe : « Affichage de 11 à 15 » contient « Affichage de 1 ». Elle ne
+		// pouvait donc pas distinguer les deux pages, et validait le défaut à tort.
+		// Corrigée en exact, elle montre que cette moitié de N9 n'est pas
+		// reproductible en l'état.
+		await new Promise((r) => setTimeout(r, 300));
+		expect(screen.getByText(/Affichage de/).textContent).toBe(
+			"Affichage de 11 à 15 sur 15 packages",
 		);
+	});
+});
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N9 — la modale doit rester ouverte et refléter le nouveau statut. La cause
+	// profonde est que `selectedGroup` est un instantané figé issu du `useMemo` :
+	// après refetch, le memo est recalculé mais l'objet retenu reste l'ancien.
+	// Fermer la modale masque cette désynchronisation au lieu de la corriger.
+	//
+	// Correctif attendu (docs/ISSUE.md#n9) : conserver la **clé** du groupe et
+	// dériver le groupe affiché depuis `packageGroups`.
+	test.failing("la modale reste ouverte après une décision (N9)", async () => {
+		mockFetch({
+			...base,
+			"GET /api/cves": [
+				groupe({ cve: "CVE-1", ref: "CVE-1" }),
+				groupe({ cve: "CVE-2", ref: "CVE-2" }),
+			],
+			"POST /api/annotations": { body: {} },
+		});
+		monte();
+		await waitFor(() => {
+			expect(screen.getByText("lodash")).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByText("lodash"));
+		expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+		fireEvent.click(
+			(
+				await screen.findAllByRole("button", { name: /Faux positif/ })
+			)[0] as HTMLElement,
+		);
+
+		// La modale doit toujours être là, pour enchaîner la CVE suivante.
+		await new Promise((r) => setTimeout(r, 200));
+		expect(screen.queryAllByRole("dialog")).toHaveLength(1);
 	});
 });

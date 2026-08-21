@@ -341,3 +341,42 @@ describe("lib/git — gitPull", () => {
 		expect(r.log).toBe("chemin introuvable ou erreur système");
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("git-contrats");
+
+	// N42 — sur une branche non née, `git rev-parse` écrit « fatal: » sur stderr
+	// mais « HEAD » sur stdout. Un `commit_sha` valant « HEAD » satisfait la
+	// condition de déduplication : deux audits se dédupliquent l'un contre l'autre.
+	test.failing("un dépôt sans commit n'expose aucun SHA (N42)", async () => {
+		const d = dossier("vide-contrat");
+		git(d, "init", "-q", "-b", "main");
+		const info = await getGitInfo(d);
+		expect(info.isRepo).toBe(true);
+		expect(info.sha).toBeNull();
+	});
+
+	// N43 — le repli « Déjà à jour. » ne doit pas se déclencher sur un dépôt sans
+	// remote, où rien n'a été tenté : c'est le message le plus trompeur possible.
+	test.failing("un dépôt sans amont le dit explicitement (N43)", async () => {
+		const r = await gitFetch(depot("sans-amont-contrat"));
+		expect(r.log).not.toBe("Déjà à jour.");
+	});
+});

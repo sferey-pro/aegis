@@ -611,3 +611,55 @@ describe("lib/audit — ingestAudit (CI)", () => {
 		expect(run?.vulnerabilities[0]?.publishedAt).toBeNull();
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("audit-contrats");
+
+	// N45 — le diff d'ingestion passe par `buildCveGroups`, qui exclut les projets
+	// ignorés. La porte CI d'un projet ignoré est donc toujours verte, même après
+	// ingestion d'une faille critique. Le filtre « ignoré » a une finalité
+	// d'affichage : il ne doit pas décider du résultat d'une porte CI.
+	test.failing("un projet ignoré remonte quand même ses nouvelles CVE (N45)", async () => {
+		sansReseau();
+		const p = createProject({
+			name: "ignore-contrat",
+			path: "/srv/ignore-contrat",
+			type: "node",
+			tool: "npm",
+			ignored: true,
+		});
+		const { run: r, newCves } = await ingestAudit(
+			p.id,
+			JSON.stringify({
+				vulnerabilities: {
+					lodash: {
+						name: "lodash",
+						severity: "high",
+						via: [
+							{ title: "Prototype pollution", url: "u", cwe: ["CWE-1321"] },
+						],
+					},
+				},
+			}),
+		);
+		expect(r?.total).toBe(1);
+		expect(newCves).toHaveLength(1);
+	});
+});

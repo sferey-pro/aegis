@@ -338,3 +338,49 @@ describe("GET /api/history-global", () => {
 		expect(defaut.length).toBe(trente.length);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N13 — CONTEXT.md §4 spécifie les six sévérités et un `total`.
+	test.failing("chaque point porte les six sévérités et un total (N13)", async () => {
+		const { data } = await srv.json<Record<string, unknown>[]>(
+			"/api/history-global?days=7",
+		);
+		const point = data[0] as Record<string, unknown>;
+		expect(point.info).toBeDefined();
+		expect(point.unknown).toBeDefined();
+		expect(point.total).toBeDefined();
+	});
+
+	// N13 — un `days` non numérique doit être rejeté, pas produire un graphique
+	// vide sans message.
+	test.failing("un days non numérique est rejeté (N13)", async () => {
+		const { status } = await srv.json("/api/history-global?days=abc");
+		expect(status).toBe(400);
+	});
+
+	// N13 — `days` doit être borné : 100 000 buckets bloquent le process.
+	test.failing("un days démesuré est borné (N13)", async () => {
+		const { status, data } = await srv.json<unknown[]>(
+			"/api/history-global?days=100000",
+		);
+		expect(status).toBe(200);
+		expect(data.length).toBeLessThanOrEqual(400);
+	});
+});

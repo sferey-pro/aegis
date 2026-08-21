@@ -147,3 +147,48 @@ describe("DELETE /api/reports/:id", () => {
 		expect(data).toEqual({ success: true });
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N35 — `reportBodySchema` existe déjà dans src/lib/schemas.ts et n'est branché
+	// nulle part : un corps illisible ou incomplet doit répondre 400, pas 500.
+	test.failing("un JSON illisible renvoie 400 « JSON invalide » (N35)", async () => {
+		const { status, data } = await srv.json("/api/reports", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: "{ cassé",
+		});
+		expect(status).toBe(400);
+		expect(data).toEqual({ error: "JSON invalide" });
+	});
+
+	test.failing("un corps incomplet renvoie 400, pas 500 (N35)", async () => {
+		const { status } = await srv.json("/api/reports", jsonBody({}));
+		expect(status).toBe(400);
+	});
+
+	// N37 — supprimer un identifiant inexistant doit répondre 404, sinon
+	// l'interface ne distingue pas « supprimé » de « n'existait pas ».
+	test.failing("un identifiant inconnu renvoie 404 (N37)", async () => {
+		const { status } = await srv.json("/api/reports/999999", {
+			method: "DELETE",
+		});
+		expect(status).toBe(404);
+	});
+});

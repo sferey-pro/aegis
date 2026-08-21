@@ -84,3 +84,49 @@ describe("db/tags", () => {
 		]);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("tags-contrats");
+
+	// N40 — `UNIQUE` sans `COLLATE NOCASE` laisse coexister « backend » et
+	// « Backend », soit deux filtres visuellement identiques.
+	test.failing("l'unicité du nom ignore la casse (N40)", () => {
+		createTag("backend");
+		expect(() => createTag("Backend")).toThrow(
+			"Un tag avec ce nom existe déjà",
+		);
+	});
+
+	// N12 — CONTEXT.md §9 : « retire le nom de tous les projets le référençant ».
+	test.failing("supprimer un tag le retire des projets (N12)", () => {
+		const t = createTag("legacy");
+		const p = createProject({
+			name: "api",
+			path: "/srv/api",
+			type: "node",
+			tool: "npm",
+		});
+		updateProject(p.id, { tags: ["legacy"] });
+
+		deleteTag(t.id);
+
+		expect(getProjectById(p.id)?.tags).toEqual([]);
+	});
+});

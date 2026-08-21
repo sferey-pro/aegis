@@ -13,10 +13,10 @@ Défauts relevés sur l'existant — les nouvelles fonctionnalités sont listée
 | 🔴 | ouvert — reproduit dans le code au 21/08/2026 |
 | 🟡 | partiellement corrigé — le résiduel est décrit dans l'entrée |
 | 🟢 | corrigé et vérifié |
-| 🧪 | **épinglé par un test** : un test affirme le comportement réel actuel. Le corriger implique de retourner ce test. |
+| 🧪 | **épinglé par deux tests** : l'un affirme le comportement réel actuel, l'autre — marqué `test.failing` — énonce le contrat attendu et **basculera en rouge le jour du correctif**. Voir « Comment corriger un défaut épinglé ». |
 | ⊕N | nombre d'analyses indépendantes ayant relevé le défaut (vague 2) |
 
-Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut plus s'aggraver en silence.
+Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut plus s'aggraver en silence, **et dont la cible est déjà écrite**.
 
 ---
 
@@ -101,7 +101,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | Constat de vérification |
 |---|---|---|
-| T1 | Front quasi non couvert | **343 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
+| T1 | Front quasi non couvert | **345 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
 | T2 | Routes peu couvertes | **11 modules de routes sur 11**, en fonctionnel sur un vrai `Bun.serve` — 227 tests |
 | T3 | Test git dépendant du réseau | dépôts jetables en `tmpdir()` avec un dépôt nu local comme amont ; **aucun accès réseau** dans toute la suite |
 | T4 | Modules sans aucun test | `lib/cvss.ts` (14 tests), `lib/console.ts` (18), `db/backup.ts` (6) |
@@ -210,7 +210,9 @@ Conséquence : le panneau de triage envoyant un seul champ à la fois, **enregis
 
 🧪 Épinglé dans `src/routes/annotations.test.ts` : « un champ omis est effacé, pas conservé — écart documenté ». Le test de `src/db/annotations.test.ts` affirme l'inverse — et c'est correct : au niveau de la fonction, la préservation marche. Les deux tests ensemble localisent le défaut dans le schéma.
 
-**Correctif :** retirer `.default("")` de `note` et rendre `fixedIn` réellement optionnel (`.optional()` sans transformation d'absence en `null`), pour que l'absence traverse jusqu'à `upsertAnnotation` en tant qu'`undefined`. Puis retourner le test.
+**Correctif :** retirer `.default("")` de `note` et rendre `fixedIn` réellement optionnel, pour que l'absence traverse jusqu'à `upsertAnnotation` en tant qu'`undefined`.
+
+> ⚠️ **Piège mesuré par simulation le 21/08/2026.** Le correctif naïf — remplacer `emptyToNull` par `z.string().trim().nullish()` — fait passer **trois** tests au rouge, pas deux. Le troisième est « une version corrigée blanche est enregistrée à null » : `emptyToNull` portait **aussi** la normalisation `"   "` → `null` exigée par §1. Le correctif doit donc préserver le trim et la normalisation du vide **tout en** laissant l'absence passer en `undefined` — deux comportements que le schéma actuel confond.
 
 ### N33. `z.coerce.boolean` rend la chaîne `"false"` vraie
 🔴 **Ouvert — relevé par la suite de tests** — `src/lib/schemas.ts` (`projectBodySchema`, champs `ignored` et `is_remote`)
@@ -698,7 +700,12 @@ La fonction reçoit `database: Database` (`:41`) et l'utilise correctement jusqu
 ## 🔵 Priorité 4 — UX & accessibilité
 
 ### N9. Le triage est impraticable au-delà de quelques CVE
-🔴 **Ouvert — vérifié le 21/08/2026.** `selectedGroup` reste un instantané figé, `setPage(1)` reste déclenché par `cves`, et il n'y a toujours aucun `useOptimistic`. 🧪 Les deux moitiés sont épinglées dans `src/pages/Triage.test.tsx`.
+🟡 **Une moitié confirmée, l'autre non reproductible — vérifié le 21/08/2026.**
+
+- **La modale se ferme après chaque décision : confirmé.** `selectedGroup` reste un instantané figé, aucun `useOptimistic`. 🧪 Épinglé, avec un test retourné prêt à activer.
+- **La pagination retombe page 1 : non reproductible.** Le refetch a bien lieu (deux `GET /api/cves` enregistrés) et l'effet a bien `cves` en dépendance, mais l'affichage **reste** sur la seconde page. Mesure : `"Affichage de 11 à 15 sur 15 packages"` après annotation depuis la page 2.
+
+> Le test qui « prouvait » cette seconde moitié était faux : `toContain("Affichage de 1")` passe sur `"Affichage de 11 à 15"`, dont il est un préfixe. Il ne pouvait donc pas distinguer les deux pages et validait le défaut à tort. Corrigé en assertion exacte le 21/08/2026, il montre l'inverse de ce qui était annoncé. Reste à déterminer si l'effet ne se déclenche pas, ou si le harnais de test masque un comportement réel — d'ici là, ne pas compter cette moitié comme un défaut établi.
 
 **⊕3** — `src/components/organisms/CveCard.tsx:233-258`, `src/components/organisms/CveDetailsModal.tsx:80`, `src/pages/Triage.tsx:178-180`
 
@@ -832,14 +839,14 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1057** |
+| `src/pages/Projects.tsx` | **1099** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |
 
 `Projects.tsx` a franchi le millier de lignes depuis la vague 1. Le refactor Atomic Design a extrait les atomes et les organismes, mais les pages ont continué de grossir : elles portent l'état, les appels réseau, l'orchestration et le markup. C'est ce qui rend [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction) (handlers non mémoïsés), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation) (état serveur local) et [N24](#n24-filtres-et-pagination-hors-de-lurl) (filtres non partagés) difficiles à corriger séparément : les trois ont la même racine.
 
-À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 343 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
+À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 345 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
 
 ### N31. Écarts au contrat CONTEXT.md — arbitrage à trancher
 **⊕2**
@@ -897,10 +904,25 @@ Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points :
 
 ### Comment corriger un défaut épinglé
 
-Les 26 entrées marquées 🧪 portent un test qui **affirme le comportement défectueux**, avec la mention « écart documenté » dans son libellé. Corriger le défaut implique donc trois gestes, dans cet ordre :
+Chaque défaut 🧪 porte **deux** tests, côte à côte dans le même fichier :
 
-1. Retourner le test : l'assertion passe du comportement réel au comportement attendu, et la mention « écart documenté » disparaît du libellé, ainsi que le commentaire qui expliquait l'écart.
-2. Vérifier qu'il **échoue** — c'est ce qui prouve qu'il testait bien la bonne chose.
-3. Corriger le code jusqu'à ce qu'il passe.
+1. Le test **« écart documenté »**, qui affirme le comportement réel d'aujourd'hui. Il passe au rouge si le défaut change de forme — une régression involontaire est donc détectée.
+2. Le test **`test.failing`**, dans un bloc `describe("contrats attendus — à activer au correctif")` en fin de fichier, qui énonce le comportement que `CONTEXT.md` demande. Bun exécute son corps et **attend son échec** : la suite reste verte tant que le défaut existe.
 
-Faire l'inverse — corriger le code d'abord — laisse un test rouge dont on ne sait plus s'il signale une régression ou un écart devenu obsolète.
+Le jour du correctif, le second se met à passer et Bun le signale :
+
+```
+(fail) contrats attendus … > un champ omis est conservé (N32)
+  ^ this test is marked as failing but it passed.
+    Remove `.failing` if tested behavior now works
+```
+
+Il est donc **impossible de corriger le code sans reprendre le test**. La marche à suivre :
+
+1. Corriger le code.
+2. Retirer `.failing` du test de contrat, qui doit désormais passer.
+3. Supprimer le test « écart documenté » correspondant, devenu faux — c'est lui qui signale que l'ancien comportement a disparu.
+
+Ne pas utiliser `test.skip` ni `test.todo` à cette fin : Bun n'exécute pas leur corps, l'assertion serait décorative et aucun signal ne se déclencherait au correctif.
+
+**Un test retourné se vérifie.** Deux des 42 écrits le 21/08/2026 sont passés dès leur écriture, révélant que le test « écart documenté » correspondant était faux — voir [N11](#n11-force1-est-inopérant) (le montage ne isolait pas le forçage) et [N9](#n9-le-triage-est-impraticable-au-delà-de-quelques-cve) (une assertion `toContain` qui passait sur un préfixe). Un test de contrat qui passe du premier coup n'est pas une bonne nouvelle : c'est un défaut mal caractérisé.

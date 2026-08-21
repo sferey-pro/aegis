@@ -1,8 +1,23 @@
 import type { ParseResult, Vulnerability } from "./types";
 import { buildParseResult, normSeverity } from "./utils";
 
+/** Attente sur la sortie de l'outil ; voir la note de `npm.ts`. */
+interface RawComposerAdvisory {
+	packageName?: string;
+	title?: string;
+	link?: string;
+	severity?: string;
+	cve?: string;
+	affectedVersions?: string;
+}
+
+interface RawComposerOutput {
+	advisories?: Record<string, RawComposerAdvisory[]>;
+	abandoned?: Record<string, string | null>;
+}
+
 export function parseComposer(output: string): ParseResult {
-	let parsed: any;
+	let parsed: RawComposerOutput | null;
 	try {
 		parsed = JSON.parse(output);
 	} catch (e) {
@@ -12,7 +27,8 @@ export function parseComposer(output: string): ParseResult {
 	const rawVulns: Vulnerability[] = [];
 
 	// Parse advisories
-	const advisories = parsed?.advisories || {};
+	const advisories: Record<string, RawComposerAdvisory[]> =
+		parsed?.advisories ?? {};
 	for (const pkgName of Object.keys(advisories)) {
 		const advs = advisories[pkgName];
 		if (!Array.isArray(advs)) continue;

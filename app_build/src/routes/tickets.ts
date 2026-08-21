@@ -1,3 +1,4 @@
+import { PanelType } from "@atlaskit/adf-schema";
 import {
 	doc,
 	heading,
@@ -174,14 +175,32 @@ export const ticketsRoutes = {
 			// Append notes if provided
 			if (notes && notes.trim().length > 0) {
 				adfDoc.content.push(
-					panel({ panelType: "info" as any })(
+					// `panelType` est un enum ADF, pas une chaîne libre : on l'emploie
+					// tel quel plutôt que de caster "info".
+					panel({ panelType: PanelType.INFO })(
 						paragraph(strong("Notes additionnelles / Recommandations :")),
 						paragraph(text(notes)),
 					),
 				);
 			}
 
-			const issueData: any = {
+			/**
+			 * Charge d'une création d'issue Jira (API v3). Seuls les champs
+			 * réellement envoyés sont décrits ; `parent` et `components` sont
+			 * ajoutés plus bas quand la configuration les fournit.
+			 */
+			interface JiraIssuePayload {
+				fields: {
+					project: { key: string };
+					summary: string;
+					description: unknown;
+					issuetype: { name: string };
+					parent?: { key: string };
+					components?: { id: string }[];
+				};
+			}
+
+			const issueData: JiraIssuePayload = {
 				fields: {
 					project: { key: project },
 					summary: `[Aegis] Remédiation ${packageName}`,

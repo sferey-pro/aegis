@@ -1,13 +1,30 @@
 import type { ParseResult, Vulnerability } from "./types";
 import { buildParseResult, normSeverity } from "./utils";
 
+/** Attente sur la sortie de l'outil ; voir la note de `npm.ts`. */
+interface RawYarnAdvisory {
+	module_name?: string;
+	title?: string;
+	url?: string;
+	severity?: string;
+	vulnerable_versions?: string;
+	patched_versions?: string;
+	cves?: unknown;
+}
+
+/** Une ligne du NDJSON produit par `yarn audit --json` (v1 classic). */
+interface RawYarnLine {
+	type?: string;
+	data?: { advisory?: RawYarnAdvisory };
+}
+
 export function parseYarn(output: string): ParseResult {
 	const lines = output.split("\n");
 	const rawVulns: Vulnerability[] = [];
 
 	for (const line of lines) {
 		if (!line.trim()) continue;
-		let parsed: any;
+		let parsed: RawYarnLine;
 		try {
 			parsed = JSON.parse(line);
 		} catch (_e) {

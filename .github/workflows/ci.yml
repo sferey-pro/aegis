@@ -29,7 +29,10 @@ jobs:
         run: bun install
         
       - name: Lint and Format (Biome)
-        run: bunx biome ci .
+        # Politique zéro warning : `biome ci` seul sort en 0 sur des warnings, et
+        # laisserait donc réapparaître un `any` ou une variable inutilisée sans
+        # bruit. `--error-on-warnings` fait échouer sur tout diagnostic.
+        run: bunx biome ci . --error-on-warnings
         
       - name: Typecheck
         run: bun run typecheck

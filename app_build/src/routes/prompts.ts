@@ -36,7 +36,7 @@ export const promptsRoutes = {
 			try {
 				const prompt = updatePrompt(id, data.title, data.body, data.tags);
 				return Response.json(prompt);
-			} catch (e: unknown) {
+			} catch {
 				// `updatePrompt` lève sur un id inconnu : c'est un 404, pas un 400.
 				return Response.json({ error: "Prompt introuvable" }, { status: 404 });
 			}

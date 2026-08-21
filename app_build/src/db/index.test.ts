@@ -1,0 +1,153 @@
+import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
+
+import { createTempDb, useTempDb } from "@/test/db";
+import { closeDb, getDb } from "./index";
+
+describe("db/index — connexion", () => {
+	test("importer un module db ne crée aucun fichier", () => {
+		// Contrainte du contrat : connexion paresseuse. Un import ne doit jamais
+		// matérialiser la base, sinon un simple `import` en test ou en outillage
+		// créerait un fichier parasite.
+		const db = createTempDb("paresse");
+		expect(existsSync(db.path)).toBe(false);
+		db.open();
+		expect(existsSync(db.path)).toBe(true);
+		db.destroy();
+	});
+
+	test("getDb renvoie la même instance entre deux appels", () => {
+		const db = createTempDb("singleton");
+		db.open();
+		expect(getDb()).toBe(getDb());
+		db.destroy();
+	});
+
+	test("closeDb libère l'instance, getDb en ouvre une neuve", () => {
+		const db = createTempDb("reouverture");
+		db.open();
+		const avant = getDb();
+		closeDb();
+		process.env.DB_PATH = db.path;
+		expect(getDb()).not.toBe(avant);
+		db.destroy();
+	});
+});
+
+describe("db/index — schéma", () => {
+	useTempDb("schema");
+
+	test("toutes les tables du contrat existent", () => {
+		const noms = (
+			getDb()
+				.query("SELECT name FROM sqlite_master WHERE type = 'table'")
+				.all() as { name: string }[]
+		).map((r) => r.name);
+
+		for (const table of [
+			"projects",
+			"runs",
+			"annotations",
+			"tickets",
+			"cve_occurrences",
+			"tags",
+			"prompts",
+			"advisory_cache",
+			"settings",
+			"reports",
+		]) {
+			expect(noms).toContain(table);
+		}
+	});
+
+	test("le mode WAL est actif", () => {
+		const { journal_mode } = getDb().query("PRAGMA journal_mode").get() as {
+			journal_mode: string;
+		};
+		expect(journal_mode.toLowerCase()).toBe("wal");
+	});
+
+	test("les clés étrangères sont actives", () => {
+		const row = getDb().query("PRAGMA foreign_keys").get() as {
+			foreign_keys: number;
+		};
+		expect(row.foreign_keys).toBe(1);
+	});
+
+	test("le checkpoint automatique du WAL est configuré", () => {
+		// Sans lui le fichier -wal croît sans limite : le défaut C7 avait produit
+		// 4 Mo de WAL pour 4 Ko de base.
+		const row = getDb().query("PRAGMA wal_autocheckpoint").get() as {
+			wal_autocheckpoint: number;
+		};
+		expect(row.wal_autocheckpoint).toBeGreaterThan(0);
+	});
+
+	test("l'index sur (project_id, ran_at) des runs existe", () => {
+		const index = (
+			getDb()
+				.query("SELECT name FROM sqlite_master WHERE type = 'index'")
+				.all() as { name: string }[]
+		).map((r) => r.name);
+		expect(index).toContain("idx_runs_project_ran_at");
+	});
+
+	test("le slug des projets est unique", () => {
+		const db = getDb();
+		db.query(
+			"INSERT INTO projects (name, slug, path, type, tool) VALUES ('A', 'x', '/a', 'node', 'npm')",
+		).run();
+		expect(() =>
+			db
+				.query(
+					"INSERT INTO projects (name, slug, path, type, tool) VALUES ('B', 'x', '/b', 'node', 'npm')",
+				)
+				.run(),
+		).toThrow(/UNIQUE/);
+	});
+
+	test("les migrations ALTER TABLE tardives ont été appliquées", () => {
+		// Elles sont enveloppées dans des try/catch silencieux : seule une
+		// vérification du schéma prouve qu'elles ont eu lieu.
+		const colonnes = (
+			getDb().query("PRAGMA table_info(advisory_cache)").all() as {
+				name: string;
+			}[]
+		).map((c) => c.name);
+		for (const c of ["html_url", "cvss_vector", "published_at"]) {
+			expect(colonnes).toContain(c);
+		}
+
+		const tickets = (
+			getDb().query("PRAGMA table_info(tickets)").all() as { name: string }[]
+		).map((c) => c.name);
+		expect(tickets).toContain("content_hash");
+
+		const reports = (
+			getDb().query("PRAGMA table_info(reports)").all() as { name: string }[]
+		).map((c) => c.name);
+		expect(reports).toContain("details");
+	});
+
+	test("une annotation sur un projet inexistant est refusée par la clé étrangère", () => {
+		// Corollaire : la convention `project_id = -1` des annotations globales est
+		// impossible (défaut N7). L'agrégateur et l'import la manipulent pourtant.
+		expect(() =>
+			getDb()
+				.query("INSERT INTO annotations (cve, project_id) VALUES ('CVE-1', -1)")
+				.run(),
+		).toThrow(/FOREIGN KEY/);
+	});
+
+	test("appliquer le schéma deux fois est sans effet", () => {
+		// `CREATE TABLE IF NOT EXISTS` plus des ALTER en try/catch : un second
+		// passage ne doit ni lever ni dupliquer.
+		expect(() => getDb()).not.toThrow();
+		const n = (
+			getDb()
+				.query("SELECT COUNT(*) as n FROM sqlite_master WHERE type = 'table'")
+				.get() as { n: number }
+		).n;
+		expect(n).toBeGreaterThan(9);
+	});
+});

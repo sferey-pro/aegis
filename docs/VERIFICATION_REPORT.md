@@ -38,8 +38,9 @@ Colocation intégrale : chaque fichier de code porte son test à côté de lui.
 Aucun accès réseau, aucun fichier résiduel dans le dépôt ni dans `/tmp` après un
 run complet.
 
-Le détail par module, ainsi que la liste des 22 écarts au contrat épinglés par
-des tests, figure dans [`TESTS.md`](./TESTS.md). Les conventions et le
+Le détail par module figure dans [`TESTS.md`](./TESTS.md). Les défauts que cette
+suite épingle sont inscrits dans [`ISSUE.md`](./ISSUE.md), liste unique groupée par
+priorité : **26 de ses entrées portent le marqueur 🧪**. Les conventions et le
 fonctionnement du harnais sont dans [`TESTING.md`](./TESTING.md).
 
 ## 3. Qualité et formatage (Biome)
@@ -87,7 +88,7 @@ depuis `app_build/` — il n'y a pas de `package.json` à la racine du dépôt.
 Le projet compile, se construit, passe le lint sans concession et dispose d'une
 suite de 1057 tests colocalisés couvrant chaque module de l'application.
 
-**Réserve explicite** : la suite documente 22 écarts entre le comportement réel
+**Réserve explicite** : la suite épingle 26 écarts entre le comportement réel
 et le contrat fonctionnel (`CONTEXT.md`), dont trois provoquent une perte de
 données — au premier rang, `POST /api/annotations` qui efface la note et la
 version corrigée saisies à la main lorsqu'on enregistre un statut. Ces écarts

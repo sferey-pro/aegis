@@ -164,7 +164,9 @@ quels événements arrivent et quand.
   s'écarte du contrat, le test affirme le comportement réel et son libellé porte
   la mention **« écart documenté »**, avec un commentaire expliquant l'écart et
   sa conséquence. Ces tests protègent contre une régression *involontaire* tout
-  en signalant le travail à faire. Voir la liste dans [`TESTS.md`](./TESTS.md).
+  en signalant le travail à faire. La liste est dans [`ISSUE.md`](./ISSUE.md) —
+  les entrées marquées 🧪 — et [`TESTS.md`](./TESTS.md) § 5 en donne la table de
+  correspondance vers les fichiers de test.
 - **Aucun accès réseau.** L'API GitHub et Jira sont simulées en remplaçant
   `globalThis.fetch`. Les tests git utilisent de vrais dépôts jetables avec un
   dépôt **nu local** comme amont, ce qui suffit à produire un `upstream`, un

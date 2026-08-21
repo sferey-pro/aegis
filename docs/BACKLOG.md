@@ -23,7 +23,7 @@ Ce document consolide l'analyse des propositions faites dans `ISSUE.md` et `UPGR
 ### ✅ T1 à T4 : Couverture de tests — **fait**
 * **Challenge initial :** Écrire des tests pour le front-end est coûteux et souvent fragile, mais tester le cœur de la logique (`TriageTable`) est pertinent. La couverture globale n'était pas jugée prioritaire face aux failles de sécurité.
 * **Réalisé :** couverture complète et colocalisée — **1057 tests, 0 échec, 87 fichiers**. Le front-end s'est révélé moins fragile que craint en visant le contrat rendu plutôt que l'implémentation. L'étage fonctionnel n'est pas simulé : vrai `Bun.serve`, vraie base SQLite jetable, vrais dépôts git jetables, aucun accès réseau.
-* **Effet de bord le plus utile :** l'écriture des tests a mis au jour 22 écarts entre le comportement réel et `CONTEXT.md`, dont trois provoquant une perte de données. Ils sont épinglés par des tests (« écart documenté ») mais **non corrigés** — ils constituent le prochain lot de travail. Voir [`TESTS.md`](./TESTS.md) § 5.
+* **Effet de bord le plus utile :** l'écriture des tests a mis au jour 14 défauts qui n'étaient dans aucun backlog, dont un provoquant une perte de données à chaque enregistrement de statut de triage ([N32](./ISSUE.md#n32-post-apiannotations-efface-les-champs-omis)). Ils sont épinglés par des tests (« écart documenté ») mais **non corrigés**. Ils ont été fusionnés dans [`ISSUE.md`](./ISSUE.md), qui est désormais la liste unique des défauts — 26 de ses entrées sont épinglées par un test.
 * **Score : 7/10** *(sous-évalué a posteriori : les écarts trouvés valaient à eux seuls l'effort)*
 
 ### ⚪ C10 & C11 : Doc & Composants monolithiques

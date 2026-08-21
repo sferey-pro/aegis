@@ -108,7 +108,8 @@ un run.
 - 📄 [`docs/TESTING.md`](./docs/TESTING.md) — comment on teste : les deux étages,
   le harnais, les conventions, les pièges rencontrés et leur parade.
 - 📄 [`docs/TESTS.md`](./docs/TESTS.md) — ce qui est couvert, module par module,
-  et les 22 écarts au contrat que la suite épingle.
+  et la correspondance vers les défauts de [`docs/ISSUE.md`](./docs/ISSUE.md)
+  que la suite épingle.
 
 ---
 

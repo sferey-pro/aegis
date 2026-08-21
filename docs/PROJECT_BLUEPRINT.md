@@ -8,7 +8,7 @@ Il sert de **Blueprint** (modèle) pour reproduire cette architecture et ses sta
 
 Ces règles sont incompressibles et définissent le socle qualitatif du projet :
 
-1. **Zéro Warning & Typage Strict :** Le compilateur TypeScript et le linter (Biome) doivent toujours passer à 100%. L'utilisation de `any` est strictement interdite. Les exceptions ne sont tolérées que si elles sont documentées (ex: contraintes d'une librairie externe), ou gérées intelligemment dans les fichiers de tests.
+1. **Zéro Warning & Typage Strict :** Le compilateur TypeScript et le linter (Biome) doivent toujours passer à 100%. L'utilisation de `any` est strictement interdite. Les exceptions ne sont tolérées que si elles sont documentées (ex: contraintes d'une librairie externe). **Les fichiers de test ne sont pas une zone de non-droit** : ils sont tenus au même standard que le code de production. Sur Aegis, la politique zéro warning s'applique aux 87 fichiers de test comme au reste, et `--error-on-warnings` est indispensable — `biome ci` seul sort en 0 sur des avertissements.
 2. **Validation à l'Exécution (Runtime Safety) :** Ne jamais faire confiance aux données entrantes (APIs, Base de données). Chaque donnée entrante ou sortante doit être validée dynamiquement (ex: via Zod) pour garantir un typage sûr de bout-en-bout.
 3. **Vitesse, Performance & Simplicité :** Privilégier des outils modernes et performants (Bun, Biome, SQLite) pour réduire le temps de build, de test et d'exécution. Éviter l'empilement de technologies lourdes si des solutions natives ou intégrées suffisent.
 4. **Documentation Contextualisée & Continue :** Maintenir des documents vivants (`CONTEXT.md`, `CHANGELOG.md`, `ISSUES.md`) et des directives pour l'IA (`.agents/`) afin que tout développeur ou agent IA puisse s'immerger immédiatement dans le contexte, la roadmap et les décisions architecturales.
@@ -65,9 +65,11 @@ L'architecture est pensée comme un monorepo léger, séparant les préoccupatio
 
 ### Outillage Qualité (Tooling)
 *   **Biome** : Remplace à la fois ESLint et Prettier.
-    *   *Configuration clé (`biome.json`)* : Règle `suspicious/noExplicitAny` activée globalement, avec une surcharge intelligente (`overrides`) pour la désactiver uniquement dans les fichiers de test `**/*.test.*`.
+    *   *Configuration clé (`biome.json`)* : règle `suspicious/noExplicitAny` activée globalement, **sans surcharge pour les fichiers de test**. Exempter les tests paraît pragmatique, mais un `any` dans un test désactive aussi la détection des vraies erreurs de type dans le bloc — et c'est précisément là qu'un faux positif de test se cache. Sur Aegis les 102 occurrences relevées ont toutes été typées, tests compris.
 *   **Lefthook** : Gestionnaire de hooks Git (assure l'exécution de Biome avant chaque commit via un fichier `lefthook.yml`).
-*   **Happy-DOM / React Testing Library** : Suite de tests unitaire intégrée directement avec `bun test`.
+*   **Happy-DOM / React Testing Library** : suite de tests intégrée à `bun test`.
+    *   *Piège structurant* : happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle — un serveur réel démarré sous DOM échoue avec « Expected a Response object ». **Il faut donc deux étages de test distincts**, le second avec le DOM désactivé. Le prévoir dès le départ évite de découvrir la contrainte après avoir écrit la suite.
+    *   *Second piège* : `bun test` n'isole pas les modules par fichier. Un module qui démarre un serveur au chargement ne s'évalue qu'une fois par run — les fichiers suivants doivent réutiliser l'instance en écoute, pas tenter d'en créer une.
 
 ---
 

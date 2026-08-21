@@ -20,9 +20,11 @@ Ce document consolide l'analyse des propositions faites dans `ISSUE.md` et `UPGR
 * **Challenge :** La duplication de code entre `runAudit` et `ingestAudit` crée des incohérences (ex: injection de `NaN` pour les sévérités inconnues dans SQLite). Un refactoring propre est nécessaire.
 * **Score : 8/10**
 
-### 🔵 T1 à T4 : Couverture de tests
-* **Challenge :** Écrire des tests pour le front-end est coûteux et souvent fragile, mais tester le cœur de la logique (`TriageTable`) est pertinent. La couverture globale n'est pas prioritaire face aux failles de sécurité, bien que nous ayons déjà stabilisé l'API.
-* **Score : 7/10**
+### ✅ T1 à T4 : Couverture de tests — **fait**
+* **Challenge initial :** Écrire des tests pour le front-end est coûteux et souvent fragile, mais tester le cœur de la logique (`TriageTable`) est pertinent. La couverture globale n'était pas jugée prioritaire face aux failles de sécurité.
+* **Réalisé :** couverture complète et colocalisée — **1057 tests, 0 échec, 87 fichiers**. Le front-end s'est révélé moins fragile que craint en visant le contrat rendu plutôt que l'implémentation. L'étage fonctionnel n'est pas simulé : vrai `Bun.serve`, vraie base SQLite jetable, vrais dépôts git jetables, aucun accès réseau.
+* **Effet de bord le plus utile :** l'écriture des tests a mis au jour 22 écarts entre le comportement réel et `CONTEXT.md`, dont trois provoquant une perte de données. Ils sont épinglés par des tests (« écart documenté ») mais **non corrigés** — ils constituent le prochain lot de travail. Voir [`TESTS.md`](./TESTS.md) § 5.
+* **Score : 7/10** *(sous-évalué a posteriori : les écarts trouvés valaient à eux seuls l'effort)*
 
 ### ⚪ C10 & C11 : Doc & Composants monolithiques
 * **Challenge :** Découper les composants React (ex: `Projects.tsx` de 900 lignes) est une bonne pratique, mais ne crée aucune valeur directe pour l'utilisateur. À faire de manière opportuniste lors de modifications futures.

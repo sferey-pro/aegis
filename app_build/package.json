@@ -11,7 +11,7 @@
 		"lint": "biome check src/ --error-on-warnings",
 		"typecheck": "tsc --noEmit",
 		"check": "bun run typecheck && bun run test",
-		"test:ui": "bun test src/components src/pages src/App.tsx",
+		"test:ui": "bun test src/components src/pages src/App.test.tsx",
 		"test:api": "AEGIS_TEST_NO_DOM=1 bun test src/db src/lib src/routes src/test src/index.test.ts"
 	},
 	"dependencies": {

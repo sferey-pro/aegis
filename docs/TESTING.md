@@ -1,38 +1,196 @@
-# 🧪 Stratégie de Test - Aegis (Audit Aggregator)
+# 🧪 Stratégie de test — Aegis
 
-## 👑 Règle d'Or
-> **Chaque fonctionnalité ajoutée ou modifiée DOIT être couverte par un test automatisé.**
+Ce document décrit **comment** on teste. Pour savoir **ce qui est couvert
+aujourd'hui**, voir [`TESTS.md`](./TESTS.md).
 
-## 🧰 Outils Utilisés
-Nous utilisons le runner de tests natif de **Bun** (`bun test`). Il est extrêmement rapide, compatible avec l'API Jest (`describe`, `test`, `expect`), et permet de tester aussi bien le code backend (API, SQLite, interactions Git) que le code frontend (React).
+## 👑 Règle d'or
 
-### 🚀 Exécution des tests
-Pour lancer l'ensemble des tests du projet :
+> Chaque fichier de code porte, à côté de lui, un test qui vérifie son
+> fonctionnement. Toute fonctionnalité ajoutée ou modifiée est couverte avant
+> d'être considérée comme terminée.
+
+Deux corollaires, appliqués sans exception :
+
+- **Colocation.** `src/db/runs.ts` → `src/db/runs.test.ts`. Pas de dossier
+  `__tests__`, pas de miroir `tests/`. Un test qu'on ne voit pas en ouvrant le
+  fichier qu'il protège est un test qu'on oublie de mettre à jour.
+- **Politique zéro warning.** `biome check --error-on-warnings` et
+  `tsc --noEmit` doivent sortir en 0 sur les tests comme sur le code de
+  production. Un fichier de test n'est pas une zone de non-droit.
+
+## 🧰 Outil
+
+`bun test` — exécuteur natif de Bun, compatible Jest (`describe`, `test`,
+`expect`, `beforeEach`…), TypeScript sans transpilation préalable, mode
+surveillance intégré.
+
+## 🏗️ Deux étages, et pourquoi
+
+La suite est **coupée en deux**, avec deux commandes distinctes :
+
+| Étage | Commande | DOM | Ce qu'il exerce |
+|---|---|---|---|
+| Composants | `bun run test:ui` | oui (happy-dom) | React, Testing Library, `fetch` simulé |
+| Fonctionnel | `bun run test:api` | **non** | vrai `Bun.serve`, vraie base SQLite, vrai `git` |
+
+Cette séparation n'est pas une préférence de style, c'est une contrainte
+technique mesurée : **happy-dom remplace la classe globale `Response`**. Les
+handlers de `Bun.serve` construisent leurs réponses avec cette classe, et le
+serveur refuse alors de démarrer — « Expected a Response object, but received
+'Response {…}' ». Le second étage désactive donc le DOM via
+`AEGIS_TEST_NO_DOM=1`.
+
 ```bash
-bun test
+bun run test        # les deux étages, dans l'ordre
+bun run test:ui     # composants seulement
+bun run test:api    # fonctionnel seulement
+bun run check       # typecheck + les deux étages
+bun test --watch src/db/runs.test.ts   # un fichier, en surveillance
 ```
-Pour un rechargement à chaud pendant le développement (mode watch) :
-```bash
-bun test --watch
+
+## 🔌 Le harnais : `setupTests.ts`
+
+Préchargé par `bunfig.toml`. Quatre étapes, dans un ordre qui n'est pas
+négociable :
+
+1. **Conserver le `fetch` natif de Bun** dans `globalThis.__nativeFetch`, *avant*
+   toute installation du DOM. Le `fetch` de happy-dom applique la politique de
+   même origine : le document de test étant sur `localhost:3001`, une requête
+   vers un serveur de test sur un autre port est refusée. Les tests fonctionnels
+   utilisent la référence conservée.
+2. **Installer le DOM** (`GlobalRegistrator.register`), sauf si
+   `AEGIS_TEST_NO_DOM` est posé.
+3. **Charger Testing Library — en `await import()`, jamais en import statique.**
+   Les imports statiques sont hoistés : ils s'évaluent avant la première
+   instruction du module, donc avant `register()`, quelle que soit leur position
+   dans le fichier. Or `@testing-library/dom` construit son objet `screen` au
+   moment de son évaluation, en capturant `document.body`. Évalué trop tôt,
+   `screen` est peuplé de fonctions qui lèvent « For queries bound to
+   document.body a global document has to be available » — alors que
+   `typeof document` vaut bien `"object"` dans le corps du test. Symptôme très
+   trompeur, cause unique.
+4. **Brancher les matchers jest-dom** sur l'`expect` de Bun, via le sous-chemin
+   `/matchers` (l'entrée principale du paquet n'expose que des références
+   triple-slash, que `tsc` rejette). Leur rattachement au typage de `expect` est
+   déclaré dans `src/matchers.d.ts` — sans ce fichier, les tests passent mais
+   `tsc` refuse `toBeInTheDocument`.
+
+`IS_REACT_ACT_ENVIRONMENT = true` est également posé, sans quoi chaque
+interaction avec un composant Radix produit un avertissement « An update was not
+wrapped in act(...) » qui noie la sortie.
+
+## 🧱 Les trois helpers
+
+Dans `src/test/`, chacun avec son propre test.
+
+### `db.ts` — base SQLite jetable
+
+```ts
+describe("db/runs", () => {
+  useTempDb("runs");   // base neuve avant chaque test, supprimée après
+  // …
+});
 ```
 
-## 🎯 Couverture Attendue
-1. **Logique Métier (Backend)** :
-   - Algorithmes de tri et de déduplication des CVE.
-   - Parsing des rapports d'audit (`npm audit`, `composer audit`, etc.).
-   - Interactions avec la base de données SQLite (écriture, lecture, migrations).
-   - Règles métier du triage et de l'historique.
+Chemin **absolu** et unique dans le dossier temporaire du système, et purge des
+trois fichiers (`.sqlite`, `-wal`, `-shm`). La convention précédente utilisait un
+chemin relatif et ne supprimait que le fichier principal : d'où les
+`test_*.sqlite` qui traînaient à la racine du dépôt, et des dizaines de Ko de
+`-wal` fuités par test.
 
-2. **Endpoints API** :
-   - Tester la validation des requêtes HTTP (codes 400, 404, etc.).
-   - Tester les réponses formatées en JSON (codes 200, 201, 204).
+**Ces couches ne sont jamais simulées.** C'est justement le SQL réel, les clés
+étrangères et les migrations qu'on veut vérifier.
 
-3. **Composants Frontend (React)** :
-   - Tests de rendu conditionnel (ex: afficher le badge Critique en rouge).
-   - Validation des interactions utilisateurs (pagination, changement du nombre d'éléments par page, tri).
-   - Vérification de l'ergonomie et du comportement responsive des tableaux (overflow horizontal, colonnes sticky).
+### `server.ts` — serveur réel sur port éphémère
 
-## 💡 Bonnes Pratiques
-- Les fichiers de tests doivent se trouver à côté des fichiers testés ou dans un dossier `__tests__`.
-- Leurs noms doivent se terminer par `.test.ts` ou `.test.tsx`.
-- Toute Pull Request ou modification doit valider la suite de tests existante ET inclure les nouveaux tests de la fonctionnalité associée.
+```ts
+beforeAll(async () => { srv = await startTestServer("projects"); });
+afterAll(() => srv.stop());
+
+const { status, data } = await srv.json("/api/projects", jsonBody({ … }));
+```
+
+Le serveur démarre **dans le process de test** (~90 ms), sur un port choisi par
+le système (`AEGIS_PORT=0`), adossé à une base jetable. Le patron « lancer le
+projet puis lancer les tests » n'apporterait ici qu'un processus à surveiller, un
+port à réserver et du scripting en CI.
+
+> ⚠️ **`bun test` n'isole pas les modules par fichier.** Tous les fichiers d'un
+> même run partagent le cache de modules, donc `src/index` — et donc `serve()` —
+> n'est évalué qu'une seule fois. Un second fichier ne peut pas démarrer son
+> propre serveur. `startTestServer` réutilise celui en écoute et **rebranche la
+> connexion SQLite** sur une base neuve ; `stop()` ne libère que la base, jamais
+> le serveur. Sans cela, le premier fichier terminé coupait le serveur des
+> suivants — 12 tests verts en solo, rouges en groupe.
+
+### `http.ts` — `fetch` simulé pour les composants
+
+```ts
+mockFetch({
+  "GET /api/projects": { body: [ … ] },
+  "POST /api/projects": { status: 201, body: { … } },
+  "GET /api/stats": { networkError: true },
+});
+```
+
+Clés `"MÉTHODE /chemin"`. Prend en charge `status`, `invalidJson`,
+`networkError`, et enregistre les appels (`fetchCalls`, `lastFetchCall`) pour
+vérifier ce que le composant a réellement envoyé. Une requête non déclarée
+appelle `expect.unreachable()` en listant les routes connues : un composant qui
+appelle une route inattendue échoue avec un message utile, il ne reçoit pas un
+`undefined` silencieux.
+
+`sse.ts` complète l'ensemble avec un faux `EventSource` — happy-dom n'en fournit
+pas, et le flux console est volatil et sans rejeu, donc un test doit **choisir**
+quels événements arrivent et quand.
+
+## ✍️ Conventions d'écriture
+
+- **Français pour les libellés et les commentaires**, anglais pour les
+  identifiants et les noms de fichiers. Comme le reste du code.
+- **Un test énonce un contrat, pas une implémentation.** Le libellé dit ce qui
+  doit être vrai (« un champ omis est conservé, pas réinitialisé »), pas ce que
+  le code fait.
+- **Le commentaire explique la conséquence, pas le mécanisme.** « Le panneau de
+  triage envoie un seul champ à la fois ; écraser les deux autres perdrait la
+  note à chaque clic » vaut mieux que « teste upsertAnnotation ».
+- **Les défauts sont documentés, pas validés.** Quand le comportement réel
+  s'écarte du contrat, le test affirme le comportement réel et son libellé porte
+  la mention **« écart documenté »**, avec un commentaire expliquant l'écart et
+  sa conséquence. Ces tests protègent contre une régression *involontaire* tout
+  en signalant le travail à faire. Voir la liste dans [`TESTS.md`](./TESTS.md).
+- **Aucun accès réseau.** L'API GitHub et Jira sont simulées en remplaçant
+  `globalThis.fetch`. Les tests git utilisent de vrais dépôts jetables avec un
+  dépôt **nu local** comme amont, ce qui suffit à produire un `upstream`, un
+  décalage `ahead`/`behind`, un `fetch` et un `pull` réels.
+- **Aucun résidu.** Pas de fichier laissé dans le dépôt ni dans `/tmp` après un
+  run. C'est vérifiable : `ls /tmp/aegis-*` doit ne rien trouver.
+
+## ⚠️ Pièges rencontrés, et leur parade
+
+Chacun a coûté du temps ; ils sont consignés pour ne pas le payer deux fois.
+
+| Symptôme | Cause | Parade |
+|---|---|---|
+| `screen` lève « a global document has to be available » | import statique hoisté avant `register()` | `await import()` dans `setupTests.ts` |
+| `Bun.serve` : « Expected a Response object » | happy-dom remplace `Response` | `AEGIS_TEST_NO_DOM=1` sur l'étage fonctionnel |
+| « Cross-Origin Request Blocked » vers le serveur de test | `fetch` du DOM, même origine | `__nativeFetch` conservé avant le DOM |
+| Tests verts en solo, rouges en groupe | serveur partagé entre fichiers | `startTestServer` réutilise + rebranche la base |
+| `not.toBeInTheDocument()` en échec : 143 Mo, 121 s | sérialisation de l'arbre par happy-dom | `expect(queryAllByText(x)).toHaveLength(0)` |
+| Radix Tabs ne change pas d'onglet sur `click` | mode d'activation automatique | `fireEvent.mouseDown` ou `.focus` |
+| Couleur d'un badge absente du DOM | happy-dom perd `style` avec `var()` imbriqué | assertion sur la présence de l'élément |
+| `bun test` sort en 1 sans aucune erreur | zéro test collecté | vérifier le glob de `test:ui` / `test:api` |
+| `toBeInTheDocument` refusé par `tsc` | matchers non déclarés | `src/matchers.d.ts` |
+
+## 🚦 CI
+
+`.github/workflows/ci.yml`, sur `push` et `pull_request` vers `main`, depuis
+`app_build/` :
+
+1. `bun install`
+2. `bunx biome ci . --error-on-warnings` — `biome ci` seul sort en 0 sur des
+   warnings et laisserait réapparaître un `any` sans bruit.
+3. `bun run typecheck`
+4. `bun run test` — les deux étages.
+
+Les quatre étapes doivent être vertes pour fusionner.

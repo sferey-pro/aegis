@@ -42,6 +42,10 @@ afterAll(() => {
 beforeEach(() => {
 	// La base vit pour tout le fichier : chaque test repart d'un parc vide.
 	getDb().query("DELETE FROM projects").run();
+	// `AEGIS_ALLOWED_ROOTS` est en défaut **fermé** (N3) : sans la variable, aucun
+	// chemin n'est autorisé. Les tests qui créent des projets doivent donc
+	// déclarer leur périmètre, comme un déploiement réel.
+	process.env.AEGIS_ALLOWED_ROOTS = "/";
 });
 
 afterEach(() => {
@@ -196,7 +200,10 @@ describe("POST /api/projects — AEGIS_ALLOWED_ROOTS", () => {
 		expect((await creer({ path: "/srv/b/api" })).status).toBe(201);
 	});
 
-	test("sans la variable, tout chemin est accepté", async () => {
+	test("la racine du système ouvre explicitement le périmètre", async () => {
+		// `AEGIS_ALLOWED_ROOTS=/` est l'échappatoire documentée du défaut fermé.
+		// Elle ne fonctionnait pas : `"/" + sep` donne `"//"`, qui ne préfixe rien.
+		process.env.AEGIS_ALLOWED_ROOTS = "/";
 		expect((await creer({ path: "/n/importe/ou" })).status).toBe(201);
 	});
 
@@ -218,6 +225,35 @@ describe("POST /api/projects — AEGIS_ALLOWED_ROOTS", () => {
 			audit_path: "../../../etc",
 		});
 		expect(status).toBe(403);
+	});
+
+	test("git-pull respecte AEGIS_ALLOWED_ROOTS", async () => {
+		const { data: cree } = await creer({ path: "/srv/interdit" });
+		process.env.AEGIS_ALLOWED_ROOTS = "/srv/autorise";
+		const { status } = await srv.json(`/api/projects/${cree.id}/git-pull`, {
+			method: "POST",
+		});
+		expect(status).toBe(403);
+	});
+
+	test("l'audit respecte AEGIS_ALLOWED_ROOTS", async () => {
+		// Le contrôle porte sur le lancement du sous-processus, pas seulement sur
+		// l'enregistrement : un projet créé avant que la variable ne soit posée ne
+		// doit pas rester exécutable.
+		const { data: cree } = await creer({ path: "/srv/interdit" });
+		process.env.AEGIS_ALLOWED_ROOTS = "/srv/autorise";
+		const { status } = await srv.json(`/api/projects/${cree.id}/audit`, {
+			method: "POST",
+		});
+		expect(status).toBe(403);
+	});
+
+	test("la racine autorisée reste comparée au séparateur", async () => {
+		process.env.AEGIS_ALLOWED_ROOTS = "/srv/autorise";
+		expect((await creer({ path: "/srv/autorise/api" })).status).toBe(201);
+		expect((await creer({ name: "B", path: "/srv/autorise-bis" })).status).toBe(
+			403,
+		);
 	});
 
 	test("le contrôle précède la détection de doublon", async () => {
@@ -592,7 +628,7 @@ describe("contrats attendus — à activer au correctif", () => {
 	// N3 — la garde de chemin doit couvrir les opérations git, qui exécutent les
 	// hooks du dépôt visité. C'est le chemin d'exécution de code que C1 devait
 	// fermer.
-	test.failing("git-fetch respecte AEGIS_ALLOWED_ROOTS (N3)", async () => {
+	test("git-fetch respecte AEGIS_ALLOWED_ROOTS (N3)", async () => {
 		const { data: cree } = await creer({ path: "/srv/interdit" });
 		process.env.AEGIS_ALLOWED_ROOTS = "/srv/autorise";
 		const { status } = await srv.json(`/api/projects/${cree.id}/git-fetch`, {
@@ -604,7 +640,7 @@ describe("contrats attendus — à activer au correctif", () => {
 	// N3 — `AEGIS_ALLOWED_ROOTS` non défini doit être un défaut **fermé**, pas
 	// ouvert : une instance déployée sans la variable ne doit pas accepter
 	// n'importe quel chemin de l'hôte.
-	test.failing("sans AEGIS_ALLOWED_ROOTS, aucun chemin n'est accepté (N3)", async () => {
+	test("sans AEGIS_ALLOWED_ROOTS, aucun chemin n'est accepté (N3)", async () => {
 		delete process.env.AEGIS_ALLOWED_ROOTS;
 		const { status } = await creer({ path: "/n/importe/ou" });
 		expect(status).toBe(403);

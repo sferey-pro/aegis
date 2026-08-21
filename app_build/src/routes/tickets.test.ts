@@ -487,43 +487,76 @@ describe("POST /api/tickets/create — Jira", () => {
 });
 
 describe("POST /api/tickets/test-connection", () => {
-	function tester(body: unknown) {
+	/**
+	 * La route ne lit plus le corps de la requête : elle vérifie la configuration
+	 * **enregistrée** (N4). Le corps est donc envoyé vide, et l'un des tests
+	 * vérifie qu'un corps hostile reste sans effet.
+	 */
+	function tester() {
 		return srv.json<{ success?: boolean; user?: string; error?: string }>(
 			"/api/tickets/test-connection",
-			jsonBody(body),
+			{ method: "POST" },
 		);
 	}
 
-	test("des paramètres manquants renvoient 400", async () => {
-		const { status, data } = await tester({ baseUrl: "https://jira.test" });
+	test("une configuration incomplète renvoie 400 avec une consigne", async () => {
+		const { status, data } = await tester();
 		expect(status).toBe(400);
-		expect(data.error).toBe("Paramètres manquants.");
+		expect(data.error).toContain("Configuration Jira incomplète");
 	});
 
-	test("une connexion valide renvoie le nom affiché", async () => {
+	test("une configuration valide renvoie le nom affiché", async () => {
+		configurerJira();
 		stubJira({ body: { displayName: "Aegis Bot" } });
-		const { status, data } = await tester({
-			baseUrl: "https://jira.test",
-			user: "u",
-			apiKey: "k",
-		});
+		const { status, data } = await tester();
 		expect(status).toBe(200);
 		expect(data).toEqual({ success: true, user: "Aegis Bot" });
 	});
 
-	test("l'appel interroge le point d'entrée myself", async () => {
+	test("l'appel interroge le point d'entrée myself de l'hôte configuré", async () => {
+		configurerJira();
 		stubJira({ body: { displayName: "Aegis Bot" } });
-		await tester({ baseUrl: "https://jira.test", user: "u", apiKey: "k" });
-		expect(appelsJira[0]?.url).toBe("https://jira.test/rest/api/3/myself");
+		await tester();
+		expect(appelsJira[0]?.url).toBe(
+			"https://jira.example.test/rest/api/3/myself",
+		);
+	});
+
+	test("le corps de la requête est ignoré (N4)", async () => {
+		// C'était la SSRF : `baseUrl` venait du corps, et le serveur y envoyait un
+		// en-tête `Authorization: Basic`. Un corps hostile ne doit plus rien
+		// pouvoir détourner.
+		configurerJira();
+		stubJira({ body: { displayName: "Aegis Bot" } });
+		await srv.json(
+			"/api/tickets/test-connection",
+			jsonBody({
+				baseUrl: "http://169.254.169.254",
+				user: "attaquant",
+				apiKey: "peu-importe",
+			}),
+		);
+		expect(appelsJira[0]?.url).toBe(
+			"https://jira.example.test/rest/api/3/myself",
+		);
+		expect(appelsJira[0]?.url).not.toContain("169.254.169.254");
+	});
+
+	test("une URL http enregistrée est refusée sans appel sortant", async () => {
+		// Garde-fou du point d'utilisation : une valeur entrée par un import de
+		// configuration n'a pas traversé la validation d'écriture.
+		configurerJira({ JIRA_BASE_URL: "http://jira.example.test" });
+		stubJira({ body: { displayName: "Aegis Bot" } });
+		const { status, data } = await tester();
+		expect(status).toBe(400);
+		expect(data.error).toBe("URL Jira invalide (https requis)");
+		expect(appelsJira).toHaveLength(0);
 	});
 
 	test("un refus d'authentification renvoie 400 avec le statut", async () => {
+		configurerJira();
 		stubJira({ status: 401 });
-		const { status, data } = await tester({
-			baseUrl: "https://jira.test",
-			user: "u",
-			apiKey: "mauvaise",
-		});
+		const { status, data } = await tester();
 		expect(status).toBe(400);
 		expect(data.success).toBe(false);
 		expect(data.error).toBe("Statut HTTP 401");
@@ -531,12 +564,9 @@ describe("POST /api/tickets/test-connection", () => {
 
 	test("une panne réseau renvoie 400, pas 500", async () => {
 		// Le test de connexion sert à diagnostiquer : il doit toujours répondre.
+		configurerJira();
 		stubJira({ throws: true });
-		const { status, data } = await tester({
-			baseUrl: "https://jira.test",
-			user: "u",
-			apiKey: "k",
-		});
+		const { status, data } = await tester();
 		expect(status).toBe(400);
 		expect(data.success).toBe(false);
 		expect(data.error).toBe("ENOTFOUND");

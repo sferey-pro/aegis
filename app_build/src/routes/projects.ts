@@ -36,17 +36,30 @@ export type ProjectListItem = Project & {
 	lastRun: Run | null;
 };
 
+/**
+ * Un chemin n'est autorisé que s'il est sous une racine de `AEGIS_ALLOWED_ROOTS`.
+ *
+ * **Défaut fermé** (N3) : sans la variable, rien n'est autorisé. L'ancien défaut
+ * ouvert faisait qu'une instance déployée sans la poser acceptait n'importe quel
+ * chemin de l'hôte — et git exécute les hooks du dépôt qu'il visite. Pour ouvrir
+ * explicitement, poser `AEGIS_ALLOWED_ROOTS=/`.
+ */
 function isPathAllowed(targetPath: string) {
 	const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
-	if (!allowedRootsStr) return true;
+	if (!allowedRootsStr) return false;
 	const allowedRoots = allowedRootsStr
 		.split(",")
 		.map((r) => nodePath.resolve(r.trim()));
 	const absolutePath = nodePath.resolve(targetPath);
-	return allowedRoots.some(
-		(root) =>
-			absolutePath === root || absolutePath.startsWith(root + nodePath.sep),
-	);
+	return allowedRoots.some((root) => {
+		if (absolutePath === root) return true;
+		// La comparaison se fait au séparateur, pour que `/srv/autorise-bis` ne
+		// passe pas pour un descendant de `/srv/autorise`. Cas particulier de la
+		// racine du système : `"/" + sep` donne `"//"`, qui ne préfixe rien —
+		// `AEGIS_ALLOWED_ROOTS=/` n'autorisait donc que `/` lui-même.
+		const prefixe = root.endsWith(nodePath.sep) ? root : root + nodePath.sep;
+		return absolutePath.startsWith(prefixe);
+	});
 }
 
 /**
@@ -63,6 +76,18 @@ function pathGuard(path: string, auditPath: string | null): Response | null {
 		{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
 		{ status: 403 },
 	);
+}
+
+/**
+ * Contrôle de chemin réutilisable, pour les appelants hors de ce module —
+ * aujourd'hui `/api/config/import`, qui doit refuser un projet hors périmètre
+ * plutôt que de l'enregistrer (N3).
+ */
+export function isPathAllowedForImport(
+	path: string,
+	auditPath?: string | null,
+): boolean {
+	return pathGuard(path, auditPath ?? null) === null;
 }
 
 /**
@@ -218,6 +243,13 @@ export const projectsRoutes = {
 			if (!project)
 				return Response.json({ error: "Not found" }, { status: 404 });
 
+			// N3 : git exécute les hooks du dépôt qu'il visite. Le contrôle de chemin
+			// doit donc précéder **tout** lancement de sous-processus, et pas
+			// seulement l'enregistrement du projet — un projet créé avant que
+			// `AEGIS_ALLOWED_ROOTS` ne soit posé resterait sinon exécutable.
+			const denied = pathGuard(project.path, project.audit_path);
+			if (denied) return denied;
+
 			const { projectContext } = await import("../lib/console");
 			const res = await projectContext.run({ project: project.name }, () =>
 				gitFetch(project.path),
@@ -233,6 +265,13 @@ export const projectsRoutes = {
 			const project = listProjects().find((p) => p.id === id);
 			if (!project)
 				return Response.json({ error: "Not found" }, { status: 404 });
+
+			// N3 : git exécute les hooks du dépôt qu'il visite. Le contrôle de chemin
+			// doit donc précéder **tout** lancement de sous-processus, et pas
+			// seulement l'enregistrement du projet — un projet créé avant que
+			// `AEGIS_ALLOWED_ROOTS` ne soit posé resterait sinon exécutable.
+			const denied = pathGuard(project.path, project.audit_path);
+			if (denied) return denied;
 
 			const { projectContext } = await import("../lib/console");
 			const res = await projectContext.run({ project: project.name }, () =>
@@ -256,6 +295,10 @@ export const projectsRoutes = {
 						{ success: false, error: "Not found" },
 						{ status: 404 },
 					);
+
+				// N3 : contrôle du chemin juste avant le lancement de l'outil d'audit.
+				const denied = pathGuard(project.path, project.audit_path);
+				if (denied) return denied;
 
 				const { projectContext } = await import("../lib/console");
 				const res = await projectContext.run({ project: project.name }, () =>

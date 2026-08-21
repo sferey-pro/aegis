@@ -15,6 +15,24 @@ import {
 import { errorMessage } from "@/lib/utils";
 import { buildCveGroups } from "../lib/aggregator";
 
+/**
+ * Construit une URL Jira absolue, ou `null` si la base n'est pas une URL https.
+ *
+ * Garde-fou du point d'utilisation contre la SSRF (N4) : la validation à
+ * l'écriture couvre les valeurs saisies dans le formulaire, celle-ci couvre
+ * aussi ce qui a pu entrer par un import de configuration ou une version
+ * antérieure.
+ */
+function jiraEndpoint(baseUrl: string, chemin: string): string | null {
+	try {
+		const base = new URL(baseUrl);
+		if (base.protocol !== "https:") return null;
+		return new URL(chemin, base).toString();
+	} catch {
+		return null;
+	}
+}
+
 export const ticketsRoutes = {
 	"/api/tickets": {
 		async POST(req: Request) {
@@ -235,8 +253,16 @@ export const ticketsRoutes = {
 				);
 			}
 
+			const cible = jiraEndpoint(baseUrl, "/rest/api/3/issue");
+			if (!cible) {
+				return Response.json(
+					{ error: "URL Jira invalide (https requis)" },
+					{ status: 400 },
+				);
+			}
+
 			const auth = Buffer.from(`${user}:${apiKey}`).toString("base64");
-			const response = await fetch(`${baseUrl}/rest/api/3/issue`, {
+			const response = await fetch(cible, {
 				method: "POST",
 				headers: {
 					Authorization: `Basic ${auth}`,
@@ -261,19 +287,48 @@ export const ticketsRoutes = {
 	},
 
 	"/api/tickets/test-connection": {
-		async POST(req: Request) {
-			const { baseUrl, user, apiKey } = await req.json();
+		/**
+		 * Vérifie la configuration Jira **enregistrée**.
+		 *
+		 * Les identifiants et l'URL ne sont plus lus dans le corps de la requête
+		 * (N4) : le serveur y ajoutait un en-tête `Authorization: Basic` et
+		 * appelait l'hôte demandé, ce qui en faisait un proxy sortant authentifié —
+		 * de quoi sonder le service de métadonnées de l'hôte, ou envoyer les
+		 * identifiants Jira à un tiers. Ils viennent désormais de la table
+		 * `settings`, dont l'écriture valide déjà le schéma https.
+		 *
+		 * Conséquence d'usage : il faut enregistrer avant de tester.
+		 */
+		async POST() {
+			const { getSetting } = await import("../db/settings");
+			const baseUrl = getSetting("JIRA_BASE_URL", "");
+			const user = getSetting("JIRA_USER", "");
+			const apiKey = getSetting("JIRA_API_KEY", "");
 
 			if (!baseUrl || !user || !apiKey) {
 				return Response.json(
-					{ error: "Paramètres manquants." },
+					{
+						error:
+							"Configuration Jira incomplète : enregistrez l'URL, l'utilisateur et la clé d'API avant de tester.",
+					},
+					{ status: 400 },
+				);
+			}
+
+			// Second contrôle, au point d'utilisation : une valeur écrite avant
+			// l'ajout de la validation, ou par un import de configuration, ne doit
+			// pas devenir un appel sortant en clair.
+			const cible = jiraEndpoint(baseUrl, "/rest/api/3/myself");
+			if (!cible) {
+				return Response.json(
+					{ success: false, error: "URL Jira invalide (https requis)" },
 					{ status: 400 },
 				);
 			}
 
 			const auth = Buffer.from(`${user}:${apiKey}`).toString("base64");
 			try {
-				const response = await fetch(`${baseUrl}/rest/api/3/myself`, {
+				const response = await fetch(cible, {
 					headers: {
 						Authorization: `Basic ${auth}`,
 						"Content-Type": "application/json",

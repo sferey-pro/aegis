@@ -47,3 +47,48 @@ export function setAllSettings(settings: Record<string, string>): void {
 		}
 	})();
 }
+
+/**
+ * Clés dont la valeur est un secret : elles ne sortent **jamais** de l'API.
+ * Elles s'écrivent, elles ne se lisent pas.
+ */
+export const SECRET_SETTING_KEYS = ["GITHUB_TOKEN", "JIRA_API_KEY"] as const;
+
+/**
+ * Clés lisibles par le client. **Liste blanche, et non liste noire** : c'est le
+ * défaut de la correction C2, qui masquait deux clés nommées et laissait donc
+ * fuir par défaut tout secret ajouté ensuite. Ici, une nouvelle clé n'est pas
+ * exposée tant qu'elle n'est pas inscrite ci-dessous.
+ */
+export const PUBLIC_SETTING_KEYS = [
+	"AUDIT_MAX_AGE_HOURS",
+	"CRITICAL_ONLY",
+	"DISABLE_CONSOLE",
+	"JIRA_BASE_URL",
+	"JIRA_USER",
+	"JIRA_PROJECT",
+	"JIRA_COMPONENT",
+	"JIRA_ISSUE_TYPE",
+	"JIRA_PARENT_EPIC",
+	"GITHUB_RL_LIMIT",
+	"GITHUB_RL_REMAINING",
+	"GITHUB_RL_RESET",
+] as const;
+
+/**
+ * Réglages destinés au client : les clés de la liste blanche telles quelles,
+ * plus un booléen `<CLÉ>_CONFIGURED` par secret — de quoi afficher « configuré »
+ * dans le formulaire sans jamais transporter la valeur (CONTEXT.md §12, N5).
+ */
+export function getPublicSettings(): Record<string, string> {
+	const tout = getAllSettings();
+	const sortie: Record<string, string> = {};
+
+	for (const cle of PUBLIC_SETTING_KEYS) {
+		if (tout[cle] !== undefined) sortie[cle] = tout[cle];
+	}
+	for (const cle of SECRET_SETTING_KEYS) {
+		sortie[`${cle}_CONFIGURED`] = tout[cle] ? "true" : "false";
+	}
+	return sortie;
+}

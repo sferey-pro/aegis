@@ -35,6 +35,10 @@ afterAll(() => srv.stop());
 beforeEach(() => {
 	getDb().query("DELETE FROM settings").run();
 	getDb().query("DELETE FROM projects").run();
+	// `AEGIS_ALLOWED_ROOTS` est en défaut **fermé** (N3) : sans la variable, aucun
+	// chemin n'est autorisé. Les tests qui créent des projets doivent donc
+	// déclarer leur périmètre, comme un déploiement réel.
+	process.env.AEGIS_ALLOWED_ROOTS = "/";
 });
 
 afterEach(() => {
@@ -43,26 +47,32 @@ afterEach(() => {
 });
 
 describe("GET /api/settings", () => {
-	test("une base neuve renvoie un objet vide", async () => {
+	test("une base neuve ne renvoie que l'état des secrets", async () => {
 		const { status, data } = await srv.json("/api/settings");
 		expect(status).toBe(200);
-		expect(data).toEqual({});
+		expect(data).toEqual({
+			GITHUB_TOKEN_CONFIGURED: "false",
+			JIRA_API_KEY_CONFIGURED: "false",
+		});
 	});
 
-	test("renvoie toutes les paires enregistrées", async () => {
+	test("renvoie les clés de la liste blanche, et l'état des secrets", async () => {
 		setSetting("GITHUB_TOKEN", "ghp_x");
 		setSetting("AUDIT_MAX_AGE_HOURS", "24");
 		const { data } = await srv.json("/api/settings");
-		expect(data).toEqual({ GITHUB_TOKEN: "ghp_x", AUDIT_MAX_AGE_HOURS: "24" });
+		expect(data).toEqual({
+			AUDIT_MAX_AGE_HOURS: "24",
+			GITHUB_TOKEN_CONFIGURED: "true",
+			JIRA_API_KEY_CONFIGURED: "false",
+		});
 	});
 
-	test("le jeton est renvoyé en clair — écart documenté", async () => {
-		// `GET /api/settings` alimente le formulaire, qui doit réafficher la valeur
-		// saisie. L'export, lui, masque le jeton. La conséquence est que le jeton
-		// circule en clair dès que l'interface est jointe sans TLS.
-		setSetting("GITHUB_TOKEN", "ghp_secret");
+	test("une clé hors liste blanche n'est pas exposée", async () => {
+		// C'est la propriété qui manquait au correctif C2 : une liste noire laisse
+		// fuir par défaut tout secret ajouté après elle.
+		setSetting("UN_FUTUR_SECRET", "valeur-sensible");
 		const { data } = await srv.json<Record<string, string>>("/api/settings");
-		expect(data.GITHUB_TOKEN).toBe("ghp_secret");
+		expect(data.UN_FUTUR_SECRET).toBeUndefined();
 	});
 });
 
@@ -132,6 +142,29 @@ describe("PUT /api/settings", () => {
 		});
 		expect(status).toBe(400);
 		expect(data).toEqual({ error: "JSON invalide" });
+	});
+
+	test("un secret vide n'écrase pas la valeur en place", async () => {
+		// Le formulaire ne connaît pas la valeur du jeton — l'API ne la renvoie
+		// plus — et poste donc une chaîne vide quand l'utilisateur n'y touche pas.
+		// L'appliquer effacerait le jeton à chaque enregistrement (N5).
+		setSetting("GITHUB_TOKEN", "ghp_reel");
+		await enregistrer({ GITHUB_TOKEN: "", AUDIT_MAX_AGE_HOURS: "12" });
+		expect(getSetting("GITHUB_TOKEN")).toBe("ghp_reel");
+		expect(getSetting("AUDIT_MAX_AGE_HOURS")).toBe("12");
+	});
+
+	test("un secret non vide est bien enregistré", async () => {
+		await enregistrer({ JIRA_API_KEY: "nouvelle-cle" });
+		expect(getSetting("JIRA_API_KEY")).toBe("nouvelle-cle");
+	});
+
+	test("une clé non secrète peut toujours être vidée", async () => {
+		// La règle d'écriture seule ne vaut que pour les secrets : vider une URL
+		// Jira reste une action légitime et applicable.
+		setSetting("JIRA_BASE_URL", "https://jira.example.test");
+		await enregistrer({ JIRA_BASE_URL: "" });
+		expect(getSetting("JIRA_BASE_URL")).toBe("");
 	});
 });
 
@@ -294,6 +327,33 @@ describe("POST /api/config/import", () => {
 		expect(status).toBe(500);
 	});
 
+	test("un projet hors périmètre est refusé en 403 (N3)", async () => {
+		// L'import contournait entièrement la garde de chemin : c'était la voie la
+		// plus simple pour enregistrer un projet hors périmètre, puis l'auditer.
+		process.env.AEGIS_ALLOWED_ROOTS = "/srv/autorise";
+		const { status, data } = await srv.json(
+			"/api/config/import",
+			jsonBody({
+				projects: [
+					{
+						id: 7,
+						slug: "api",
+						name: "api",
+						path: "/srv/interdit",
+						type: "node",
+						tool: "npm",
+						tags: [],
+					},
+				],
+			}),
+		);
+		expect(status).toBe(403);
+		expect(data).toEqual({
+			error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS",
+		});
+		expect(listProjects()).toHaveLength(0);
+	});
+
 	test("un corps vide est accepté sans rien changer", async () => {
 		const { status, data } = await importer({});
 		expect(status).toBe(200);
@@ -390,7 +450,7 @@ describe("instantanés", () => {
 describe("contrats attendus — à activer au correctif", () => {
 	// N5 — CONTEXT.md §12 ne spécifie que trois clés en sortie. Un secret ne doit
 	// jamais repartir en clair : l'export voisin prend déjà la peine de le masquer.
-	test.failing("GET /api/settings ne renvoie pas les secrets (N5)", async () => {
+	test("GET /api/settings ne renvoie pas les secrets (N5)", async () => {
 		setSetting("GITHUB_TOKEN", "ghp_secret");
 		setSetting("JIRA_API_KEY", "jira_secret");
 		const { data } = await srv.json<Record<string, string>>("/api/settings");

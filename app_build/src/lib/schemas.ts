@@ -171,16 +171,52 @@ export const auditMaxAgeHoursSchema = z.coerce
  * la contrainte sur `AUDIT_MAX_AGE_HOURS` mais conserve toutes les valeurs en
  * chaîne, forme sous laquelle elles sont stockées.
  */
+/**
+ * `JIRA_BASE_URL` : URL absolue en **https**.
+ *
+ * Contrainte de sécurité, pas de confort. Cette valeur est concaténée puis
+ * appelée par le serveur avec un en-tête `Authorization: Basic` contenant les
+ * identifiants Jira. Une valeur libre en fait un proxy sortant authentifié :
+ * `http://169.254.169.254` sonde le service de métadonnées de l'hôte, et
+ * `http://attaquant/` reçoit directement les identifiants (N4). Le schéma est
+ * imposé pour que les identifiants ne partent jamais en clair.
+ */
+export const jiraBaseUrlSchema = z
+	.string()
+	.trim()
+	.refine(
+		(v) => {
+			if (v === "") return true; // effacer la configuration reste permis
+			try {
+				return new URL(v).protocol === "https:";
+			} catch {
+				return false;
+			}
+		},
+		{ message: "URL Jira invalide (https requis)" },
+	);
+
 export const settingsBodySchema = z
 	.record(z.string(), z.coerce.string())
 	.superRefine((values, ctx) => {
-		const raw = values.AUDIT_MAX_AGE_HOURS;
-		if (raw === undefined) return;
-		if (!auditMaxAgeHoursSchema.safeParse(raw).success) {
+		const duree = values.AUDIT_MAX_AGE_HOURS;
+		if (
+			duree !== undefined &&
+			!auditMaxAgeHoursSchema.safeParse(duree).success
+		) {
 			ctx.addIssue({
 				code: "custom",
 				message: "Durée invalide",
 				path: ["AUDIT_MAX_AGE_HOURS"],
+			});
+		}
+
+		const jira = values.JIRA_BASE_URL;
+		if (jira !== undefined && !jiraBaseUrlSchema.safeParse(jira).success) {
+			ctx.addIssue({
+				code: "custom",
+				message: "URL Jira invalide (https requis)",
+				path: ["JIRA_BASE_URL"],
 			});
 		}
 	});

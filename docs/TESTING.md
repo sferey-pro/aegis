@@ -160,11 +160,47 @@ quels événements arrivent et quand.
 - **Le commentaire explique la conséquence, pas le mécanisme.** « Le panneau de
   triage envoie un seul champ à la fois ; écraser les deux autres perdrait la
   note à chaque clic » vaut mieux que « teste upsertAnnotation ».
-- **Les défauts sont documentés, pas validés.** Quand le comportement réel
-  s'écarte du contrat, le test affirme le comportement réel et son libellé porte
-  la mention **« écart documenté »**, avec un commentaire expliquant l'écart et
-  sa conséquence. Ces tests protègent contre une régression *involontaire* tout
-  en signalant le travail à faire. Voir la liste dans [`TESTS.md`](./TESTS.md).
+- **Les défauts sont documentés, pas validés — et leur cible est écrite.** Quand
+  le comportement réel s'écarte du contrat, deux tests coexistent dans le même
+  fichier :
+
+  1. le test **« écart documenté »**, qui affirme le comportement d'aujourd'hui,
+     avec un commentaire expliquant l'écart et sa conséquence. Il protège contre
+     une dérive *involontaire* du défaut ;
+  2. le test **`test.failing`**, regroupé dans un bloc
+     `describe("contrats attendus — à activer au correctif")` en fin de fichier,
+     qui énonce le comportement attendu.
+
+  La liste est dans [`ISSUE.md`](./ISSUE.md) — entrées marquées 🧪 — et
+  [`TESTS.md`](./TESTS.md) § 5 en donne la table de correspondance.
+
+### `test.failing` plutôt que `skip` ou `todo`
+
+Vérifié sur Bun 1.3.14 :
+
+| Primitive | Corps exécuté | Suite verte aujourd'hui | Signal au correctif |
+|---|:-:|:-:|---|
+| `test.skip` | non | oui | **aucun** |
+| `test.todo` | non, même avec un corps | oui | **aucun** |
+| `test.failing` | **oui** | oui — l'échec attendu compte comme `pass` | **rouge automatique** |
+
+`test.failing` exécute le corps et attend son échec. Le jour où le défaut est
+corrigé, le test se met à passer et Bun le refuse :
+
+```
+(fail) contrats attendus … > un champ omis est conservé (N32)
+  ^ this test is marked as failing but it passed.
+    Remove `.failing` if tested behavior now works
+```
+
+Impossible donc de corriger le code et d'oublier le test. `skip` et `todo`
+n'exécutent pas le corps : l'assertion y serait décorative, et le correctif
+passerait inaperçu.
+
+**Un test retourné se vérifie comme un autre.** S'il passe dès son écriture, ce
+n'est pas une bonne nouvelle : le défaut est mal caractérisé, ou le test
+« écart documenté » qui le décrivait était faux. Les deux cas se sont produits
+le 21/08/2026 (voir `ISSUE.md`, N9 et N11).
 - **Aucun accès réseau.** L'API GitHub et Jira sont simulées en remplaçant
   `globalThis.fetch`. Les tests git utilisent de vrais dépôts jetables avec un
   dépôt **nu local** comme amont, ce qui suffit à produire un `upstream`, un

@@ -307,3 +307,75 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 		expect(getGlobalHistory(Number.NaN)).toEqual([]);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("runs-contrats");
+
+	// N13 — CONTEXT.md §4 spécifie les six sévérités et un `total`.
+	test.failing("la série porte les six sévérités et un total (N13)", () => {
+		const p = projet();
+		const r = addRun(
+			run(p.id, {
+				counts: {
+					critical: 0,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 9,
+					unknown: 7,
+				},
+			}),
+		);
+		daterRun(r.id, `${new Date().toISOString().slice(0, 10)} 10:00:00`);
+
+		const dernier = getGlobalHistory(7).at(-1) as Record<string, unknown>;
+		expect(dernier.info).toBe(9);
+		expect(dernier.unknown).toBe(7);
+		expect(dernier.total).toBe(16);
+	});
+
+	// N13 — un `days` illisible doit être rejeté en amont, pas produire une série
+	// vide qui se lit comme « aucune donnée ».
+	test.failing("un days non numérique est rejeté (N13)", () => {
+		expect(() => getGlobalHistory(Number.NaN)).toThrow();
+	});
+});
+
+describe("contrats attendus — N29", () => {
+	useTempDb("runs-n29");
+
+	// N29 — `getLatestRun` respecte §4 (`ran_at DESC, id DESC`) mais la variante
+	// batch employée par `GET /api/projects` retient `MAX(id)`. Les deux divergent
+	// après une restauration de snapshot ou un import de runs hors ordre
+	// chronologique : la carte projet affiche un run, l'agrégation CVE en utilise
+	// un autre.
+	test.failing("les deux définitions du dernier run coïncident (N29)", () => {
+		const p = projet();
+		const ancienEnApparence = addRun(run(p.id, { total: 1 }));
+		const recentEnApparence = addRun(run(p.id, { total: 2 }));
+		// Ordre chronologique inversé par rapport aux id — le cas d'un import.
+		daterRun(ancienEnApparence.id, "2027-01-01 10:00:00");
+		daterRun(recentEnApparence.id, "2020-01-01 10:00:00");
+
+		const parDate = getLatestRun(p.id);
+		const parLot = getLatestRunsByProjectIds([p.id])[p.id];
+		expect(parLot?.id).toBe(parDate?.id);
+	});
+});

@@ -200,3 +200,40 @@ describe("lib/audit/queue", () => {
 		expect(getAuditStatus().total).toBe(1);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("queue-contrats");
+
+	// N39 — l'état est remis à zéro dès la fin du lot : un client qui sonde après
+	// le dernier projet lit `0/1`, indistinguable d'un état au repos. Impossible de
+	// savoir si un lot vient de se terminer ou n'a jamais eu lieu.
+	test.failing("le dernier lot terminé reste observable (N39)", async () => {
+		globalThis.fetch = (() =>
+			Promise.reject(new Error("hors ligne"))) as unknown as typeof fetch;
+		const a = projet("obs-a");
+		const b = projet("obs-b");
+		enqueueGlobalAudit([a.id, b.id]);
+		await attendreLaFin();
+
+		const s = getAuditStatus() as unknown as Record<string, unknown>;
+		expect(s.lastTotal).toBe(2);
+		expect(s.lastCompleted).toBe(2);
+	});
+});

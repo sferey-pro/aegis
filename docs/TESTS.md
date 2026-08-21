@@ -4,10 +4,14 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1057 tests · 0 échec · 87 fichiers
-├── 343 composants (46 fichiers) — DOM, React, fetch simulé
-└── 714 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
+1099 tests · 0 échec · 87 fichiers
+├── 345 composants (46 fichiers) — DOM, React, fetch simulé
+└── 754 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
 ```
+
+Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
+dans [`ISSUE.md`](./ISSUE.md), liste unique groupée par priorité. Le § 5 ci-dessous
+n'en donne que la table de correspondance.
 
 Vérifié avec `biome check --error-on-warnings` en 0 et `tsc --noEmit` en 0.
 Aucun fichier résiduel dans le dépôt ni dans `/tmp` après un run complet.
@@ -17,7 +21,7 @@ Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
 
 ---
 
-## 1. Frontend — 343 tests
+## 1. Frontend — 345 tests
 
 Colocation intégrale : chaque `.tsx` a son `.test.tsx` à côté, suivant
 l'Atomic Design.
@@ -151,54 +155,44 @@ Invariants de sécurité vérifiés de bout en bout :
 
 ## 5. Écarts documentés
 
-Comportements réels qui s'écartent du contrat. Chacun est **épinglé par un
-test** dont le libellé porte « écart documenté » : la régression involontaire est
-bloquée, et le travail restant est visible. Voir [`ISSUE.md`](./ISSUE.md) pour la
-priorisation.
+Les tests de cette suite ne valident pas seulement ce qui marche : quand le comportement réel s'écarte de `CONTEXT.md`, le test **affirme le comportement réel** et son libellé porte la mention « écart documenté ». La régression involontaire est bloquée, et l'écart reste visible.
 
-### Perte de données
+**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 26 de ses entrées portent le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
 
-| # | Écart | Conséquence |
+Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant :
+
+| ID | Écart | Priorité |
 |---|---|---|
-| 1 | `POST /api/annotations` efface `note` et `fixedIn` quand ils sont omis — le schéma applique ses défauts avant que la logique « préserver les champs non fournis » de `upsertAnnotation` puisse agir | enregistrer un statut détruit la note et la version corrigée saisies à la main |
-| 2 | `syncAdvisory` supprime la ligne de cache **avant** de refetcher | un échec réseau perd l'avis connu |
-| 3 | `resolveFixedVersion` abandonne `originalFixedIn` dès qu'une clé est trouvée mais que la requête échoue | une version que le parseur connaissait déjà est remplacée par `null` |
+| [N32](./ISSUE.md#n32-post-apiannotations-efface-les-champs-omis) | `POST /api/annotations` efface la note et la version corrigée saisies | 🟠 2 |
+| [N33](./ISSUE.md#n33-zcoerceboolean-rend-la-chaîne-false-vraie) | `z.coerce.boolean` rend la chaîne `"false"` vraie | 🟠 2 |
+| [N44](./ISSUE.md#n44-syncadvisory-vide-le-cache-avant-de-refetcher) | `syncAdvisory` vide le cache avant de refetcher | 🟠 2 |
+| [N45](./ISSUE.md#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte) | La porte CI d'un projet ignoré est toujours verte | 🟠 2 |
+| [N34](./ISSUE.md#n34-parsecvssvector-écarte-toujours-le-premier-segment) | `parseCvssVector` écarte toujours le premier segment | 🟡 3 |
+| [N35](./ISSUE.md#n35-500-au-lieu-de-400-sur-les-routes-qui-lisent-reqjson-directement) | 500 au lieu de 400 sur les routes lisant `req.json()` | 🟡 3 |
+| [N36](./ISSUE.md#n36-une-méthode-non-déclarée-renvoie-du-html-en-200) | Une méthode non déclarée renvoie du HTML en 200 | 🟡 3 |
+| [N37](./ISSUE.md#n37-delete-sur-un-identifiant-inconnu-répond-succès) | `DELETE` sur un identifiant inconnu répond succès | 🟡 3 |
+| [N38](./ISSUE.md#n38-getreports-trie-par-created_at-seul) | `getReports` trie par `created_at` seul | 🟡 3 |
+| [N39](./ISSUE.md#n39-la-progression-du-lot-daudit-nest-pas-observable-après-coup) | La progression du lot d'audit n'est pas observable après coup | 🟡 3 |
+| [N41](./ISSUE.md#n41-content_hash-nest-pas-unique-en-base) | `content_hash` n'est pas unique en base | 🟡 3 |
+| [N42](./ISSUE.md#n42-commit_sha-peut-valoir-la-chaîne-head) | `commit_sha` peut valoir la chaîne `"HEAD"` | 🟡 3 |
+| [N43](./ISSUE.md#n43-le-repli--déjà-à-jour--de-gitfetch-est-inatteignable) | Le repli « Déjà à jour. » de `gitFetch` est inatteignable | 🟡 3 |
+| [N40](./ISSUE.md#n40-les-noms-de-tags-sont-sensibles-à-la-casse) | Les noms de tags sont sensibles à la casse | 🔵 4 |
 
-### Fonctionnalité inatteignable
+Les huit autres écarts relevés par les tests confirmaient un défaut déjà inscrit : `N2` (snapshot, deux angles), `N5` (secrets en clair), `N7` (annotations globales), `N12` (cascade de tags), `N13` (`history-global`, deux angles) et `N18` (perte du `fixedIn`).
 
-| # | Écart | Conséquence |
-|---|---|---|
-| 4 | Les annotations globales (`project_id = -1`) ne peuvent pas exister : clé étrangère vers `projects` + `PRAGMA foreign_keys` actif | la branche qui les lit dans l'agrégateur est du code mort, `isGlobal` vaut toujours `false`, et « ignorer partout » n'est pas exprimable |
-| 5 | `restoreSnapshot()` ne reçoit jamais le nom de fichier que son schéma exige | le champ `file` ne sert qu'à valider ; on restaure toujours `backup.sqlite` |
-| 6 | Le repli « Déjà à jour. » de `gitFetch` est inatteignable dès qu'un amont existe, `--verbose` écrivant toujours « = [up to date] » | ne se déclenche que sur un dépôt sans remote |
+### Corriger un écart épinglé
 
-### Angle mort de sécurité ou d'exactitude
+**La cible est déjà écrite.** Chaque défaut épinglé porte deux tests dans le même fichier : le test « écart documenté » qui affirme le comportement actuel, et un `test.failing` — regroupé en fin de fichier sous `describe("contrats attendus — à activer au correctif")` — qui énonce le contrat. **42 tests retournés** couvrent 27 défauts.
 
-| # | Écart | Conséquence |
-|---|---|---|
-| 7 | `ingestAudit` calcule son diff via `buildCveGroups`, qui exclut les projets ignorés | la porte CI d'un projet ignoré est toujours verte, même après ingestion d'une faille critique |
-| 8 | Instantanés : `backup.sqlite` et `aegis.db` sont résolus depuis le répertoire de travail du process, sans tenir compte de `DB_PATH` | une instance configurée ailleurs sauvegarde et restaure le mauvais fichier |
-| 9 | Sur une branche non née, `git rev-parse` écrit « fatal: » sur stderr mais « HEAD » sur stdout, et le filtre n'inspecte que stdout | `commit_sha` peut valoir la chaîne littérale `"HEAD"` |
-| 10 | `z.coerce.boolean` rend vraie toute chaîne non vide | un client sérialisant ses booléens en texte activerait « ignoré » en croyant le désactiver |
-| 11 | `parseCvssVector` écarte toujours le premier segment (`slice(1)`) | un vecteur transmis sans préfixe `CVSS:x.y` perd silencieusement une métrique |
+`test.failing` exécute son corps et attend son échec : la suite reste verte tant que le défaut existe. Au correctif, le test se met à passer et Bun le refuse — « this test is marked as failing but it passed. Remove `.failing` if tested behavior now works ». Le correctif ne peut donc pas passer inaperçu.
 
-### Contrat d'API incohérent
+Marche à suivre :
 
-| # | Écart | Conséquence |
-|---|---|---|
-| 12 | Les routes lisant `req.json()` directement (`reports`, `advisories/sync`, `config/import`) répondent **500** sur du JSON malformé, là où les routes passant par `parseBody` répondent 400 « JSON invalide ». `reportBodySchema` existe mais n'est pas branché | contrat d'erreur non uniforme |
-| 13 | Une méthode non déclarée sur une route d'API tombe dans le fourre-tout `/*` et renvoie du **HTML** en 200, ni 404 ni 405 | un client qui se trompe de verbe échoue au `res.json()` sans indice sur la cause |
-| 14 | `DELETE` sur un projet, tag, prompt ou rapport inconnu répond succès | l'interface ne distingue pas « supprimé » de « n'existait pas » |
-| 15 | `/api/history-global?days=abc` renvoie une série **vide** (`parseInt` → `NaN`, la boucle de buckets ne s'exécute pas) | le graphique se vide sans message d'erreur |
-| 16 | `getGlobalHistory` n'agrège ni `info` ni `unknown` et n'expose aucun `total` (défaut N13) | deux sévérités du contrat sont absentes de la série |
-| 17 | `getReports` trie par `created_at` seul, sans départage par `id` | deux audits d'une même seconde remontent dans un ordre indéfini |
-| 18 | La file d'audit remet `progress` et `total` à zéro dès la fin du lot | un client qui sonde après le dernier projet voit `0/1`, jamais `2/2` |
-| 19 | `deleteTag` ne retire pas le nom du tag de `projects.tags` (défaut N12) | le tag reste affiché sur les projets alors qu'il n'est plus filtrable |
-| 20 | Les noms de tags sont sensibles à la casse (`UNIQUE` sans `COLLATE NOCASE`) | « backend » et « Backend » coexistent, deux filtres visuellement identiques |
-| 21 | `content_hash` n'est pas `UNIQUE` en base | deux projets peuvent porter le même hash, `getTicketByHash` en renvoie un arbitrairement |
-| 22 | `GET /api/settings` renvoie le jeton GitHub en clair (l'export, lui, le masque) | le secret circule en clair dès que l'interface est jointe sans TLS |
+1. Corriger le code.
+2. Retirer `.failing` du test de contrat.
+3. Supprimer le test « écart documenté », devenu faux.
 
----
+`test.skip` et `test.todo` ne conviennent pas : Bun n'exécute pas leur corps, l'assertion serait décorative et aucun signal ne se déclencherait.
 
 ## 6. Deux bugs trouvés en écrivant ces tests
 

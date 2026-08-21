@@ -136,3 +136,33 @@ describe("db/reports", () => {
 		expect(r.total_vulnerabilities).toBe(999);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("reports-contrats");
+
+	// N38 — `ORDER BY created_at DESC` sans départage par `id` : deux audits d'une
+	// même seconde remontent dans un ordre indéfini, alors que c'est cet ordre qui
+	// décide quel compte-rendu l'écran Rapports compare au précédent.
+	test.failing("à created_at égal, l'id le plus grand passe devant (N38)", () => {
+		const a = rapport();
+		const b = rapport();
+		expect(getReports().map((r) => r.id)).toEqual([b.id, a.id]);
+	});
+});

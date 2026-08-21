@@ -369,3 +369,88 @@ describe("instantanés", () => {
 		expect(data.error).toContain("backup.sqlite");
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N5 — CONTEXT.md §12 ne spécifie que trois clés en sortie. Un secret ne doit
+	// jamais repartir en clair : l'export voisin prend déjà la peine de le masquer.
+	test.failing("GET /api/settings ne renvoie pas les secrets (N5)", async () => {
+		setSetting("GITHUB_TOKEN", "ghp_secret");
+		setSetting("JIRA_API_KEY", "jira_secret");
+		const { data } = await srv.json<Record<string, string>>("/api/settings");
+		expect(data.GITHUB_TOKEN).toBeUndefined();
+		expect(data.JIRA_API_KEY).toBeUndefined();
+	});
+
+	// N35 — 400 « JSON invalide » comme les routes passant par parseBody.
+	test.failing("un corps illisible renvoie 400 « JSON invalide » (N35)", async () => {
+		const { status, data } = await srv.json("/api/config/import", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: "{",
+		});
+		expect(status).toBe(400);
+		expect(data).toEqual({ error: "JSON invalide" });
+	});
+
+	// N7 — l'import doit être atomique : une annotation en échec ne doit pas
+	// laisser les projets déjà créés derrière elle. Ici, le projet ne doit pas
+	// exister puisque l'annotation qui suit échoue.
+	test.failing("un import qui échoue ne laisse rien derrière lui (N7)", async () => {
+		const { status } = await srv.json(
+			"/api/config/import",
+			jsonBody({
+				projects: [
+					{
+						id: 7,
+						slug: "api",
+						name: "api",
+						path: "/srv/api",
+						type: "node",
+						tool: "npm",
+						tags: [],
+					},
+				],
+				annotations: [{ cve: "CVE-2024-1", project_id: -1, status: "ignored" }],
+			}),
+		);
+		expect(status).not.toBe(500);
+		expect(listProjects()).toHaveLength(0);
+	});
+
+	// N2 — la cible de sauvegarde doit être dérivée de DB_PATH, avec la même
+	// résolution que getDb(), sinon on sauvegarde une base que personne n'ouvre.
+	test.failing("l'instantané est dérivé de DB_PATH (N2)", async () => {
+		const { data } = await srv.json<{ path: string }>("/api/snapshots/create", {
+			method: "POST",
+		});
+		expect(data.path).toContain(srv.dbPath.replace(/\.sqlite$/, ""));
+	});
+
+	// N2 — le champ `file` est exigé par le schéma : il doit être utilisé.
+	test.failing("le nom de fichier demandé est pris en compte (N2)", async () => {
+		if (existsSync(FICHIER_SAUVEGARDE))
+			rmSync(FICHIER_SAUVEGARDE, { force: true });
+		const { data } = await srv.json<{ error: string }>(
+			"/api/snapshots/restore",
+			jsonBody({ file: "un-autre-instantane.sqlite" }),
+		);
+		expect(data.error).toContain("un-autre-instantane.sqlite");
+	});
+});

@@ -66,3 +66,36 @@ describe("point d'entrée du serveur", () => {
 		expect(res.headers.get("content-type")).toContain("image");
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N36 — un chemin d'API inconnu doit répondre 404 en JSON, pas servir la SPA.
+	test.failing("un chemin d'API inconnu renvoie 404 en JSON (N36)", async () => {
+		const res = await srv.request("/api/inexistant");
+		expect(res.status).toBe(404);
+		expect(res.headers.get("content-type")).toContain("application/json");
+	});
+
+	// N36 — une méthode non déclarée doit répondre 404 ou 405, jamais du HTML.
+	test.failing("une méthode non déclarée ne renvoie pas l'application (N36)", async () => {
+		const res = await srv.request("/api/annotations");
+		expect([404, 405]).toContain(res.status);
+		expect(res.headers.get("content-type")).not.toContain("text/html");
+	});
+});

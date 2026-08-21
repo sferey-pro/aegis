@@ -91,6 +91,34 @@ describe("POST /api/annotations", () => {
 		expect(data.fixed_in).toBeNull();
 	});
 
+	// ---- N32 : le contrat, tel qu'il devra être ------------------------------
+	//
+	// `test.failing` exécute le corps et attend son échec : la suite reste verte
+	// tant que le défaut existe. Le jour où N32 est corrigé, ce test se met à
+	// passer et Bun le signale en rouge — « this test is marked as failing but it
+	// passed. Remove `.failing` if tested behavior now works ». Il est donc
+	// impossible de corriger le code sans reprendre le test.
+	//
+	// Correctif attendu (docs/ISSUE.md#n32) : retirer `.default("")` de `note` et
+	// rendre `fixedIn` réellement optionnel dans `annotationBodySchema`, pour que
+	// l'absence traverse jusqu'à `upsertAnnotation` en tant qu'`undefined`.
+	test.failing("un champ omis est conservé, pas réinitialisé (N32)", async () => {
+		await annoter({
+			cve: "CVE-2024-3",
+			projectId: projet.id,
+			note: "hors chemin d'exécution",
+			fixedIn: "4.17.21",
+		});
+		const { data } = await annoter({
+			cve: "CVE-2024-3",
+			projectId: projet.id,
+			status: "confirmed",
+		});
+		expect(data.status).toBe("confirmed");
+		expect(data.note).toBe("hors chemin d'exécution");
+		expect(data.fixed_in).toBe("4.17.21");
+	});
+
 	test("un projet inexistant renvoie 404, pas 500", async () => {
 		// Sans ce garde-fou, la contrainte de clé étrangère remonterait en erreur
 		// serveur (CONTEXT.md §7).

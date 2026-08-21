@@ -206,3 +206,34 @@ describe("DELETE /api/advisories/cache", () => {
 		expect(status).toBe(200);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N35 — un corps illisible doit répondre 400 « JSON invalide », comme partout
+	// ailleurs, plutôt que 500 via le gestionnaire d'erreur global.
+	test.failing("un JSON illisible renvoie 400 « JSON invalide » (N35)", async () => {
+		const { status, data } = await srv.json("/api/advisories/sync", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: "{",
+		});
+		expect(status).toBe(400);
+		expect(data).toEqual({ error: "JSON invalide" });
+	});
+});

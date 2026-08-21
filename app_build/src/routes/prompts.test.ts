@@ -144,3 +144,28 @@ describe("DELETE /api/prompts/:id", () => {
 		expect(res.status).toBe(204);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N37 — 404 sur un identifiant inexistant.
+	test.failing("un identifiant inconnu renvoie 404 (N37)", async () => {
+		const res = await srv.request("/api/prompts/999999", { method: "DELETE" });
+		expect(res.status).toBe(404);
+	});
+});

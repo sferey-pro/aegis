@@ -348,3 +348,38 @@ describe("POST /api/ingest/:slug", () => {
 		expect(getAuditStatus().isRunning).toBe(false);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	// N8 — un audit refusé pour cause de concurrence est un conflit, pas une panne
+	// serveur. `/api/audit/run` répond déjà 429 ; `/api/projects/:id/audit` avale
+	// l'exception dans son try/catch générique et répond 500, ce qui rend le refus
+	// indistinguable d'un plantage côté client.
+	test.failing("un audit concurrent renvoie 409, pas 500 (N8)", async () => {
+		for (let i = 0; i < 4; i++) projet(`conflit-${i}`);
+		const p = projet("conflit-cible");
+		await srv.json("/api/audit/run", { method: "POST" });
+
+		const { status } = await srv.json(`/api/projects/${p.id}/audit`, {
+			method: "POST",
+		});
+		expect(status).toBe(409);
+		await attendreLaFin();
+	});
+});

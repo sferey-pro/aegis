@@ -150,3 +150,36 @@ describe("db/tickets", () => {
 		expect(getTickets()).toEqual([]);
 	});
 });
+
+/**
+ * Contrats attendus — à activer au correctif.
+ *
+ * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
+ * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
+ * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
+ * que le défaut existe.
+ *
+ * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
+ * rouge — « this test is marked as failing but it passed. Remove `.failing` if
+ * tested behavior now works ». Il est donc impossible de corriger le code sans
+ * reprendre le test.
+ *
+ * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
+ * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ */
+
+describe("contrats attendus — à activer au correctif", () => {
+	useTempDb("tickets-contrats");
+
+	// N41 — `content_hash` est le garde-fou anti-doublon de la création Jira. Deux
+	// projets ne doivent pas pouvoir porter la même empreinte, sinon le message de
+	// refus cite la référence d'un ticket appartenant à un autre projet.
+	test.failing("le hash distingue deux projets (N41)", () => {
+		const a = projet("a");
+		const b = projet("b");
+		saveTicket(a.id, "lodash", "SEC-1", ["CVE-2020-8203"], "collision");
+		expect(() =>
+			saveTicket(b.id, "lodash", "SEC-2", ["CVE-2020-8203"], "collision"),
+		).toThrow(/UNIQUE/i);
+	});
+});

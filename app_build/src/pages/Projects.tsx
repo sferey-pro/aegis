@@ -21,8 +21,9 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ProjectTool } from "@/db/projects";
+import type { Project, ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
+import { fetchJson, fetchVoid } from "@/lib/api";
 import type { ProjectListItem } from "@/routes/projects";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
@@ -166,8 +167,7 @@ export const Projects = React.memo(function Projects() {
 
 	const fetchTags = useCallback(async () => {
 		try {
-			const res = await fetch("/api/tags");
-			setAvailableTags(await res.json());
+			setAvailableTags(await fetchJson<Tag[]>("/api/tags"));
 		} catch (e) {
 			console.error(e);
 		}
@@ -175,8 +175,7 @@ export const Projects = React.memo(function Projects() {
 
 	const fetchProjects = useCallback(async () => {
 		try {
-			const res = await fetch("/api/projects");
-			const data = await res.json();
+			const data = await fetchJson<ProjectListItem[]>("/api/projects");
 			setProjects(data);
 		} catch (e) {
 			console.error(e);
@@ -231,19 +230,19 @@ export const Projects = React.memo(function Projects() {
 			let createdProjectId = null;
 
 			if (editingId) {
-				await fetch(`/api/projects/${editingId}`, {
+				await fetchVoid(`/api/projects/${editingId}`, {
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(payload),
 				});
 			} else {
-				const res = await fetch("/api/projects", {
+				const nouveau = await fetchJson<Project>("/api/projects", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(payload),
 				});
-				const newProject = await res.json();
-				createdProjectId = newProject.id;
+
+				createdProjectId = nouveau.id;
 			}
 
 			resetForm();
@@ -251,7 +250,9 @@ export const Projects = React.memo(function Projects() {
 
 			if (createdProjectId && !payload.is_remote) {
 				// Déclencher un git fetch en arrière-plan pour vérifier les mises à jour (behind/ahead)
-				fetch(`/api/projects/${createdProjectId}/git-fetch`, { method: "POST" })
+				fetchVoid(`/api/projects/${createdProjectId}/git-fetch`, {
+					method: "POST",
+				})
 					.then(() => fetchProjects())
 					.catch(console.error);
 			}
@@ -261,7 +262,7 @@ export const Projects = React.memo(function Projects() {
 					...prev,
 					[createdProjectId]: "Démarrage...",
 				}));
-				fetch(`/api/projects/${createdProjectId}/audit`, { method: "POST" })
+				fetchVoid(`/api/projects/${createdProjectId}/audit`, { method: "POST" })
 					.then(() => fetchProjects())
 					.catch(console.error)
 					.finally(() => {
@@ -285,7 +286,7 @@ export const Projects = React.memo(function Projects() {
 	const confirmDelete = async () => {
 		if (projectToDelete === null) return;
 		try {
-			await fetch(`/api/projects/${projectToDelete}`, { method: "DELETE" });
+			await fetchVoid(`/api/projects/${projectToDelete}`, { method: "DELETE" });
 			setProjectToDelete(null);
 			fetchProjects();
 		} catch (err) {
@@ -299,7 +300,7 @@ export const Projects = React.memo(function Projects() {
 	) => {
 		if (e) e.stopPropagation();
 		try {
-			await fetch(`/api/projects/${project.id}`, {
+			await fetchVoid(`/api/projects/${project.id}`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ ignored: !project.ignored }),
@@ -314,13 +315,8 @@ export const Projects = React.memo(function Projects() {
 		if (e) e.stopPropagation();
 		setDetectingId(id);
 		try {
-			const res = await fetch(`/api/projects/${id}`);
-			if (res.ok) {
-				const updatedProject = await res.json();
-				setProjects((prev) =>
-					prev.map((p) => (p.id === id ? updatedProject : p)),
-				);
-			}
+			const rafraichi = await fetchJson<ProjectListItem>(`/api/projects/${id}`);
+			setProjects((prev) => prev.map((p) => (p.id === id ? rafraichi : p)));
 		} catch (err) {
 			console.error(err);
 		} finally {
@@ -331,7 +327,7 @@ export const Projects = React.memo(function Projects() {
 	const handleFetch = async (id: number, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		try {
-			await fetch(`/api/projects/${id}/git-fetch`, { method: "POST" });
+			await fetchVoid(`/api/projects/${id}/git-fetch`, { method: "POST" });
 			fetchProjects();
 		} catch (err) {
 			console.error(err);
@@ -341,7 +337,7 @@ export const Projects = React.memo(function Projects() {
 	const handlePull = async (id: number, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		try {
-			await fetch(`/api/projects/${id}/git-pull`, { method: "POST" });
+			await fetchVoid(`/api/projects/${id}/git-pull`, { method: "POST" });
 			fetchProjects();
 		} catch (err) {
 			console.error(err);
@@ -359,7 +355,9 @@ export const Projects = React.memo(function Projects() {
 		e.stopPropagation();
 		setAuditState((prev) => ({ ...prev, [id]: "Démarrage..." }));
 		try {
-			await fetch(`/api/projects/${id}/audit?force=true`, { method: "POST" });
+			await fetchVoid(`/api/projects/${id}/audit?force=true`, {
+				method: "POST",
+			});
 			await fetchProjects();
 		} catch (err) {
 			console.error("Failed to force audit", err);
@@ -385,7 +383,7 @@ export const Projects = React.memo(function Projects() {
 					current,
 					total: activeProjects.length,
 				});
-				await fetch(`/api/projects/${p.id}/git-fetch`, { method: "POST" });
+				await fetchVoid(`/api/projects/${p.id}/git-fetch`, { method: "POST" });
 				current++;
 			}
 			await fetchProjects();
@@ -401,22 +399,28 @@ export const Projects = React.memo(function Projects() {
 		if (!formData.path) return;
 		setDetectStatus("detecting");
 		try {
-			const res = await fetch("/api/projects/detect", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					path: formData.path,
-					audit_path: formData.audit_path,
-				}),
-			});
-			const data = await res.json();
-			if (data.tool) {
+			const data = await fetchJson<{ tool: ProjectTool | null }>(
+				"/api/projects/detect",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						path: formData.path,
+						audit_path: formData.audit_path,
+					}),
+				},
+			);
+			// Capturé avant la fermeture : le rétrécissement de `data.tool` ne
+			// traverse pas la fonction passée à `setFormData`. C'était invisible
+			// tant que `res.json()` renvoyait `any`.
+			const outil = data.tool;
+			if (outil) {
 				setFormData((prev) => ({
 					...prev,
-					tool: data.tool,
-					type: data.tool === "composer" ? "composer" : "node",
+					tool: outil,
+					type: outil === "composer" ? "composer" : "node",
 				}));
-				setDetectedToolName(data.tool);
+				setDetectedToolName(outil);
 				setDetectStatus("success");
 			} else {
 				setDetectStatus("error");

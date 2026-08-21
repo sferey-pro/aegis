@@ -20,18 +20,18 @@ compilation au lieu de dériver en silence.
 ## 2. Suite de tests
 
 **Commande** : `bun run test`
-**Résultat** : ✅ **1116 tests, 0 échec, 87 fichiers.**
+**Résultat** : ✅ **1142 tests, 0 échec, 88 fichiers.**
 
 ```text
-Étage composants   (bun run test:ui)   347 pass, 0 fail — 46 fichiers
-Étage fonctionnel  (bun run test:api)  769 pass, 0 fail — 41 fichiers
+Étage composants   (bun run test:ui)   355 pass, 0 fail — 46 fichiers
+Étage fonctionnel  (bun run test:api)  787 pass, 0 fail — 41 fichiers
 ```
 
 | Couche | Tests | Approche |
 |---|---:|---|
-| Composants React | 347 | happy-dom + Testing Library, `fetch` simulé |
+| Composants React | 355 | happy-dom + Testing Library, `fetch` simulé |
 | Base de données | 151 | base SQLite jetable, SQL et clés étrangères réels |
-| Logique métier | 336 | dépôts git jetables réels, GitHub et Jira simulés |
+| Logique métier | 354 | dépôts git jetables réels, GitHub et Jira simulés |
 | API | 264 | vrai `Bun.serve` sur port éphémère, requêtes HTTP réelles |
 | Harnais de test | 18 | les trois helpers `src/test/` ont leurs propres tests |
 
@@ -87,7 +87,7 @@ depuis `app_build/` — il n'y a pas de `package.json` à la racine du dépôt.
 ## Verdict
 
 Le projet compile, se construit, passe le lint sans concession et dispose d'une
-suite de 1116 tests colocalisés couvrant chaque module de l'application.
+suite de 1142 tests colocalisés couvrant chaque module de l'application.
 
 **Réserve explicite** : la suite épingle 25 écarts entre le comportement réel
 et le contrat fonctionnel (`CONTEXT.md`), dont trois provoquent une perte de

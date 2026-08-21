@@ -37,12 +37,21 @@ afterEach(() => {
 		rmSync(d, { recursive: true, force: true });
 });
 
-/** Coupe l'enrichissement GitHub : aucun appel sortant ne doit aboutir. */
+/** Nombre d'appels sortants tentés depuis le dernier `sansReseau()`. */
+let appelsReseau = 0;
+
+/**
+ * Interdit le réseau, et compte les tentatives.
+ *
+ * Le compteur est le cœur de la vérification de N1 : il ne suffit pas que
+ * l'audit aboutisse hors ligne, il faut qu'il n'ait **rien tenté**.
+ */
 function sansReseau() {
-	globalThis.fetch = (() =>
-		Promise.reject(
-			new Error("réseau interdit en test"),
-		)) as unknown as typeof fetch;
+	appelsReseau = 0;
+	globalThis.fetch = (() => {
+		appelsReseau++;
+		return Promise.reject(new Error("réseau interdit en test"));
+	}) as unknown as typeof fetch;
 }
 
 function dossier(label: string): string {
@@ -600,6 +609,120 @@ describe("lib/audit — ingestAudit (CI)", () => {
 
 		expect(run?.total).toBe(1);
 		expect(newCves).toEqual([]);
+	});
+
+	test("aucun appel réseau n'est tenté pendant l'ingestion (N1)", async () => {
+		// CONTEXT.md §2 : « Aucun appel réseau (GitHub) pendant l'audit. » Une
+		// requête par vulnérabilité épuisait le quota au premier « Tout auditer »
+		// et rendait la durée d'un audit dépendante du réseau, verrou global tenu.
+		sansReseau();
+		const p = projetSimple();
+		await ingestAudit(p.id, sortieNpm());
+		expect(appelsReseau).toBe(0);
+	});
+
+	test("un avis déjà en cache enrichit quand même le run (N1)", async () => {
+		// L'enrichissement n'est pas supprimé, il est rendu hors ligne : ce que l'on
+		// sait déjà est appliqué, le reste attend la porte manuelle.
+		sansReseau();
+		const p = projetSimple();
+		const { putCachedAdvisory } = await import("@/lib/github");
+		// La clé du cache est celle que `keyFrom` dérive de l'avis : le GHSA du
+		// lien primant sur le champ `cve`. Un CWE n'est pas un identifiant d'avis.
+		putCachedAdvisory(
+			"GHSA-JF85-CPCP-J695",
+			"critical",
+			{ "npm:lodash": [{ range: ">=4.0.0", patched: "4.17.21" }] },
+			"https://github.com/advisories/GHSA-jf85-cpcp-j695",
+			"CVSS:3.1/AV:N",
+			"2024-01-15T10:00:00Z",
+		);
+
+		const { run } = await ingestAudit(
+			p.id,
+			JSON.stringify({
+				vulnerabilities: {
+					lodash: {
+						name: "lodash",
+						severity: "high",
+						range: ">=4.0.0",
+						via: [
+							{
+								title: "Prototype pollution",
+								url: "https://github.com/advisories/GHSA-jf85-cpcp-j695",
+								cwe: ["CWE-1321"],
+							},
+						],
+					},
+				},
+			}),
+		);
+		const v = run?.vulnerabilities[0];
+		expect(appelsReseau).toBe(0);
+		expect(v?.severity).toBe("critical");
+		expect(v?.fixedIn).toBe("4.17.21");
+		expect(v?.publishedAt).toBe("2024-01-15T10:00:00Z");
+		expect(v?.cvssVector).toBe("CVSS:3.1/AV:N");
+	});
+
+	test("un avis absent du cache préserve le fixedIn de l'outil (N18)", async () => {
+		// `npm audit` avait fourni la version : l'écraser par null faisait lire
+		// « aucune correction disponible » à tort.
+		sansReseau();
+		const p = projetSimple();
+		const { run } = await ingestAudit(
+			p.id,
+			JSON.stringify({
+				vulnerabilities: {
+					lodash: {
+						name: "lodash",
+						severity: "high",
+						fixAvailable: { version: "4.17.21" },
+						via: [{ title: "T", url: "u", cwe: ["CWE-1321"] }],
+					},
+				},
+			}),
+		);
+		expect(run?.vulnerabilities[0]?.fixedIn).toBe("4.17.21");
+	});
+
+	test("la liste persistée reste triée par gravité après enrichissement", async () => {
+		// L'enrichissement peut relever une sévérité : sans retri, l'ordre du
+		// parseur (§3) ne décrivait plus le contenu persisté.
+		sansReseau();
+		const p = projetSimple();
+		const { putCachedAdvisory } = await import("@/lib/github");
+		// `axios` est « low » selon l'outil, « critical » selon l'avis connu.
+		putCachedAdvisory("GHSA-AAAA-BBBB-CCCC", "critical", {});
+
+		const { run } = await ingestAudit(
+			p.id,
+			JSON.stringify({
+				vulnerabilities: {
+					lodash: {
+						name: "lodash",
+						severity: "high",
+						via: [{ title: "T", severity: "high", cwe: ["CWE-1321"] }],
+					},
+					axios: {
+						name: "axios",
+						severity: "low",
+						via: [
+							{
+								title: "SSRF",
+								severity: "low",
+								url: "https://github.com/advisories/GHSA-aaaa-bbbb-cccc",
+							},
+						],
+					},
+				},
+			}),
+		);
+
+		expect(run?.vulnerabilities.map((v) => v.severity)).toEqual([
+			"critical",
+			"high",
+		]);
 	});
 
 	test("l'enrichissement GitHub hors ligne n'empêche pas l'ingestion", async () => {

@@ -10,6 +10,7 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import type { Prompt } from "@/db/prompts";
+import { fetchJson, fetchVoid } from "@/lib/api";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -34,8 +35,7 @@ export function PromptsLibrary() {
 
 	const fetchPrompts = useCallback(async () => {
 		try {
-			const res = await fetch("/api/prompts");
-			const data = await res.json();
+			const data = await fetchJson<Prompt[]>("/api/prompts");
 			setPrompts(data);
 		} catch (e) {
 			console.error(e);
@@ -61,13 +61,13 @@ export function PromptsLibrary() {
 			};
 
 			if (editingId) {
-				await fetch(`/api/prompts/${editingId}`, {
+				await fetchVoid(`/api/prompts/${editingId}`, {
 					method: "PUT",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(payload),
 				});
 			} else {
-				await fetch("/api/prompts", {
+				await fetchVoid("/api/prompts", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(payload),
@@ -98,7 +98,7 @@ export function PromptsLibrary() {
 	const confirmDelete = async () => {
 		if (promptToDelete === null) return;
 		try {
-			await fetch(`/api/prompts/${promptToDelete}`, { method: "DELETE" });
+			await fetchVoid(`/api/prompts/${promptToDelete}`, { method: "DELETE" });
 			setPromptToDelete(null);
 			fetchPrompts();
 		} catch (err) {

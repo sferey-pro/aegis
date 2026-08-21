@@ -1,6 +1,7 @@
 import { Loader2, TrendingDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { fetchJson } from "@/lib/api";
 import {
 	type ChartConfig,
 	ChartContainer,
@@ -49,14 +50,16 @@ export function HistoryChart() {
 
 	useEffect(() => {
 		setLoading(true);
-		fetch(`/api/history-global?days=${days}`)
-			.then((r) => r.json())
+		// `fetchJson` lève sur un statut non-2xx : un 500 ne peut plus être passé
+		// à `setData` comme s'il s'agissait d'une série vide.
+		fetchJson<HistoryPoint[]>(`/api/history-global?days=${days}`)
 			.then((d) => {
 				setData(d);
 				setLoading(false);
 			})
-			.catch((e) => {
+			.catch((e: unknown) => {
 				console.error(e);
+				setData([]);
 				setLoading(false);
 			});
 	}, [days]);

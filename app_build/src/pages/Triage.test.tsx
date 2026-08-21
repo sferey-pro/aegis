@@ -97,16 +97,46 @@ describe("Triage", () => {
 		).toBeInTheDocument();
 	});
 
-	test("un chargement en échec affiche le même message — faux négatif", async () => {
-		// Défaut N6/UX1 de l'audit : `fetchCves` avale l'erreur, `cves` reste vide,
-		// et l'écran annonce « Votre écosystème est sain ! » alors que l'API est
-		// tombée. C'est le pire mode de défaillance pour un outil de sécurité.
-		// Comportement documenté ici, pas validé.
+	test("un chargement en échec a son propre état, distinct du parc sain (N6)", async () => {
+		// C'était le pire mode de défaillance de l'outil : `fetchCves` avalait
+		// l'erreur, `cves` restait vide, et l'écran annonçait « Votre écosystème est
+		// sain ! » alors que l'API était tombée.
 		mockFetch({ ...base, "GET /api/cves": { networkError: "ECONNREFUSED" } });
+		monte();
+
+		expect(
+			await screen.findByText("Impossible de charger les vulnérabilités"),
+		).toBeInTheDocument();
+		expect(screen.queryAllByText("Votre écosystème est sain !")).toHaveLength(
+			0,
+		);
+		expect(screen.getByRole("alert")).toBeInTheDocument();
+	});
+
+	test("le message d'échec porte la cause et le bouton de reprise (N6)", async () => {
+		mockFetch({
+			...base,
+			"GET /api/cves": { status: 500, body: { error: "base verrouillée" } },
+		});
+		monte();
+
+		expect(await screen.findByText("base verrouillée")).toBeInTheDocument();
+		expect(
+			screen.getByText(/ne reflète pas l'état de votre parc/),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: /Réessayer/ }),
+		).toBeInTheDocument();
+	});
+
+	test("un parc réellement sain garde son message rassurant", async () => {
+		// Le nouvel état ne doit pas dévorer le cas légitime.
+		mockFetch({ ...base, "GET /api/cves": [] });
 		monte();
 		expect(
 			await screen.findByText("Votre écosystème est sain !"),
 		).toBeInTheDocument();
+		expect(screen.queryAllByRole("alert")).toHaveLength(0);
 	});
 
 	test("les groupes sont réagrégés par projet et package", async () => {

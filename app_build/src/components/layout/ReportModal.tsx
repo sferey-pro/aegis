@@ -13,9 +13,17 @@ import {
 
 export function ReportModal({
 	reportModal,
+	auditErrors = [],
 	setReportModal,
 }: {
 	reportModal: Report | null;
+	/**
+	 * Projets dont l'audit a échoué pendant le lot (N6). Sans cette liste, la
+	 * modale annonçait « 20 projets · 0 vulnérabilité » quand les vingt avaient
+	 * échoué — la conclusion la plus rassurante possible sur l'échec le plus
+	 * complet possible.
+	 */
+	auditErrors?: string[];
 	setReportModal: (val: Report | null) => void;
 }) {
 	const navigate = useNavigate();
@@ -60,6 +68,26 @@ export function ReportModal({
 							</span>
 						</div>
 					</div>
+
+					{auditErrors.length > 0 && (
+						<div
+							role="alert"
+							className="mt-4 rounded-xl border border-red-500/50 bg-red-500/10 p-4"
+						>
+							<p className="text-sm font-semibold">
+								{auditErrors.length} projet
+								{auditErrors.length > 1 ? "s" : ""} en échec — non compté
+								{auditErrors.length > 1 ? "s" : ""} dans le résumé
+							</p>
+							<ul className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+								{auditErrors.map((e) => (
+									<li key={e} className="font-mono break-all">
+										{e}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
 				</div>
 
 				<DialogFooter className="p-6 pt-4 border-t shrink-0 bg-muted/20">

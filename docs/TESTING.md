@@ -129,6 +129,19 @@ port à réserver et du scripting en CI.
 > le serveur. Sans cela, le premier fichier terminé coupait le serveur des
 > suivants — 12 tests verts en solo, rouges en groupe.
 
+### `lib/api.ts` — point de passage des appels client
+
+Ce n'est pas un helper de test, mais il change la façon de tester les pages :
+tous les appels client passent par `fetchJson` / `fetchVoid`, qui **lèvent** sur
+un statut non-2xx en reprenant le champ `error` du corps. Un test n'a donc qu'un
+seul chemin d'échec à simuler, et une page a trois états à couvrir — chargement,
+échec, contenu — au lieu de deux.
+
+Conséquence pour les mocks : un `{ status: 500, body: { error: "…" } }` produit
+une exception dans le composant, pas une valeur. C'est ce qui rend testable la
+distinction entre « aucune vulnérabilité » et « je n'ai pas pu lire les
+données ».
+
 ### `http.ts` — `fetch` simulé pour les composants
 
 ```ts

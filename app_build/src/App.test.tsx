@@ -109,18 +109,41 @@ describe("App", () => {
 		expect(screen.getAllByText("5").length).toBeGreaterThan(0);
 	});
 
-	test("un échec de /api/stats laisse les compteurs à zéro", async () => {
-		// Source du faux négatif d'`Overview` : `fetchStats` avale l'erreur, mais
-		// `setLoading(false)` est dans le `finally`. L'écran sort donc du
-		// chargement en annonçant « 0 » sans jamais signaler l'échec.
-		// Documenté, pas validé.
+	test("un échec de /api/stats est signalé, pas affiché comme un parc sain (N6)", async () => {
+		// C'était le pire mode de défaillance de l'outil : `fetchStats` avalait
+		// l'erreur et l'écran sortait du chargement en annonçant « 0 faille
+		// critique ». Rien ne distinguait « rien à traiter » de « je n'ai pas pu
+		// lire les données ».
 		mockFetch({
 			...base,
 			"GET /api/stats": { networkError: "ECONNREFUSED" },
 		});
 		monte();
 		await attendreChargement();
-		expect(screen.getAllByText("0").length).toBeGreaterThan(0);
+
+		// Un bandeau annonce l'échec…
+		expect(await screen.findByRole("alert")).toBeInTheDocument();
+		// …et les chiffres de sécurité ne sont pas inventés.
+		expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+		expect(screen.queryAllByText("0")).toHaveLength(0);
+	});
+
+	test("le bandeau d'échec propose de réessayer, et le rechargement aboutit", async () => {
+		mockFetch({
+			...base,
+			"GET /api/stats": { networkError: "ECONNREFUSED" },
+		});
+		monte();
+		await attendreChargement();
+		await screen.findByRole("alert");
+
+		// Le second appel réussit : le bandeau doit disparaître.
+		mockFetch({ ...base });
+		fireEvent.click(screen.getByRole("button", { name: /Réessayer/ }));
+
+		await waitFor(() => {
+			expect(screen.queryAllByRole("alert")).toHaveLength(0);
+		});
 	});
 
 	test("Ctrl+Shift+D bascule vers /debug puis revient", async () => {
@@ -184,11 +207,10 @@ describe("App", () => {
 		expect(audits[1]?.url).toBe("/api/projects/8/audit");
 	});
 
-	test("un audit en échec est compté zéro vulnérabilité dans le rapport", async () => {
-		// Défaut N6/FE2 : `if (auditData.run && auditData.run.counts)`. Un 500
-		// renvoyant `{success:false}` n'a pas de `run`, donc le projet est compté
-		// pour zéro — et ce total faux est **persisté** via POST /api/reports.
-		// Documenté, pas validé.
+	test("un audit en échec n'est pas compté comme un projet sain (N6)", async () => {
+		// Un 500 renvoie `{success:false}` sans `run` : le projet était compté pour
+		// zéro vulnérabilité, et ce total faux **persisté** via POST /api/reports.
+		// Vingt projets en échec produisaient « 20 projets · 0 vulnérabilité ».
 		mockFetch({
 			...base,
 			"GET /api/projects": [{ id: 7, name: "Mon API", ignored: false }],
@@ -196,7 +218,7 @@ describe("App", () => {
 				status: 500,
 				body: { success: false, error: "Un audit est déjà en cours" },
 			},
-			"POST /api/reports": { body: { id: 1, projects_audited: 1 } },
+			"POST /api/reports": { body: { id: 1, projects_audited: 0 } },
 		});
 		monte();
 		await attendreChargement();
@@ -212,9 +234,82 @@ describe("App", () => {
 			{ timeout: 3000 },
 		);
 		const rapport = post().find((c) => c.url === "/api/reports");
+		// Le projet en échec n'est pas compté parmi les projets audités.
 		expect(rapport?.body).toMatchObject({
-			projects_audited: 1,
+			projects_audited: 0,
 			total_vulnerabilities: 0,
+		});
+	});
+
+	test("les projets en échec sont énumérés dans la modale de rapport (N6)", async () => {
+		mockFetch({
+			...base,
+			"GET /api/projects": [{ id: 7, name: "Mon API", ignored: false }],
+			"POST /api/projects/7/audit": {
+				status: 500,
+				body: { success: false, error: "Un audit est déjà en cours" },
+			},
+			"POST /api/reports": { body: { id: 1, projects_audited: 0 } },
+		});
+		monte();
+		await attendreChargement();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Lancer l'audit global/ }),
+		);
+
+		// Le résumé doit nommer l'échec, pas le taire.
+		expect(
+			await screen.findByText(/1 projet en échec/, undefined, {
+				timeout: 3000,
+			}),
+		).toBeInTheDocument();
+		expect(screen.getByText(/Un audit est déjà en cours/)).toBeInTheDocument();
+	});
+
+	test("un run en erreur est traité comme un échec, pas comme un projet sain (N6)", async () => {
+		// Un run `status:"error"` a des compteurs à zéro. Le compter comme un
+		// succès faisait passer un outil d'audit introuvable pour un parc sain.
+		mockFetch({
+			...base,
+			"GET /api/projects": [{ id: 7, name: "Mon API", ignored: false }],
+			"POST /api/projects/7/audit": {
+				body: {
+					success: true,
+					deduped: false,
+					run: {
+						status: "error",
+						error: "npm: aucune sortie (exit 1)",
+						total: 0,
+						counts: {
+							critical: 0,
+							high: 0,
+							moderate: 0,
+							low: 0,
+							info: 0,
+							unknown: 0,
+						},
+						vulnerabilities: [],
+					},
+				},
+			},
+			"POST /api/reports": { body: { id: 1, projects_audited: 0 } },
+		});
+		monte();
+		await attendreChargement();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Lancer l'audit global/ }),
+		);
+
+		await waitFor(
+			() => {
+				expect(post().filter((c) => c.url === "/api/reports")).toHaveLength(1);
+			},
+			{ timeout: 3000 },
+		);
+		expect(post().find((c) => c.url === "/api/reports")?.body).toMatchObject({
+			projects_audited: 0,
 		});
 	});
 

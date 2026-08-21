@@ -10,18 +10,45 @@ import { memo } from "react";
 import { Link } from "react-router-dom";
 import type { StatsResponse } from "@/routes/stats";
 import { HistoryChart } from "../components/organisms/HistoryChart";
+import { Button } from "../components/ui/button";
 
 export const Overview = memo(function Overview({
 	stats,
 	loading,
+	error,
+	onRetry,
 	syncDisplay,
 }: {
 	stats: StatsResponse | null;
 	loading: boolean;
+	/**
+	 * Message d'échec du chargement, distinct de l'état vide (N6). Quand il est
+	 * posé, aucun chiffre de sécurité n'est affiché : un « 0 » issu d'un
+	 * chargement échoué se lit comme « écosystème sain », le pire mode de
+	 * défaillance pour un outil de sécurité.
+	 */
+	error?: string | null;
+	onRetry?: () => void;
 	syncDisplay: string;
 }) {
 	return (
 		<main className="flex-1 w-full max-w-7xl mx-auto mt-4 z-10 flex flex-col gap-6">
+			{error && (
+				<div
+					role="alert"
+					className="flex items-center justify-between gap-4 rounded-2xl border border-red-500/50 bg-red-500/10 px-5 py-4"
+				>
+					<p className="text-sm font-medium">
+						Impossible de charger les indicateurs : {error}. Les chiffres
+						affichés ne reflètent pas l'état réel de votre parc.
+					</p>
+					{onRetry && (
+						<Button variant="outline" size="sm" onClick={onRetry}>
+							Réessayer
+						</Button>
+					)}
+				</div>
+			)}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
 				{stats?.healthGrade && (
 					<div className="bg-card border-border p-6 rounded-3xl flex flex-col items-center justify-center gap-2 relative overflow-hidden">
@@ -51,6 +78,8 @@ export const Overview = memo(function Overview({
 						<h3 className="text-5xl font-black font-heading">
 							{loading ? (
 								<span className="opacity-50 text-3xl">...</span>
+							) : error ? (
+								<span title={error}>—</span>
 							) : (
 								(stats?.criticalVulnerabilities ?? 0)
 							)}
@@ -72,6 +101,8 @@ export const Overview = memo(function Overview({
 						<h3 className="text-5xl font-black font-heading text-foreground">
 							{loading ? (
 								<span className="opacity-50 text-3xl">...</span>
+							) : error ? (
+								<span title={error}>—</span>
 							) : (
 								(stats?.monitoredProjects ?? 0)
 							)}

@@ -1,6 +1,9 @@
 import { Plus, RefreshCw, Tag, X } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
+// `Tag` est déjà pris par l'icône lucide de ce fichier.
+import type { Tag as TagRecord } from "@/db/tags";
+import { fetchJson, fetchVoid } from "@/lib/api";
 import { errorMessage } from "@/lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -17,8 +20,7 @@ export function TagsManager() {
 
 	const fetchTags = useCallback(async () => {
 		try {
-			const res = await fetch("/api/tags");
-			setTags(await res.json());
+			setTags(await fetchJson<TagRecord[]>("/api/tags"));
 		} catch (e) {
 			console.error(e);
 		} finally {
@@ -36,14 +38,13 @@ export function TagsManager() {
 		setError("");
 
 		try {
-			const res = await fetch("/api/tags", {
+			await fetchVoid("/api/tags", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name: newName.trim(), color: newColor }),
 			});
-			const data = await res.json();
-			if (!res.ok) throw new Error(data.error);
-
+			// `fetchVoid` lève déjà sur un statut non-2xx, en reprenant le message du
+			// serveur : le contrôle manuel de `res.ok` devient redondant.
 			setNewName("");
 			fetchTags();
 		} catch (err: unknown) {
@@ -53,7 +54,7 @@ export function TagsManager() {
 
 	const handleDelete = async (id: number) => {
 		try {
-			await fetch(`/api/tags/${id}`, { method: "DELETE" });
+			await fetchVoid(`/api/tags/${id}`, { method: "DELETE" });
 			fetchTags();
 		} catch (err) {
 			console.error(err);

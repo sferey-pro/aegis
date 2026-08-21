@@ -64,4 +64,20 @@ describe("helper: serveur de test", () => {
 		expect(mauvaisType.status).toBe(400);
 		expect(mauvaisType.data.error).toBe("Type invalide (node|composer)");
 	});
+	// Placé en dernier : ce test rebranche la connexion SQLite sur une autre base,
+	// il ne doit donc précéder aucun test qui s'appuie sur `srv`.
+	test("un second appel réutilise le serveur mais change de base", async () => {
+		// `bun test` n'isole pas les modules par fichier : `serve()` ne peut être
+		// appelé qu'une fois par run. Un second appel doit donc rendre le même port
+		// et une base neuve, sinon deux fichiers de test se partageraient leurs
+		// données — ou l'un couperait le serveur de l'autre.
+		const autre = await startTestServer("helper-bis");
+		expect(autre.port).toBe(srv.port);
+		expect(autre.dbPath).not.toBe(srv.dbPath);
+
+		// La base est vide : le tag créé plus haut appartenait à l'autre base.
+		const { data } = await autre.json<unknown[]>("/api/tags");
+		expect(data).toEqual([]);
+		autre.stop();
+	});
 });

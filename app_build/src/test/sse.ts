@@ -19,6 +19,19 @@ export interface FakeEventSource {
 	onerror: ((event: unknown) => void) | null;
 	closed: boolean;
 	close(): void;
+	/**
+	 * Les deux consommateurs du flux n'utilisent pas la même API : `Console` pose
+	 * un `onmessage`, `Projects` passe par `addEventListener("message", …)`. Le
+	 * faux doit donc gérer les deux, et `emit` notifie l'un comme l'autre.
+	 */
+	addEventListener(
+		type: string,
+		handler: (event: { data: string }) => void,
+	): void;
+	removeEventListener(
+		type: string,
+		handler: (event: { data: string }) => void,
+	): void;
 	/** Pousse un événement brut (déjà sérialisé) vers le consommateur. */
 	emit(data: string): void;
 	/** Pousse un événement JSON. */
@@ -40,6 +53,7 @@ export function mockEventSource() {
 		onmessage: ((event: { data: string }) => void) | null = null;
 		onerror: ((event: unknown) => void) | null = null;
 		closed = false;
+		#listeners = new Map<string, ((event: { data: string }) => void)[]>();
 
 		constructor(readonly url: string) {
 			instances.push(this);
@@ -49,8 +63,26 @@ export function mockEventSource() {
 			this.closed = true;
 		}
 
+		addEventListener(type: string, handler: (event: { data: string }) => void) {
+			const liste = this.#listeners.get(type) ?? [];
+			liste.push(handler);
+			this.#listeners.set(type, liste);
+		}
+
+		removeEventListener(
+			type: string,
+			handler: (event: { data: string }) => void,
+		) {
+			const liste = this.#listeners.get(type) ?? [];
+			this.#listeners.set(
+				type,
+				liste.filter((h) => h !== handler),
+			);
+		}
+
 		emit(data: string) {
 			this.onmessage?.({ data });
+			for (const h of this.#listeners.get("message") ?? []) h({ data });
 		}
 
 		emitJson(payload: unknown) {

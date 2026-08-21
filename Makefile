@@ -13,4 +13,4 @@ test:
 	cd app_build && bun run test
 
 coverage:
-	cd app_build && bun test --coverage
+	cd app_build && bun run coverage

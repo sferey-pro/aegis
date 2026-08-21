@@ -12,6 +12,9 @@ le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 Vérifié avec `biome check --error-on-warnings` en 0 et `tsc --noEmit` en 0.
 Aucun fichier résiduel dans le dépôt ni dans `/tmp` après un run complet.
 
+Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
+**96,3 % sur le backend**, **94,1 % sur le frontend**.
+
 ---
 
 ## 1. Frontend — 343 tests

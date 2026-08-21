@@ -44,9 +44,15 @@ serveur refuse alors de démarrer — « Expected a Response object, but receive
 bun run test        # les deux étages, dans l'ordre
 bun run test:ui     # composants seulement
 bun run test:api    # fonctionnel seulement
+bun run coverage    # couverture, étage par étage
 bun run check       # typecheck + les deux étages
 bun test --watch src/db/runs.test.ts   # un fichier, en surveillance
 ```
+
+⚠️ Ne lancez pas `bun test` nu depuis `app_build/` : les deux étages se retrouvent
+dans un même process et chaque test d'API échoue sur « Expected a Response
+object ». La couverture est mesurée pour la même raison **étage par étage**,
+via `coverage:ui` et `coverage:api`.
 
 ## 🔌 Le harnais : `setupTests.ts`
 

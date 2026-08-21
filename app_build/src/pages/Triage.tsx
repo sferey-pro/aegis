@@ -203,11 +203,14 @@ export const Triage = React.memo(function Triage() {
 		note?: string,
 	) => {
 		try {
+			// N32 : n'envoyer que ce que l'utilisateur a effectivement fourni. Un
+			// changement de statut ne touche pas à la note — le serveur préserve les
+			// champs absents. La clause précédente forçait `note: ""` pour tout
+			// statut autre que « confirmé », ce qui détruisait la note du référent à
+			// chaque passage en « en attente » ou « faux positif ».
 			const payload: AnnotationInput = { cve, projectId, status: newStatus };
 			if (note !== undefined) {
 				payload.note = note;
-			} else if (newStatus !== "confirmed") {
-				payload.note = "";
 			}
 
 			await fetch("/api/annotations", {

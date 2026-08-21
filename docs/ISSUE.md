@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**48 entrées ouvertes (40 🔴) ou partielles (8 🟡) · 16 fermées · 26 épinglées par un test.**
+**47 entrées ouvertes (39 🔴) ou partielles (8 🟡) · 17 fermées · 25 épinglées par un test.**
 
 ### Priorité 1 — Sécurité
 
@@ -36,7 +36,6 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | État | Test |
 |---|---|:-:|:-:|
-| [N32](#n32-post-apiannotations-efface-les-champs-omis) | `POST /api/annotations` efface la note et la version corrigée saisies | 🔴 | 🧪 |
 | [N1](#n1-github-est-appelé-pendant-chaque-audit) | GitHub est appelé pendant chaque audit | 🔴 | — |
 | [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | La restauration de snapshot ne restaure rien | 🔴 | 🧪 |
 | [N6](#n6-les-erreurs-http-sont-consommées-comme-des-succès) | Les erreurs HTTP sont consommées comme des succès | 🔴 | — |
@@ -57,7 +56,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | État | Test |
 |---|---|:-:|:-:|
-| [N8](#n8--tout-auditer--séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) | « Tout auditer » : séquentiel, périmètre faux, verrou contradictoire | 🔴 | 🧪 |
+| [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) | « Tout auditer » : séquentiel, périmètre faux, verrou contradictoire | 🔴 | 🧪 |
 | [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction) | Le `React.memo` de `ProjectCard` est neutralisé | 🟡 | — |
 | [N17](#n17-double-flux-sse-et-console-perdue-au-passage-sur-debug) | Double flux SSE, console perdue au passage sur `/debug` | 🔴 | — |
 | [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation) | L'état serveur n'est jamais invalidé après une mutation | 🔴 | — |
@@ -115,7 +114,8 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | C12 | Le chronomètre `first_seen_at` se réinitialise | table `cve_occurrences` + `ON CONFLICT DO NOTHING`, **et le test de non-régression existe désormais**. Résiduel de clé → [N10](#n10-trois-clés-didentité-différentes-pour-la-même-vulnérabilité) |
 | C1 | Aucune authentification sur l'API | résiduel → [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin) : la brèche `PUT` est fermée, celle de `git-fetch`/`git-pull` non |
 | C2 | Fuite des secrets par `/api/config/export` | résiduel → [N5](#n5-get-apisettings-expose-les-secrets-en-clair) |
-| C8 | `/api/audit/run` sans garde de concurrence | résiduel → [N8](#n8--tout-auditer--séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) |
+| C8 | `/api/audit/run` sans garde de concurrence | résiduel → [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) |
+| N32 | `POST /api/annotations` efface les champs omis | 🟢 **corrigé le 21/08/2026.** `note` et `fixedIn` n'ont plus de valeur par défaut dans `annotationBodySchema` : l'absence traverse jusqu'à `upsertAnnotation`, qui préserve alors la valeur en base. Côté client, `updateStatus` n'envoie plus `note: ""` pour les statuts autres que « confirmé » — c'était la seconde moitié du défaut, et elle laissait le symptôme intact sur deux des trois actions de triage. Le test « écart documenté » a été supprimé, son test de contrat activé. |
 | N28 | Les deux tests de non-régression de la vague 1 | 🟡 **un sur deux** : le verrou C12 est écrit, celui de C3 non. Reste ouvert à ce titre → [N28](#n28-le-verrou-de-non-régression-de-c3-nexiste-toujours-pas) |
 
 > *Leçon confirmée par cette seconde vérification : C3 et C12 avaient été « corrigés » une fois avant d'être re-cassés par la duplication C5. C12 est aujourd'hui verrouillé par un test, C3 ne l'est pas — il reste donc exactement aussi fragile qu'avant.*
@@ -194,7 +194,7 @@ Dump brut de la table `settings` : `JIRA_API_KEY`, `GITHUB_TOKEN`, `JIRA_USER`, 
 ## 🟠 Priorité 2 — Bugs fonctionnels & intégrité des données
 
 ### N32. `POST /api/annotations` efface les champs omis
-🔴 **Ouvert — relevé par la suite de tests, vérifié le 21/08/2026** — `src/lib/schemas.ts` (`annotationBodySchema`), `src/db/annotations.ts:19-57`
+🟢 **Corrigé le 21/08/2026** — relevé par la suite de tests — `src/lib/schemas.ts` (`annotationBodySchema`), `src/db/annotations.ts:19-57`
 
 `upsertAnnotation` est écrite pour **préserver** les champs non fournis — c'est explicite dans son corps :
 
@@ -210,9 +210,14 @@ Conséquence : le panneau de triage envoyant un seul champ à la fois, **enregis
 
 🧪 Épinglé dans `src/routes/annotations.test.ts` : « un champ omis est effacé, pas conservé — écart documenté ». Le test de `src/db/annotations.test.ts` affirme l'inverse — et c'est correct : au niveau de la fonction, la préservation marche. Les deux tests ensemble localisent le défaut dans le schéma.
 
-**Correctif :** retirer `.default("")` de `note` et rendre `fixedIn` réellement optionnel, pour que l'absence traverse jusqu'à `upsertAnnotation` en tant qu'`undefined`.
+**Correctif appliqué le 21/08/2026, en deux moitiés.**
 
-> ⚠️ **Piège mesuré par simulation le 21/08/2026.** Le correctif naïf — remplacer `emptyToNull` par `z.string().trim().nullish()` — fait passer **trois** tests au rouge, pas deux. Le troisième est « une version corrigée blanche est enregistrée à null » : `emptyToNull` portait **aussi** la normalisation `"   "` → `null` exigée par §1. Le correctif doit donc préserver le trim et la normalisation du vide **tout en** laissant l'absence passer en `undefined` — deux comportements que le schéma actuel confond.
+1. **Schéma** — `note: z.string().optional()` et un nouveau `emptyToNullOptional` pour `fixedIn`, qui garde le trim et la normalisation `""` → `null` mais laisse l'absence en `undefined`. `emptyToNull` est conservé tel quel pour `audit_path`, dont la colonne n'a pas de notion de « ne pas toucher ».
+2. **Client** — `updateStatus` (`src/pages/Triage.tsx`) forçait `payload.note = ""` pour tout statut autre que « confirmé ». Le correctif du schéma seul aurait donc laissé le symptôme intact sur « en attente » et « faux positif », soit deux des trois actions de triage réellement atteignables. La clause est supprimée : un changement de statut n'envoie plus que le statut.
+
+> **Décision de produit prise au passage.** La clause supprimée avait peut-être pour intention d'effacer une justification devenue obsolète quand on dé-confirme une CVE. Cette intention n'était documentée nulle part et contredit le contrat. Si l'effacement au dé-confirmement est souhaité, il doit être explicite et visible à l'écran, pas un effet de bord de l'enregistrement.
+
+> ⚠️ **Piège évité.** Le correctif naïf — remplacer `emptyToNull` par `z.string().trim().nullish()` — faisait passer **trois** tests au rouge, pas deux : `emptyToNull` portait **aussi** la normalisation `"   "` → `null` exigée par §1. Le correctif retenu sépare les deux comportements, et le test « une version corrigée blanche est enregistrée à null » passe toujours.
 
 ### N33. `z.coerce.boolean` rend la chaîne `"false"` vraie
 🔴 **Ouvert — relevé par la suite de tests** — `src/lib/schemas.ts` (`projectBodySchema`, champs `ignored` et `is_remote`)
@@ -265,7 +270,7 @@ for (const v of parsedVulns) {
 Une requête HTTP sérialisée par vulnérabilité à chaque cache-miss, sur le chemin d'audit **et** sur celui d'ingestion CI. Conséquences mesurables :
 
 1. **Quota** — 180 avis sans cache et sans `GITHUB_TOKEN` (≈60 req/h) : le quota est épuisé au premier audit, et « Tout auditer » le sature systématiquement.
-2. **Disponibilité** — la requête `POST /api/projects/:id/audit` reste ouverte des dizaines de secondes **en tenant le verrou global d'audit** ([N8](#n8--tout-auditer--séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire)). La durée d'un audit devient dépendante du réseau.
+2. **Disponibilité** — la requête `POST /api/projects/:id/audit` reste ouverte des dizaines de secondes **en tenant le verrou global d'audit** ([N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire)). La durée d'un audit devient dépendante du réseau.
 3. **Rate-limit non respecté** — §6 impose que l'appelant « s'arrête ». La boucle ne teste jamais `res.rateLimited` et continue à taper l'API après un 429.
 4. **Intégrité du run** — `severity` et `link` persistés sont écrasés par GitHub (`:46-47`) et `counts` est recalculé après enrichissement (`:52-64`). Le run ne reflète plus la sortie de l'outil, et la liste persistée **n'est plus triée par sévérité** puisque le tri (`src/lib/parsers/utils.ts:66`) a lieu avant la réécriture des sévérités.
 
@@ -648,7 +653,7 @@ Aucune des quatre routes de suppression ne vérifie l'existence de la ligne : `D
 
 🧪 Épinglé dans `src/lib/audit/queue.test.ts` : « la progression n'est pas observable après coup — écart documenté ».
 
-**Correctif :** conserver le dernier état terminé (`lastCompleted`, `lastTotal`, `finishedAt`) plutôt que de le remettre à zéro — à traiter avec [N8](#n8--tout-auditer--séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire), dont le compte-rendu final a le même besoin.
+**Correctif :** conserver le dernier état terminé (`lastCompleted`, `lastTotal`, `finishedAt`) plutôt que de le remettre à zéro — à traiter avec [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire), dont le compte-rendu final a le même besoin.
 
 ### N41. `content_hash` n'est pas unique en base
 🔴 **Ouvert — relevé par la suite de tests** — `src/db/index.ts` (table `tickets`), `src/db/tickets.ts`
@@ -788,7 +793,7 @@ Seuls `project` et `cve` transitent par l'URL (`Triage.tsx:19-21`). `filterTag`,
 - Le référent filtre les projets sur « Prod » en vue Tableau, ouvre une CVE, revient : filtre perdu, vue revenue en Grille.
 - Il ne peut pas envoyer à son équipe un lien vers « les CVE non traitées du projet 12, page 3 » — alors que §7 désigne ce partage comme un usage central du référent sécurité.
 
-Défaut de fond associé : `filterTag` est une valeur **unique** (`string | null`) — cliquer « Prod » remplace « Backend ». §9 spécifie un ensemble `selectedTags` avec **logique OU** (`selectedTags.size === 0 || p.tags.some(t => selectedTags.has(t))`) : « Prod OU Backend » est impossible. Et comme cet état n'est pas remonté, il n'est pas le périmètre de « Tout auditer » ([N8](#n8--tout-auditer--séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire)), contrairement à §2 et §9.
+Défaut de fond associé : `filterTag` est une valeur **unique** (`string | null`) — cliquer « Prod » remplace « Backend ». §9 spécifie un ensemble `selectedTags` avec **logique OU** (`selectedTags.size === 0 || p.tags.some(t => selectedTags.has(t))`) : « Prod OU Backend » est impossible. Et comme cet état n'est pas remonté, il n'est pas le périmètre de « Tout auditer » ([N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire)), contrairement à §2 et §9.
 
 Défaut d'affichage associé : l'état vide de la page Projets (`:767-776`) est conditionné à `projects.length === 0`. Si un tag ne matche aucun projet, la grille rend **zéro carte sous les boutons de filtre**, sans un mot d'explication — l'utilisateur croit avoir perdu ses projets.
 
@@ -839,7 +844,7 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1099** |
+| `src/pages/Projects.tsx` | **1100** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |
@@ -876,7 +881,7 @@ C'est la couche produit qui a divergé, **dans les deux sens**.
 
 1. **Intégration Jira complète** (`src/routes/tickets.ts:85-277`) : création réelle d'issues via l'API v3, document ADF, anti-doublon par hash SHA-256 (`src/db/tickets.ts:41-51`), test de connexion. §8 se limite à « préparer » un markdown copiable et stocker une URL.
 2. **Ingestion CI** (`POST /api/ingest/:slug`) authentifiée par token en comparaison à temps constant.
-3. **Batch d'audit côté serveur** (`/api/audit/run`, `/api/audit/status`) alors que §2 stipule « aucun endpoint batch » — et ce batch n'est appelé par aucun écran (cf. [N8](#n8--tout-auditer--séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire)).
+3. **Batch d'audit côté serveur** (`/api/audit/run`, `/api/audit/status`) alors que §2 stipule « aucun endpoint batch » — et ce batch n'est appelé par aucun écran (cf. [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire)).
 4. **Table `reports`** et page associée : persistance des comptes-rendus de « Tout auditer ».
 5. **Table `cve_occurrences`** avec `is_baseline`/`exposure_start`/`resolved_at` et calcul d'ancienneté — socle des SLA d'[UPGRADE.md §1](UPGRADE.md).
 6. **Enrichissement CVSS** (`src/lib/cvss.ts`, colonnes `cvss_vector`/`html_url`/`published_at`).
@@ -892,10 +897,10 @@ C'est la couche produit qui a divergé, **dans les deux sens**.
 
 Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points : la surface d'attaque s'est réduite (la brèche `PUT` de N3 est fermée), et un défaut de perte de données non trié est apparu en tête.
 
-1. **[N32](#n32-post-apiannotations-efface-les-champs-omis)** — le seul défaut de cette liste qui détruit du travail humain à chaque clic. Correctif de deux lignes dans un schéma Zod. Aucune raison de le faire attendre.
+1. ~~**N32**~~ — ✅ **fait le 21/08/2026.** Le seul défaut de cette liste qui détruisait du travail humain à chaque clic.
 2. **[N5](#n5-get-apisettings-expose-les-secrets-en-clair), [N4](#n4-ssrf-authentifié-via-apiticketstest-connection), résiduel de [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin)** — surface d'attaque. Le résiduel de N3 se limite désormais à trois points : `pathGuard` sur `git-fetch`/`git-pull`, garde sur `/api/config/import`, et `isPathAllowed` en défaut **fermé**.
 3. **[N6](#n6-les-erreurs-http-sont-consommées-comme-des-succès)** — un wrapper `fetchJson` unique couvre les 43 appels et supprime d'un coup le faux négatif « écosystème sain » et les rapports d'audit faux persistés en base.
-4. **[N1](#n1-github-est-appelé-pendant-chaque-audit)** — sortir l'enrichissement du chemin d'audit. Débloque mécaniquement [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil), [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) et une bonne part de [N8](#n8--tout-auditer--séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire).
+4. **[N1](#n1-github-est-appelé-pendant-chaque-audit)** — sortir l'enrichissement du chemin d'audit. Débloque mécaniquement [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil), [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) et une bonne part de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire).
 5. **[N10](#n10-trois-clés-didentité-différentes-pour-la-même-vulnérabilité) puis [N28](#n28-le-verrou-de-non-régression-de-c3-nexiste-toujours-pas)** — une fonction unique de clé d'identité, **avant** d'accumuler davantage de données SLA fausses ; les lignes déjà écrites devront être migrées. Puis le verrou C3 manquant, en y ajoutant le cas de N10. Sans ce test, les points 4 et 5 se re-casseront comme C3 et C12 l'ont déjà fait.
 6. **[C9](#c9-initdb-ignore-son-paramètre) puis [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) et [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours)** — sauvegarde et restauration. Aujourd'hui l'outil affiche « restauration effectuée » sans rien restaurer : c'est le comportement le plus mensonger de l'application.
 7. **Le lot bon marché** — [N33](#n33-zcoerceboolean-rend-la-chaîne-false-vraie), [N34](#n34-parsecvssvector-écarte-toujours-le-premier-segment), [N35](#n35-500-au-lieu-de-400-sur-les-routes-qui-lisent-reqjson-directement), [N36](#n36-une-méthode-non-déclarée-renvoie-du-html-en-200), [N37](#n37-delete-sur-un-identifiant-inconnu-répond-succès), [N38](#n38-getreports-trie-par-created_at-seul), [N40](#n40-les-noms-de-tags-sont-sensibles-à-la-casse), [N42](#n42-commit_sha-peut-valoir-la-chaîne-head), [N43](#n43-le-repli--déjà-à-jour--de-gitfetch-est-inatteignable), [N11](#n11-force1-est-inopérant). Dix correctifs de quelques lignes chacun, tous déjà épinglés par un test à retourner. Bon lot pour une passe unique.

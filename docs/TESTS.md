@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1099 tests · 0 échec · 87 fichiers
+1100 tests · 0 échec · 87 fichiers
 ├── 345 composants (46 fichiers) — DOM, React, fetch simulé
-└── 754 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
+└── 755 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -44,7 +44,7 @@ le flux console utilisent le faux `EventSource`, qui gère **les deux API** —
 
 ---
 
-## 2. Base de données — 152 tests
+## 2. Base de données — 151 tests
 
 Tous sur une base SQLite jetable (`useTempDb`). Aucune simulation : le SQL, les
 clés étrangères et les migrations sont réels.
@@ -76,7 +76,7 @@ clés étrangères et les migrations sont réels.
 
 ---
 
-## 3. Logique métier — 335 tests
+## 3. Logique métier — 331 tests
 
 | Module | Tests | Contrats notables |
 |---|---:|---|
@@ -115,7 +115,7 @@ Points qui méritaient d'être épinglés :
 
 ---
 
-## 4. API — 227 tests fonctionnels
+## 4. API — 255 tests fonctionnels
 
 Vrai `Bun.serve` sur port éphémère, vraie base jetable, vraies requêtes HTTP.
 Les 33 routes d'API déclarées sont exercées.
@@ -157,7 +157,7 @@ Invariants de sécurité vérifiés de bout en bout :
 
 Les tests de cette suite ne valident pas seulement ce qui marche : quand le comportement réel s'écarte de `CONTEXT.md`, le test **affirme le comportement réel** et son libellé porte la mention « écart documenté ». La régression involontaire est bloquée, et l'écart reste visible.
 
-**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 26 de ses entrées portent le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
+**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 25 de ses entrées portent le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
 
 Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant :
 
@@ -182,7 +182,7 @@ Les huit autres écarts relevés par les tests confirmaient un défaut déjà in
 
 ### Corriger un écart épinglé
 
-**La cible est déjà écrite.** Chaque défaut épinglé porte deux tests dans le même fichier : le test « écart documenté » qui affirme le comportement actuel, et un `test.failing` — regroupé en fin de fichier sous `describe("contrats attendus — à activer au correctif")` — qui énonce le contrat. **42 tests retournés** couvrent 27 défauts.
+**La cible est déjà écrite.** Chaque défaut épinglé porte deux tests dans le même fichier : le test « écart documenté » qui affirme le comportement actuel, et un `test.failing` — regroupé en fin de fichier sous `describe("contrats attendus — à activer au correctif")` — qui énonce le contrat. **41 tests retournés** couvrent 26 défauts.
 
 `test.failing` exécute son corps et attend son échec : la suite reste verte tant que le défaut existe. Au correctif, le test se met à passer et Bun le refuse — « this test is marked as failing but it passed. Remove `.failing` if tested behavior now works ». Le correctif ne peut donc pas passer inaperçu.
 

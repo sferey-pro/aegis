@@ -17,7 +17,7 @@ cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
 bun run test:ui     # 345 tests composants — happy-dom actif
-bun run test:api    # 754 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:api    # 755 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1099 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1100 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -101,5 +101,5 @@ Ce sont des garde-fous du projet, pas des conseils génériques — en casser un
 - `POST /api/annotations` **efface** `note` et `fixedIn` quand ils sont omis : le schéma de la route applique ses valeurs par défaut avant que la logique « préserver les champs non fournis » de `upsertAnnotation` puisse agir. Enregistrer un statut détruit la note saisie à la main.
 - Un chemin `/api/…` inconnu, ou une route atteinte avec une **méthode non déclarée**, tombe dans le fourre-tout `/*` et renvoie du HTML en 200 — ni 404 ni 405. À connaître pour déboguer un appel mal orthographié.
 - Les routes qui lisent `req.json()` directement (`reports`, `advisories/sync`, `config/import`) répondent **500** sur du JSON malformé, là où les routes passant par `parseBody` répondent 400 « JSON invalide ». `reportBodySchema` existe mais n'est pas branché.
-- **`docs/ISSUE.md` est la liste unique des défauts connus**, groupée par priorité et revérifiée dans le code le 21/08/2026. Ses 26 entrées marquées 🧪 sont **épinglées par un test** qui affirme le comportement défectueux : la régression involontaire est bloquée, mais le défaut n'est pas corrigé. Consultez cette liste avant de conclure qu'un comportement surprenant est un bug neuf. Chaque entrée 🧪 porte **deux** tests : celui qui affirme le comportement actuel (« écart documenté »), et un `test.failing` regroupé en fin de fichier sous `describe("contrats attendus — à activer au correctif")` qui énonce le contrat. Au correctif : corriger le code, retirer `.failing`, supprimer le test « écart documenté ». Bun refuse un `test.failing` qui passe, donc le correctif ne peut pas passer inaperçu. N'utilisez pas `test.skip` ni `test.todo` à cette fin : leur corps n'est pas exécuté.
+- **`docs/ISSUE.md` est la liste unique des défauts connus**, groupée par priorité et revérifiée dans le code le 21/08/2026. Ses 25 entrées marquées 🧪 sont **épinglées par un test** qui affirme le comportement défectueux : la régression involontaire est bloquée, mais le défaut n'est pas corrigé. Consultez cette liste avant de conclure qu'un comportement surprenant est un bug neuf. Chaque entrée 🧪 porte **deux** tests : celui qui affirme le comportement actuel (« écart documenté »), et un `test.failing` regroupé en fin de fichier sous `describe("contrats attendus — à activer au correctif")` qui énonce le contrat. Au correctif : corriger le code, retirer `.failing`, supprimer le test « écart documenté ». Bun refuse un `test.failing` qui passe, donc le correctif ne peut pas passer inaperçu. N'utilisez pas `test.skip` ni `test.todo` à cette fin : leur corps n'est pas exécuté.
 - `docs/` contient la spécification fonctionnelle (`CONTEXT.md` est la référence de comportement autoritative — règles de déduplication, messages de validation, cas limites), plus `TESTING.md` (comment on teste), `TESTS.md` (ce qui est couvert), `ISSUE.md`, `VERIFICATION_REPORT.md`, `BACKLOG.md`, `PROJECT_BLUEPRINT.md` et `atomic_design_roadmap.md`. `.agents/` contient une configuration parallèle de personas d'agents (`agents.md`, `rules/`, `skills/`, `workflows/`) dont les fichiers `rules/` constituent les règles de code normatives de ce dépôt.

@@ -70,39 +70,13 @@ describe("POST /api/annotations", () => {
 		expect(lignes).toHaveLength(1);
 	});
 
-	test("un champ omis est effacé, pas conservé — écart documenté", async () => {
-		// `upsertAnnotation` préserve les champs non fournis, mais le schéma de la
-		// route applique ses valeurs par défaut avant d'y arriver : `note` devient
-		// `""` et `fixedIn` devient `null`. Enregistrer un statut efface donc la
-		// note et la version corrigée saisies à la main.
-		await annoter({
-			cve: "CVE-2024-2",
-			projectId: projet.id,
-			note: "à voir",
-			fixedIn: "4.17.21",
-		});
-		const { data } = await annoter({
-			cve: "CVE-2024-2",
-			projectId: projet.id,
-			status: "confirmed",
-		});
-		expect(data.status).toBe("confirmed");
-		expect(data.note).toBe("");
-		expect(data.fixed_in).toBeNull();
-	});
-
-	// ---- N32 : le contrat, tel qu'il devra être ------------------------------
+	// ---- N32, corrigé le 21/08/2026 -----------------------------------------
 	//
-	// `test.failing` exécute le corps et attend son échec : la suite reste verte
-	// tant que le défaut existe. Le jour où N32 est corrigé, ce test se met à
-	// passer et Bun le signale en rouge — « this test is marked as failing but it
-	// passed. Remove `.failing` if tested behavior now works ». Il est donc
-	// impossible de corriger le code sans reprendre le test.
-	//
-	// Correctif attendu (docs/ISSUE.md#n32) : retirer `.default("")` de `note` et
-	// rendre `fixedIn` réellement optionnel dans `annotationBodySchema`, pour que
-	// l'absence traverse jusqu'à `upsertAnnotation` en tant qu'`undefined`.
-	test.failing("un champ omis est conservé, pas réinitialisé (N32)", async () => {
+	// `note` et `fixedIn` n'ont plus de valeur par défaut dans
+	// `annotationBodySchema` : leur absence traverse jusqu'à `upsertAnnotation`,
+	// qui préserve alors la valeur en base. Le test « écart documenté » qui
+	// décrivait l'effacement a été supprimé avec le défaut.
+	test("un champ omis est conservé, pas réinitialisé (N32)", async () => {
 		await annoter({
 			cve: "CVE-2024-3",
 			projectId: projet.id,

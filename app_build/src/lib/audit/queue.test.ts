@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,6 +19,12 @@ import { enqueueGlobalAudit, getAuditStatus, runSingleAudit } from "./queue";
 
 const aNettoyer: string[] = [];
 const natif = globalThis.fetch;
+
+beforeEach(() => {
+	// Défaut fermé de `AEGIS_ALLOWED_ROOTS` (N3) : la route d'audit contrôle le
+	// chemin avant de lancer l'outil, il faut donc déclarer un périmètre.
+	process.env.AEGIS_ALLOWED_ROOTS = "/";
+});
 
 afterEach(() => {
 	globalThis.fetch = natif;

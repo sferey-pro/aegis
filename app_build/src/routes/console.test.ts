@@ -20,6 +20,10 @@ beforeAll(async () => {
 afterAll(() => srv.stop());
 beforeEach(() => {
 	getDb().query("DELETE FROM settings").run();
+	// `AEGIS_ALLOWED_ROOTS` est en défaut **fermé** (N3) : sans la variable, aucun
+	// chemin n'est autorisé. Les tests qui créent des projets doivent donc
+	// déclarer leur périmètre, comme un déploiement réel.
+	process.env.AEGIS_ALLOWED_ROOTS = "/";
 });
 
 /**

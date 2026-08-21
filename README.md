@@ -65,6 +65,13 @@ cp .env.example .env
 ```
 *(Vous pourrez y configurer `AEGIS_PORT`, `AEGIS_INGEST_TOKEN` et `AEGIS_ALLOWED_ROOTS`)*
 
+> ⚠️ **`AEGIS_ALLOWED_ROOTS` est obligatoire.** Le contrôle est en **défaut
+> fermé** : sans cette variable, aucun chemin n'est accepté et toute création de
+> projet, opération git ou audit est refusée en 403. Git exécute les hooks du
+> dépôt qu'il visite — une liste vide signifiait auparavant que n'importe quel
+> chemin de l'hôte était exécutable. Pour ouvrir délibérément tout le système de
+> fichiers : `AEGIS_ALLOWED_ROOTS=/`
+
 ### 3. Lancer l'environnement de développement
 L'outil principal utilise un `Makefile` pour simplifier les commandes :
 ```bash
@@ -82,7 +89,7 @@ L'application sera accessible sur `http://localhost:3001`.
 
 ## 🧪 Tests
 
-**1100 tests, 0 échec.** Chaque fichier de code porte son test à côté de lui
+**1116 tests, 0 échec.** Chaque fichier de code porte son test à côté de lui
 (colocation), et la politique **zéro warning** s'applique aux tests comme au
 code de production.
 
@@ -93,9 +100,9 @@ démarrer :
 ```bash
 cd app_build
 
-bun run test        # les deux étages (1100 tests)
-bun run test:ui     # 345 tests composants — happy-dom, React, fetch simulé
-bun run test:api    # 755 tests fonctionnels — vrai serveur, vraie base, vrai git
+bun run test        # les deux étages (1116 tests)
+bun run test:ui     # 347 tests composants — happy-dom, React, fetch simulé
+bun run test:api    # 769 tests fonctionnels — vrai serveur, vraie base, vrai git
 bun test --watch src/db/runs.test.ts   # un fichier, en surveillance
 ```
 

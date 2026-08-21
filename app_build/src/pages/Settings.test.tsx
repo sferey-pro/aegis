@@ -6,12 +6,17 @@ import { Settings } from "./Settings";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */
 
+/**
+ * Forme réellement renvoyée par `GET /api/settings` : les secrets n'en sortent
+ * plus, seuls des booléens `<CLÉ>_CONFIGURED` disent s'ils sont renseignés (N5).
+ */
 const reglages = {
-	GITHUB_TOKEN: "ghp_secret",
 	AUDIT_MAX_AGE_HOURS: "24",
 	JIRA_BASE_URL: "https://jira.example",
 	JIRA_USER: "moi@example.com",
 	DISABLE_CONSOLE: "false",
+	GITHUB_TOKEN_CONFIGURED: "true",
+	JIRA_API_KEY_CONFIGURED: "false",
 };
 
 const put = () => fetchCalls().filter((c) => c.method === "PUT");
@@ -22,12 +27,37 @@ describe("Settings", () => {
 	test("charge les réglages et remplit le formulaire", async () => {
 		mockFetch({ "GET /api/settings": reglages });
 		render(<Settings />);
-		expect(await screen.findByLabelText(/Jeton GitHub/)).toHaveValue(
-			"ghp_secret",
-		);
-		expect(screen.getByLabelText(/Base URL Jira/)).toHaveValue(
+		// Attendre le premier champ avant d'asserter : sans cela, les effets des
+		// composants enfants partent hors du test et leurs requêtes ne sont pas
+		// simulées.
+		expect(await screen.findByLabelText(/Base URL Jira/)).toHaveValue(
 			"https://jira.example",
 		);
+		expect(screen.getByLabelText(/Utilisateur Jira/)).toHaveValue(
+			"moi@example.com",
+		);
+	});
+
+	test("un secret configuré laisse le champ vide et le dit dans l'invite", async () => {
+		// Le client ne détient jamais la valeur : il ne peut donc pas la réafficher.
+		// L'invite porte l'information, ce qui évite de laisser croire que le champ
+		// vide signifie « non configuré » (N5).
+		mockFetch({ "GET /api/settings": reglages });
+		render(<Settings />);
+		const jeton = await screen.findByLabelText(/Jeton GitHub/);
+		expect(jeton).toHaveValue("");
+		expect(jeton).toHaveAttribute(
+			"placeholder",
+			"Jeton enregistré — saisir pour le remplacer",
+		);
+	});
+
+	test("un secret absent garde l'invite d'exemple", async () => {
+		mockFetch({ "GET /api/settings": reglages });
+		render(<Settings />);
+		const cle = await screen.findByLabelText(/Clé d'API Jira/);
+		expect(cle).toHaveValue("");
+		expect(cle).toHaveAttribute("placeholder", "ATATT3xFfGF0...");
 	});
 
 	test("les valeurs absentes reçoivent leurs défauts", async () => {
@@ -72,7 +102,10 @@ describe("Settings", () => {
 		expect(screen.getByLabelText(/Cache d'Audit/)).toHaveValue(24);
 	});
 
-	test("enregistrer envoie l'intégralité des réglages", async () => {
+	test("enregistrer envoie les réglages, secret vide compris", async () => {
+		// Le champ secret part à vide puisque le client ne connaît pas la valeur.
+		// C'est le serveur qui l'ignore alors, pour ne pas effacer le jeton en
+		// place — cf. `src/routes/settings.test.ts` (N5).
 		mockFetch({
 			"GET /api/settings": reglages,
 			"PUT /api/settings": { body: { success: true } },
@@ -86,7 +119,7 @@ describe("Settings", () => {
 			expect(put()).toHaveLength(1);
 		});
 		expect(put()[0]?.body).toMatchObject({
-			GITHUB_TOKEN: "ghp_secret",
+			GITHUB_TOKEN: "",
 			JIRA_BASE_URL: "https://jira.example",
 		});
 	});

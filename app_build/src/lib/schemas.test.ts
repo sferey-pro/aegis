@@ -345,6 +345,43 @@ describe("schemas — settingsBodySchema", () => {
 		).toBe("Durée invalide");
 	});
 
+	test("une URL Jira en https est acceptée", () => {
+		expect(
+			settingsBodySchema.parse({ JIRA_BASE_URL: "https://x.atlassian.net" })
+				.JIRA_BASE_URL,
+		).toBe("https://x.atlassian.net");
+	});
+
+	test("une URL Jira en http est refusée", () => {
+		// La valeur est appelée par le serveur avec un en-tête `Authorization:
+		// Basic` : en http, les identifiants Jira partent en clair (N4).
+		expect(
+			messageDe(settingsBodySchema, { JIRA_BASE_URL: "http://x.test" }),
+		).toBe("URL Jira invalide (https requis)");
+	});
+
+	test("une adresse de métadonnées interne est refusée", () => {
+		// C'est la cible classique d'une SSRF sur un hôte cloud.
+		expect(
+			messageDe(settingsBodySchema, {
+				JIRA_BASE_URL: "http://169.254.169.254",
+			}),
+		).toBe("URL Jira invalide (https requis)");
+	});
+
+	test("une valeur qui n'est pas une URL est refusée", () => {
+		expect(
+			messageDe(settingsBodySchema, { JIRA_BASE_URL: "pas-une-url" }),
+		).toBe("URL Jira invalide (https requis)");
+	});
+
+	test("vider l'URL Jira reste permis", () => {
+		// Effacer une configuration est une action légitime.
+		expect(settingsBodySchema.parse({ JIRA_BASE_URL: "" }).JIRA_BASE_URL).toBe(
+			"",
+		);
+	});
+
 	test("les autres clés ne sont pas contraintes", () => {
 		expect(
 			settingsBodySchema.parse({ N_IMPORTE_QUOI: "valeur" }).N_IMPORTE_QUOI,

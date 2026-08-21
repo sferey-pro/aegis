@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 345 tests composants — happy-dom actif
-bun run test:api    # 755 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 347 tests composants — happy-dom actif
+bun run test:api    # 769 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1100 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1116 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -89,7 +89,15 @@ Ce sont des garde-fous du projet, pas des conseils génériques — en casser un
 
 - Pas de shell. Les sous-processus prennent uniquement des tableaux d'arguments (`spawn(["npm", "audit", "--json"])`).
 - `POST /api/ingest/:slug` authentifie `X-Aegis-Token` via une vérification de longueur **puis** `timingSafeEqual`, et renvoie 500 si `AEGIS_INGEST_TOKEN` n'est pas défini. Gardez la comparaison à temps constant, et gardez le contrôle de longueur devant : `timingSafeEqual` lève sur des tampons de tailles différentes. L'authentification passe **avant** la recherche du slug — un 404 sur un slug inconnu sans jeton révélerait quels projets existent.
-- `AEGIS_ALLOWED_ROOTS` (`pathGuard` dans `src/routes/projects.ts`) confine les chemins auditables sur `POST`/`PUT /api/projects` et `POST /api/projects/detect`. Trois propriétés à préserver : le contrôle porte sur la **racine git *et* la cible d'audit résolue** (la racine sert aux commandes git, qui exécutent les hooks du dépôt ; la cible sert au lancement de l'outil d'audit) ; la comparaison se fait **au séparateur**, donc `/srv/autorise-bis` n'est pas sous `/srv/autorise` ; et le contrôle passe **avant** la détection de doublon, sinon un 409 sur un chemin interdit révélerait l'existence du projet. Tout nouvel endpoint acceptant un chemin doit appeler `pathGuard`.
+- `AEGIS_ALLOWED_ROOTS` (`pathGuard` dans `src/routes/projects.ts`) confine les chemins auditables. **Défaut fermé** : sans la variable, rien n'est autorisé — `AEGIS_ALLOWED_ROOTS=/` ouvre explicitement. Quatre propriétés à préserver :
+  1. le contrôle porte sur la **racine git *et* la cible d'audit résolue** — la racine sert aux commandes git, qui exécutent les hooks du dépôt ; la cible sert au lancement de l'outil d'audit ;
+  2. il s'applique aux **sept** points d'entrée qui touchent un chemin : `POST`/`PUT /api/projects`, `POST /api/projects/detect`, `git-fetch`, `git-pull`, `audit`, et `POST /api/config/import`. Un projet enregistré avant que la variable ne soit posée ne doit pas rester exécutable, d'où le contrôle **juste avant** chaque sous-processus et pas seulement à l'enregistrement ;
+  3. la comparaison se fait **au séparateur**, donc `/srv/autorise-bis` n'est pas sous `/srv/autorise` — attention au cas de la racine du système, où `root + sep` donne `"//"` et ne préfixe rien ;
+  4. le contrôle passe **avant** la détection de doublon, sinon un 409 sur un chemin interdit révélerait l'existence du projet.
+
+  Tout nouvel endpoint acceptant un chemin doit appeler `pathGuard`.
+- **Les secrets ne sortent jamais de l'API.** `GET /api/settings` applique une **liste blanche** (`PUBLIC_SETTING_KEYS`) et remplace chaque secret par un booléen `<CLÉ>_CONFIGURED`. Liste blanche et non liste noire : c'était le défaut du correctif C2, où toute clé secrète ajoutée ensuite fuyait par défaut. En écriture, un secret dont la valeur est vide est **ignoré**, sinon le formulaire — qui ne connaît pas la valeur — l'effacerait à chaque enregistrement.
+- **`JIRA_BASE_URL` est validée en https à l'écriture, et re-validée au point d'utilisation.** Cette valeur est appelée par le serveur avec un en-tête `Authorization: Basic` : une valeur libre en ferait un proxy sortant authentifié. `/api/tickets/test-connection` lit la configuration **enregistrée** et ignore son corps de requête, pour la même raison.
 - Aucun appel réseau pendant un audit de lockfile, hormis la consultation d'advisory dans `enhanceVulnerabilities` ; GitHub est interrogé à la demande, jamais en tâche de fond cachée.
 
 ## Pièges connus

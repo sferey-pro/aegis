@@ -22,15 +22,12 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**47 entrées ouvertes (39 🔴) ou partielles (8 🟡) · 17 fermées · 25 épinglées par un test.**
+**44 entrées ouvertes (37 🔴) ou partielles (7 🟡) · 20 fermées · 23 épinglées par un test.**
 
 ### Priorité 1 — Sécurité
 
 | ID | Sujet | État | Test |
 |---|---|:-:|:-:|
-| [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin) | Garde de chemin absente sur `git-fetch`/`git-pull`, défaut ouvert | 🟡 | 🧪 |
-| [N4](#n4-ssrf-authentifié-via-apiticketstest-connection) | SSRF authentifié via `/api/tickets/test-connection` | 🔴 | — |
-| [N5](#n5-get-apisettings-expose-les-secrets-en-clair) | `GET /api/settings` expose les secrets en clair | 🔴 | 🧪 |
 
 ### Priorité 2 — Bugs fonctionnels & intégrité des données
 
@@ -100,7 +97,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | Constat de vérification |
 |---|---|---|
-| T1 | Front quasi non couvert | **345 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
+| T1 | Front quasi non couvert | **347 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
 | T2 | Routes peu couvertes | **11 modules de routes sur 11**, en fonctionnel sur un vrai `Bun.serve` — 227 tests |
 | T3 | Test git dépendant du réseau | dépôts jetables en `tmpdir()` avec un dépôt nu local comme amont ; **aucun accès réseau** dans toute la suite |
 | T4 | Modules sans aucun test | `lib/cvss.ts` (14 tests), `lib/console.ts` (18), `db/backup.ts` (6) |
@@ -115,6 +112,9 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | C1 | Aucune authentification sur l'API | résiduel → [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin) : la brèche `PUT` est fermée, celle de `git-fetch`/`git-pull` non |
 | C2 | Fuite des secrets par `/api/config/export` | résiduel → [N5](#n5-get-apisettings-expose-les-secrets-en-clair) |
 | C8 | `/api/audit/run` sans garde de concurrence | résiduel → [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) |
+| N3 | Garde de chemin incomplète, défaut ouvert | 🟢 **corrigé le 21/08/2026.** `pathGuard` couvre désormais les sept points d'entrée touchant un chemin — création, modification, détection, `git-fetch`, `git-pull`, audit et import de configuration — et le contrôle a lieu **juste avant** chaque sous-processus, pas seulement à l'enregistrement. `isPathAllowed` est passé en **défaut fermé** : sans `AEGIS_ALLOWED_ROOTS`, rien n'est autorisé (`AEGIS_ALLOWED_ROOTS=/` ouvre explicitement). Bug trouvé au passage : la racine du système n'autorisait rien, `root + sep` donnant `"//"`. |
+| N4 | SSRF authentifié via `/api/tickets/test-connection` | 🟢 **corrigé le 21/08/2026.** La route ne lit plus l'URL ni les identifiants dans le corps : elle vérifie la configuration **enregistrée**. `JIRA_BASE_URL` est validée en https à l'écriture (`jiraBaseUrlSchema`) et re-validée au point d'utilisation par `jiraEndpoint`, sur les deux appels sortants Jira. Conséquence d'usage : il faut enregistrer avant de tester. |
+| N5 | `GET /api/settings` expose les secrets en clair | 🟢 **corrigé le 21/08/2026.** Liste blanche `PUBLIC_SETTING_KEYS`, et un booléen `<CLÉ>_CONFIGURED` par secret. Liste blanche et non liste noire : c'était le défaut du correctif C2. En écriture, un secret vide est ignoré, sinon le formulaire — qui ne connaît plus la valeur — l'effacerait à chaque enregistrement. **Résiduel :** effacer un secret depuis l'interface n'est plus possible, il faudra une action explicite. |
 | N32 | `POST /api/annotations` efface les champs omis | 🟢 **corrigé le 21/08/2026.** `note` et `fixedIn` n'ont plus de valeur par défaut dans `annotationBodySchema` : l'absence traverse jusqu'à `upsertAnnotation`, qui préserve alors la valeur en base. Côté client, `updateStatus` n'envoie plus `note: ""` pour les statuts autres que « confirmé » — c'était la seconde moitié du défaut, et elle laissait le symptôme intact sur deux des trois actions de triage. Le test « écart documenté » a été supprimé, son test de contrat activé. |
 | N28 | Les deux tests de non-régression de la vague 1 | 🟡 **un sur deux** : le verrou C12 est écrit, celui de C3 non. Reste ouvert à ce titre → [N28](#n28-le-verrou-de-non-régression-de-c3-nexiste-toujours-pas) |
 
@@ -124,7 +124,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 ## 🔴 Priorité 1 — Sécurité
 
 ### N3. `PUT /api/projects/:id` : aucune validation, aucune garde de chemin
-🟡 **Partiellement corrigé — vérifié le 21/08/2026.** Les deux brèches décrites ci-dessous sont fermées : `PUT` valide désormais son corps (Zod), répond 404 avant validation si l'id est inconnu, et appelle `pathGuard` ; et `pathGuard` contrôle la **cible d'audit résolue** par `resolveAuditTarget` — la recomposition ad hoc `replace(/^\/+/, "")` a disparu, donc la cible validée est bien la cible exécutée. 🧪 Les deux propriétés sont épinglées dans `src/routes/projects.test.ts`. **Résiduel ouvert :** `git-fetch` et `git-pull` n'appellent toujours pas `pathGuard` (0 occurrence), `/api/config/import` non plus, et `isPathAllowed` reste un **défaut ouvert** — `AEGIS_ALLOWED_ROOTS` non défini renvoie `true`.
+🟢 **Corrigé le 21/08/2026.** Les deux brèches décrites ci-dessous sont fermées : `PUT` valide désormais son corps (Zod), répond 404 avant validation si l'id est inconnu, et appelle `pathGuard` ; et `pathGuard` contrôle la **cible d'audit résolue** par `resolveAuditTarget` — la recomposition ad hoc `replace(/^\/+/, "")` a disparu, donc la cible validée est bien la cible exécutée. 🧪 Les deux propriétés sont épinglées dans `src/routes/projects.test.ts`. **Résiduel ouvert :** `git-fetch` et `git-pull` n'appellent toujours pas `pathGuard` (0 occurrence), `/api/config/import` non plus, et `isPathAllowed` reste un **défaut ouvert** — `AEGIS_ALLOWED_ROOTS` non défini renvoie `true`.
 
 **⊕3** — `src/routes/projects.ts:129-134`
 
@@ -152,7 +152,7 @@ Git exécute les hooks du dépôt qu'il visite : combiné à `git-fetch`/`git-pu
 3. Faire de `isPathAllowed` un défaut **fermé** plutôt qu'ouvert : `AEGIS_ALLOWED_ROOTS` non défini renvoie aujourd'hui `true` (`:13`).
 
 ### N4. SSRF authentifié via `/api/tickets/test-connection`
-🔴 **Ouvert — vérifié le 21/08/2026.** `baseUrl` est toujours lu dans le corps et concaténé sans validation de schéma ni d'hôte. Non couvert par un test : les tests de cette route simulent `fetch` et ne contraignent pas l'URL cible.
+🟢 **Corrigé le 21/08/2026.** La route ne lit plus le corps : elle vérifie la configuration enregistrée. `JIRA_BASE_URL` est validée en https à l'écriture et re-validée au point d'utilisation, sur les **deux** appels sortants Jira (`test-connection` et `create`). 🧪 Épinglé par un test qui envoie `baseUrl: "http://169.254.169.254"` dans le corps et vérifie que l'appel part bien vers l'hôte configuré.
 
 **⊕1** — `src/routes/tickets.ts:241-259`
 
@@ -173,7 +173,7 @@ Aucune restriction de schéma ni d'hôte. Le serveur devient un proxy sortant au
 **Correctif :** n'accepter comme `baseUrl` qu'une valeur validée — schéma `https` imposé, et hôte soit en liste blanche, soit celui déjà enregistré dans les réglages (auquel cas le paramètre devient inutile).
 
 ### N5. `GET /api/settings` expose les secrets en clair
-🔴 **Ouvert — vérifié le 21/08/2026.** Le handler est inchangé : `return Response.json(getAllSettings())`. 🧪 Épinglé dans `src/routes/settings.test.ts` (« le jeton est renvoyé en clair — écart documenté »).
+🟢 **Corrigé le 21/08/2026.** Liste blanche `PUBLIC_SETTING_KEYS` + un booléen `<CLÉ>_CONFIGURED` par secret ; en écriture, un secret vide est ignoré. 🧪 Épinglé par trois tests, dont « une clé hors liste blanche n'est pas exposée » — la propriété qui manquait au correctif C2.
 
 **⊕2** — `src/routes/settings.ts:8-10`
 
@@ -844,14 +844,14 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1100** |
+| `src/pages/Projects.tsx` | **1116** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |
 
 `Projects.tsx` a franchi le millier de lignes depuis la vague 1. Le refactor Atomic Design a extrait les atomes et les organismes, mais les pages ont continué de grossir : elles portent l'état, les appels réseau, l'orchestration et le markup. C'est ce qui rend [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction) (handlers non mémoïsés), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation) (état serveur local) et [N24](#n24-filtres-et-pagination-hors-de-lurl) (filtres non partagés) difficiles à corriger séparément : les trois ont la même racine.
 
-À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 345 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
+À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 347 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
 
 ### N31. Écarts au contrat CONTEXT.md — arbitrage à trancher
 **⊕2**

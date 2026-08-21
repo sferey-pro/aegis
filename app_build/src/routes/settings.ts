@@ -2,14 +2,21 @@ import { errorMessage } from "@/lib/utils";
 import { getAllAnnotations } from "../db/annotations";
 import { createSnapshot, restoreSnapshot } from "../db/backup";
 import { listProjects } from "../db/projects";
-import { getAllSettings, setAllSettings } from "../db/settings";
+import {
+	getAllSettings,
+	getPublicSettings,
+	SECRET_SETTING_KEYS,
+	setAllSettings,
+} from "../db/settings";
 import { restoreBodySchema, settingsBodySchema } from "../lib/schemas";
 import { parseBody } from "../lib/validate";
 
 export const settingsRoutes = {
 	"/api/settings": {
 		async GET() {
-			return Response.json(getAllSettings());
+			// Liste blanche : les secrets ne sortent pas, seul un booléen
+			// `<CLÉ>_CONFIGURED` indique s'ils sont renseignés (N5).
+			return Response.json(getPublicSettings());
 		},
 		async PUT(req: Request) {
 			// Seule `AUDIT_MAX_AGE_HOURS` est contrainte (nombre fini ≥ -1) ; les
@@ -17,7 +24,17 @@ export const settingsRoutes = {
 			const { data, response } = await parseBody(req, settingsBodySchema);
 			if (!data) return response;
 
-			setAllSettings(data);
+			// Les secrets sont en écriture seule : le formulaire ne connaît pas leur
+			// valeur et renvoie une chaîne vide quand l'utilisateur n'y touche pas.
+			// L'appliquer effacerait le jeton à chaque enregistrement.
+			const aEcrire = { ...data };
+			for (const cle of SECRET_SETTING_KEYS) {
+				if (typeof aEcrire[cle] === "string" && aEcrire[cle].trim() === "") {
+					delete aEcrire[cle];
+				}
+			}
+
+			setAllSettings(aEcrire);
 			return Response.json({ success: true });
 		},
 	},
@@ -56,7 +73,17 @@ export const settingsRoutes = {
 				const { createProject, getProjectBySlug, updateProject } = await import(
 					"../db/projects"
 				);
+				const { isPathAllowedForImport } = await import("./projects");
 				for (const p of body.projects) {
+					// N3 : l'import contournait entièrement la garde de chemin, ce qui en
+					// faisait la voie la plus simple pour enregistrer un projet hors
+					// périmètre — puis l'auditer.
+					if (!isPathAllowedForImport(p.path, p.audit_path)) {
+						return Response.json(
+							{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
+							{ status: 403 },
+						);
+					}
 					const existing = getProjectBySlug(p.slug);
 					if (existing) {
 						updateProject(existing.id, p);

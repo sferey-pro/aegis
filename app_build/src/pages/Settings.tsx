@@ -56,19 +56,35 @@ export function Settings() {
 		text: string;
 		type: "success" | "error";
 	} | null>(null);
+	/**
+	 * Les secrets sont en écriture seule : l'API n'en renvoie que l'état. On garde
+	 * donc « configuré / non configuré » à part, pour l'afficher sans jamais
+	 * détenir la valeur côté client (N5).
+	 */
+	const [secretsConfigures, setSecretsConfigures] = useState({
+		GITHUB_TOKEN: false,
+		JIRA_API_KEY: false,
+	});
 
 	useEffect(() => {
 		fetch("/api/settings")
 			.then((r) => r.json())
 			.then((data) => {
+				// Les secrets ne sont plus renvoyés par l'API (N5) : seuls des
+				// booléens `<CLÉ>_CONFIGURED` indiquent s'ils sont renseignés. Les
+				// champs restent donc vides, et leur placeholder dit l'état.
+				setSecretsConfigures({
+					GITHUB_TOKEN: data.GITHUB_TOKEN_CONFIGURED === "true",
+					JIRA_API_KEY: data.JIRA_API_KEY_CONFIGURED === "true",
+				});
 				setSettings({
-					GITHUB_TOKEN: data.GITHUB_TOKEN || "",
+					GITHUB_TOKEN: "",
 					AUDIT_MAX_AGE_HOURS: data.AUDIT_MAX_AGE_HOURS || "24",
 					CRITICAL_ONLY: data.CRITICAL_ONLY || "false",
 					JIRA_BASE_URL:
 						data.JIRA_BASE_URL || "https://mon-entreprise.atlassian.net",
 					JIRA_USER: data.JIRA_USER || "",
-					JIRA_API_KEY: data.JIRA_API_KEY || "",
+					JIRA_API_KEY: "",
 					JIRA_PROJECT: data.JIRA_PROJECT || "",
 					JIRA_COMPONENT: data.JIRA_COMPONENT || "",
 					JIRA_ISSUE_TYPE: data.JIRA_ISSUE_TYPE || "Task",
@@ -163,14 +179,11 @@ export function Settings() {
 		setTestJiraLoading(true);
 		setTestJiraMessage(null);
 		try {
+			// N4 : la route lit la configuration **enregistrée**. Lui passer l'URL et
+			// les identifiants dans le corps en faisait un proxy sortant
+			// authentifié. Il faut donc enregistrer avant de tester.
 			const res = await fetch("/api/tickets/test-connection", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					baseUrl: settings.JIRA_BASE_URL,
-					user: settings.JIRA_USER,
-					apiKey: settings.JIRA_API_KEY,
-				}),
 			});
 			const data = await res.json();
 			if (data.success) {
@@ -232,7 +245,11 @@ export function Settings() {
 									setSettings({ ...settings, GITHUB_TOKEN: e.target.value })
 								}
 								className="font-mono"
-								placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+								placeholder={
+									secretsConfigures.GITHUB_TOKEN
+										? "Jeton enregistré — saisir pour le remplacer"
+										: "ghp_xxxxxxxxxxxxxxxxxxxx"
+								}
 							/>
 							{settings.GITHUB_RL_LIMIT && (
 								<div className="mt-2 text-xs flex gap-4 text-muted-foreground  p-2.5 rounded-lg border w-fit">
@@ -431,7 +448,11 @@ export function Settings() {
 										setSettings({ ...settings, JIRA_API_KEY: e.target.value })
 									}
 									className="font-mono"
-									placeholder="ATATT3xFfGF0..."
+									placeholder={
+										secretsConfigures.JIRA_API_KEY
+											? "Clé enregistrée — saisir pour la remplacer"
+											: "ATATT3xFfGF0..."
+									}
 								/>
 							</div>
 						</div>
@@ -516,7 +537,7 @@ export function Settings() {
 									testJiraLoading ||
 									!settings.JIRA_BASE_URL ||
 									!settings.JIRA_USER ||
-									!settings.JIRA_API_KEY
+									!secretsConfigures.JIRA_API_KEY
 								}
 							>
 								{testJiraLoading ? (

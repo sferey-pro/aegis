@@ -1,6 +1,8 @@
 import { serve } from "bun";
 import { closeDb, getDb } from "./db";
+import { closeAdvisoryDb } from "./db/advisories";
 import index from "./index.html";
+import { closeConsoleClients } from "./lib/console";
 import { annotationsRoutes } from "./routes/annotations";
 import { auditRoutes } from "./routes/audit";
 import { consoleRoutes } from "./routes/console";
@@ -77,14 +79,20 @@ export const server = serve({
 
 console.log(`🚀 Server running at ${server.url}`);
 
-process.on("SIGINT", () => {
-	console.log("Shutting down... (SIGINT)");
+/**
+ * Arrêt propre.
+ *
+ * L'ordre compte : fermer d'abord les flux SSE, ensuite les bases. Quitter sans
+ * fermer les flux tranchait chaque connexion en plein chunk, et le navigateur
+ * journalisait `ERR_INCOMPLETE_CHUNKED_ENCODING` à chaque redémarrage.
+ */
+function arretPropre(signal: string): void {
+	console.log(`Shutting down... (${signal})`);
+	closeConsoleClients();
+	closeAdvisoryDb();
 	closeDb();
 	process.exit(0);
-});
+}
 
-process.on("SIGTERM", () => {
-	console.log("Shutting down... (SIGTERM)");
-	closeDb();
-	process.exit(0);
-});
+process.on("SIGINT", () => arretPropre("SIGINT"));
+process.on("SIGTERM", () => arretPropre("SIGTERM"));

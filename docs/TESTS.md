@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1161 tests · 0 échec · 90 fichiers
-├── 361 composants (46 fichiers) — DOM, React, fetch simulé
-└── 800 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
+1168 tests · 0 échec · 90 fichiers
+├── 363 composants (46 fichiers) — DOM, React, fetch simulé
+└── 805 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -21,7 +21,7 @@ Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
 
 ---
 
-## 1. Frontend — 361 tests
+## 1. Frontend — 363 tests
 
 Colocation intégrale : chaque `.tsx` a son `.test.tsx` à côté, suivant
 l'Atomic Design.
@@ -76,7 +76,7 @@ clés étrangères et les migrations sont réels.
 
 ---
 
-## 3. Logique métier — 354 tests
+## 3. Logique métier — 357 tests
 
 | Module | Tests | Contrats notables |
 |---|---:|---|
@@ -115,7 +115,7 @@ Points qui méritaient d'être épinglés :
 
 ---
 
-## 4. API — 261 tests fonctionnels
+## 4. API — 263 tests fonctionnels
 
 Vrai `Bun.serve` sur port éphémère, vraie base jetable, vraies requêtes HTTP.
 Les 33 routes d'API déclarées sont exercées.

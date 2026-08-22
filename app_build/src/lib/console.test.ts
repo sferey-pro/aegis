@@ -1,10 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 
 import { setSetting } from "@/db/settings";
 import { useTempDb } from "@/test/db";
 import {
 	addConsoleClient,
 	type ConsoleEvent,
+	closeConsoleClients,
+	consoleClientCount,
 	emitConsoleEnd,
 	emitConsoleStart,
 	projectContext,
@@ -253,5 +255,68 @@ describe("lib/console", () => {
 		emitConsoleEnd(999_999, { exitCode: 0 });
 		expect(c.evenements()[0]?.id).toBe(999_999);
 		removeConsoleClient(c.controller);
+	});
+});
+
+describe("lib/console — arrêt propre", () => {
+	useTempDb("console-arret");
+
+	// Le registre de clients est un état de **module**, partagé par tous les
+	// fichiers de test du run — `bun test` ne les isole pas. Partir d'un registre
+	// vide, sinon le décompte inclut les flux ouverts ailleurs.
+	beforeEach(closeConsoleClients);
+
+	test("closeConsoleClients ferme les flux et vide le registre", () => {
+		// Sans cela, quitter le process tranchait chaque connexion en plein chunk :
+		// le navigateur journalisait `ERR_INCOMPLETE_CHUNKED_ENCODING` à chaque
+		// redémarrage, ce qui masquait les vraies erreurs.
+		const fermes: number[] = [];
+		const client = (id: number) =>
+			({
+				enqueue() {},
+				close() {
+					fermes.push(id);
+				},
+			}) as unknown as ReadableStreamDefaultController<string>;
+
+		addConsoleClient(client(1));
+		addConsoleClient(client(2));
+		expect(consoleClientCount()).toBe(2);
+
+		closeConsoleClients();
+
+		expect(fermes).toEqual([1, 2]);
+		expect(consoleClientCount()).toBe(0);
+	});
+
+	test("un flux déjà fermé par le pair ne fait pas échouer l'arrêt", () => {
+		// Cas normal : l'onglet a été fermé juste avant l'arrêt du serveur.
+		const mort = {
+			enqueue() {},
+			close() {
+				throw new TypeError("already closed");
+			},
+		} as unknown as ReadableStreamDefaultController<string>;
+		addConsoleClient(mort);
+
+		expect(() => closeConsoleClients()).not.toThrow();
+		expect(consoleClientCount()).toBe(0);
+	});
+
+	test("après fermeture, plus rien n'est diffusé", () => {
+		const recu: string[] = [];
+		const client = {
+			enqueue(c: string) {
+				recu.push(c);
+			},
+			close() {},
+		} as unknown as ReadableStreamDefaultController<string>;
+
+		addConsoleClient(client);
+		closeConsoleClients();
+		recu.length = 0;
+
+		emitConsoleStart({ cmd: "après arrêt", cwd: "/srv", label: "audit" });
+		expect(recu).toHaveLength(0);
 	});
 });

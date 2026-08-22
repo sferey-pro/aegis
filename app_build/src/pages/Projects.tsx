@@ -23,7 +23,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Project, ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
-import { fetchJson, fetchVoid } from "@/lib/api";
+import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
 import type { ProjectListItem } from "@/routes/projects";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
@@ -62,6 +62,16 @@ export const Projects = React.memo(function Projects() {
 	const [filterTag, setFilterTag] = useState<string | null>(null);
 
 	const [isAdding, setIsAdding] = useState(false);
+	/**
+	 * Erreur renvoyée par le serveur au dernier envoi du formulaire.
+	 *
+	 * La validation HTML5 ne remplace pas celle du serveur, et ne la recouvre même
+	 * pas : un nom fait d'espaces satisfait `required` — il n'est pas vide — mais
+	 * le schéma le trime et refuse en 400 « Nom requis ». Même chose pour le
+	 * chemin. Le refus partait dans `console.error` : le formulaire ne se fermait
+	 * pas, n'affichait rien, et paraissait simplement ne pas répondre.
+	 */
+	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [detectStatus, setDetectStatus] = useState<
 		"idle" | "detecting" | "success" | "error"
 	>("idle");
@@ -192,6 +202,9 @@ export const Projects = React.memo(function Projects() {
 	const resetForm = () => {
 		setIsAdding(false);
 		setEditingId(null);
+		// Sans cela, l'erreur du précédent envoi réapparaîtrait à la réouverture du
+		// formulaire, sur un contenu qui n'a plus rien à voir.
+		setSubmitError(null);
 		setDetectStatus("idle");
 		setDetectedToolName(null);
 		setFormData({
@@ -225,6 +238,7 @@ export const Projects = React.memo(function Projects() {
 		shouldAudit = false,
 	) => {
 		e.preventDefault();
+		setSubmitError(null);
 		try {
 			const payload = { ...formData };
 			let createdProjectId = null;
@@ -274,7 +288,7 @@ export const Projects = React.memo(function Projects() {
 					});
 			}
 		} catch (err) {
-			console.error(err);
+			setSubmitError(apiErrorMessage(err));
 		}
 	};
 
@@ -733,7 +747,15 @@ export const Projects = React.memo(function Projects() {
 							</div>
 						</div>
 
-						<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
+						<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-col items-stretch gap-2 bg-muted/20 sm:flex-row sm:items-center sm:justify-end">
+							{submitError && (
+								<p
+									role="alert"
+									className="mr-auto text-sm font-medium text-red-500"
+								>
+									{submitError}
+								</p>
+							)}
 							<Button type="button" variant="secondary" onClick={resetForm}>
 								Annuler
 							</Button>

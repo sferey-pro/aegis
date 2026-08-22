@@ -208,10 +208,10 @@ describe("Projects", () => {
 		});
 	});
 
-	test("une création refusée en 409 passe pour un succès", async () => {
-		// Défaut UX10/FE2 : `res.ok` n'est pas vérifié. Sur un 409 « doublon de
-		// cible d'audit », le formulaire se ferme et rien n'est signalé — le
-		// référent croit avoir ajouté le projet. Documenté, pas validé.
+	test("une création refusée affiche le message du serveur", async () => {
+		// Le refus partait dans `console.error` : le formulaire ne se fermait pas,
+		// n'affichait rien, et paraissait ne pas répondre. Le référent croyait avoir
+		// ajouté le projet — ou ne comprenait pas pourquoi rien ne se passait.
 		mockFetch({
 			...base,
 			"GET /api/projects": [],
@@ -235,8 +235,70 @@ describe("Projects", () => {
 		await waitFor(() => {
 			expect(post().filter((c) => c.url === "/api/projects")).toHaveLength(1);
 		});
-		// Le message du serveur n'est affiché nulle part.
-		expect(screen.queryAllByText(/vise déjà cette cible/)).toHaveLength(0);
+		expect(
+			await screen.findByText(/vise déjà cette cible d'audit : Mon API/),
+		).toBeInTheDocument();
+		// Et le formulaire reste ouvert, pour corriger.
+		expect(screen.getByLabelText(/Nom du projet/)).toHaveValue("Doublon");
+	});
+
+	test("un nom fait d'espaces est refusé par le serveur, et le formulaire le dit", async () => {
+		// La validation HTML5 ne recouvre pas celle du serveur : `required` accepte
+		// « ␣␣␣ » puisque le champ n'est pas vide, alors que le schéma le trime.
+		// C'est le cas rencontré à l'usage.
+		mockFetch({
+			...base,
+			"GET /api/projects": [],
+			"POST /api/projects": {
+				status: 400,
+				body: { error: "Nom requis" },
+			},
+		});
+		monte();
+		await screen.findByText("Aucun projet");
+
+		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
+			target: { value: "   " },
+		});
+		fireEvent.change(screen.getByLabelText(/Chemin absolu/), {
+			target: { value: "/srv/api" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Créer sans auditer" }));
+
+		expect(await screen.findByRole("alert")).toHaveTextContent("Nom requis");
+	});
+
+	test("une nouvelle tentative efface le message précédent", async () => {
+		mockFetch({
+			...base,
+			"GET /api/projects": [],
+			"POST /api/projects": { status: 400, body: { error: "Nom requis" } },
+		});
+		monte();
+		await screen.findByText("Aucun projet");
+
+		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
+			target: { value: "   " },
+		});
+		fireEvent.change(screen.getByLabelText(/Chemin absolu/), {
+			target: { value: "/srv/api" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Créer sans auditer" }));
+		await screen.findByRole("alert");
+
+		// Second envoi, accepté cette fois.
+		mockFetch({
+			...base,
+			"GET /api/projects": [],
+			"POST /api/projects": { status: 201, body: { id: 9, name: "API" } },
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Créer sans auditer" }));
+
+		await waitFor(() => {
+			expect(screen.queryAllByRole("alert")).toHaveLength(0);
+		});
 	});
 
 	test("toggleIgnore envoie un PUT partiel, refusé par la validation", async () => {

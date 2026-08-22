@@ -126,7 +126,7 @@ déclarées sont exercées par des tests fonctionnels sur un vrai serveur — vo
 
 | Aspect | État |
 |---|---|
-| Tests | **1161**, 0 échec, colocalisés (chaque fichier de code a son test à côté) |
+| Tests | **1168**, 0 échec, colocalisés (chaque fichier de code a son test à côté) |
 | Typage | `tsc --noEmit` en 0, zéro `any` explicite |
 | Lint | `biome check --error-on-warnings` en 0 (politique zéro warning) |
 | CI | 4 portes : install, lint, typecheck, tests |

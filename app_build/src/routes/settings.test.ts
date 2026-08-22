@@ -7,17 +7,29 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { existsSync, rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 import { getDb } from "@/db";
 import { getGithubConfig, setGithubConfig } from "@/db/advisories";
 import { getAllAnnotations, upsertAnnotation } from "@/db/annotations";
 import { createProject, listProjects, type Project } from "@/db/projects";
 import { getSetting, setSetting } from "@/db/settings";
+import { enqueueGlobalAudit, getAuditStatus } from "@/lib/audit/queue";
 import { jsonBody, startTestServer, type TestServer } from "@/test/server";
 
 let srv: TestServer;
+
+/** La file est un mutex de portée processus : ne rien laisser tourner derrière. */
+async function attendreFinAudit(limiteMs = 8000) {
+	const debut = Date.now();
+	while (getAuditStatus().isRunning) {
+		if (Date.now() - debut > limiteMs) throw new Error("file toujours occupée");
+		await new Promise((r) => setTimeout(r, 10));
+	}
+}
 
 /**
  * `createSnapshot`/`restoreSnapshot` travaillent sur des chemins figés dans le
@@ -574,6 +586,64 @@ describe("POST /api/config/reset", () => {
 			}),
 		);
 		expect(status).toBe(201);
+	});
+
+	test("refuse en 409 pendant un audit", async () => {
+		// Un audit en cours écrit dans la base : la supprimer sous ses pieds le
+		// ferait échouer sur un fichier disparu, et le run resterait à moitié
+		// enregistré.
+		const racine = join(tmpdir(), `aegis-reset-guard-${randomUUID()}`);
+		mkdirSync(racine, { recursive: true });
+		try {
+			const p = createProject({
+				name: "occupe",
+				path: racine,
+				audit_path: "cible-absente",
+				type: "node",
+				tool: "npm",
+			});
+			// L'enrichissement ne doit rien tenter : l'audit échoue vite sur un
+			// dossier inexistant, ce qui suffit à occuper la file.
+			enqueueGlobalAudit([p.id, p.id, p.id, p.id]);
+			expect(getAuditStatus().isRunning).toBe(true);
+
+			const { status, data } = await srv.json<{ error: string }>(
+				"/api/config/reset",
+				{ method: "POST" },
+			);
+			expect(status).toBe(409);
+			expect(data.error).toContain("Un audit est en cours");
+			// Rien n'a été supprimé.
+			expect(listProjects()).toHaveLength(1);
+
+			await attendreFinAudit();
+		} finally {
+			rmSync(racine, { recursive: true, force: true });
+		}
+	});
+
+	test("réussit une fois l'audit terminé", async () => {
+		const racine = join(tmpdir(), `aegis-reset-apres-${randomUUID()}`);
+		mkdirSync(racine, { recursive: true });
+		try {
+			const p = createProject({
+				name: "termine",
+				path: racine,
+				audit_path: "cible-absente",
+				type: "node",
+				tool: "npm",
+			});
+			enqueueGlobalAudit([p.id]);
+			await attendreFinAudit();
+
+			const { status } = await srv.json("/api/config/reset", {
+				method: "POST",
+			});
+			expect(status).toBe(200);
+			expect(listProjects()).toEqual([]);
+		} finally {
+			rmSync(racine, { recursive: true, force: true });
+		}
 	});
 
 	test("sur une configuration vide, réussit sans rien compter", async () => {

@@ -1,3 +1,4 @@
+import { getAllGithubConfig } from "./advisories";
 import { getDb } from "./index";
 
 export function getSetting(key: string, defaultValue = ""): string {
@@ -81,7 +82,10 @@ export const PUBLIC_SETTING_KEYS = [
  * dans le formulaire sans jamais transporter la valeur (CONTEXT.md §12, N5).
  */
 export function getPublicSettings(): Record<string, string> {
-	const tout = getAllSettings();
+	// La configuration GitHub vit dans la base d'avis, pour survivre à une remise
+	// à zéro. L'écran Réglages n'a pas à connaître ce découpage : il lit un seul
+	// objet, recomposé ici.
+	const tout = { ...getAllSettings(), ...getAllGithubConfig() };
 	const sortie: Record<string, string> = {};
 
 	for (const cle of PUBLIC_SETTING_KEYS) {

@@ -1,105 +1,63 @@
-import { getDb } from "./index";
-import { SECRET_SETTING_KEYS } from "./settings";
+import { existsSync, rmSync } from "node:fs";
+import { closeDb, getDb } from "./index";
 
 /**
- * Réglages conservés par une remise à zéro.
+ * Remise à zéro de la configuration : **suppression du fichier principal**.
  *
- * Seule la clé GHSA — le jeton GitHub qui sert à interroger la base d'avis —
- * survit. Elle est coûteuse à régénérer côté GitHub, et la reperdre à chaque
- * remise à zéro dissuaderait d'en faire une. Tout le reste est de la
- * configuration : URL Jira, identifiants, seuils, état de quota.
+ * La version précédente énumérait les tables à vider. C'était fragile pour une
+ * raison qui n'a rien d'hypothétique : une table ajoutée plus tard y aurait
+ * survécu en silence, sans que rien ne le signale — ni test, ni type, ni erreur.
+ * La liste devait être tenue à jour par mémoire.
+ *
+ * Elle n'existe plus. Tout ce qui doit survivre à un reset vit dans un **second
+ * fichier** (`src/db/advisories.ts`) : le cache d'avis GitHub et la clé GHSA.
+ * Tout ce qui doit disparaître vit dans le fichier principal. La propriété est
+ * donc **structurelle** : elle ne peut pas se désynchroniser d'une liste, parce
+ * qu'il n'y a plus de liste.
+ *
+ * **Jamais touché** : les projets sur le disque. Cette fonction ne supprime que
+ * le fichier SQLite d'Aegis et ses compagnons WAL ; aucun chemin de projet n'est
+ * lu. Un test le vérifie.
  */
-const REGLAGES_CONSERVES = ["GITHUB_TOKEN"] as const;
-
-/** Nombre de lignes retirées, par table. */
-export interface ResetCounts {
+export interface ResetResult {
+	/** Chemin du fichier supprimé. */
+	path: string;
+	/** Le fichier existait-il ? `false` sur une instance jamais démarrée. */
+	existed: boolean;
+	/** Nombre de projets déclarés avant la remise à zéro, pour le compte rendu. */
 	projects: number;
-	runs: number;
-	annotations: number;
-	tickets: number;
-	occurrences: number;
-	tags: number;
-	prompts: number;
-	reports: number;
-	settings: number;
 }
 
-/**
- * Vide la configuration de l'application, pour repartir d'un import propre.
- *
- * **Ce qui est supprimé** : les projets et tout ce qui en dépend (runs,
- * annotations, tickets, occurrences — par cascade de clé étrangère), le
- * catalogue de tags, la bibliothèque de prompts, les compte-rendus d'audit, et
- * tous les réglages sauf la clé GHSA.
- *
- * **Ce qui est conservé** :
- *  - la **clé GHSA** (`GITHUB_TOKEN`) ;
- *  - le **cache d'avis** (`advisory_cache`), qui n'est pas de la configuration
- *    mais un cache de données publiques, coûteux à reconstruire en quota et sans
- *    effet sur un import de projets. Un bouton dédié existe pour le vider
- *    séparément (`DELETE /api/advisories/cache`).
- *
- * **Ce qui n'est jamais touché** : les projets **sur le disque**. Cette fonction
- * n'écrit que dans SQLite ; aucun chemin du système de fichiers n'est lu ni
- * supprimé. C'est la garantie qui compte le plus ici, et elle est vérifiée par un
- * test.
- *
- * Le tout dans **une seule transaction** : une remise à zéro à moitié appliquée
- * laisserait un état plus difficile à comprendre que celui qu'on voulait quitter.
- */
-export function resetConfiguration(): ResetCounts {
-	const db = getDb();
+export function resetConfiguration(): ResetResult {
+	const path = process.env.DB_PATH || "audit.sqlite";
 
-	const compte = (sql: string, ...params: unknown[]): number => {
-		const row = db.query(sql).get(...(params as [])) as { n: number };
-		return row.n;
-	};
+	// Compté avant fermeture : après, il n'y a plus de base à interroger. Sert
+	// uniquement au compte rendu affiché à l'utilisateur.
+	let projects = 0;
+	try {
+		projects = (
+			getDb().query("SELECT COUNT(*) AS n FROM projects").get() as { n: number }
+		).n;
+	} catch {
+		// Base absente ou illisible : le reset a d'autant plus de sens.
+	}
 
-	const marques = REGLAGES_CONSERVES.map(() => "?").join(", ");
+	// La connexion doit être fermée avant de retirer le fichier, sinon SQLite
+	// continue d'écrire dans un inode supprimé et la base « revient » au prochain
+	// checkpoint.
+	closeDb();
 
-	// Comptés avant suppression : après, il n'y a plus rien à compter.
-	const counts: ResetCounts = {
-		projects: compte("SELECT COUNT(*) AS n FROM projects"),
-		runs: compte("SELECT COUNT(*) AS n FROM runs"),
-		annotations: compte("SELECT COUNT(*) AS n FROM annotations"),
-		tickets: compte("SELECT COUNT(*) AS n FROM tickets"),
-		occurrences: compte("SELECT COUNT(*) AS n FROM cve_occurrences"),
-		tags: compte("SELECT COUNT(*) AS n FROM tags"),
-		prompts: compte("SELECT COUNT(*) AS n FROM prompts"),
-		reports: compte("SELECT COUNT(*) AS n FROM reports"),
-		settings: compte(
-			`SELECT COUNT(*) AS n FROM settings WHERE key NOT IN (${marques})`,
-			...REGLAGES_CONSERVES,
-		),
-	};
+	const existed = existsSync(path);
+	for (const suffixe of ["", "-wal", "-shm"]) {
+		const f = `${path}${suffixe}`;
+		if (existsSync(f)) rmSync(f, { force: true });
+	}
 
-	db.transaction(() => {
-		// `projects` d'abord : les quatre tables dépendantes partent en cascade.
-		db.query("DELETE FROM projects").run();
-		db.query("DELETE FROM tags").run();
-		db.query("DELETE FROM prompts").run();
-		db.query("DELETE FROM reports").run();
-		db.query(`DELETE FROM settings WHERE key NOT IN (${marques})`).run(
-			...REGLAGES_CONSERVES,
-		);
-	})();
+	// Rouvrir immédiatement : `getDb()` recrée le fichier et applique le schéma,
+	// donc l'application reste utilisable sans redémarrage. C'est ce qui distingue
+	// cette remise à zéro de la restauration d'instantané, qui appelle
+	// `process.exit(0)` (défaut N2).
+	getDb();
 
-	return counts;
-}
-
-/** Clés de réglages conservées, exposées pour l'affichage et les tests. */
-export function preservedSettingKeys(): readonly string[] {
-	return REGLAGES_CONSERVES;
-}
-
-/**
- * Vérifie que la clé GHSA fait bien partie des secrets connus.
- *
- * Garde-fou de cohérence : si `SECRET_SETTING_KEYS` évoluait sans que cette liste
- * suive, une remise à zéro effacerait un secret qu'elle croyait conserver.
- */
-export function ghsaKeyIsPreserved(): boolean {
-	return REGLAGES_CONSERVES.every((k) =>
-		(SECRET_SETTING_KEYS as readonly string[]).includes(k),
-	);
+	return { path, existed, projects };
 }

@@ -870,7 +870,7 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1159** |
+| `src/pages/Projects.tsx` | **1161** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |

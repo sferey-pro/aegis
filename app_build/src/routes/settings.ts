@@ -38,6 +38,20 @@ export const settingsRoutes = {
 				}
 			}
 
+			// La configuration GitHub vit dans la base d'avis, pour survivre à une
+			// remise à zéro. L'écran Réglages poste un seul objet ; le tri se fait
+			// ici, pas côté client.
+			const { GITHUB_CONFIG_KEYS, setGithubConfig } = await import(
+				"../db/advisories"
+			);
+			for (const cle of GITHUB_CONFIG_KEYS) {
+				const valeur = aEcrire[cle];
+				if (typeof valeur === "string") {
+					setGithubConfig(cle, valeur);
+					delete aEcrire[cle];
+				}
+			}
+
 			setAllSettings(aEcrire);
 			return Response.json({ success: true });
 		},
@@ -146,13 +160,13 @@ export const settingsRoutes = {
 	 */
 	"/api/config/reset": {
 		async POST() {
-			const { resetConfiguration, preservedSettingKeys } = await import(
-				"../db/reset"
-			);
+			const { resetConfiguration } = await import("../db/reset");
+			const { GITHUB_CONFIG_KEYS } = await import("../db/advisories");
 			return Response.json({
 				success: true,
-				deleted: resetConfiguration(),
-				preserved: preservedSettingKeys(),
+				reset: resetConfiguration(),
+				// Ce qui vit dans l'autre fichier, donc hors d'atteinte du reset.
+				preserved: ["advisory_cache", ...GITHUB_CONFIG_KEYS],
 			});
 		},
 	},

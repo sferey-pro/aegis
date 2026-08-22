@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1159 tests · 0 échec · 90 fichiers
+1161 tests · 0 échec · 90 fichiers
 ├── 361 composants (46 fichiers) — DOM, React, fetch simulé
-└── 798 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
+└── 800 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -115,7 +115,7 @@ Points qui méritaient d'être épinglés :
 
 ---
 
-## 4. API — 259 tests fonctionnels
+## 4. API — 261 tests fonctionnels
 
 Vrai `Bun.serve` sur port éphémère, vraie base jetable, vraies requêtes HTTP.
 Les 33 routes d'API déclarées sont exercées.

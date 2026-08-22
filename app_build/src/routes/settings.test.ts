@@ -11,6 +11,7 @@ import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { getDb } from "@/db";
+import { getGithubConfig, setGithubConfig } from "@/db/advisories";
 import { getAllAnnotations, upsertAnnotation } from "@/db/annotations";
 import { createProject, listProjects, type Project } from "@/db/projects";
 import { getSetting, setSetting } from "@/db/settings";
@@ -57,7 +58,7 @@ describe("GET /api/settings", () => {
 	});
 
 	test("renvoie les clés de la liste blanche, et l'état des secrets", async () => {
-		setSetting("GITHUB_TOKEN", "ghp_x");
+		setGithubConfig("GITHUB_TOKEN", "ghp_x");
 		setSetting("AUDIT_MAX_AGE_HOURS", "24");
 		const { data } = await srv.json("/api/settings");
 		expect(data).toEqual({
@@ -82,10 +83,18 @@ describe("PUT /api/settings", () => {
 	}
 
 	test("enregistre le lot et confirme", async () => {
-		const { status, data } = await enregistrer({ GITHUB_TOKEN: "ghp_x" });
+		const { status, data } = await enregistrer({ AUDIT_MAX_AGE_HOURS: "36" });
 		expect(status).toBe(200);
 		expect(data).toEqual({ success: true });
-		expect(getSetting("GITHUB_TOKEN")).toBe("ghp_x");
+		expect(getSetting("AUDIT_MAX_AGE_HOURS")).toBe("36");
+	});
+
+	test("la clé GHSA est écrite dans la base d'avis, pas dans les réglages", async () => {
+		// Elle vit avec le cache d'avis pour survivre à une remise à zéro. L'écran
+		// poste un seul objet ; le tri se fait côté serveur.
+		await enregistrer({ GITHUB_TOKEN: "ghp_x" });
+		expect(getGithubConfig("GITHUB_TOKEN")).toBe("ghp_x");
+		expect(getSetting("GITHUB_TOKEN")).toBe("");
 	});
 
 	test("les valeurs non textuelles sont stockées en texte", async () => {
@@ -148,9 +157,9 @@ describe("PUT /api/settings", () => {
 		// Le formulaire ne connaît pas la valeur du jeton — l'API ne la renvoie
 		// plus — et poste donc une chaîne vide quand l'utilisateur n'y touche pas.
 		// L'appliquer effacerait le jeton à chaque enregistrement (N5).
-		setSetting("GITHUB_TOKEN", "ghp_reel");
+		setGithubConfig("GITHUB_TOKEN", "ghp_reel");
 		await enregistrer({ GITHUB_TOKEN: "", AUDIT_MAX_AGE_HOURS: "12" });
-		expect(getSetting("GITHUB_TOKEN")).toBe("ghp_reel");
+		expect(getGithubConfig("GITHUB_TOKEN")).toBe("ghp_reel");
 		expect(getSetting("AUDIT_MAX_AGE_HOURS")).toBe("12");
 	});
 
@@ -505,43 +514,44 @@ describe("contrats attendus — à activer au correctif", () => {
 });
 
 describe("POST /api/config/reset", () => {
-	test("vide la configuration et retourne le décompte", async () => {
+	test("vide la configuration et rend compte", async () => {
 		createProject({
 			name: "api",
 			path: "/srv/api",
 			type: "node",
 			tool: "npm",
 		});
-		setSetting("GITHUB_TOKEN", "ghp_a_conserver");
 		setSetting("JIRA_BASE_URL", "https://jira.example.test");
 
 		const { status, data } = await srv.json<{
 			success: boolean;
-			deleted: { projects: number; settings: number };
+			reset: { projects: number; existed: boolean };
 			preserved: string[];
 		}>("/api/config/reset", { method: "POST" });
 
 		expect(status).toBe(200);
 		expect(data.success).toBe(true);
-		expect(data.deleted.projects).toBe(1);
-		expect(data.deleted.settings).toBe(1);
-		expect(data.preserved).toEqual(["GITHUB_TOKEN"]);
+		expect(data.reset.projects).toBe(1);
+		expect(data.reset.existed).toBe(true);
+		expect(data.preserved).toContain("advisory_cache");
+		expect(data.preserved).toContain("GITHUB_TOKEN");
 		expect(listProjects()).toEqual([]);
+		expect(getSetting("JIRA_BASE_URL")).toBe("");
 	});
 
-	test("la clé GHSA survit, les autres réglages non", async () => {
-		setSetting("GITHUB_TOKEN", "ghp_a_conserver");
+	test("la clé GHSA survit, la clé Jira non", async () => {
+		setGithubConfig("GITHUB_TOKEN", "ghp_a_conserver");
 		setSetting("JIRA_API_KEY", "cle-jira");
 		await srv.json("/api/config/reset", { method: "POST" });
 
-		expect(getSetting("GITHUB_TOKEN")).toBe("ghp_a_conserver");
+		expect(getGithubConfig("GITHUB_TOKEN")).toBe("ghp_a_conserver");
 		expect(getSetting("JIRA_API_KEY")).toBe("");
 	});
 
 	test("l'état des secrets reste cohérent après remise à zéro", async () => {
-		// L'écran Réglages lit `<CLÉ>_CONFIGURED` : la clé GHSA doit rester
-		// annoncée comme configurée, la clé Jira comme absente.
-		setSetting("GITHUB_TOKEN", "ghp_a_conserver");
+		// L'écran Réglages lit `<CLÉ>_CONFIGURED` : la clé GHSA doit rester annoncée
+		// comme configurée bien que la base principale ait été recréée.
+		setGithubConfig("GITHUB_TOKEN", "ghp_a_conserver");
 		setSetting("JIRA_API_KEY", "cle-jira");
 		await srv.json("/api/config/reset", { method: "POST" });
 
@@ -550,11 +560,27 @@ describe("POST /api/config/reset", () => {
 		expect(data.JIRA_API_KEY_CONFIGURED).toBe("false");
 	});
 
-	test("sur une configuration vide, réussit avec un décompte à zéro", async () => {
+	test("le serveur reste utilisable sans redémarrage", async () => {
+		// La base est recréée et son schéma réappliqué par `getDb()` : c'est le même
+		// chemin qu'un premier démarrage, pas un cas particulier.
+		await srv.json("/api/config/reset", { method: "POST" });
+		const { status } = await srv.json(
+			"/api/projects",
+			jsonBody({
+				name: "après reset",
+				path: "/srv/apres",
+				type: "node",
+				tool: "npm",
+			}),
+		);
+		expect(status).toBe(201);
+	});
+
+	test("sur une configuration vide, réussit sans rien compter", async () => {
 		const { status, data } = await srv.json<{
-			deleted: { projects: number };
+			reset: { projects: number };
 		}>("/api/config/reset", { method: "POST" });
 		expect(status).toBe(200);
-		expect(data.deleted.projects).toBe(0);
+		expect(data.reset.projects).toBe(0);
 	});
 });

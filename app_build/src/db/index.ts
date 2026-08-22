@@ -160,15 +160,6 @@ function initDb(database: Database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS advisory_cache (
-      id TEXT PRIMARY KEY,
-      severity TEXT,
-      fixes JSON,
-      html_url TEXT,
-      cvss_vector TEXT,
-      published_at DATETIME,
-      fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
 
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -205,9 +196,6 @@ function initDb(database: Database) {
 	};
 
 	ajouteColonne("reports", "details JSON DEFAULT '[]'");
-	ajouteColonne("advisory_cache", "published_at DATETIME");
-	ajouteColonne("advisory_cache", "html_url TEXT");
-	ajouteColonne("advisory_cache", "cvss_vector TEXT");
 	ajouteColonne("tickets", "content_hash TEXT");
 
 	/**

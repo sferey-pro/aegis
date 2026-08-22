@@ -17,7 +17,7 @@ cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
 bun run test:ui     # 361 tests composants — happy-dom actif
-bun run test:api    # 798 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:api    # 800 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1159 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1161 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -70,7 +70,15 @@ Un seul process Bun sert à la fois l'API et la SPA React. SQLite est le seul st
 
 **Console live** (`src/lib/console.ts`) : diffusion SSE vers des abonnés en mémoire, volatile — jamais persistée. Les wrappers de sous-processus encadrent chaque commande avec `emitConsoleStart`/`emitConsoleEnd` ; un `AsyncLocalStorage` (`projectContext`) étiquette les événements avec le nom du projet sans le faire passer par les signatures d'appel. Toute sortie au-delà de 3000 caractères est tronquée. Ctrl+Shift+D bascule vers la page `/debug` qui affiche le flux.
 
-**Remise à zéro** (`src/db/reset.ts`) : `POST /api/config/reset` vide la configuration en **une transaction** — projets (et leurs runs, annotations, tickets, occurrences par cascade), tags, prompts, compte-rendus, réglages. Deux exceptions délibérées : la **clé GHSA** (`GITHUB_TOKEN`), coûteuse à régénérer, et le **cache d'avis**, qui n'est pas de la configuration mais un cache de données publiques — un bouton dédié le vide séparément. La fonction n'écrit que dans SQLite : **aucun chemin du disque n'est lu ni supprimé**, et un test le vérifie. `ghsaKeyIsPreserved()` est un garde-fou : si la liste des secrets évoluait sans que celle des clés conservées suive, on effacerait un secret en croyant le garder.
+**Deux bases, et c'est structurant.** `DB_PATH` porte la configuration du parc ; `<base>-advisories.sqlite` (`src/db/advisories.ts`, chemin dérivé, surchargeable par `ADVISORY_DB_PATH`) porte tout ce qui relève du dialogue avec GitHub : le cache d'avis, la clé GHSA et l'état du quota.
+
+Le découpage n'est pas cosmétique — il rend une propriété **structurelle**. `POST /api/config/reset` (`src/db/reset.ts`) est la **suppression du fichier principal**, pas une énumération de tables à vider : il n'y a plus de liste à tenir à jour, donc plus rien à oublier quand une table est ajoutée. Un test le prouve en créant une table à la volée avant le reset. La séquence est `closeDb()` → retrait de `<base>`, `-wal` et `-shm` → `getDb()`, qui recrée le fichier et réapplique le schéma : c'est le même chemin qu'un premier démarrage. Ne pas retirer le `-wal` ferait rejouer d'anciennes écritures par-dessus la base neuve (le défaut que N2 décrit sur la restauration).
+
+Conséquences à connaître :
+- `getPublicSettings` **recompose** les réglages depuis les deux fichiers, et `PUT /api/settings` **route** les clés `GITHUB_*` vers la base d'avis. Le client poste un seul objet ; le tri est côté serveur. Oublier l'un des deux fait disparaître la clé GHSA de l'écran, ou la fait réécrire dans le mauvais fichier — les deux se sont produits pendant le découpage.
+- `useTempDb` isole **les deux** fichiers et ferme **les deux** connexions. Le singleton d'avis ne se réévalue pas seul : ne fermer que la principale laissait le cache s'accumuler d'un test à l'autre, et une assertion « un appel réseau a bien eu lieu » échouait parce qu'un test précédent avait rempli le cache.
+- Une migration `ATTACH` reprend cache et clés restés dans la base principale à la première ouverture, puis les y supprime — sinon la table y resterait et le prochain reset la viderait sans que personne ne s'en aperçoive.
+- La remise à zéro ne touche **jamais** aux projets sur le disque : elle ne supprime que le fichier SQLite d'Aegis, et un test le vérifie.
 
 **Schéma** (`src/db/index.ts`) : uniquement des `CREATE TABLE IF NOT EXISTS` plus des migrations `ALTER TABLE` inline enveloppées dans des try/catch silencieux — c'est toute la stratégie de migration, ajoutez donc vos colonnes de la même façon. Mode WAL, clés étrangères ON, connexion paresseuse en singleton (importer un module db ne doit jamais créer le fichier).
 

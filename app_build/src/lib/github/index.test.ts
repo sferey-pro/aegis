@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { getSetting } from "@/db/settings";
+import { getGithubConfig } from "@/db/advisories";
 import { useTempDb } from "@/test/db";
 import {
 	getCachedAdvisory,
@@ -270,9 +270,10 @@ describe("lib/github — resolveFixedVersion", () => {
 		expect(r.resolvable).toBe(true);
 	});
 
-	test("l'état du quota est enregistré dans les réglages", async () => {
+	test("l'état du quota est enregistré dans la base d'avis", async () => {
 		// C'est ce que l'écran Réglages affiche ; sans persistance, l'information
-		// disparaîtrait avec la requête.
+		// disparaîtrait avec la requête. Elle vit avec le reste de ce qui concerne
+		// GitHub, dans le second fichier — donc hors d'atteinte d'une remise à zéro.
 		stubFetch({
 			body: avis(),
 			headers: {
@@ -283,9 +284,9 @@ describe("lib/github — resolveFixedVersion", () => {
 		});
 		await resolveFixedVersion({ ...base, cve: "CVE-2020-8203" });
 
-		expect(getSetting("GITHUB_RL_LIMIT")).toBe("5000");
-		expect(getSetting("GITHUB_RL_REMAINING")).toBe("4998");
-		expect(getSetting("GITHUB_RL_RESET")).toBe("1735689600");
+		expect(getGithubConfig("GITHUB_RL_LIMIT")).toBe("5000");
+		expect(getGithubConfig("GITHUB_RL_REMAINING")).toBe("4998");
+		expect(getGithubConfig("GITHUB_RL_RESET")).toBe("1735689600");
 	});
 
 	test("un 404 reste résoluble mais sans version corrigée", async () => {

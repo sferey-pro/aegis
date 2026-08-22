@@ -9,6 +9,7 @@ import {
 } from "bun:test";
 
 import { getDb } from "@/db";
+import { getAdvisoryDb } from "@/db/advisories";
 import { upsertAnnotation } from "@/db/annotations";
 import { createProject, type Project } from "@/db/projects";
 import { addRun } from "@/db/runs";
@@ -26,7 +27,8 @@ beforeAll(async () => {
 afterAll(() => srv.stop());
 beforeEach(() => {
 	getDb().query("DELETE FROM projects").run();
-	getDb().query("DELETE FROM advisory_cache").run();
+	// Le cache d'avis vit dans un fichier séparé depuis le 22/08/2026.
+	getAdvisoryDb().query("DELETE FROM advisory_cache").run();
 });
 afterEach(() => {
 	globalThis.fetch = natif;

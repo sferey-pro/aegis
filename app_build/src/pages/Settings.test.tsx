@@ -266,7 +266,12 @@ describe("Settings — remise à zéro", () => {
 	test("le bouton n'agit qu'après confirmation", async () => {
 		mockFetch({
 			"GET /api/settings": reglages,
-			"POST /api/config/reset": { body: { success: true, deleted: {} } },
+			"POST /api/config/reset": {
+				body: {
+					success: true,
+					reset: { path: "/tmp/audit.sqlite", existed: true, projects: 0 },
+				},
+			},
 		});
 		await ouvrirConfirmation();
 
@@ -287,7 +292,12 @@ describe("Settings — remise à zéro", () => {
 	test("annuler ne déclenche aucun appel", async () => {
 		mockFetch({
 			"GET /api/settings": reglages,
-			"POST /api/config/reset": { body: { success: true, deleted: {} } },
+			"POST /api/config/reset": {
+				body: {
+					success: true,
+					reset: { path: "/tmp/audit.sqlite", existed: true, projects: 0 },
+				},
+			},
 		});
 		await ouvrirConfirmation();
 		await screen.findByRole("dialog");
@@ -309,17 +319,8 @@ describe("Settings — remise à zéro", () => {
 			"POST /api/config/reset": {
 				body: {
 					success: true,
-					deleted: {
-						projects: 3,
-						runs: 12,
-						annotations: 7,
-						tickets: 1,
-						occurrences: 20,
-						tags: 2,
-						prompts: 4,
-						reports: 5,
-						settings: 6,
-					},
+					reset: { path: "/tmp/audit.sqlite", existed: true, projects: 3 },
+					preserved: ["advisory_cache", "GITHUB_TOKEN"],
 				},
 			},
 		});
@@ -329,8 +330,16 @@ describe("Settings — remise à zéro", () => {
 		expect(
 			await screen.findByText("Configuration remise à zéro."),
 		).toBeInTheDocument();
-		expect(screen.getByText(/3 projets/)).toBeInTheDocument();
-		expect(screen.getByText(/6 réglages supprimés/)).toBeInTheDocument();
+		expect(
+			screen.getByText(/3 projets déclarés ont été retirés du suivi/),
+		).toBeInTheDocument();
+		// Le message rassure explicitement sur les deux points sensibles.
+		expect(
+			screen.getByText(/les dossiers sur le disque sont intacts/),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText(/La clé GHSA et le cache d'avis sont conservés/),
+		).toBeInTheDocument();
 		// Le bouton de remise à zéro a laissé place à celui de rechargement.
 		expect(
 			screen.queryAllByRole("button", {

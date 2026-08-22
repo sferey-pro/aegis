@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import type { ResetCounts } from "@/db/reset";
+import type { ResetResult } from "@/db/reset";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
 import { errorMessage } from "@/lib/utils";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
@@ -66,7 +66,7 @@ export function Settings() {
 	/** Remise à zéro : confirmation, exécution, compte rendu. */
 	const [resetOpen, setResetOpen] = useState(false);
 	const [resetLoading, setResetLoading] = useState(false);
-	const [resetDone, setResetDone] = useState<ResetCounts | null>(null);
+	const [resetDone, setResetDone] = useState<ResetResult | null>(null);
 	const [resetError, setResetError] = useState<string | null>(null);
 	/**
 	 * Les secrets sont en écriture seule : l'API n'en renvoie que l'état. On garde
@@ -122,11 +122,11 @@ export function Settings() {
 		setResetLoading(true);
 		setResetError(null);
 		try {
-			const data = await fetchJson<{ deleted: ResetCounts }>(
+			const data = await fetchJson<{ reset: ResetResult }>(
 				"/api/config/reset",
 				{ method: "POST" },
 			);
-			setResetDone(data.deleted);
+			setResetDone(data.reset);
 			setResetOpen(false);
 		} catch (e: unknown) {
 			setResetError(apiErrorMessage(e));
@@ -639,15 +639,12 @@ export function Settings() {
 							>
 								<p className="font-semibold">Configuration remise à zéro.</p>
 								<p className="text-muted-foreground mt-1">
-									{resetDone.projects} projet
-									{resetDone.projects > 1 ? "s" : ""}, {resetDone.runs} run
-									{resetDone.runs > 1 ? "s" : ""}, {resetDone.annotations}{" "}
-									annotation{resetDone.annotations > 1 ? "s" : ""},{" "}
-									{resetDone.tags} tag{resetDone.tags > 1 ? "s" : ""},{" "}
-									{resetDone.prompts} prompt{resetDone.prompts > 1 ? "s" : ""},{" "}
-									{resetDone.reports} compte-rendu
-									{resetDone.reports > 1 ? "s" : ""} et {resetDone.settings}{" "}
-									réglage{resetDone.settings > 1 ? "s" : ""} supprimés.
+									La base d'Aegis a été recréée vide.{" "}
+									{resetDone.projects > 0
+										? `${resetDone.projects} projet${resetDone.projects > 1 ? "s" : ""} déclaré${resetDone.projects > 1 ? "s" : ""} ${resetDone.projects > 1 ? "ont" : "a"} été retiré${resetDone.projects > 1 ? "s" : ""} du suivi — les dossiers sur le disque sont intacts.`
+										: "Aucun projet n'était déclaré."}{" "}
+									La clé GHSA et le cache d'avis sont conservés : ils vivent
+									dans un fichier séparé.
 								</p>
 								<Button
 									type="button"

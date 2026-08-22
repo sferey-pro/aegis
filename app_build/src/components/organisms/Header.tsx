@@ -26,7 +26,7 @@ export const Header = memo(function Header({
 	const path = location.pathname;
 
 	return (
-		<header className="fixed top-0 left-0 right-0 z-50 border-b flex items-center justify-between py-4 px-6 md:px-12 w-full">
+		<header className="fixed top-0 left-0 right-0 z-50 border-b bg-background flex items-center justify-between py-4 px-6 md:px-12 w-full">
 			<div className="flex items-center gap-2 select-none w-full max-w-7xl mx-auto justify-between">
 				<Link
 					to="/"

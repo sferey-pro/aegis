@@ -89,12 +89,19 @@ describe("GlobalLoader", () => {
 		expect(screen.queryAllByText(/Mon API/)).toHaveLength(0);
 	});
 
-	test("il couvre l'écran et bloque les interactions dessous", () => {
+	test("il couvre l'écran, hors de l'arbre de la page", () => {
 		const { container } = render(
 			<GlobalLoader {...props({ loading: true })} />,
 		);
-		const overlay = container.firstElementChild as HTMLElement;
-		expect(overlay.className).toContain("fixed");
-		expect(overlay.className).toContain("inset-0");
+
+		// Le voile passe par un portail : rien ne reste dans le conteneur de la
+		// page. C'est ce qui le fait passer devant l'en-tête fixe, y compris quand
+		// le conteneur d'application applique un `opacity`/`blur` qui l'aurait
+		// enfermé dans un contexte d'empilement.
+		expect(container.firstElementChild).toBeNull();
+
+		const overlay = document.querySelector(".fixed.inset-0") as HTMLElement;
+		expect(overlay).not.toBeNull();
+		expect(overlay.className).toContain("z-[100]");
 	});
 });

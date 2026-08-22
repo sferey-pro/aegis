@@ -19,13 +19,21 @@ import {
 	Trash2,
 	XCircle,
 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import type { Project, ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
 import type { ProjectListItem } from "@/routes/projects";
+import { FullScreenOverlay } from "../components/layout/FullScreenOverlay";
 import { ShieldLoader } from "../components/molecules/ShieldLoader";
+import { TagBadge } from "../components/molecules/TagBadge";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
 import { Badge } from "../components/ui/badge";
@@ -60,6 +68,15 @@ export const Projects = React.memo(function Projects() {
 	const [loading, setLoading] = useState(true);
 
 	const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+
+	/**
+	 * Couleur par nom de tag. Un projet ne stocke que les noms : sans cette table
+	 * les badges rendus depuis un projet perdaient leur pastille.
+	 */
+	const tagColors = useMemo(
+		() => Object.fromEntries(availableTags.map((t) => [t.name, t.color])),
+		[availableTags],
+	);
 	const [filterTag, setFilterTag] = useState<string | null>(null);
 
 	const [isAdding, setIsAdding] = useState(false);
@@ -856,6 +873,7 @@ export const Projects = React.memo(function Projects() {
 							copiedSlug={copiedSlug}
 							setCopiedSlug={setCopiedSlug}
 							copyToClipboard={copyToClipboard}
+							tagColors={tagColors}
 							detectingId={detectingId}
 							handleDetectGit={handleDetectGit}
 							handleFetch={handleFetch}
@@ -912,13 +930,11 @@ export const Projects = React.memo(function Projects() {
 											<div className="flex flex-col gap-2 items-start">
 												<div className="flex flex-wrap gap-1">
 													{p.tags?.map((tag: string) => (
-														<Badge
+														<TagBadge
 															key={tag}
-															variant="secondary"
-															className="text-[10px] uppercase tracking-wider text-primary"
-														>
-															{tag}
-														</Badge>
+															name={tag}
+															color={tagColors[tag]}
+														/>
 													))}
 												</div>
 												<div className="flex items-center gap-2">
@@ -1050,7 +1066,7 @@ export const Projects = React.memo(function Projects() {
 			)}
 
 			{isFetchingAll && (
-				<div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center flex-col gap-6">
+				<FullScreenOverlay>
 					<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] blur-[100px] rounded-full pointer-events-none"></div>
 
 					<div className="relative flex items-center justify-center w-28 h-28 rounded-full neon-glow z-10">
@@ -1069,7 +1085,7 @@ export const Projects = React.memo(function Projects() {
 								: "Démarrage de la vérification globale..."}
 						</div>
 					</div>
-				</div>
+				</FullScreenOverlay>
 			)}
 
 			<ConfirmDialog

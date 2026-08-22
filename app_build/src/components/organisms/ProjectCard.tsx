@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import React from "react";
 import type { ProjectListItem } from "@/routes/projects";
+import { TagBadge } from "../molecules/TagBadge";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -45,6 +46,8 @@ export interface ProjectCardProps {
 	handleEdit: (p: ProjectListItem, e: React.MouseEvent) => void;
 	handleDelete: (id: number, e: React.MouseEvent) => void;
 	formatDate: (dateStr: string) => string;
+	/** Couleur par nom de tag. Un projet ne stocke que les noms. */
+	tagColors?: Record<string, string>;
 }
 
 export const ProjectCard = React.memo(function ProjectCard({
@@ -64,6 +67,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 	handleEdit,
 	handleDelete,
 	formatDate,
+	tagColors,
 }: ProjectCardProps) {
 	const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 	const hasNoCves =
@@ -189,13 +193,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 			{p.tags && p.tags.length > 0 && (
 				<div className="flex flex-wrap gap-1 mt-2">
 					{p.tags.map((tag: string) => (
-						<Badge
-							key={tag}
-							variant="secondary"
-							className="text-[10px] uppercase tracking-wider text-primary"
-						>
-							{tag}
-						</Badge>
+						<TagBadge key={tag} name={tag} color={tagColors?.[tag]} />
 					))}
 				</div>
 			)}

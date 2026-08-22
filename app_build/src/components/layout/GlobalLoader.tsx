@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 
 import { ShieldLoader } from "../molecules/ShieldLoader";
+import { FullScreenOverlay } from "./FullScreenOverlay";
 
 export function GlobalLoader({
 	loading,
@@ -18,7 +19,7 @@ export function GlobalLoader({
 	if (!loading && !auditing) return null;
 
 	return (
-		<div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center flex-col gap-6">
+		<FullScreenOverlay>
 			<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] blur-[100px] rounded-full pointer-events-none"></div>
 
 			<div className="z-10 flex flex-col items-center gap-2">
@@ -33,6 +34,6 @@ export function GlobalLoader({
 							: "Démarrage de l'audit global..."}
 				</div>
 			</div>
-		</div>
+		</FullScreenOverlay>
 	);
 }

@@ -104,4 +104,14 @@ describe("Header", () => {
 		monte({ pendingCves: 12 });
 		expect(screen.getByText("12")).toBeInTheDocument();
 	});
+
+	test("la barre a un fond opaque", () => {
+		// L'en-tête est `fixed` : sans fond, le contenu de la page défile en
+		// transparence derrière le menu et le rend illisible. Un fond semi-opaque
+		// ne suffit pas non plus — c'est ce que l'on voyait.
+		const { container } = monte();
+		const barre = container.querySelector("header") as HTMLElement;
+		expect(barre.className).toContain("bg-background");
+		expect(barre.className).not.toMatch(/bg-background\//);
+	});
 });

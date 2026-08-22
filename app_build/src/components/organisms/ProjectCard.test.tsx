@@ -192,6 +192,25 @@ describe("ProjectCard", () => {
 		expect(screen.getByText("api")).toBeInTheDocument();
 	});
 
+	test("chaque tag affiché porte sa pastille de couleur", () => {
+		// Un projet ne stocke que les noms de ses tags. Sans table de couleurs, la
+		// carte rendait le nom nu, alors que le sélecteur du formulaire et les
+		// filtres affichaient bien la pastille : deux rendus du même tag.
+		const p = projet({ tags: ["prod", "api"] });
+		const { container } = render(
+			<ProjectCard
+				{...props({ p, tagColors: { prod: "emerald", api: "sky" } })}
+			/>,
+		);
+		expect(container.querySelectorAll(".rounded-full.w-2")).toHaveLength(2);
+	});
+
+	test("un tag sans couleur connue garde sa pastille", () => {
+		const p = projet({ tags: ["orphelin"] });
+		const { container } = render(<ProjectCard {...props({ p })} />);
+		expect(container.querySelectorAll(".rounded-full.w-2")).toHaveLength(1);
+	});
+
 	test("Ignorer transmet le projet entier, pas seulement son id", () => {
 		const vus: ProjectListItem[] = [];
 		render(<ProjectCard {...props({ toggleIgnore: (p) => vus.push(p) })} />);

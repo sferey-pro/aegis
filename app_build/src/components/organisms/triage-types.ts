@@ -29,6 +29,17 @@ export interface PackageGroup {
 	hasNetDiscovery: boolean;
 	/** Version cible retenue pour le package, `null` si aucune n'est connue. */
 	targetPatch: string | null;
+	/**
+	 * Publication d'avis la plus ancienne du groupe (GHSA). `null` tant que
+	 * l'enrichissement GHSA n'a pas tourné.
+	 */
+	publishedAt: string | null;
+	/**
+	 * Première détection par Aegis la plus ancienne du groupe. On retient la plus
+	 * ancienne des deux dates parce que c'est elle qui porte le SLA : afficher la
+	 * plus récente ferait paraître le groupe plus jeune qu'il ne l'est.
+	 */
+	firstSeenAt: string | null;
 }
 
 /** Une CVE au sein d'un `PackageGroup`, aplatie depuis une `CveOccurrence`. */

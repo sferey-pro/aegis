@@ -7,6 +7,7 @@ import type { ProjectTool } from "../../db/projects";
 import { emitConsoleEnd, emitConsoleStart } from "../console";
 import type { Severity } from "../parsers/types";
 import { normSeverity } from "../parsers/utils";
+import { errorMessage } from "../utils";
 
 const GHSA_REGEX = /(GHSA-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4})/i;
 const CVE_REGEX = /(CVE-\d{4}-\d{4,})/i;
@@ -73,6 +74,34 @@ export function getCachedAdvisory(id: string): CachedAdvisory | null {
 	};
 }
 
+/**
+ * Tous les avis en cache, indexés par identifiant.
+ *
+ * **Une seule requête**, pas une par vulnérabilité : l'agrégateur superpose ces
+ * données à chaque vulnérabilité de chaque run, et une lecture par ligne aurait
+ * ajouté un N+1 au chemin le plus chaud de l'application.
+ */
+export function getAllCachedAdvisories(): Map<string, CachedAdvisory> {
+	const rows = getAdvisoryDb()
+		.query(
+			`SELECT id, severity, fixes, html_url, cvss_vector, published_at FROM advisory_cache`,
+		)
+		.all() as (AdvisoryCacheRow & { id: string })[];
+
+	const map = new Map<string, CachedAdvisory>();
+	for (const row of rows) {
+		map.set(row.id, {
+			severity: normSeverity(row.severity),
+			fixes:
+				typeof row.fixes === "string" ? JSON.parse(row.fixes) : row.fixes || {},
+			html_url: row.html_url,
+			cvss_vector: row.cvss_vector,
+			published_at: row.published_at,
+		});
+	}
+	return map;
+}
+
 export function putCachedAdvisory(
 	id: string,
 	severity: Severity,
@@ -116,7 +145,13 @@ export interface ResolveResult {
 	published_at?: string | null;
 }
 
-async function fetchAdvisory(
+/**
+ * Un appel réseau, un avis. Exporté pour l'enrichissement en masse, qui a besoin
+ * de distinguer « aucun avis chez GitHub » de « quota épuisé » : la première
+ * réponse est définitive, la seconde doit interrompre la boucle au lieu de
+ * brûler le reste des clés en 403.
+ */
+export async function fetchAdvisory(
 	key: AdvisoryKey,
 ): Promise<{ advisory: CachedAdvisory | null; rateLimited: boolean }> {
 	let url = `https://api.github.com/advisories/${key.id}`;
@@ -156,17 +191,29 @@ async function fetchAdvisory(
 		}
 
 		if (res.status === 429 || (res.status === 403 && remaining === "0")) {
-			emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+			emitConsoleEnd(eventId, {
+				exitCode,
+				ok: false,
+				ms: Date.now() - startTime,
+			});
 			return { advisory: null, rateLimited: true };
 		}
 
 		if (!res.ok) {
-			emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+			emitConsoleEnd(eventId, {
+				exitCode,
+				ok: false,
+				ms: Date.now() - startTime,
+			});
 			return { advisory: null, rateLimited: false };
 		}
 
 		let data = await res.json();
-		emitConsoleEnd(eventId, { exitCode, ms: Date.now() - startTime });
+		emitConsoleEnd(eventId, {
+			exitCode,
+			ok: true,
+			ms: Date.now() - startTime,
+		});
 
 		if (key.kind === "cve" && Array.isArray(data)) {
 			if (data.length === 0) return { advisory: null, rateLimited: false };
@@ -206,8 +253,15 @@ async function fetchAdvisory(
 			advisory: { severity, fixes, html_url, cvss_vector, published_at },
 			rateLimited: false,
 		};
-	} catch (_e) {
-		emitConsoleEnd(eventId, { exitCode: 0, ms: Date.now() - startTime });
+	} catch (e) {
+		// L'échec réseau annonçait `exitCode: 0`, donc une **coche verte** : la
+		// coupure la plus franche s'affichait comme un succès. Le message est
+		// remonté, sinon la ligne n'explique rien.
+		emitConsoleEnd(eventId, {
+			ok: false,
+			errorText: errorMessage(e),
+			ms: Date.now() - startTime,
+		});
 		return { advisory: null, rateLimited: false };
 	}
 }
@@ -259,6 +313,33 @@ function matchBestFix(
  * valeur que `npm`/`yarn` avaient fournie, et l'écraser par `null` faisait lire
  * « aucune correction disponible » à tort (N18).
  */
+/**
+ * Version corrigée déduite d'un avis **déjà chargé**.
+ *
+ * Séparé de `resolveFixedVersionFromCache`, qui interroge le cache : l'agrégateur
+ * a besoin de la même résolution pour chaque vulnérabilité de chaque run, et une
+ * requête par ligne aurait ajouté un N+1 sur le chemin le plus chaud. Il charge
+ * donc tous les avis d'un coup et appelle cette fonction.
+ *
+ * `originalFixedIn` est préservé quand l'avis ne couvre pas ce paquet : c'est la
+ * valeur que `npm`/`yarn` avaient fournie, et l'écraser par `null` faisait lire
+ * « aucune correction disponible » à tort (N18).
+ */
+export function fixedVersionFromAdvisory(params: {
+	advisory: CachedAdvisory;
+	tool: ProjectTool;
+	package: string;
+	versionRange?: string | null;
+	originalFixedIn?: string | null;
+}): string | null {
+	const ecoKey = `${mapEcosystem(params.tool)}:${params.package}`;
+	return matchBestFix(
+		params.advisory.fixes[ecoKey],
+		params.versionRange,
+		params.originalFixedIn,
+	);
+}
+
 export function resolveFixedVersionFromCache(params: {
 	tool: ProjectTool;
 	package: string;
@@ -281,13 +362,8 @@ export function resolveFixedVersionFromCache(params: {
 	// Avis inconnu du cache : résoluble en principe, mais pas ici et maintenant.
 	if (!cached) return { ...repli, resolvable: true };
 
-	const ecoKey = `${mapEcosystem(params.tool)}:${params.package}`;
 	return {
-		fixedIn: matchBestFix(
-			cached.fixes[ecoKey],
-			params.versionRange,
-			params.originalFixedIn,
-		),
+		fixedIn: fixedVersionFromAdvisory({ ...params, advisory: cached }),
 		rateLimited: false,
 		resolvable: true,
 		severity: cached.severity,

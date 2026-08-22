@@ -173,6 +173,133 @@ describe("POST /api/advisories/sync", () => {
 	});
 });
 
+describe("POST /api/advisories/sync-all", () => {
+	/** Réponse GitHub, éventuellement retardée pour tenir le verrou ouvert. */
+	function stubAvis(severity = "critical", delaiMs = 0) {
+		globalThis.fetch = (() =>
+			new Promise((resolve) => {
+				const repondre = () =>
+					resolve(
+						new Response(
+							JSON.stringify([
+								{ severity, html_url: "https://x", vulnerabilities: [] },
+							]),
+							{ headers: { "content-type": "application/json" } },
+						),
+					);
+				if (delaiMs) setTimeout(repondre, delaiMs);
+				else repondre();
+			})) as unknown as typeof fetch;
+	}
+
+	test("sur un parc vide, le bilan est à zéro", async () => {
+		const { status, data } = await srv.json<{
+			success: boolean;
+			total: number;
+			fetched: number;
+		}>("/api/advisories/sync-all", { method: "POST" });
+
+		expect(status).toBe(200);
+		expect(data.success).toBe(true);
+		expect(data.total).toBe(0);
+		expect(data.fetched).toBe(0);
+	});
+
+	test("elle remplit le cache pour les CVE du parc", async () => {
+		const p = projet("a");
+		run(p.id, [vuln()]);
+		stubAvis("critical");
+
+		const { status, data } = await srv.json<{
+			total: number;
+			fetched: number;
+			alreadyCached: number;
+		}>("/api/advisories/sync-all", { method: "POST" });
+
+		expect(status).toBe(200);
+		expect(data).toMatchObject({ total: 1, fetched: 1, alreadyCached: 0 });
+		expect(getCachedAdvisory("CVE-2020-8203")?.severity).toBe("critical");
+	});
+
+	test("l'enrichissement est visible sans réauditer", async () => {
+		// C'est la raison d'être du bouton. L'agrégateur superpose le cache aux
+		// runs à la lecture : si la sévérité affichée n'avait bougé qu'au prochain
+		// audit, remplir le cache n'aurait rien changé à l'écran.
+		const p = projet("a");
+		run(p.id, [vuln({ severity: "low" })]);
+		expect((await srv.json<CveGroup[]>("/api/cves")).data[0]?.worst).toBe(
+			"low",
+		);
+
+		stubAvis("critical");
+		await srv.json("/api/advisories/sync-all", { method: "POST" });
+
+		const { data } = await srv.json<CveGroup[]>("/api/cves");
+		expect(data[0]?.worst).toBe("critical");
+		expect(data[0]?.occurrences[0]?.severity).toBe("critical");
+	});
+
+	test("une seconde passe ne redemande rien", async () => {
+		const p = projet("a");
+		run(p.id, [vuln()]);
+		stubAvis("high");
+		await srv.json("/api/advisories/sync-all", { method: "POST" });
+
+		const { data } = await srv.json<{
+			fetched: number;
+			alreadyCached: number;
+		}>("/api/advisories/sync-all", { method: "POST" });
+
+		// Le quota GitHub est la ressource rare : un second clic ne doit pas le
+		// brûler pour rien.
+		expect(data).toMatchObject({ fetched: 0, alreadyCached: 1 });
+	});
+
+	test("une passe déjà en cours répond 409", async () => {
+		const p = projet("a");
+		run(p.id, [vuln()]);
+		stubAvis("high", 60);
+
+		const premiere = srv.json("/api/advisories/sync-all", { method: "POST" });
+		// La première requête tient le verrou le temps de son appel réseau simulé.
+		const seconde = await srv.json<{ success: boolean; error: string }>(
+			"/api/advisories/sync-all",
+			{ method: "POST" },
+		);
+
+		expect(seconde.status).toBe(409);
+		expect(seconde.data.error).toContain("déjà en cours");
+		await premiere;
+	});
+
+	test("le verrou est relâché après la passe", async () => {
+		const p = projet("a");
+		run(p.id, [vuln()]);
+		stubAvis("high", 20);
+
+		await srv.json("/api/advisories/sync-all", { method: "POST" });
+		const { status } = await srv.json("/api/advisories/sync-all", {
+			method: "POST",
+		});
+
+		// Un verrou non relâché rendrait le bouton mort jusqu'au redémarrage.
+		expect(status).toBe(200);
+	});
+
+	test("un échec réseau n'immobilise pas le verrou", async () => {
+		const p = projet("a");
+		run(p.id, [vuln()]);
+		globalThis.fetch = (() =>
+			Promise.reject(new Error("hors ligne"))) as unknown as typeof fetch;
+
+		await srv.json("/api/advisories/sync-all", { method: "POST" });
+		const { status } = await srv.json("/api/advisories/sync-all", {
+			method: "POST",
+		});
+		expect(status).toBe(200);
+	});
+});
+
 describe("DELETE /api/advisories/cache", () => {
 	test("vide entièrement le cache d'avis", async () => {
 		putCachedAdvisory("CVE-2020-8203", "high", {});

@@ -4,6 +4,11 @@ import {
 } from "../../db/annotations";
 import { listProjects } from "../../db/projects";
 import { getLatestRun } from "../../db/runs";
+import {
+	fixedVersionFromAdvisory,
+	getAllCachedAdvisories,
+	keyFrom,
+} from "../github";
 import type { Severity, Vulnerability } from "../parsers/types";
 import { vulnKey, vulnRef } from "../vuln-identity";
 
@@ -52,6 +57,42 @@ export function buildCveGroups(): CveGroup[] {
 	const projects = listProjects();
 	const groups = new Map<string, CveGroup>();
 
+	/**
+	 * Avis GitHub connus, superposés au run à la lecture.
+	 *
+	 * Un run enregistre ce que l'outil d'audit a rapporté ; les métadonnées d'avis
+	 * — sévérité GitHub, vecteur CVSS, date de publication, version corrigée —
+	 * viennent d'une source distincte qui évolue indépendamment. Les superposer
+	 * ici plutôt que de réécrire les runs a deux effets : le run reste le compte
+	 * rendu brut de l'outil, et un enrichissement devient **immédiatement visible**
+	 * sans réauditer. Sans cela, remplir le cache ne changeait rien à l'écran.
+	 *
+	 * Chargé en **une** requête : une lecture par vulnérabilité aurait ajouté un
+	 * N+1 sur le chemin le plus chaud de l'application.
+	 */
+	const avis = getAllCachedAdvisories();
+
+	/** Avis connu pour cette vulnérabilité, s'il y en a un. */
+	const avisDe = (vuln: Vulnerability) => {
+		const cle = keyFrom(vuln.cve, vuln.link);
+		return cle ? avis.get(cle.id) : undefined;
+	};
+
+	/**
+	 * Sévérité retenue : celle de l'avis quand elle est connue, sinon celle de
+	 * l'outil.
+	 *
+	 * L'avis fait autorité parce que c'est lui qui corrige les « unknown » de
+	 * `yarn audit` et les libellés propres à Composer. Une seule fonction sert le
+	 * tri, le dédoublonnage et l'affichage : les trois avaient divergé une fois,
+	 * et un groupe pouvait s'annoncer « low » en contenant une occurrence
+	 * « critical ».
+	 */
+	const severiteDe = (vuln: Vulnerability): Severity => {
+		const a = avisDe(vuln);
+		return a && a.severity !== "unknown" ? a.severity : vuln.severity;
+	};
+
 	for (const project of projects) {
 		if (project.ignored) continue;
 
@@ -73,7 +114,7 @@ export function buildCveGroups(): CveGroup[] {
 			const existing = projectOccurrences.get(groupKey);
 			if (
 				!existing ||
-				SEV_ORDER[vuln.severity] < SEV_ORDER[existing.severity]
+				SEV_ORDER[severiteDe(vuln)] < SEV_ORDER[severiteDe(existing)]
 			) {
 				projectOccurrences.set(groupKey, vuln);
 			}
@@ -87,24 +128,46 @@ export function buildCveGroups(): CveGroup[] {
 			const status = ann?.status || "pending";
 			const note = ann?.note || "";
 
-			// Override de la version corrigée: annotation > vuln > null
-			const fixedIn = ann?.fixed_in || vuln.fixedIn || null;
+			const avisConnu = avisDe(vuln);
+
+			/*
+			 * Version corrigée : annotation > avis > outil.
+			 *
+			 * L'annotation reste souveraine — c'est une décision humaine. Vient
+			 * ensuite l'avis, qui donne la première version patchée par plage de
+			 * versions vulnérables ; `npm audit` ne la remonte pas toujours, et le
+			 * « patch recommandé » restait alors vide sur des CVE dont GitHub
+			 * connaissait pourtant le correctif. La résolution retombe d'elle-même
+			 * sur la valeur de l'outil quand l'avis ne couvre pas ce paquet.
+			 */
+			const fixedIn =
+				ann?.fixed_in ||
+				(avisConnu
+					? fixedVersionFromAdvisory({
+							advisory: avisConnu,
+							tool: project.tool,
+							package: vuln.package,
+							versionRange: vuln.versionRange,
+							originalFixedIn: vuln.fixedIn,
+						})
+					: vuln.fixedIn) ||
+				null;
 
 			const occurrence: CveOccurrence = {
 				projectId: project.id,
 				projectName: project.name,
 				tool: project.tool,
 				package: vuln.package,
-				severity: vuln.severity,
+				severity: severiteDe(vuln),
 				versionRange: vuln.versionRange || null,
 				fixedIn,
 				title: vuln.title,
-				link: vuln.link || null,
+				link: avisConnu?.html_url || vuln.link || null,
 				status,
 				note,
 				isGlobal: ann ? ann.project_id === -1 : false,
-				cvssVector: vuln.cvssVector || null,
-				publishedAt: vuln.publishedAt,
+				cvssVector: avisConnu?.cvss_vector || vuln.cvssVector || null,
+				publishedAt: avisConnu?.published_at ?? vuln.publishedAt,
 				firstSeenAt: vuln.firstSeenAt,
 				isBaseline: vuln.isBaseline,
 				ageInDays:
@@ -126,7 +189,7 @@ export function buildCveGroups(): CveGroup[] {
 				groups.set(groupKey, {
 					cve: groupKey,
 					ref,
-					worst: vuln.severity,
+					worst: severiteDe(vuln),
 					occurrences: [occurrence],
 					cvssVector: vuln.cvssVector || null,
 					maxBaselineAgeInDays: occurrence.isBaseline
@@ -140,8 +203,8 @@ export function buildCveGroups(): CveGroup[] {
 				});
 			} else {
 				existingGroup.occurrences.push(occurrence);
-				if (SEV_ORDER[vuln.severity] < SEV_ORDER[existingGroup.worst]) {
-					existingGroup.worst = vuln.severity;
+				if (SEV_ORDER[severiteDe(vuln)] < SEV_ORDER[existingGroup.worst]) {
+					existingGroup.worst = severiteDe(vuln);
 				}
 				const occAge = occurrence.ageInDays || 0;
 				if (occurrence.isBaseline) {

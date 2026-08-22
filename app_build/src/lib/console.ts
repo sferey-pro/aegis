@@ -9,6 +9,17 @@ export interface ConsoleEvent {
 	label: "git" | "audit" | "github";
 	project?: string;
 	exitCode?: number;
+	/**
+	 * Succès de l'étape, quand le code de sortie ne suffit pas à le dire.
+	 *
+	 * `exitCode` porte deux choses différentes selon le producteur : un vrai code
+	 * de sortie de processus pour `git` et les outils d'audit, un **statut HTTP**
+	 * pour les appels à l'API GitHub. La console appliquait la convention shell —
+	 * zéro vaut succès — donc un appel GHSA réussi en 200 s'affichait avec une
+	 * croix rouge et la mention « code 200 ». Le succès est désormais déclaré par
+	 * celui qui le connaît.
+	 */
+	ok?: boolean;
 	ms?: number;
 	outText?: string;
 	errorText?: string;

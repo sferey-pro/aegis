@@ -89,6 +89,199 @@ describe("Triage", () => {
 		expect(urls).toContain("/api/settings");
 	});
 
+	describe("dates GHSA et Aegis", () => {
+		const jour = (iso: string) => new Date(iso).toLocaleDateString();
+
+		test("les deux dates de l'occurrence remontent dans la ligne", () => {
+			mockFetch({
+				...base,
+				"GET /api/cves": [
+					groupe({
+						occurrences: [
+							occ({
+								publishedAt: "2020-07-15T00:00:00Z",
+								firstSeenAt: "2026-08-01T09:00:00Z",
+							}),
+						],
+					}),
+				],
+			});
+			monte();
+
+			return waitFor(() => {
+				expect(screen.getByText(jour("2020-07-15T00:00:00Z"))).toBeDefined();
+				expect(screen.getByText(jour("2026-08-01T09:00:00Z"))).toBeDefined();
+			});
+		});
+
+		test("la plus ancienne date du groupe est retenue", async () => {
+			// Un package peut porter plusieurs CVE : afficher la plus récente ferait
+			// paraître le groupe plus jeune qu'il ne l'est, alors que c'est la plus
+			// ancienne qui porte le SLA.
+			mockFetch({
+				...base,
+				"GET /api/cves": [
+					groupe({
+						cve: "CVE-2024-1",
+						ref: "CVE-2024-1",
+						occurrences: [occ({ firstSeenAt: "2026-08-10T00:00:00Z" })],
+					}),
+					groupe({
+						cve: "CVE-2024-2",
+						ref: "CVE-2024-2",
+						occurrences: [occ({ firstSeenAt: "2026-01-05T00:00:00Z" })],
+					}),
+				],
+			});
+			monte();
+
+			await waitFor(() =>
+				expect(screen.getByText(jour("2026-01-05T00:00:00Z"))).toBeDefined(),
+			);
+			expect(screen.queryAllByText(jour("2026-08-10T00:00:00Z"))).toHaveLength(
+				0,
+			);
+		});
+
+		test("une date illisible est ignorée, pas propagée", async () => {
+			mockFetch({
+				...base,
+				"GET /api/cves": [
+					groupe({
+						occurrences: [
+							occ({ publishedAt: "n'importe quoi", firstSeenAt: null }),
+						],
+					}),
+				],
+			});
+			monte();
+
+			// Une date invalide retenue comme minimum afficherait « Invalid Date » sur
+			// toute la ligne.
+			await waitFor(() => expect(screen.getAllByText("—")).toHaveLength(2));
+			expect(screen.queryAllByText(/Invalid/)).toHaveLength(0);
+		});
+	});
+
+	describe("mise à jour des avis GHSA", () => {
+		const bilan = {
+			success: true,
+			total: 3,
+			alreadyCached: 1,
+			fetched: 2,
+			notFound: 0,
+			rateLimited: false,
+			remaining: 0,
+		};
+
+		const bouton = () =>
+			screen.getByRole("button", { name: /Mettre à jour les avis GHSA/ });
+
+		test("sans CVE affichée, le bouton est désactivé", async () => {
+			mockFetch(base);
+			monte();
+			await screen.findByText("Votre écosystème est sain !");
+			// Rien à enrichir : le clic ne ferait qu'un aller-retour inutile.
+			expect(bouton()).toBeDisabled();
+		});
+
+		test("un clic lance la passe et recharge les CVE", async () => {
+			mockFetch({
+				...base,
+				"GET /api/cves": [groupe()],
+				"POST /api/advisories/sync-all": bilan,
+			});
+			monte();
+			await waitFor(() => expect(gets()).toHaveLength(1));
+
+			fireEvent.click(bouton());
+
+			await waitFor(() =>
+				expect(
+					posts().filter((c) => c.url === "/api/advisories/sync-all"),
+				).toHaveLength(1),
+			);
+			// Le rechargement est indispensable : l'agrégateur superpose le cache aux
+			// runs à la lecture, donc rien ne change à l'écran sans un second GET.
+			await waitFor(() => expect(gets()).toHaveLength(2));
+		});
+
+		test("le bilan est rapporté à l'utilisateur", async () => {
+			mockFetch({
+				...base,
+				"GET /api/cves": [groupe()],
+				"POST /api/advisories/sync-all": bilan,
+			});
+			monte();
+			await waitFor(() => expect(gets()).toHaveLength(1));
+
+			fireEvent.click(bouton());
+
+			expect(await screen.findByText("Avis GHSA à jour")).toBeInTheDocument();
+			expect(
+				await screen.findByText(/3 CVE examinées : 2 avis récupérés/),
+			).toBeInTheDocument();
+		});
+
+		test("un quota atteint est annoncé sans être traité comme un échec", async () => {
+			mockFetch({
+				...base,
+				"GET /api/cves": [groupe()],
+				"POST /api/advisories/sync-all": {
+					...bilan,
+					fetched: 1,
+					rateLimited: true,
+					remaining: 2,
+				},
+			});
+			monte();
+			await waitFor(() => expect(gets()).toHaveLength(1));
+
+			fireEvent.click(bouton());
+
+			// Ce qui a été récupéré est conservé : c'est une fin de passe, pas une
+			// erreur, et un second clic reprendra le reste.
+			expect(
+				await screen.findByText("Quota GitHub atteint"),
+			).toBeInTheDocument();
+			expect(await screen.findByText(/2 restants/)).toBeInTheDocument();
+		});
+
+		test("un échec est signalé, pas avalé", async () => {
+			mockFetch({
+				...base,
+				"GET /api/cves": [groupe()],
+				"POST /api/advisories/sync-all": { networkError: "ECONNREFUSED" },
+			});
+			monte();
+			await waitFor(() => expect(gets()).toHaveLength(1));
+
+			fireEvent.click(bouton());
+
+			expect(await screen.findByText("Échec")).toBeInTheDocument();
+			expect(
+				await screen.findByText(/Enrichissement GHSA impossible/),
+			).toBeInTheDocument();
+		});
+
+		test("le bouton redevient actif après un échec", async () => {
+			mockFetch({
+				...base,
+				"GET /api/cves": [groupe()],
+				"POST /api/advisories/sync-all": { networkError: "ECONNREFUSED" },
+			});
+			monte();
+			await waitFor(() => expect(gets()).toHaveLength(1));
+
+			fireEvent.click(bouton());
+			await screen.findByText("Échec");
+
+			// Un bouton resté grisé après une coupure réseau condamne l'écran jusqu'au
+			// rechargement de la page.
+			expect(bouton()).not.toBeDisabled();
+		});
+	});
+
 	test("sans CVE, l'écran annonce un écosystème sain", async () => {
 		mockFetch(base);
 		monte();

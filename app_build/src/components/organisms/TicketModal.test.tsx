@@ -48,6 +48,8 @@ function groupe(over: Partial<PackageGroup> = {}): PackageGroup {
 		hasBaseline: false,
 		hasNetDiscovery: true,
 		targetPatch: null,
+		publishedAt: null,
+		firstSeenAt: null,
 		...over,
 	};
 }

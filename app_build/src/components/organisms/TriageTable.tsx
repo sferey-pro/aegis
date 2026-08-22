@@ -9,6 +9,7 @@ import {
 import React from "react";
 import type { Ticket } from "@/db/tickets";
 import { SEVERITY_COLORS, SEVERITY_ICONS } from "../../lib/triage-constants";
+import { CveTimeline } from "../molecules/CveTimeline";
 import { Button } from "../ui/button";
 import {
 	Select,
@@ -160,6 +161,13 @@ export function TriageTable({
 													</span>
 												)}
 											</div>
+											{/* Les deux dates dont les SLA ci-dessus sont calculés :
+											    le calcul devient vérifiable au lieu d'être à croire. */}
+											<CveTimeline
+												publishedAt={group.publishedAt}
+												firstSeenAt={group.firstSeenAt}
+												className="items-center"
+											/>
 										</div>
 									</TableCell>
 

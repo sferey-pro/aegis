@@ -25,6 +25,7 @@ import type { Project, ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
 import type { ProjectListItem } from "@/routes/projects";
+import { ShieldLoader } from "../components/molecules/ShieldLoader";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
 import { Badge } from "../components/ui/badge";
@@ -826,9 +827,10 @@ export const Projects = React.memo(function Projects() {
 			)}
 
 			{loading ? (
-				<div className="flex items-center justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary" />
-				</div>
+				<ShieldLoader
+					className="p-12"
+					message="Lecture du parc et de l'état git…"
+				/>
 			) : projects.length === 0 ? (
 				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
 					<Folder className="w-12 h-12 text-muted-foreground opacity-50" />

@@ -221,3 +221,41 @@ describe("Reports", () => {
 		});
 	});
 });
+
+describe("Reports — rafraîchissement après un audit global", () => {
+	afterEach(restoreFetch);
+
+	test("la liste est rechargée quand l'audit se termine", async () => {
+		// La page détient sa propre copie de la liste. Sans ce signal, le
+		// compte-rendu était bien écrit en base mais n'apparaissait pas : il fallait
+		// recharger la page. Cas particulier de N19.
+		mockFetch({ "GET /api/reports": [] });
+		const { rerender } = render(<Reports auditing={true} />);
+		expect(await screen.findByText(/Aucun rapport/i)).toBeInTheDocument();
+
+		// L'audit se termine : le compte-rendu vient d'être écrit.
+		mockFetch({ "GET /api/reports": [rapport({ id: 1 })] });
+		rerender(<Reports auditing={false} />);
+
+		// La liste se recharge d'elle-même, sans action de l'utilisateur.
+		await waitFor(() => {
+			expect(fetchCalls().filter((c) => c.url === "/api/reports")).toHaveLength(
+				1,
+			);
+		});
+	});
+
+	test("aucun rechargement tant que l'audit tourne", async () => {
+		mockFetch({ "GET /api/reports": [] });
+		const { rerender } = render(<Reports auditing={false} />);
+		await screen.findByText(/Aucun rapport/i);
+		const avant = fetchCalls().filter((c) => c.url === "/api/reports").length;
+
+		rerender(<Reports auditing={true} />);
+		await new Promise((r) => setTimeout(r, 50));
+		// Le passage à « en cours » ne déclenche rien : c'est la fin qui compte.
+		expect(fetchCalls().filter((c) => c.url === "/api/reports")).toHaveLength(
+			avant,
+		);
+	});
+});

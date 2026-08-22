@@ -190,7 +190,7 @@ describe("TriageTable", () => {
 				})}
 			/>,
 		);
-		expect(screen.getByText(/Dette:/)).toHaveTextContent("Nouveau");
+		expect(screen.getByText(/SLA hérité:/)).toHaveTextContent("Nouveau");
 	});
 
 	test("un SLA au-delà de 30 jours est signalé en rouge", () => {

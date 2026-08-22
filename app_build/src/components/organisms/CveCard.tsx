@@ -101,7 +101,7 @@ export function CveCard({
 							}
 						>
 							<Clock className="w-3 h-3" />{" "}
-							{cveObj.isBaseline ? "Dette" : "SLA"} {cveObj.ageInDays}j
+							{cveObj.isBaseline ? "SLA hérité" : "SLA"} {cveObj.ageInDays}j
 						</span>
 					)}
 					{cveObj.fixedIn && (

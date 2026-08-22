@@ -238,3 +238,121 @@ describe("Settings", () => {
 		expect(await screen.findByText("Base illisible")).toBeInTheDocument();
 	});
 });
+
+describe("Settings — remise à zéro", () => {
+	afterEach(restoreFetch);
+
+	/** Ouvre la modale de confirmation depuis la zone de danger. */
+	async function ouvrirConfirmation() {
+		render(<Settings />);
+		await screen.findByLabelText(/Base URL Jira/);
+		fireEvent.click(
+			screen.getByRole("button", { name: /Remettre la configuration à zéro/ }),
+		);
+	}
+
+	test("la zone de danger annonce ce qui part et ce qui reste", async () => {
+		mockFetch({ "GET /api/settings": reglages });
+		render(<Settings />);
+		await screen.findByLabelText(/Base URL Jira/);
+
+		expect(screen.getByText("Zone de danger")).toBeInTheDocument();
+		// La clé GHSA et le cache sont annoncés comme conservés, et le disque comme
+		// intact : c'est la question que se pose l'utilisateur avant de cliquer.
+		expect(screen.getByText(/la clé GHSA/)).toBeInTheDocument();
+		expect(screen.getByText(/vos projets sur le disque/i)).toBeInTheDocument();
+	});
+
+	test("le bouton n'agit qu'après confirmation", async () => {
+		mockFetch({
+			"GET /api/settings": reglages,
+			"POST /api/config/reset": { body: { success: true, deleted: {} } },
+		});
+		await ouvrirConfirmation();
+
+		// La modale est ouverte, mais rien n'a encore été envoyé.
+		expect(await screen.findByRole("dialog")).toBeInTheDocument();
+		expect(
+			fetchCalls().filter((c) => c.url === "/api/config/reset"),
+		).toHaveLength(0);
+
+		fireEvent.click(screen.getByRole("button", { name: /Tout supprimer/ }));
+		await waitFor(() => {
+			expect(
+				fetchCalls().filter((c) => c.url === "/api/config/reset"),
+			).toHaveLength(1);
+		});
+	});
+
+	test("annuler ne déclenche aucun appel", async () => {
+		mockFetch({
+			"GET /api/settings": reglages,
+			"POST /api/config/reset": { body: { success: true, deleted: {} } },
+		});
+		await ouvrirConfirmation();
+		await screen.findByRole("dialog");
+
+		fireEvent.click(screen.getByRole("button", { name: /Annuler/ }));
+		await waitFor(() => {
+			expect(screen.queryAllByRole("dialog")).toHaveLength(0);
+		});
+		expect(
+			fetchCalls().filter((c) => c.url === "/api/config/reset"),
+		).toHaveLength(0);
+	});
+
+	test("le compte rendu détaille ce qui a été supprimé", async () => {
+		// Le décompte est affiché **avant** tout rechargement : sans cela,
+		// l'utilisateur ne saurait jamais ce que son clic a emporté.
+		mockFetch({
+			"GET /api/settings": reglages,
+			"POST /api/config/reset": {
+				body: {
+					success: true,
+					deleted: {
+						projects: 3,
+						runs: 12,
+						annotations: 7,
+						tickets: 1,
+						occurrences: 20,
+						tags: 2,
+						prompts: 4,
+						reports: 5,
+						settings: 6,
+					},
+				},
+			},
+		});
+		await ouvrirConfirmation();
+		fireEvent.click(screen.getByRole("button", { name: /Tout supprimer/ }));
+
+		expect(
+			await screen.findByText("Configuration remise à zéro."),
+		).toBeInTheDocument();
+		expect(screen.getByText(/3 projets/)).toBeInTheDocument();
+		expect(screen.getByText(/6 réglages supprimés/)).toBeInTheDocument();
+		// Le bouton de remise à zéro a laissé place à celui de rechargement.
+		expect(
+			screen.queryAllByRole("button", {
+				name: /Remettre la configuration à zéro/,
+			}),
+		).toHaveLength(0);
+		expect(
+			screen.getByRole("button", { name: /Recharger l'application/ }),
+		).toBeInTheDocument();
+	});
+
+	test("un échec est signalé et laisse le bouton disponible", async () => {
+		mockFetch({
+			"GET /api/settings": reglages,
+			"POST /api/config/reset": { status: 500, body: { error: "boom" } },
+		});
+		await ouvrirConfirmation();
+		fireEvent.click(screen.getByRole("button", { name: /Tout supprimer/ }));
+
+		expect(await screen.findByRole("alert")).toHaveTextContent(/boom/);
+		expect(
+			screen.getByRole("button", { name: /Remettre la configuration à zéro/ }),
+		).toBeInTheDocument();
+	});
+});

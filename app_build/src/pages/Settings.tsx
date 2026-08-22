@@ -11,8 +11,10 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import type { ResetCounts } from "@/db/reset";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
 import { errorMessage } from "@/lib/utils";
+import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { TagsManager } from "../components/organisms/TagsManager";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -61,6 +63,11 @@ export function Settings() {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	/** Échec du dernier enregistrement. */
 	const [saveError, setSaveError] = useState<string | null>(null);
+	/** Remise à zéro : confirmation, exécution, compte rendu. */
+	const [resetOpen, setResetOpen] = useState(false);
+	const [resetLoading, setResetLoading] = useState(false);
+	const [resetDone, setResetDone] = useState<ResetCounts | null>(null);
+	const [resetError, setResetError] = useState<string | null>(null);
 	/**
 	 * Les secrets sont en écriture seule : l'API n'en renvoie que l'état. On garde
 	 * donc « configuré / non configuré » à part, pour l'afficher sans jamais
@@ -110,6 +117,24 @@ export function Settings() {
 				setLoading(false);
 			});
 	}, []);
+
+	const handleReset = async () => {
+		setResetLoading(true);
+		setResetError(null);
+		try {
+			const data = await fetchJson<{ deleted: ResetCounts }>(
+				"/api/config/reset",
+				{ method: "POST" },
+			);
+			setResetDone(data.deleted);
+			setResetOpen(false);
+		} catch (e: unknown) {
+			setResetError(apiErrorMessage(e));
+			setResetOpen(false);
+		} finally {
+			setResetLoading(false);
+		}
+	};
 
 	const handleSave = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -582,6 +607,78 @@ export function Settings() {
 						</div>
 					</div>
 
+					<hr className="border-border" />
+
+					<div className="flex flex-col gap-2 rounded-2xl border border-red-500/50 bg-red-500/5 p-6">
+						<span className="text-lg font-bold">Zone de danger</span>
+						<p className="text-sm text-muted-foreground">
+							Remet la configuration à zéro pour repartir d'un import de projets
+							propre.
+						</p>
+						<ul className="mt-2 text-sm text-muted-foreground list-disc pl-5">
+							<li>
+								<strong>Supprimé</strong> : projets déclarés, historiques
+								d'audit, décisions de triage, liens de tickets, catalogue de
+								tags, bibliothèque de prompts, compte-rendus, et tous les
+								réglages.
+							</li>
+							<li>
+								<strong>Conservé</strong> : la clé GHSA, et le cache d'avis
+								GitHub — vidable séparément ci-dessus.
+							</li>
+							<li>
+								<strong>Jamais touché</strong> : vos projets sur le disque.
+								Seule la base d'Aegis est vidée.
+							</li>
+						</ul>
+
+						{resetDone ? (
+							<div
+								role="status"
+								className="mt-4 rounded-xl border bg-background/50 p-4 text-sm"
+							>
+								<p className="font-semibold">Configuration remise à zéro.</p>
+								<p className="text-muted-foreground mt-1">
+									{resetDone.projects} projet
+									{resetDone.projects > 1 ? "s" : ""}, {resetDone.runs} run
+									{resetDone.runs > 1 ? "s" : ""}, {resetDone.annotations}{" "}
+									annotation{resetDone.annotations > 1 ? "s" : ""},{" "}
+									{resetDone.tags} tag{resetDone.tags > 1 ? "s" : ""},{" "}
+									{resetDone.prompts} prompt{resetDone.prompts > 1 ? "s" : ""},{" "}
+									{resetDone.reports} compte-rendu
+									{resetDone.reports > 1 ? "s" : ""} et {resetDone.settings}{" "}
+									réglage{resetDone.settings > 1 ? "s" : ""} supprimés.
+								</p>
+								<Button
+									type="button"
+									variant="outline"
+									className="mt-3"
+									onClick={() => window.location.reload()}
+								>
+									Recharger l'application
+								</Button>
+							</div>
+						) : (
+							<div className="mt-4 flex items-center gap-4">
+								<Button
+									type="button"
+									variant="destructive"
+									disabled={resetLoading}
+									onClick={() => setResetOpen(true)}
+								>
+									{resetLoading
+										? "Remise à zéro..."
+										: "Remettre la configuration à zéro"}
+								</Button>
+								{resetError && (
+									<span role="alert" className="text-sm text-red-500">
+										{resetError}
+									</span>
+								)}
+							</div>
+						)}
+					</div>
+
 					<div className="flex justify-end items-center gap-4">
 						{saveSuccess && (
 							<span className="text-sm font-medium slide-in-from-right-4">
@@ -699,6 +796,16 @@ export function Settings() {
 					</div>
 				)}
 			</div>
+
+			<ConfirmDialog
+				isOpen={resetOpen}
+				title="Remettre la configuration à zéro ?"
+				message="Les projets déclarés, leurs historiques d'audit, vos décisions de triage, les tags, les prompts et les compte-rendus seront supprimés. La clé GHSA et le cache d'avis sont conservés. Vos projets sur le disque ne sont pas touchés. Cette action est irréversible."
+				confirmText="Tout supprimer"
+				cancelText="Annuler"
+				onConfirm={handleReset}
+				onCancel={() => setResetOpen(false)}
+			/>
 		</div>
 	);
 }

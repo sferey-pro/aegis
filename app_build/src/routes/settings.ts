@@ -134,6 +134,29 @@ export const settingsRoutes = {
 		},
 	},
 
+	/**
+	 * Remise à zéro de la configuration, pour repartir d'un import propre.
+	 *
+	 * Destructif et sans confirmation côté serveur : c'est l'interface qui porte la
+	 * demande de confirmation. L'API d'Aegis n'a pas d'authentification (elle
+	 * n'écoute que sur `127.0.0.1` par défaut), donc cette route n'ouvre aucune
+	 * capacité nouvelle — supprimer les projets un par un était déjà possible — mais
+	 * elle en concentre l'effet. À protéger le jour où une authentification est
+	 * ajoutée.
+	 */
+	"/api/config/reset": {
+		async POST() {
+			const { resetConfiguration, preservedSettingKeys } = await import(
+				"../db/reset"
+			);
+			return Response.json({
+				success: true,
+				deleted: resetConfiguration(),
+				preserved: preservedSettingKeys(),
+			});
+		},
+	},
+
 	"/api/snapshots/create": {
 		async POST() {
 			return Response.json(createSnapshot());

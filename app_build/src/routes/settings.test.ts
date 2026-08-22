@@ -503,3 +503,58 @@ describe("contrats attendus — à activer au correctif", () => {
 		expect(data.error).toContain("un-autre-instantane.sqlite");
 	});
 });
+
+describe("POST /api/config/reset", () => {
+	test("vide la configuration et retourne le décompte", async () => {
+		createProject({
+			name: "api",
+			path: "/srv/api",
+			type: "node",
+			tool: "npm",
+		});
+		setSetting("GITHUB_TOKEN", "ghp_a_conserver");
+		setSetting("JIRA_BASE_URL", "https://jira.example.test");
+
+		const { status, data } = await srv.json<{
+			success: boolean;
+			deleted: { projects: number; settings: number };
+			preserved: string[];
+		}>("/api/config/reset", { method: "POST" });
+
+		expect(status).toBe(200);
+		expect(data.success).toBe(true);
+		expect(data.deleted.projects).toBe(1);
+		expect(data.deleted.settings).toBe(1);
+		expect(data.preserved).toEqual(["GITHUB_TOKEN"]);
+		expect(listProjects()).toEqual([]);
+	});
+
+	test("la clé GHSA survit, les autres réglages non", async () => {
+		setSetting("GITHUB_TOKEN", "ghp_a_conserver");
+		setSetting("JIRA_API_KEY", "cle-jira");
+		await srv.json("/api/config/reset", { method: "POST" });
+
+		expect(getSetting("GITHUB_TOKEN")).toBe("ghp_a_conserver");
+		expect(getSetting("JIRA_API_KEY")).toBe("");
+	});
+
+	test("l'état des secrets reste cohérent après remise à zéro", async () => {
+		// L'écran Réglages lit `<CLÉ>_CONFIGURED` : la clé GHSA doit rester
+		// annoncée comme configurée, la clé Jira comme absente.
+		setSetting("GITHUB_TOKEN", "ghp_a_conserver");
+		setSetting("JIRA_API_KEY", "cle-jira");
+		await srv.json("/api/config/reset", { method: "POST" });
+
+		const { data } = await srv.json<Record<string, string>>("/api/settings");
+		expect(data.GITHUB_TOKEN_CONFIGURED).toBe("true");
+		expect(data.JIRA_API_KEY_CONFIGURED).toBe("false");
+	});
+
+	test("sur une configuration vide, réussit avec un décompte à zéro", async () => {
+		const { status, data } = await srv.json<{
+			deleted: { projects: number };
+		}>("/api/config/reset", { method: "POST" });
+		expect(status).toBe(200);
+		expect(data.deleted.projects).toBe(0);
+	});
+});

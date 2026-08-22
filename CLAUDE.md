@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 356 tests composants — happy-dom actif
-bun run test:api    # 783 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 361 tests composants — happy-dom actif
+bun run test:api    # 798 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1139 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1159 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -69,6 +69,8 @@ Un seul process Bun sert à la fois l'API et la SPA React. SQLite est le seul st
 **Concurrence** (`src/lib/audit/queue.ts`) : un unique mutex `isProcessing` au niveau du module — un audit à la fois par process, **quel que soit le projet**. Le verrou est libéré dans un `finally`, sans quoi un audit qui lève bloquerait la file jusqu'au redémarrage. Le refus n'a pas le même code selon la porte d'entrée : `POST /api/audit/run` renvoie **429**, mais `POST /api/projects/:id/audit` attrape l'exception dans son `try/catch` générique et renvoie **500** — incohérence connue, épinglée par les tests. `enqueueGlobalAudit` est fire-and-forget, la progression étant sondée via `/api/audit/status` ; attention, `progress` et `total` sont remis à zéro dès la fin du lot, donc un client qui sonde trop tard voit `0/1` et jamais `2/2`. À noter : le `handleRunAudit` du frontend (`App.tsx`) contourne entièrement la file et boucle sur `POST /api/projects/:id/audit` depuis le navigateur.
 
 **Console live** (`src/lib/console.ts`) : diffusion SSE vers des abonnés en mémoire, volatile — jamais persistée. Les wrappers de sous-processus encadrent chaque commande avec `emitConsoleStart`/`emitConsoleEnd` ; un `AsyncLocalStorage` (`projectContext`) étiquette les événements avec le nom du projet sans le faire passer par les signatures d'appel. Toute sortie au-delà de 3000 caractères est tronquée. Ctrl+Shift+D bascule vers la page `/debug` qui affiche le flux.
+
+**Remise à zéro** (`src/db/reset.ts`) : `POST /api/config/reset` vide la configuration en **une transaction** — projets (et leurs runs, annotations, tickets, occurrences par cascade), tags, prompts, compte-rendus, réglages. Deux exceptions délibérées : la **clé GHSA** (`GITHUB_TOKEN`), coûteuse à régénérer, et le **cache d'avis**, qui n'est pas de la configuration mais un cache de données publiques — un bouton dédié le vide séparément. La fonction n'écrit que dans SQLite : **aucun chemin du disque n'est lu ni supprimé**, et un test le vérifie. `ghsaKeyIsPreserved()` est un garde-fou : si la liste des secrets évoluait sans que celle des clés conservées suive, on effacerait un secret en croyant le garder.
 
 **Schéma** (`src/db/index.ts`) : uniquement des `CREATE TABLE IF NOT EXISTS` plus des migrations `ALTER TABLE` inline enveloppées dans des try/catch silencieux — c'est toute la stratégie de migration, ajoutez donc vos colonnes de la même façon. Mode WAL, clés étrangères ON, connexion paresseuse en singleton (importer un module db ne doit jamais créer le fichier).
 

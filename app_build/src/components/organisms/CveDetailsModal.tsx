@@ -15,7 +15,7 @@ import type { PackageGroup, Toast } from "./triage-types";
 
 export function CveDetailsModal({
 	selectedGroup,
-	setSelectedGroup,
+	onClose,
 	updateStatus,
 	handleConfirmCve,
 	setToast,
@@ -23,7 +23,11 @@ export function CveDetailsModal({
 	jiraBaseUrl,
 }: {
 	selectedGroup: PackageGroup | null;
-	setSelectedGroup: (group: PackageGroup | null) => void;
+	/**
+	 * Ferme la modale. Anciennement `setSelectedGroup`, jamais appelée qu'avec
+	 * `null` : le nom promettait une sélection qu'elle ne savait pas faire.
+	 */
+	onClose: () => void;
 	updateStatus: (
 		cve: string,
 		projectId: number,
@@ -46,7 +50,7 @@ export function CveDetailsModal({
 		<Dialog
 			open={!!selectedGroup}
 			onOpenChange={(open) => {
-				if (!open) setSelectedGroup(null);
+				if (!open) onClose();
 			}}
 		>
 			<DialogContent className="sm:max-w-5xl w-[95vw] sm:w-[95vw] lg:w-[80vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
@@ -89,16 +93,12 @@ export function CveDetailsModal({
 										setToast={setToast}
 										updateStatus={updateStatus}
 										handleConfirmCve={handleConfirmCve}
-										onActionComplete={() => setSelectedGroup(null)}
 									/>
 								))}
 							</div>
 						</div>
 						<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
-							<Button
-								variant="secondary"
-								onClick={() => setSelectedGroup(null)}
-							>
+							<Button variant="secondary" onClick={onClose}>
 								Fermer
 							</Button>
 						</DialogFooter>

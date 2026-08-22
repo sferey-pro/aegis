@@ -27,6 +27,7 @@ type DiffVuln = Vulnerability & {
 	_key: string;
 };
 
+import { VulnDiffRow } from "../components/molecules/VulnDiffRow";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
@@ -45,12 +46,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "../components/ui/table";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "../components/ui/tooltip";
-import { buildCvssTooltip } from "../lib/cvss";
 
 export const Reports = memo(function Reports({
 	/**
@@ -243,7 +238,7 @@ export const Reports = memo(function Reports({
 				</div>
 			) : reports.length === 0 ? (
 				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4 border">
-					<FileText className="w-16 h-16 text-muted-foreground opacity-50 (255,255,255,0.1)]" />
+					<FileText className="w-16 h-16 text-muted-foreground opacity-50" />
 					<div>
 						<h3 className="text-xl font-bold">Aucun rapport</h3>
 						<p className="text-muted-foreground mt-2">
@@ -516,7 +511,7 @@ export const Reports = memo(function Reports({
 							<>
 								<div className="grid grid-cols-3 gap-4">
 									<div className="bg-red-500/10 border rounded-xl p-4 flex flex-col gap-1">
-										<span className="text-red-400 font-bold flex items-center gap-2">
+										<span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-2">
 											<ArrowUpRight className="w-4 h-4" /> Nouvelles failles
 										</span>
 										<span className="text-3xl font-light">
@@ -524,14 +519,14 @@ export const Reports = memo(function Reports({
 										</span>
 									</div>
 									<div className="bg-green-500/10 border rounded-xl p-4 flex flex-col gap-1">
-										<span className="text-green-400 font-bold flex items-center gap-2">
+										<span className="text-green-600 dark:text-green-400 font-bold flex items-center gap-2">
 											<ArrowDownRight className="w-4 h-4" /> Failles corrigées
 										</span>
 										<span className="text-3xl font-light">
 											{diffData.fixedVulns.length}
 										</span>
 									</div>
-									<div className="bg-white/5 border rounded-xl p-4 flex flex-col gap-1">
+									<div className="bg-muted/60 dark:bg-white/5 border rounded-xl p-4 flex flex-col gap-1">
 										<span className="text-muted-foreground font-bold flex items-center gap-2">
 											<Minus className="w-4 h-4" /> Inchangées
 										</span>
@@ -549,40 +544,14 @@ export const Reports = memo(function Reports({
 										</h3>
 										<div className="flex flex-col gap-2">
 											{diffData.fixedVulns.map((v) => (
-												<div
+												<VulnDiffRow
 													key={v._key}
-													className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border"
-												>
-													<div className="flex items-center gap-3">
-														<span className="text-xs font-mono px-2 py-1 rounded">
-															{v.projectName}
-														</span>
-														<span className="font-bold">{v.package}</span>
-														<span className="text-muted-foreground text-sm truncate max-w-[300px]">
-															{v.title}
-															{v.cvssVector && (
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded border text-muted-foreground cursor-help">
-																			{v.cvssVector}
-																		</span>
-																	</TooltipTrigger>
-																	<TooltipContent
-																		side="right"
-																		className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 max-w-[400px]"
-																	>
-																		{buildCvssTooltip(v.cvssVector)}
-																	</TooltipContent>
-																</Tooltip>
-															)}
-														</span>
-													</div>
-													{v.cve && (
-														<span className="text-xs font-mono text-muted-foreground">
-															{v.cve}
-														</span>
-													)}
-												</div>
+													projectName={v.projectName}
+													packageName={v.package}
+													title={v.title}
+													cve={v.cve}
+													cvssVector={v.cvssVector}
+												/>
 											))}
 										</div>
 									</div>
@@ -596,57 +565,15 @@ export const Reports = memo(function Reports({
 										</h3>
 										<div className="flex flex-col gap-2">
 											{diffData.newVulns.map((v) => (
-												<div
+												<VulnDiffRow
 													key={v._key}
-													className="flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border"
-												>
-													<div className="flex items-center gap-3">
-														<span className="text-xs font-mono px-2 py-1 rounded">
-															{v.projectName}
-														</span>
-														<span className="font-bold">{v.package}</span>
-														<span className="text-muted-foreground text-sm truncate max-w-[300px]">
-															{v.title}
-															{v.cvssVector && (
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<span className="ml-2 font-mono text-xs px-2 py-0.5 rounded border text-muted-foreground cursor-help">
-																			{v.cvssVector}
-																		</span>
-																	</TooltipTrigger>
-																	<TooltipContent
-																		side="right"
-																		className="font-mono text-xs whitespace-pre bg-gray-900 border-gray-700 max-w-[400px]"
-																	>
-																		{buildCvssTooltip(v.cvssVector)}
-																	</TooltipContent>
-																</Tooltip>
-															)}
-														</span>
-													</div>
-													<div className="flex items-center gap-2 mt-2 md:mt-0">
-														{v.severity === "critical" && (
-															<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
-																Critique
-															</span>
-														)}
-														{v.severity === "high" && (
-															<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
-																Haut
-															</span>
-														)}
-														{v.severity === "moderate" && (
-															<span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded">
-																Modéré
-															</span>
-														)}
-														{v.cve && (
-															<span className="text-xs font-mono text-muted-foreground">
-																{v.cve}
-															</span>
-														)}
-													</div>
-												</div>
+													projectName={v.projectName}
+													packageName={v.package}
+													title={v.title}
+													cve={v.cve}
+													severity={v.severity}
+													cvssVector={v.cvssVector}
+												/>
 											))}
 										</div>
 									</div>

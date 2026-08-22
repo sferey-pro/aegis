@@ -1,12 +1,12 @@
-# ✅ Couverture de test — état au 21/08/2026
+# ✅ Couverture de test — état au 23/08/2026
 
 Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1168 tests · 0 échec · 90 fichiers
-├── 363 composants (46 fichiers) — DOM, React, fetch simulé
-└── 805 fonctionnels (41 fichiers) — vrai serveur, vraie base, vrai git
+1266 tests · 0 échec · 97 fichiers
+├── 414 composants (51 fichiers) — DOM, React, fetch simulé
+└── 852 fonctionnels (46 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -21,7 +21,7 @@ Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
 
 ---
 
-## 1. Frontend — 363 tests
+## 1. Frontend — 414 tests
 
 Colocation intégrale : chaque `.tsx` a son `.test.tsx` à côté, suivant
 l'Atomic Design.
@@ -29,12 +29,12 @@ l'Atomic Design.
 | Couche | Fichiers | Tests | Ce qui est vérifié |
 |---|---:|---:|---|
 | `components/ui/` (atomes) | 16 | 66 | rendu, variantes `cva`, transfert des props, `data-slot` |
-| `components/molecules/` | 7 | 45 | composition d'atomes, états conditionnels |
-| `components/organisms/` | 11 | 125 | blocs fonctionnels, modales, tableaux, interactions |
+| `components/molecules/` | 11 | 69 | composition d'atomes, états conditionnels, pastilles et dates |
+| `components/organisms/` | 11 | 136 | blocs fonctionnels, modales, tableaux, interactions |
 | `components/templates/` | 2 | 11 | gabarits de mise en page, `Outlet` |
-| `components/layout/` | 2 | 12 | chargeur global, modale de rapport |
-| `pages/` | 7 | 73 | écrans complets, chargement, erreurs réseau, pagination |
-| `App.tsx` | 1 | 11 | routage `react-router-dom`, montage |
+| `components/layout/` | 3 | 16 | chargeur global, voile en portail, modale de rapport |
+| `pages/` | 7 | 101 | écrans complets, chargement, erreurs réseau, pagination |
+| `App.tsx` | 1 | 15 | routage `react-router-dom`, montage |
 
 Le réseau est simulé (`mockFetch`) : les pages exercent le chargement, la
 réponse vide, l'erreur réseau et le JSON invalide. Les composants qui consomment
@@ -76,14 +76,17 @@ clés étrangères et les migrations sont réels.
 
 ---
 
-## 3. Logique métier — 357 tests
+## 3. Logique métier — 397 tests
 
 | Module | Tests | Contrats notables |
 |---|---:|---|
 | `lib/schemas.ts` | 45 | **messages identiques à `CONTEXT.md`**, mot pour mot |
 | `lib/audit/index.ts` | 43 | `resolveAuditTarget`, déduplication §12, run en erreur, `ingestAudit` |
 | `lib/github/index.ts` | 39 | cache d'avis, quota, choix du correctif par branche majeure |
-| `lib/aggregator/index.ts` | 31 | regroupement par CVE, clé de repli, âge baseline vs SLA |
+| `lib/aggregator/index.ts` | 38 | regroupement par CVE, clé de repli, âge baseline vs SLA, **superposition des avis** |
+| `lib/advisory-sync.ts` | 15 | clés distinctes des derniers runs, arrêt sur quota, reprise |
+| `lib/triage-constants.tsx` | 14 | palette contrastée, six formes distinctes, six libellés |
+| `lib/tailwind-classes.ts` | 4 | garde-fou sur tout `src/` : variante amputée, valeur tronquée, opacité orpheline |
 | `lib/git/index.ts` | 26 | dépôts jetables réels, `ahead`/`behind`, `pull --ff-only` |
 | `lib/parsers/` (6) | 62 | npm, bun, yarn, composer + utils, tolérance aux formes partielles |
 | `lib/console.ts` | 18 | cadrage SSE, troncature à 3000, purge d'un client fermé |
@@ -112,6 +115,20 @@ Points qui méritaient d'être épinglés :
 - **Deux compteurs d'âge distincts** : une faille de baseline est datée de
   `published_at` (sinon une faille de 2019 s'afficherait « 0 jour »), une
   découverte nette de `first_seen_at`.
+- **Les avis GHSA sont superposés à la lecture**, pas réécrits dans le run. Un
+  enrichissement devient donc visible sans réauditer, et le run reste le compte
+  rendu brut de l'outil. La sévérité de l'avis fait autorité — c'est elle qui
+  corrige les `unknown` de `yarn audit` — et une seule fonction sert le tri, le
+  dédoublonnage et l'affichage, sans quoi un groupe pouvait s'annoncer « low » en
+  contenant une occurrence « critical ».
+- **L'enrichissement en masse s'arrête au premier 429** et annonce ce qui reste.
+  Ce qui a été récupéré avant l'arrêt est conservé : un second appel reprend là où
+  le premier s'était arrêté.
+- **Les classes Tailwind écrites en dur sont vérifiées à la source.** Ni Tailwind,
+  ni Biome, ni `tsc` ne signalent un ` :bg-input/50` — Tailwind ignore ce qu'il ne
+  reconnaît pas, et les deux autres ne lisent pas le contenu des chaînes. Onze
+  occurrences avaient survécu dans les atomes Shadcn, donc dans toute
+  l'application (défaut N14).
 
 ---
 
@@ -157,7 +174,7 @@ Invariants de sécurité vérifiés de bout en bout :
 
 Les tests de cette suite ne valident pas seulement ce qui marche : quand le comportement réel s'écarte de `CONTEXT.md`, le test **affirme le comportement réel** et son libellé porte la mention « écart documenté ». La régression involontaire est bloquée, et l'écart reste visible.
 
-**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 25 de ses entrées portent le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
+**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 10 de ses entrées portent encore le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
 
 Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant. **Dix sont corrigés à ce jour** (N32, N33, N34, N35, N36, N37, N38, N40, N42, N43) ; les autres restent épinglés :
 
@@ -179,6 +196,8 @@ Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlo
 | [N40](./ISSUE.md#n40-les-noms-de-tags-sont-sensibles-à-la-casse) | Les noms de tags sont sensibles à la casse | 🔵 4 |
 
 Les huit autres écarts relevés par les tests confirmaient un défaut déjà inscrit : `N2` (snapshot, deux angles), `N5` (secrets en clair), `N7` (annotations globales), `N12` (cascade de tags), `N13` (`history-global`, deux angles) et `N18` (perte du `fixedIn`).
+
+**Deux contrats sont passés du rouge au vert le 23/08/2026** : `N9` (la modale de triage reste ouverte et à jour) et `N14` (aucune classe amputée). Leurs `describe` sont renommés « (corrigé) » et le test « écart documenté » correspondant a été supprimé, conformément à la marche à suivre ci-dessous.
 
 ### Corriger un écart épinglé
 

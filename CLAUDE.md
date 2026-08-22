@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 363 tests composants — happy-dom actif
-bun run test:api    # 805 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 414 tests composants — happy-dom actif
+bun run test:api    # 852 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1168 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1266 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -84,6 +84,8 @@ Conséquences à connaître :
 
 **Frontend** en Atomic Design, imposé par l'arborescence : `components/ui/` (atomes Shadcn/Radix) → `molecules/` → `organisms/` → `templates/` (gabarits de route) → `pages/` (racines de route). Navigation avec `react-router-dom` v7 et `BrowserRouter` dans `frontend.tsx` ; `App.tsx` porte les stats globales, la boucle d'orchestration des audits et les modales loader/rapport. Les constantes métier et le style des sévérités vivent dans `src/lib/triage-constants.tsx`. Fusionnez toujours les classes Tailwind via `cn()` de `src/lib/utils.ts`.
 
+**Thème clair et sombre, tous les deux.** `styles/globals.css` déclare le jeu de tokens clair sur `:root`, puis le sombre **deux fois** : sous `@media (prefers-color-scheme: dark)` pour suivre le système, et sous `.dark` pour forcer — ce dernier étant le sélecteur qu'attend `ui/chart.tsx`. La duplication est délibérée ; CSS ne sait pas partager un bloc de déclarations entre deux sélecteurs sans une indirection qui coûte plus en lisibilité qu'elle ne gagne en lignes. En Tailwind v4 la variante `dark:` est adossée par défaut à `prefers-color-scheme` : tant que les tokens manquaient, les utilitaires basculaient sans les variables, d'où un fond clair avec du texte clair par-dessus (défaut N14). **Toute couleur codée en dur doit porter ses deux teintes** — `text-red-600 dark:text-red-400`, jamais `text-red-400` seul. `src/lib/tailwind-classes.test.ts` balaie l'arbre pour trois motifs qu'aucun outil ne signale : préfixe de variante amputé (` :bg-input/50`), valeur arbitraire tronquée (`(var(--primary),0.2)]`) et modificateur d'opacité orphelin (`inset-0 /5`).
+
 ## Conventions
 
 - Commentaires, logs, textes affichés et messages d'erreur d'API sont en **français**. Restez cohérent.
@@ -122,4 +124,4 @@ Ce sont des garde-fous du projet, pas des conseils génériques — en casser un
 - La route `"/api/*"` de `src/index.ts` répond 404 en JSON pour tout chemin d'API non capté. Elle doit rester **avant** le fourre-tout `"/*"` : l'ordre de déclaration décide, et l'inverser ferait à nouveau servir `index.html` en 200 sur un appel mal orthographié.
 - ⚠️ Une entrée d'`ISSUE.md` marquée « écart documenté » établit que le comportement a été **observé**, pas qu'il est fautif. **Confrontez toujours à `CONTEXT.md` avant de corriger** : la sensibilité à la casse des noms de tags a été « corrigée » à tort, alors que §9 la spécifie, avec une migration destructive à la clé.
 - **`docs/ISSUE.md` est la liste unique des défauts connus**, groupée par priorité et revérifiée dans le code le 21/08/2026. Ses 25 entrées marquées 🧪 sont **épinglées par un test** qui affirme le comportement défectueux : la régression involontaire est bloquée, mais le défaut n'est pas corrigé. Consultez cette liste avant de conclure qu'un comportement surprenant est un bug neuf. Chaque entrée 🧪 porte **deux** tests : celui qui affirme le comportement actuel (« écart documenté »), et un `test.failing` regroupé en fin de fichier sous `describe("contrats attendus — à activer au correctif")` qui énonce le contrat. Au correctif : corriger le code, retirer `.failing`, supprimer le test « écart documenté ». Bun refuse un `test.failing` qui passe, donc le correctif ne peut pas passer inaperçu. N'utilisez pas `test.skip` ni `test.todo` à cette fin : leur corps n'est pas exécuté.
-- `docs/` contient la spécification fonctionnelle (`CONTEXT.md` est la référence de comportement autoritative — règles de déduplication, messages de validation, cas limites), plus `TESTING.md` (comment on teste), `TESTS.md` (ce qui est couvert), `ISSUE.md`, `VERIFICATION_REPORT.md`, `BACKLOG.md`, `PROJECT_BLUEPRINT.md` et `atomic_design_roadmap.md`. `.agents/` contient une configuration parallèle de personas d'agents (`agents.md`, `rules/`, `skills/`, `workflows/`) dont les fichiers `rules/` constituent les règles de code normatives de ce dépôt.
+- `docs/` contient la spécification fonctionnelle (`CONTEXT.md` est la référence de comportement autoritative — règles de déduplication, messages de validation, cas limites), plus `TESTING.md` (comment on teste), `TESTS.md` (ce qui est couvert), `CI_INGEST.md` (mise en place de l'ingestion depuis une CI GitHub Actions), `ISSUE.md`, `VERIFICATION_REPORT.md`, `BACKLOG.md`, `PROJECT_BLUEPRINT.md` et `atomic_design_roadmap.md`. `.agents/` contient une configuration parallèle de personas d'agents (`agents.md`, `rules/`, `skills/`, `workflows/`) dont les fichiers `rules/` constituent les règles de code normatives de ce dépôt.

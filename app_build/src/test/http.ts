@@ -23,6 +23,12 @@ export interface FakeResponse {
 	invalidJson?: boolean;
 	/** Fait rejeter `fetch` lui-même, pour simuler une coupure réseau. */
 	networkError?: string;
+	/**
+	 * Retarde la résolution, pour observer l'état de l'interface **pendant** la
+	 * requête. Sans quoi une mise à jour optimiste est indistinguable de la
+	 * réponse du serveur : les deux arrivent dans le même tour de boucle.
+	 */
+	delayMs?: number;
 }
 
 /** Table de routes, indexée par `"MÉTHODE /chemin"` ou `"/chemin"` (= GET). */
@@ -48,7 +54,8 @@ function normalise(spec: FakeResponse | unknown): FakeResponse {
 		("body" in spec ||
 			"status" in spec ||
 			"invalidJson" in spec ||
-			"networkError" in spec)
+			"networkError" in spec ||
+			"delayMs" in spec)
 	) {
 		return spec as FakeResponse;
 	}
@@ -100,6 +107,9 @@ export function mockFetch(routes: FetchRoutes) {
 		}
 
 		const s = spec as FakeResponse;
+		if (s.delayMs) {
+			await new Promise((resoudre) => setTimeout(resoudre, s.delayMs));
+		}
 		if (s.networkError) throw new TypeError(s.networkError);
 
 		const status = s.status ?? 200;

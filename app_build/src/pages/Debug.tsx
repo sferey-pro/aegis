@@ -427,7 +427,6 @@ export function Debug() {
 									setToast={() => {}}
 									updateStatus={async () => {}}
 									handleConfirmCve={() => {}}
-									onActionComplete={() => {}}
 								/>
 							</div>
 						</div>

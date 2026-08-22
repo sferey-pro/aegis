@@ -48,7 +48,7 @@ export const ConsoleLogItem = memo(function ConsoleLogItem({
 					)}
 
 					{log.status === "error" && log.exitCode !== undefined && (
-						<span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 shrink-0">
+						<span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-700 dark:text-red-300 shrink-0">
 							code {log.exitCode}
 						</span>
 					)}

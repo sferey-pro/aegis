@@ -61,7 +61,7 @@ function groupe(over: Partial<PackageGroup> = {}): PackageGroup {
 function props(over: Partial<Parameters<typeof CveDetailsModal>[0]> = {}) {
 	return {
 		selectedGroup: groupe(),
-		setSelectedGroup: () => {},
+		onClose: () => {},
 		updateStatus: async () => {},
 		handleConfirmCve: () => {},
 		setToast: () => {},

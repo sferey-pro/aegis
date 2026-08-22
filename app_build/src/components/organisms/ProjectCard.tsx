@@ -239,7 +239,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 							)}
 							{p.git.behind > 0 && (
 								<span
-									className="text-red-400 font-bold flex items-center gap-0.5"
+									className="text-red-600 dark:text-red-400 font-bold flex items-center gap-0.5"
 									title={`${p.git.behind} commits de retard`}
 								>
 									<ArrowDownToLine className="w-3 h-3" /> {p.git.behind}

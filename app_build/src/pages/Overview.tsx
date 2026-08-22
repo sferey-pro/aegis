@@ -12,6 +12,23 @@ import type { StatsResponse } from "@/routes/stats";
 import { HistoryChart } from "../components/organisms/HistoryChart";
 import { Button } from "../components/ui/button";
 
+/**
+ * Habillage de la note de santé globale.
+ *
+ * Même défaut que la palette de sévérité : la classe ne portait qu'un fond à
+ * 20 % et un `border ` sans couleur, sur une lettre en `text-5xl`. Les cinq
+ * notes se distinguaient donc par une nuance de fond très pâle, et la couleur
+ * était **seule** porteuse du sens — alors que la lettre elle-même est déjà là
+ * pour le dire. Texte et bordure explicites, contrastés dans les deux thèmes.
+ */
+const GRADE_COLORS: Record<string, string> = {
+	A: "bg-green-500/20 text-green-700 border-green-500/50 dark:text-green-300",
+	B: "bg-blue-500/20 text-blue-700 border-blue-500/50 dark:text-blue-300",
+	C: "bg-yellow-500/20 text-yellow-700 border-yellow-500/50 dark:text-yellow-300",
+	D: "bg-orange-500/20 text-orange-700 border-orange-500/50 dark:text-orange-300",
+	F: "bg-red-500/20 text-red-700 border-red-500/50 dark:text-red-300",
+};
+
 export const Overview = memo(function Overview({
 	stats,
 	loading,
@@ -52,12 +69,11 @@ export const Overview = memo(function Overview({
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
 				{stats?.healthGrade && (
 					<div className="bg-card border-border p-6 rounded-3xl flex flex-col items-center justify-center gap-2 relative overflow-hidden">
-						<div className="absolute inset-0 /5 opacity-0"></div>
 						<p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest z-10">
 							Santé Globale
 						</p>
 						<div
-							className={`relative z-10 w-24 h-24 mt-2 rounded-2xl flex items-center justify-center text-5xl font-black ${stats.healthGrade === "A" ? "bg-green-500/20 border " : stats.healthGrade === "B" ? "bg-blue-500/20 border " : stats.healthGrade === "C" ? "bg-yellow-500/20 border " : stats.healthGrade === "D" ? "bg-orange-500/20 border " : "bg-red-500/20 border "}`}
+							className={`relative z-10 w-24 h-24 mt-2 rounded-2xl flex items-center justify-center text-5xl font-black ${GRADE_COLORS[stats.healthGrade] ?? GRADE_COLORS.F}`}
 						>
 							{stats.healthGrade}
 						</div>
@@ -65,7 +81,6 @@ export const Overview = memo(function Overview({
 				)}
 
 				<div className="bg-card border-border p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden">
-					<div className="absolute inset-0 /5 opacity-0"></div>
 					<div className="flex items-center gap-3 relative z-10">
 						<div className="w-12 h-12 rounded-2xl border flex items-center justify-center">
 							<Activity className="w-6 h-6" />
@@ -88,7 +103,6 @@ export const Overview = memo(function Overview({
 				</div>
 
 				<div className="bg-card border-border p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden">
-					<div className="absolute inset-0 /5 opacity-0"></div>
 					<div className="flex items-center gap-3 relative z-10">
 						<div className="w-12 h-12 rounded-2xl border flex items-center justify-center">
 							<GitBranch className="w-6 h-6" />
@@ -111,7 +125,6 @@ export const Overview = memo(function Overview({
 				</div>
 
 				<div className="bg-card border-border p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden">
-					<div className="absolute inset-0 /5 opacity-0"></div>
 					<div className="flex items-center gap-3 relative z-10">
 						<div className="w-12 h-12 rounded-2xl border flex items-center justify-center">
 							<Database className="w-6 h-6" />

@@ -29,7 +29,6 @@ export function CveCard({
 	setToast,
 	updateStatus,
 	handleConfirmCve,
-	onActionComplete,
 }: {
 	cveObj: PackageGroupCve;
 	packageName: string;
@@ -46,7 +45,6 @@ export function CveCard({
 		projectId: number,
 		initialReason?: string,
 	) => void;
-	onActionComplete: () => void;
 }) {
 	return (
 		<div className="flex flex-col rounded-xl border relative overflow-hidden bg-card text-card-foreground">
@@ -92,7 +90,7 @@ export function CveCard({
 					)}
 					{cveObj.ageInDays !== undefined && (
 						<span
-							className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${cveObj.isBaseline ? "bg-purple-500/10 " : cveObj.ageInDays > 30 ? "bg-red-500/10 " : cveObj.ageInDays > 15 ? "bg-orange-500/10 " : "bg-white/5 text-muted-foreground "}`}
+							className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${cveObj.isBaseline ? "bg-purple-500/10 text-purple-700 border-purple-500/40 dark:text-purple-300" : cveObj.ageInDays > 30 ? "bg-red-500/10 text-red-700 border-red-500/40 dark:text-red-300" : cveObj.ageInDays > 15 ? "bg-orange-500/10 text-orange-700 border-orange-500/40 dark:text-orange-300" : "bg-muted/60 text-muted-foreground dark:bg-white/5"}`}
 							title={
 								cveObj.isBaseline
 									? "Existant à l'installation : l'âge court depuis la publication de l'avis."
@@ -237,7 +235,6 @@ export function CveCard({
 							size="icon"
 							onClick={() => {
 								handleConfirmCve(cveObj.cve, projectId, cveObj.note);
-								onActionComplete();
 							}}
 							className="absolute top-2 right-2 w-7 h-7 opacity-0 hover:opacity-100 text-muted-foreground transition-opacity group-hover:opacity-100"
 							title="Modifier la note"
@@ -254,7 +251,6 @@ export function CveCard({
 					size="sm"
 					onClick={() => {
 						updateStatus(cveObj.cve, projectId, "pending");
-						onActionComplete();
 					}}
 					className="text-xs font-medium"
 				>
@@ -265,7 +261,6 @@ export function CveCard({
 					size="sm"
 					onClick={() => {
 						handleConfirmCve(cveObj.cve, projectId, cveObj.note || "");
-						onActionComplete();
 					}}
 					className="text-xs font-medium flex items-center gap-1.5"
 				>
@@ -280,7 +275,6 @@ export function CveCard({
 					size="sm"
 					onClick={() => {
 						updateStatus(cveObj.cve, projectId, "ignored");
-						onActionComplete();
 					}}
 					className={`text-xs font-medium flex items-center gap-1.5 ${cveObj.status === "ignored" && !cveObj.isGlobal ? "bg-orange-500/20 text-orange-500 border-orange-500/50" : ""}`}
 					title="Faux positif pour ce projet"

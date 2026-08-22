@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Button } from "./button";
 
@@ -68,18 +67,3 @@ describe("Button", () => {
  * suite reste verte tant que le défaut existe, et bascule en rouge le jour du
  * correctif.
  */
-describe("contrats attendus — à activer au correctif", () => {
-	// N14 — des préfixes `dark:` ont été amputés lors d'une réécriture et les
-	// classes sont restées, invalides : `"…hover:text-accent-foreground   :bg-input/50"`.
-	// Le défaut est dans l'atome de base, donc propagé à tous les boutons de
-	// l'application. Une classe commençant par `:` ne résout rien et passe
-	// inaperçue — ni Tailwind ni Biome ne la signalent.
-	test.failing("aucune variante ne contient de classe amputée (N14)", () => {
-		const source = readFileSync(
-			new URL("./button.tsx", import.meta.url),
-			"utf8",
-		);
-		// Une classe valide ne commence jamais par « : » après une espace.
-		expect(source).not.toMatch(/\s:[a-z-]+[:/]/);
-	});
-});

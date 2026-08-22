@@ -12,6 +12,7 @@ import type { CachedAdvisory } from "@/lib/github";
 import { errorMessage } from "@/lib/utils";
 import { buildCvssTooltip } from "../../lib/cvss";
 import { SEVERITY_COLORS } from "../../lib/triage-constants";
+import { CveTimeline } from "../molecules/CveTimeline";
 import { Button } from "../ui/button";
 import {
 	Tooltip,
@@ -93,17 +94,23 @@ export function CveCard({
 						<span
 							className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${cveObj.isBaseline ? "bg-purple-500/10 " : cveObj.ageInDays > 30 ? "bg-red-500/10 " : cveObj.ageInDays > 15 ? "bg-orange-500/10 " : "bg-white/5 text-muted-foreground "}`}
 							title={
-								cveObj.publishedAt
-									? `Publiée le: ${new Date(cveObj.publishedAt).toLocaleString()}`
-									: cveObj.firstSeenAt
-										? `Première détection: ${new Date(cveObj.firstSeenAt).toLocaleString()}`
-										: "Âge SLA"
+								cveObj.isBaseline
+									? "Existant à l'installation : l'âge court depuis la publication de l'avis."
+									: "Découverte nette : l'âge court depuis notre première détection."
 							}
 						>
 							<Clock className="w-3 h-3" />{" "}
-							{cveObj.isBaseline ? "Dette" : "SLA"} {cveObj.ageInDays}j
+							{cveObj.isBaseline ? "SLA hérité" : "SLA"} {cveObj.ageInDays}j
 						</span>
 					)}
+					{/* Les deux dates, chacune nommée. L'infobulle précédente affichait
+					    l'une *ou* l'autre selon ce qui était disponible, sans dire
+					    laquelle : impossible de savoir ce qu'on lisait. */}
+					<CveTimeline
+						publishedAt={cveObj.publishedAt}
+						firstSeenAt={cveObj.firstSeenAt}
+						className="px-2 py-1 rounded border"
+					/>
 					{cveObj.fixedIn && (
 						<span className="font-mono px-2 py-1 rounded border">
 							Patch : {cveObj.fixedIn}

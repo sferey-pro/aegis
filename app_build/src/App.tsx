@@ -276,7 +276,7 @@ export function App() {
 						/>
 						<Route path="/projects" element={<Projects />} />
 						<Route path="/triage" element={<Triage />} />
-						<Route path="/reports" element={<Reports />} />
+						<Route path="/reports" element={<Reports auditing={auditing} />} />
 						<Route path="/prompts" element={<PromptsLibrary />} />
 						<Route path="/settings" element={<Settings />} />
 					</Route>

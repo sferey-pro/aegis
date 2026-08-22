@@ -6,6 +6,8 @@ export interface ConsoleEvent {
 	label?: string;
 	project?: string;
 	exitCode?: number;
+	/** Succès déclaré par le producteur, prioritaire sur `exitCode`. */
+	ok?: boolean;
 	ms?: number;
 	outText?: string;
 	errorText?: string;

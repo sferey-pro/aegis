@@ -52,6 +52,8 @@ function groupe(over: Partial<PackageGroup> = {}): PackageGroup {
 		hasBaseline: false,
 		hasNetDiscovery: true,
 		targetPatch: "4.17.21",
+		publishedAt: null,
+		firstSeenAt: null,
 		...over,
 	};
 }

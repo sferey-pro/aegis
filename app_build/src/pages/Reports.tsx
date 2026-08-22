@@ -12,7 +12,7 @@ import {
 	Shield,
 	Trash2,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Report } from "@/db/reports";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
 import type { Vulnerability } from "@/lib/parsers/types";
@@ -52,7 +52,21 @@ import {
 } from "../components/ui/tooltip";
 import { buildCvssTooltip } from "../lib/cvss";
 
-export const Reports = memo(function Reports() {
+export const Reports = memo(function Reports({
+	/**
+	 * Un audit global est-il en cours ?
+	 *
+	 * Cette page détient sa propre copie de la liste, chargée au montage. Sans ce
+	 * signal, lancer « Tout auditer » depuis le bandeau créait bien le compte-rendu
+	 * en base mais la liste restait celle d'avant : le rapport n'apparaissait pas,
+	 * et il fallait recharger la page ou cliquer le bouton de rafraîchissement.
+	 * C'est un cas particulier du défaut N19, dont la solution générale — une
+	 * invalidation partagée — reste à faire.
+	 */
+	auditing = false,
+}: {
+	auditing?: boolean;
+}) {
 	const [reports, setReports] = useState<Report[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [isFetching, setIsFetching] = useState(false);
@@ -150,6 +164,14 @@ export const Reports = memo(function Reports() {
 	useEffect(() => {
 		fetchReports();
 	}, [fetchReports]);
+
+	// Recharger au passage de « audit en cours » à « terminé », moment où le
+	// compte-rendu vient d'être écrit.
+	const auditPrecedent = useRef(auditing);
+	useEffect(() => {
+		if (auditPrecedent.current && !auditing) fetchReports();
+		auditPrecedent.current = auditing;
+	}, [auditing, fetchReports]);
 
 	const handleDelete = async (id: number) => {
 		setReportToDelete(id);

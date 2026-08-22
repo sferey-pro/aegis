@@ -9,6 +9,17 @@ export interface ConsoleEvent {
 	label: "git" | "audit" | "github";
 	project?: string;
 	exitCode?: number;
+	/**
+	 * Succès de l'étape, quand le code de sortie ne suffit pas à le dire.
+	 *
+	 * `exitCode` porte deux choses différentes selon le producteur : un vrai code
+	 * de sortie de processus pour `git` et les outils d'audit, un **statut HTTP**
+	 * pour les appels à l'API GitHub. La console appliquait la convention shell —
+	 * zéro vaut succès — donc un appel GHSA réussi en 200 s'affichait avec une
+	 * croix rouge et la mention « code 200 ». Le succès est désormais déclaré par
+	 * celui qui le connaît.
+	 */
+	ok?: boolean;
 	ms?: number;
 	outText?: string;
 	errorText?: string;
@@ -90,7 +101,12 @@ export function removeConsoleClient(
 	clients.delete(controller);
 }
 
-setInterval(() => {
+/**
+ * Battement de cœur du flux : sans trafic, un intermédiaire peut fermer une
+ * connexion inactive. Le handle est retenu pour pouvoir l'annuler à l'arrêt, et
+ * `unref()` l'empêche de maintenir le process en vie à lui seul.
+ */
+const keepalive = setInterval(() => {
 	for (const client of clients) {
 		try {
 			client.enqueue(`: ping\n\n`);
@@ -99,3 +115,34 @@ setInterval(() => {
 		}
 	}
 }, 25000);
+keepalive.unref?.();
+
+/**
+ * Ferme proprement tous les flux console ouverts.
+ *
+ * Sans cela, l'arrêt du serveur tranchait chaque connexion **en plein milieu d'un
+ * chunk** : le flux n'était jamais fermé côté serveur — le seul `close()` du
+ * code concernait la branche `DISABLE_CONSOLE` — donc le navigateur voyait une
+ * réponse `Transfer-Encoding: chunked` sans chunk terminal et journalisait
+ * `net::ERR_INCOMPLETE_CHUNKED_ENCODING`. Fonctionnellement l'`EventSource` se
+ * reconnecte, mais l'erreur restait affichée à chaque redémarrage et masquait les
+ * vraies.
+ *
+ * À appeler sur `SIGINT` et `SIGTERM`, avant de quitter.
+ */
+export function closeConsoleClients(): void {
+	clearInterval(keepalive);
+	for (const client of clients) {
+		try {
+			client.close();
+		} catch (_e) {
+			// Flux déjà fermé par le pair : rien à faire.
+		}
+	}
+	clients.clear();
+}
+
+/** Nombre de flux console ouverts. Pour les tests et le diagnostic. */
+export function consoleClientCount(): number {
+	return clients.size;
+}

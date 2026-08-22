@@ -141,6 +141,53 @@ describe("Console", () => {
 		expect(screen.queryAllByText("$ npm audit --json")).toHaveLength(0);
 	});
 
+	test("un appel HTTP réussi affiche une coche, pas une croix", () => {
+		// `exitCode` porte un statut HTTP pour les appels GitHub. La convention
+		// shell « zéro = succès » affichait une croix rouge et « code 200 » sur un
+		// avis GHSA parfaitement trouvé.
+		const { container } = render(<Console />);
+		ouvrir();
+		pousser(debut({ label: "github", cmd: "GET advisories GHSA-1234" }));
+		pousser(fin({ exitCode: 200, ok: true }));
+
+		expect(container.querySelector(".text-green-500")).not.toBeNull();
+		expect(container.querySelector(".text-red-500")).toBeNull();
+		expect(screen.queryAllByText(/code 200/)).toHaveLength(0);
+	});
+
+	test("un appel HTTP en échec affiche une croix et son statut", () => {
+		const { container } = render(<Console />);
+		ouvrir();
+		pousser(debut({ label: "github", cmd: "GET advisories GHSA-1234" }));
+		pousser(fin({ exitCode: 404, ok: false }));
+
+		expect(container.querySelector(".text-red-500")).not.toBeNull();
+		expect(screen.getByText(/code 404/)).toBeInTheDocument();
+	});
+
+	test("une coupure réseau n'est pas un succès", () => {
+		// Le chemin d'erreur émettait `exitCode: 0`, donc une coche verte : la
+		// panne la plus franche passait pour une réussite.
+		const { container } = render(<Console />);
+		ouvrir();
+		pousser(debut({ label: "github" }));
+		pousser(fin({ exitCode: undefined, ok: false, errorText: "ENOTFOUND" }));
+
+		expect(container.querySelector(".text-red-500")).not.toBeNull();
+		expect(screen.getByText("ENOTFOUND")).toBeInTheDocument();
+	});
+
+	test("sans `ok`, la convention du code de sortie reste appliquée", () => {
+		// `git` et les outils d'audit ne déclarent pas `ok` : leur code de sortie
+		// garde sa sémantique de processus.
+		const { container } = render(<Console />);
+		ouvrir();
+		pousser(debut());
+		pousser(fin({ exitCode: 1 }));
+
+		expect(container.querySelector(".text-red-500")).not.toBeNull();
+	});
+
 	test("le message : disabled ferme le flux et l'annonce", () => {
 		// Réglage DISABLE_CONSOLE côté serveur : inutile de garder la connexion.
 		render(<Console />);

@@ -195,3 +195,24 @@ describe("CveCard", () => {
 		expect(a.toasts[0]?.type).toBe("error");
 	});
 });
+
+describe("CveCard — libellé d'ancienneté", () => {
+	/**
+	 * Les deux âges ne mesurent pas la même chose : une faille présente à
+	 * l'installation est datée depuis la **publication de l'avis**, une découverte
+	 * nette depuis notre **première détection**. Le libellé doit donc les
+	 * distinguer — et dire « SLA » dans les deux cas, l'ancien « Dette » étant
+	 * jugé peu clair.
+	 */
+	test("une découverte nette est étiquetée SLA", () => {
+		render(<CveCard {...props(cve({ isBaseline: false, ageInDays: 12 }))} />);
+		expect(screen.getByText(/SLA 12j/)).toBeInTheDocument();
+		expect(screen.queryAllByText(/Dette/)).toHaveLength(0);
+	});
+
+	test("un existant à l'installation est étiqueté SLA hérité", () => {
+		render(<CveCard {...props(cve({ isBaseline: true, ageInDays: 300 }))} />);
+		expect(screen.getByText(/SLA hérité 300j/)).toBeInTheDocument();
+		expect(screen.queryAllByText(/Dette/)).toHaveLength(0);
+	});
+});

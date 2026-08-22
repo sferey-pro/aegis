@@ -1,6 +1,7 @@
 import {
 	AlertTriangle,
 	CheckCircle2,
+	CloudDownload,
 	Info,
 	RefreshCw,
 	Shield,
@@ -10,6 +11,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { AnnotationStatus } from "@/db/annotations";
 import type { Ticket } from "@/db/tickets";
+import type { BulkSyncResult } from "@/lib/advisory-sync";
 import type { CveGroup } from "@/lib/aggregator";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
 import type { AnnotationInput } from "@/lib/schemas";
@@ -25,6 +27,24 @@ import type {
 } from "../components/organisms/triage-types";
 import { Button } from "../components/ui/button";
 import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
+
+/**
+ * La plus ancienne de deux dates ISO, en ignorant les absentes et les illisibles.
+ *
+ * Une date illisible traitée comme valide remonterait comme minimum et
+ * afficherait « Invalid Date » sur toute la ligne.
+ */
+function plusAncienne(
+	a: string | null,
+	b: string | null | undefined,
+): string | null {
+	if (!b || Number.isNaN(new Date(b).getTime())) return a;
+	if (!a) return b;
+	return new Date(b) < new Date(a) ? b : a;
+}
+
+/** Réponse de `POST /api/advisories/sync-all` : le bilan, plus l'enveloppe. */
+type BulkSyncResponse = BulkSyncResult & { success: boolean };
 
 export const Triage = React.memo(function Triage() {
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -62,6 +82,7 @@ export const Triage = React.memo(function Triage() {
 	const [hideProcessed, setHideProcessed] = useState(false);
 	/** Échec du chargement des CVE, distinct d'un parc sans vulnérabilité (N6). */
 	const [loadError, setLoadError] = useState<string | null>(null);
+	const [enriching, setEnriching] = useState(false);
 
 	const fetchCves = useCallback(async () => {
 		try {
@@ -134,9 +155,14 @@ export const Triage = React.memo(function Triage() {
 						hasBaseline: false,
 						hasNetDiscovery: false,
 						targetPatch: null as string | null,
+						publishedAt: null as string | null,
+						firstSeenAt: null as string | null,
 					};
 					map.set(key, g);
 				}
+				// La plus ancienne des deux dates : c'est celle qui porte le SLA.
+				g.publishedAt = plusAncienne(g.publishedAt, occ.publishedAt);
+				g.firstSeenAt = plusAncienne(g.firstSeenAt, occ.firstSeenAt);
 				if (
 					occ.fixedIn &&
 					(!g.targetPatch || compareVersions(occ.fixedIn, g.targetPatch) > 0)
@@ -232,6 +258,48 @@ export const Triage = React.memo(function Triage() {
 		}
 	};
 
+	/**
+	 * Va chercher chez GitHub les avis manquants pour toutes les CVE affichées.
+	 *
+	 * Les métadonnées d'avis — sévérité GHSA, vecteur CVSS, date de publication,
+	 * lien — ne se remplissaient qu'une CVE à la fois, par le bouton de
+	 * rafraîchissement d'une ligne. Sur une base neuve la colonne restait vide.
+	 * Le rechargement à la fin est indispensable : l'agrégateur superpose le cache
+	 * aux runs à la lecture, donc le nouveau contenu n'apparaît qu'au prochain
+	 * `GET /api/cves`.
+	 */
+	const handleEnrichAll = async () => {
+		setEnriching(true);
+		try {
+			const r = await fetchJson<BulkSyncResponse>(
+				"/api/advisories/sync-all",
+				jsonInit("POST", {}),
+			);
+
+			// Le quota GitHub est une fin de passe légitime, pas une erreur : ce qui a
+			// été récupéré est conservé, et un second clic reprend le reste.
+			setToast({
+				isOpen: true,
+				title: r.rateLimited ? "Quota GitHub atteint" : "Avis GHSA à jour",
+				message: r.rateLimited
+					? `${r.fetched} avis récupérés, ${r.remaining} restants. Réessayez plus tard, ou renseignez un GITHUB_TOKEN dans les paramètres.`
+					: `${r.total} CVE examinées : ${r.fetched} avis récupérés, ${r.alreadyCached} déjà connus, ${r.notFound} inconnus de GitHub.`,
+				type: r.rateLimited ? "info" : "success",
+			});
+
+			await fetchCves();
+		} catch (err) {
+			setToast({
+				isOpen: true,
+				title: "Échec",
+				message: `Enrichissement GHSA impossible : ${apiErrorMessage(err)}`,
+				type: "error",
+			});
+		} finally {
+			setEnriching(false);
+		}
+	};
+
 	const handleConfirmCve = (
 		cve: string,
 		projectId: number,
@@ -324,13 +392,29 @@ export const Triage = React.memo(function Triage() {
 						Jira.
 					</p>
 				</div>
-				<Button
-					variant={hideProcessed ? "secondary" : "outline"}
-					onClick={() => setHideProcessed(!hideProcessed)}
-					className={`flex items-center gap-2 ${hideProcessed ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
-				>
-					<CheckCircle2 className="w-4 h-4" /> Zero-Inbox (Masquer traitées)
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button
+						variant="secondary"
+						onClick={handleEnrichAll}
+						disabled={enriching || cves.length === 0}
+						title="Interroge GitHub pour les avis manquants de toutes les CVE affichées"
+						className="flex items-center gap-2"
+					>
+						{enriching ? (
+							<RefreshCw className="w-4 h-4 animate-spin" />
+						) : (
+							<CloudDownload className="w-4 h-4" />
+						)}
+						{enriching ? "Recherche GHSA…" : "Mettre à jour les avis GHSA"}
+					</Button>
+					<Button
+						variant={hideProcessed ? "secondary" : "outline"}
+						onClick={() => setHideProcessed(!hideProcessed)}
+						className={`flex items-center gap-2 ${hideProcessed ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
+					>
+						<CheckCircle2 className="w-4 h-4" /> Zero-Inbox (Masquer traitées)
+					</Button>
+				</div>
 			</div>
 
 			{loading ? (

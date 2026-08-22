@@ -56,7 +56,11 @@ export const Console = memo(function Console() {
 							if (log.id === data.id) {
 								return {
 									...log,
-									status: data.exitCode === 0 ? "success" : "error",
+									// `ok` d'abord : `exitCode` vaut un statut HTTP pour les
+									// appels GitHub, et la convention shell « zéro = succès »
+									// affichait une croix rouge sur un 200.
+									status:
+										(data.ok ?? data.exitCode === 0) ? "success" : "error",
 									exitCode: data.exitCode,
 									ms: data.ms,
 									outText: data.outText,

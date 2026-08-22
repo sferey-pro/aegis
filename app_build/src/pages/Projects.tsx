@@ -19,12 +19,21 @@ import {
 	Trash2,
 	XCircle,
 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import type { Project, ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
-import { fetchJson, fetchVoid } from "@/lib/api";
+import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
 import type { ProjectListItem } from "@/routes/projects";
+import { FullScreenOverlay } from "../components/layout/FullScreenOverlay";
+import { ShieldLoader } from "../components/molecules/ShieldLoader";
+import { TagBadge } from "../components/molecules/TagBadge";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
 import { Badge } from "../components/ui/badge";
@@ -59,9 +68,28 @@ export const Projects = React.memo(function Projects() {
 	const [loading, setLoading] = useState(true);
 
 	const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+
+	/**
+	 * Couleur par nom de tag. Un projet ne stocke que les noms : sans cette table
+	 * les badges rendus depuis un projet perdaient leur pastille.
+	 */
+	const tagColors = useMemo(
+		() => Object.fromEntries(availableTags.map((t) => [t.name, t.color])),
+		[availableTags],
+	);
 	const [filterTag, setFilterTag] = useState<string | null>(null);
 
 	const [isAdding, setIsAdding] = useState(false);
+	/**
+	 * Erreur renvoyée par le serveur au dernier envoi du formulaire.
+	 *
+	 * La validation HTML5 ne remplace pas celle du serveur, et ne la recouvre même
+	 * pas : un nom fait d'espaces satisfait `required` — il n'est pas vide — mais
+	 * le schéma le trime et refuse en 400 « Nom requis ». Même chose pour le
+	 * chemin. Le refus partait dans `console.error` : le formulaire ne se fermait
+	 * pas, n'affichait rien, et paraissait simplement ne pas répondre.
+	 */
+	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [detectStatus, setDetectStatus] = useState<
 		"idle" | "detecting" | "success" | "error"
 	>("idle");
@@ -192,6 +220,9 @@ export const Projects = React.memo(function Projects() {
 	const resetForm = () => {
 		setIsAdding(false);
 		setEditingId(null);
+		// Sans cela, l'erreur du précédent envoi réapparaîtrait à la réouverture du
+		// formulaire, sur un contenu qui n'a plus rien à voir.
+		setSubmitError(null);
 		setDetectStatus("idle");
 		setDetectedToolName(null);
 		setFormData({
@@ -225,6 +256,7 @@ export const Projects = React.memo(function Projects() {
 		shouldAudit = false,
 	) => {
 		e.preventDefault();
+		setSubmitError(null);
 		try {
 			const payload = { ...formData };
 			let createdProjectId = null;
@@ -274,7 +306,7 @@ export const Projects = React.memo(function Projects() {
 					});
 			}
 		} catch (err) {
-			console.error(err);
+			setSubmitError(apiErrorMessage(err));
 		}
 	};
 
@@ -733,7 +765,15 @@ export const Projects = React.memo(function Projects() {
 							</div>
 						</div>
 
-						<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-row justify-end gap-2 bg-muted/20">
+						<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-col items-stretch gap-2 bg-muted/20 sm:flex-row sm:items-center sm:justify-end">
+							{submitError && (
+								<p
+									role="alert"
+									className="mr-auto text-sm font-medium text-red-500"
+								>
+									{submitError}
+								</p>
+							)}
 							<Button type="button" variant="secondary" onClick={resetForm}>
 								Annuler
 							</Button>
@@ -804,9 +844,10 @@ export const Projects = React.memo(function Projects() {
 			)}
 
 			{loading ? (
-				<div className="flex items-center justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary" />
-				</div>
+				<ShieldLoader
+					className="p-12"
+					message="Lecture du parc et de l'état git…"
+				/>
 			) : projects.length === 0 ? (
 				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
 					<Folder className="w-12 h-12 text-muted-foreground opacity-50" />
@@ -832,6 +873,7 @@ export const Projects = React.memo(function Projects() {
 							copiedSlug={copiedSlug}
 							setCopiedSlug={setCopiedSlug}
 							copyToClipboard={copyToClipboard}
+							tagColors={tagColors}
 							detectingId={detectingId}
 							handleDetectGit={handleDetectGit}
 							handleFetch={handleFetch}
@@ -888,13 +930,11 @@ export const Projects = React.memo(function Projects() {
 											<div className="flex flex-col gap-2 items-start">
 												<div className="flex flex-wrap gap-1">
 													{p.tags?.map((tag: string) => (
-														<Badge
+														<TagBadge
 															key={tag}
-															variant="secondary"
-															className="text-[10px] uppercase tracking-wider text-primary"
-														>
-															{tag}
-														</Badge>
+															name={tag}
+															color={tagColors[tag]}
+														/>
 													))}
 												</div>
 												<div className="flex items-center gap-2">
@@ -1026,7 +1066,7 @@ export const Projects = React.memo(function Projects() {
 			)}
 
 			{isFetchingAll && (
-				<div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center flex-col gap-6">
+				<FullScreenOverlay>
 					<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] blur-[100px] rounded-full pointer-events-none"></div>
 
 					<div className="relative flex items-center justify-center w-28 h-28 rounded-full neon-glow z-10">
@@ -1045,7 +1085,7 @@ export const Projects = React.memo(function Projects() {
 								: "Démarrage de la vérification globale..."}
 						</div>
 					</div>
-				</div>
+				</FullScreenOverlay>
 			)}
 
 			<ConfirmDialog

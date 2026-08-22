@@ -21,6 +21,8 @@ function groupe(over: Partial<PackageGroup> = {}): PackageGroup {
 		hasBaseline: false,
 		hasNetDiscovery: false,
 		targetPatch: null,
+		publishedAt: null,
+		firstSeenAt: null,
 		...over,
 	};
 }
@@ -190,7 +192,7 @@ describe("TriageTable", () => {
 				})}
 			/>,
 		);
-		expect(screen.getByText(/Dette:/)).toHaveTextContent("Nouveau");
+		expect(screen.getByText(/SLA hérité:/)).toHaveTextContent("Nouveau");
 	});
 
 	test("un SLA au-delà de 30 jours est signalé en rouge", () => {
@@ -222,5 +224,41 @@ describe("TriageTable", () => {
 		render(<TriageTable {...props({ paginatedGroups: [], totalItems: 0 })} />);
 		expect(screen.getByRole("table")).toBeInTheDocument();
 		expect(screen.queryByText("lodash")).not.toBeInTheDocument();
+	});
+
+	test("la ligne affiche les deux dates du groupe", () => {
+		// Les deux SLA se calculent depuis ces dates : les afficher rend le calcul
+		// vérifiable au lieu d'être à croire.
+		render(
+			<TriageTable
+				{...props({
+					paginatedGroups: [
+						groupe({
+							publishedAt: "2020-07-15T00:00:00Z",
+							firstSeenAt: "2026-08-01T09:00:00Z",
+						}),
+					],
+				})}
+			/>,
+		);
+
+		expect(screen.getByText("GHSA")).toBeInTheDocument();
+		expect(screen.getByText("Aegis")).toBeInTheDocument();
+		expect(
+			screen.getByText(new Date("2020-07-15T00:00:00Z").toLocaleDateString()),
+		).toBeInTheDocument();
+	});
+
+	test("un groupe sans avis connu affiche une date GHSA vide", () => {
+		render(
+			<TriageTable
+				{...props({
+					paginatedGroups: [groupe({ firstSeenAt: "2026-08-01T09:00:00Z" })],
+				})}
+			/>,
+		);
+
+		// Une seule des deux dates manque : l'autre reste lisible.
+		expect(screen.getAllByText("—")).toHaveLength(1);
 	});
 });

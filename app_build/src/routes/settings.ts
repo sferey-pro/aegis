@@ -160,6 +160,21 @@ export const settingsRoutes = {
 	 */
 	"/api/config/reset": {
 		async POST() {
+			// Un audit en cours écrit dans la base : la supprimer sous ses pieds le
+			// ferait échouer sur un fichier disparu, et le run resterait à moitié
+			// enregistré. La file est un mutex de portée processus, donc la question
+			// se pose en un seul test.
+			const { getAuditStatus } = await import("../lib/audit/queue");
+			if (getAuditStatus().isRunning) {
+				return Response.json(
+					{
+						error:
+							"Un audit est en cours : attendez qu'il se termine avant de remettre la configuration à zéro.",
+					},
+					{ status: 409 },
+				);
+			}
+
 			const { resetConfiguration } = await import("../db/reset");
 			const { GITHUB_CONFIG_KEYS } = await import("../db/advisories");
 			return Response.json({

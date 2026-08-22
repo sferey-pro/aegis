@@ -84,7 +84,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | Constat de vérification |
 |---|---|---|
-| T1 | Front quasi non couvert | **361 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
+| T1 | Front quasi non couvert | **363 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
 | T2 | Routes peu couvertes | **11 modules de routes sur 11**, en fonctionnel sur un vrai `Bun.serve` — 227 tests |
 | T3 | Test git dépendant du réseau | dépôts jetables en `tmpdir()` avec un dépôt nu local comme amont ; **aucun accès réseau** dans toute la suite |
 | T4 | Modules sans aucun test | `lib/cvss.ts` (14 tests), `lib/console.ts` (18), `db/backup.ts` (6) |
@@ -578,7 +578,9 @@ Passer la période de 7 → 90 → 1 jour rapidement : la requête « 90 jours �
 **Correctif :** flag `cancelled` ou `AbortController` dans le cleanup, en ignorant toute réponse dont la clé ne correspond plus à l'état courant.
 
 ### N26. `setInterval` jamais nettoyé, état de module perdu sous `bun --hot`
-🔴 **Ouvert — vérifié le 21/08/2026.** 0 `clearInterval` dans `src/lib/console.ts`. Conséquence mesurée sur les tests : l'intervalle de keepalive survit à la fin du fichier de test.
+🟡 **Partiellement corrigé le 22/08/2026.** Le keepalive est désormais retenu dans un handle, annulé par `closeConsoleClients()` et marqué `unref()` — il ne maintient plus le process en vie à lui seul. Les flux SSE sont fermés proprement sur `SIGINT`/`SIGTERM`, ce qui supprime l'`ERR_INCOMPLETE_CHUNKED_ENCODING` que le navigateur journalisait à chaque redémarrage.
+
+**Résiduel :** sous `bun --hot`, un rechargement à chaud ré-évalue le module sans passer par les gestionnaires de signaux. Un nouvel intervalle s'ajoute donc aux précédents à chaque sauvegarde de fichier, et l'erreur de chunk réapparaît côté navigateur — l'`EventSource` se reconnecte, mais le bruit revient. La partie « état de la file d'audit perdu sous `bun --hot` » reste entière : `isRunning` est réinitialisé alors qu'un lot fire-and-forget continue de tourner sur l'ancienne copie du module.
 
 **⊕1** — `src/lib/console.ts:93-101`, `src/lib/audit/queue.ts:3-6`
 
@@ -870,7 +872,7 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1161** |
+| `src/pages/Projects.tsx` | **1168** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { upsertAnnotation } from "@/db/annotations";
 import { createProject, toggleIgnoreProject } from "@/db/projects";
 import { addRun, type CreateRunInput } from "@/db/runs";
+import { putCachedAdvisory } from "@/lib/github";
 import type { Severity, Vulnerability } from "@/lib/parsers/types";
 import { useTempDb } from "@/test/db";
 import { buildCveGroups } from "./index";
@@ -429,5 +430,94 @@ describe("lib/aggregator — tri", () => {
 			"info",
 			"unknown",
 		]);
+	});
+});
+
+describe("superposition des avis GHSA", () => {
+	useTempDb("aggregator-avis");
+
+	test("la sévérité de l'avis prime sur celle de l'outil", () => {
+		const p = projet("app");
+		run(p.id, [vuln({ cve: "CVE-2020-8203", severity: "unknown" })]);
+		putCachedAdvisory("CVE-2020-8203", "critical", {});
+
+		// Le run est le compte rendu brut de l'outil ; l'avis corrige les
+		// « unknown » de `yarn audit` sans qu'il faille réauditer.
+		const [g] = buildCveGroups();
+		expect(g?.worst).toBe("critical");
+		expect(g?.occurrences[0]?.severity).toBe("critical");
+	});
+
+	test("un avis de sévérité inconnue ne dégrade pas celle de l'outil", () => {
+		const p = projet("app");
+		run(p.id, [vuln({ cve: "CVE-2020-8203", severity: "high" })]);
+		putCachedAdvisory("CVE-2020-8203", "unknown", {});
+
+		expect(buildCveGroups()[0]?.occurrences[0]?.severity).toBe("high");
+	});
+
+	test("le lien, le vecteur CVSS et la date viennent de l'avis", () => {
+		const p = projet("app");
+		run(p.id, [vuln({ cve: "CVE-2020-8203" })]);
+		putCachedAdvisory(
+			"CVE-2020-8203",
+			"high",
+			{},
+			"https://github.com/advisories/GHSA-x",
+			"CVSS:3.1/AV:N",
+			"2020-07-15T00:00:00Z",
+		);
+
+		const o = buildCveGroups()[0]?.occurrences[0];
+		expect(o?.link).toBe("https://github.com/advisories/GHSA-x");
+		expect(o?.cvssVector).toBe("CVSS:3.1/AV:N");
+		expect(o?.publishedAt).toBe("2020-07-15T00:00:00Z");
+	});
+
+	test("la version corrigée est déduite de l'avis quand l'outil se taise", () => {
+		const p = projet("app");
+		run(p.id, [
+			vuln({ cve: "CVE-2020-8203", package: "lodash", fixedIn: null }),
+		]);
+		putCachedAdvisory("CVE-2020-8203", "high", {
+			"npm:lodash": [{ range: "<4.17.21", patched: "4.17.21" }],
+		});
+
+		// `npm audit` ne remonte pas toujours la version patchée : le « patch
+		// recommandé » restait vide alors que GitHub la connaissait.
+		expect(buildCveGroups()[0]?.occurrences[0]?.fixedIn).toBe("4.17.21");
+	});
+
+	test("un avis qui ne couvre pas le paquet préserve la valeur de l'outil", () => {
+		const p = projet("app");
+		run(p.id, [
+			vuln({ cve: "CVE-2020-8203", package: "lodash", fixedIn: "4.17.20" }),
+		]);
+		putCachedAdvisory("CVE-2020-8203", "high", {
+			"npm:autre-paquet": [{ range: "<2", patched: "2.0.0" }],
+		});
+
+		// N18 : écraser par `null` faisait lire « aucune correction disponible ».
+		expect(buildCveGroups()[0]?.occurrences[0]?.fixedIn).toBe("4.17.20");
+	});
+
+	test("une annotation reste souveraine sur la version corrigée", () => {
+		const p = projet("app");
+		run(p.id, [vuln({ cve: "CVE-2020-8203", package: "lodash" })]);
+		putCachedAdvisory("CVE-2020-8203", "high", {
+			"npm:lodash": [{ range: "<4.17.21", patched: "4.17.21" }],
+		});
+		upsertAnnotation("CVE-2020-8203", p.id, { fixedIn: "9.9.9" });
+
+		expect(buildCveGroups()[0]?.occurrences[0]?.fixedIn).toBe("9.9.9");
+	});
+
+	test("sans avis en cache, rien ne change", () => {
+		const p = projet("app");
+		run(p.id, [vuln({ cve: "CVE-2020-8203", severity: "moderate" })]);
+
+		const o = buildCveGroups()[0]?.occurrences[0];
+		expect(o?.severity).toBe("moderate");
+		expect(o?.link).toBeNull();
 	});
 });

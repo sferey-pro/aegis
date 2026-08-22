@@ -9,6 +9,7 @@ import {
 import React from "react";
 import type { Ticket } from "@/db/tickets";
 import { SEVERITY_COLORS, SEVERITY_ICONS } from "../../lib/triage-constants";
+import { CveTimeline } from "../molecules/CveTimeline";
 import { Button } from "../ui/button";
 import {
 	Select,
@@ -138,8 +139,11 @@ export function TriageTable({
 											</div>
 											<div className="flex flex-col items-center gap-1">
 												{group.hasBaseline && (
-													<span className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 border">
-														Dette:{" "}
+													<span
+														className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 border"
+														title="Existant à l'installation : l'âge est compté depuis la publication de l'avis, pas depuis notre première détection."
+													>
+														SLA hérité:{" "}
 														{group.maxBaselineAgeInDays > 0
 															? `${group.maxBaselineAgeInDays}j`
 															: "Nouveau"}
@@ -148,6 +152,7 @@ export function TriageTable({
 												{group.hasNetDiscovery && (
 													<span
 														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${group.maxSlaAgeInDays > 30 ? "bg-red-500/10 border " : group.maxSlaAgeInDays > 15 ? "bg-orange-500/10 border " : "bg-green-500/10 border "}`}
+														title="Découverte nette : l'âge est compté depuis notre première détection."
 													>
 														SLA:{" "}
 														{group.maxSlaAgeInDays > 0
@@ -156,6 +161,13 @@ export function TriageTable({
 													</span>
 												)}
 											</div>
+											{/* Les deux dates dont les SLA ci-dessus sont calculés :
+											    le calcul devient vérifiable au lieu d'être à croire. */}
+											<CveTimeline
+												publishedAt={group.publishedAt}
+												firstSeenAt={group.firstSeenAt}
+												className="items-center"
+											/>
 										</div>
 									</TableCell>
 

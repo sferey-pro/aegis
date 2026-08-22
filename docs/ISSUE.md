@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**31 entrées ouvertes (24 🔴) ou partielles (6 🟡) · 33 fermées · 12 épinglées par un test.**
+**29 entrées ouvertes (23 🔴) ou partielles (5 🟡) · 35 fermées · 10 épinglées par un test.**
 
 ### Priorité 1 — Sécurité
 
@@ -64,8 +64,8 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | État | Test |
 |---|---|:-:|:-:|
-| [N9](#n9-le-triage-est-impraticable-au-delà-de-quelques-cve) | Le triage est impraticable au-delà de quelques CVE | 🔴 | 🧪 |
-| [N14](#n14-sévérité-illisible--palette-sans-couleur-de-texte-et-préfixes-dark-amputés) | Sévérité illisible, préfixes `dark:` amputés | 🔴 | 🧪 |
+| [N9](#n9-le-triage-est-impraticable-au-delà-de-quelques-cve) | Le triage est impraticable au-delà de quelques CVE | 🟢 | ✅ |
+| [N14](#n14-sévérité-illisible--palette-sans-couleur-de-texte-et-préfixes-dark-amputés) | Sévérité illisible, préfixes `dark:` amputés | 🟢 | ✅ |
 | [N15](#n15-aucune-navigation-clavier) | Navigation clavier | 🟡 | — |
 | [N23](#n23-les-aides-à-la-décision-de-8-sont-absentes-alors-que-la-donnée-existe) | Les aides à la décision de §8 sont absentes | 🔴 | — |
 | [N24](#n24-filtres-et-pagination-hors-de-lurl) | Filtres et pagination hors de l'URL | 🔴 | — |
@@ -723,52 +723,46 @@ La fonction reçoit `database: Database` (`:41`) et l'utilise correctement jusqu
 ## 🔵 Priorité 4 — UX & accessibilité
 
 ### N9. Le triage est impraticable au-delà de quelques CVE
-🟡 **Une moitié confirmée, l'autre non reproductible — vérifié le 21/08/2026.**
+🟢 **Corrigé le 23/08/2026.** ✅ Verrouillé par `describe("enchaînement des décisions (N9, corrigé)")` dans `src/pages/Triage.test.tsx`.
 
-- **La modale se ferme après chaque décision : confirmé.** `selectedGroup` reste un instantané figé, aucun `useOptimistic`. 🧪 Épinglé, avec un test retourné prêt à activer.
-- **La pagination retombe page 1 : non reproductible.** Le refetch a bien lieu (deux `GET /api/cves` enregistrés) et l'effet a bien `cves` en dépendance, mais l'affichage **reste** sur la seconde page. Mesure : `"Affichage de 11 à 15 sur 15 packages"` après annotation depuis la page 2.
+**⊕3** — `src/components/organisms/CveCard.tsx`, `src/components/organisms/CveDetailsModal.tsx`, `src/pages/Triage.tsx`
 
-> Le test qui « prouvait » cette seconde moitié était faux : `toContain("Affichage de 1")` passe sur `"Affichage de 11 à 15"`, dont il est un préfixe. Il ne pouvait donc pas distinguer les deux pages et validait le défaut à tort. Corrigé en assertion exacte le 21/08/2026, il montre l'inverse de ce qui était annoncé. Reste à déterminer si l'effet ne se déclenche pas, ou si le harnais de test masque un comportement réel — d'ici là, ne pas compter cette moitié comme un défaut établi.
+La page annonçait un workflow « Zero-Inbox » que deux mécanismes rendaient inutilisable.
 
-**⊕3** — `src/components/organisms/CveCard.tsx:233-258`, `src/components/organisms/CveDetailsModal.tsx:80`, `src/pages/Triage.tsx:178-180`
+**1. La modale se fermait après chaque décision.** Chaque bouton de statut appelait `updateStatus(...)` **puis** `onActionComplete()`, câblé sur `setSelectedGroup(null)`. La cause profonde n'était pas la fermeture mais ce qu'elle masquait : `selectedGroup` était un **instantané figé** issu du `useMemo` `packageGroups` — après `fetchCves()` le memo était recalculé, mais l'objet retenu restait l'ancien, avec l'ancien `status`. Fermer la modale cachait la désynchronisation au lieu de la corriger.
 
-La page annonce un workflow « Zero-Inbox » (`Triage.tsx:298-304`). Deux mécanismes le rendent inutilisable :
+Un package `lodash` à 8 CVE coûtait donc 8 cycles ouvrir/statuer/rouvrir et 8 reconstructions complètes de l'agrégat serveur. Le chemin « Confirmé » coûtait plus encore : clic → fermeture → ouverture de `ConfirmReasonModal` → saisie → validation, soit 4 interactions et deux changements de contexte pour une seule CVE.
 
-1. **La modale se ferme après chaque décision.** Chaque bouton de statut appelle `updateStatus(...)` **puis** `onActionComplete()`, câblé sur `setSelectedGroup(null)`. La cause profonde : `selectedGroup` (`Triage.tsx:39`) est un **instantané figé** issu du `useMemo` `packageGroups` — après `fetchCves()` le memo est recalculé, mais l'objet retenu reste l'ancien, avec l'ancien `status`. Fermer la modale masque cette désynchronisation au lieu de la corriger.
-2. **La pagination retombe page 1.** `useEffect(() => setPage(1), [cves, projectId, cveFilter, hideProcessed])`, et `cves` est un tableau **neuf** à chaque refetch, donc après **toute** annotation.
+**Correctif :** l'état retient la **clé** du groupe (`selectedKey`), et le groupe affiché est **dérivé** de `packageGroups` à chaque rendu. Les deux moitiés tombent d'un coup — la modale reste ouverte *et* à jour. `onActionComplete` est supprimé de `CveCard` : une carte n'a pas à fermer le conteneur qui l'affiche. `CveDetailsModal.setSelectedGroup`, qui n'était jamais appelée qu'avec `null`, devient `onClose`.
 
-Un package `lodash` à 8 CVE = 8 cycles ouvrir/statuer/rouvrir, 8 reconstructions complètes de l'agrégat serveur, et si le référent travaillait page 4, retour au début de la liste après *chaque* décision. Le chemin « Confirmé » coûte encore plus : clic → fermeture → ouverture de `ConfirmReasonModal` → saisie → validation, soit 4 interactions et deux changements de contexte pour une seule CVE.
+La décision est en outre **appliquée localement avant le refetch** (`appliquerStatut`). Le rechargement reconstruit tout l'agrégat serveur ; sans cette étape le badge restait sur son ancien statut le temps de l'aller-retour, et le référent ne savait pas si son clic avait porté. Réalisé en `setState` plutôt qu'en `useOptimistic` : la valeur locale doit **survivre** au refetch, pas être annulée à la fin de la transition.
 
-**Correctifs :**
-1. Conserver la **clé** du groupe plutôt que l'objet, et dériver le groupe affiché depuis `packageGroups` — la modale reste alors ouverte et à jour.
-2. Appliquer la décision en `useOptimistic` avant le refetch (0 usage de `useOptimistic`/`useTransition` dans le code aujourd'hui).
-3. Ne réinitialiser la page que sur changement réel des critères de filtrage — retirer `cves` des dépendances — et borner `page` à `totalPages` si la liste rétrécit.
+**2. La pagination retombait page 1.** `useEffect(() => setPage(1), [cves, …])`, et `cves` est un tableau **neuf** à chaque refetch, donc après **toute** annotation. `cves` est retiré des dépendances : seuls les critères de filtrage remettent la pagination à la première page.
+
+Ce retrait crée un corollaire qu'il fallait traiter dans le même mouvement : plus rien ne ramenait `page` dans les bornes si la liste raccourcissait. La page s'affichait alors vide — ce qui, sur un écran de triage, se lit comme « plus rien à traiter ». Un second effet borne `page` à `totalPages`. Son test le vérifie sur les **lignes rendues**, pas sur le pied de pagination : à 11 éléments, `Math.min` fait afficher « 11 à 11 sur 11 » que la page soit 2 ou 3, si bien qu'une assertion sur ce texte aurait été vide de sens.
+
+> **Sur la moitié « non reproductible » du 21/08/2026.** L'entrée précédente concluait que la pagination ne retombait pas page 1, sur la base d'une mesure. Le test qui « prouvait » d'abord le défaut était faux — `toContain("Affichage de 1")` passe sur `"Affichage de 11 à 15"`, dont il est un préfixe — et sa correction en assertion exacte a montré l'inverse. Le mécanisme décrit était pourtant bien présent dans le code ; le harnais masquait son effet. La dépendance a été retirée quand même : un effet qui remet la pagination à zéro sur chaque refetch est faux indépendamment de ce qu'un test arrive à observer.
 
 ### N14. Sévérité illisible : palette sans couleur de texte, et préfixes `dark:` amputés
-🔴 **Ouvert — vérifié le 21/08/2026.** Les classes amputées sont **toujours présentes** : `ui/button.tsx:16` (`"…hover:text-accent-foreground   :bg-input/50"`), `ui/button.tsx:19`, `TriageTable.tsx:76` (`"bg-red-500/5  :bg-red-950/40"`). `styles/globals.css` ne déclare toujours **aucun** token sombre. 🧪 Un test de `ActionBadge` documente un symptôme voisin : happy-dom perd l'attribut `style` quand un `var()` est imbriqué, ce qui a rendu la couleur non assertable — la vérification se fait donc sur la présence de l'élément, pas sur sa teinte.
+🟢 **Corrigé le 23/08/2026.** ✅ Verrouillé par `src/lib/triage-constants.test.tsx` (palette) et `src/lib/tailwind-classes.test.ts` (intégrité des classes sur tout l'arbre).
 
-**⊕1** — `src/lib/triage-constants.tsx:10-26`, `src/components/organisms/TriageTable.tsx:66,89`, `src/components/ui/button.tsx:8,14,16,20`, `app_build/styles/globals.css`
+**⊕1** — `src/lib/triage-constants.tsx`, les atomes de `src/components/ui/`, `styles/globals.css`
 
-**(a) L'information de gravité n'est portée par rien de lisible.** `SEVERITY_COLORS` ne contient qu'un fond translucide (`"bg-red-500/10  "`, `"bg-orange-500/10  "` — noter les doubles espaces résiduels) : **aucune couleur de texte, aucune bordure**. `SEVERITY_ICONS` (`:19-26`) n'a aucune classe de couleur : les six icônes sont monochromes. Le badge de sévérité s'affiche donc en couleur de texte par défaut sur un fond à 10 % d'opacité, sur carte blanche : `critical` et `moderate` ne se distinguent que par une nuance très pâle. Information portée uniquement par la couleur (WCAG 1.4.1), sur une teinte qui frôle le seuil non-textuel (WCAG 1.4.11). Or repérer les criticals d'un coup d'œil est la fonction première de cet écran.
+**(a) L'information de gravité n'était portée par rien de lisible.** `SEVERITY_COLORS` ne contenait qu'un fond translucide (`"bg-red-500/10  "` — les doubles espaces marquaient l'endroit où texte et bordure avaient disparu) : aucune couleur de texte, aucune bordure. `SEVERITY_ICONS` n'avait aucune classe de couleur, et `low` et `info` partageaient `Info`, donc deux niveaux différents rendus par le même pictogramme. Sur carte blanche, `critical` et `moderate` ne se distinguaient que par une nuance très pâle — information portée par la seule couleur (WCAG 1.4.1), sur une teinte frôlant le seuil non-textuel (WCAG 1.4.11).
 
-**(b) Des préfixes `dark:` ont été amputés et les classes sont restées invalides.** Vérifié :
+**Correctif :** fond + texte + bordure par niveau, teinte 700 en clair et 300 en sombre (la 500 ne tient le ratio 4,5:1 sur aucun des deux fonds), six formes distinctes, et les icônes héritent de `currentColor`. Un `SEVERITY_LABELS` est ajouté : les écrans écrivaient les libellés en dur, un `&&` par niveau, si bien que `low`, `info` et `unknown` n'affichaient **rien** dans la modale de rapport — une faille basse y apparaissait sans aucun indicateur de gravité. Même défaut refermé sur la note de santé globale (`GRADE_COLORS` dans `Overview.tsx`) et sur le badge de SLA de `CveCard`.
 
-```
-TriageTable.tsx:66   "bg-red-500/5  :bg-red-950/40"
-ui/button.tsx:8      "aria-invalid:ring-destructive/20 :ring-destructive/40 …"
-ui/button.tsx:14     "… focus-visible:ring-destructive/20 :ring-destructive/40 "
-ui/button.tsx:16     "… hover:text-accent-foreground   :bg-input/50"
-ui/button.tsx:20     "hover:bg-accent hover:text-accent-foreground :bg-accent/50"
-```
+**(b) Des préfixes de variante avaient été amputés.** Onze occurrences, dont neuf dans les atomes Shadcn — donc propagées à toute l'application : `button.tsx` (4), `select.tsx`, `textarea.tsx`, `badge.tsx` (2), `input.tsx`, `tabs.tsx`, plus `TriageTable.tsx`. Une classe commençant par `:` ne résout rien, et **rien ne la signalait** : Tailwind ignore silencieusement ce qu'il ne reconnaît pas, Biome ne lit pas le contenu des chaînes, `tsc` non plus.
 
-Le défaut est **dans l'atome Shadcn de base**, donc propagé à tous les boutons de l'application. Même symptôme ailleurs : `Header.tsx:87` (`(var(--primary),0.2)]`), `Overview.tsx:30,43,64,85` (`inset-0 /5`), `Reports.tsx:184` (`(255,255,255,0.1)]`).
+Le `grep` a débordé du périmètre annoncé et trouvé deux familles voisines : des **valeurs arbitraires tronquées** (`(var(--primary),0.2)]` dans `Header.tsx`, `(255,255,255,0.1)]` dans `Reports.tsx`) et quatre **voiles morts** dans `Overview.tsx` — `absolute inset-0 /5 opacity-0`, dont le fond avait disparu et qu'aucun `group-hover` ne révélait, donc quatre nœuds invisibles en permanence.
 
-**(c) Le thème sombre est à moitié câblé.** `styles/globals.css` (84 lignes) ne déclare **aucun** jeu de tokens sombre — ni `.dark`, ni `prefers-color-scheme` — alors que `src/index.css:7,96,100` utilise des utilitaires `dark:`. Les utilitaires basculent, les variables CSS (`--card`, `--background`) non. Le README annonce pourtant « support Light / Dark mode natif ». Plusieurs composants gardent des couleurs calibrées pour le sombre sur fond blanc : `text-blue-400` pour le lien Jira (`TriageTable.tsx:182`), `text-red-400` pour le retard git (`ProjectCard.tsx:232`), `bg-white/5` (`CveCard.tsx:84`, invisible sur carte blanche).
+**Correctif :** les onze préfixes restaurés, les fragments tronqués retirés, les voiles morts supprimés. Le garde-fou de test balaie désormais **tout** `src/` sur trois motifs, là où la version précédente ne couvrait que `button.tsx` alors que le défaut touchait huit fichiers.
 
-**Correctifs :**
-1. Redéfinir `SEVERITY_COLORS` avec fond + texte + bordure sur des tokens sémantiques validés en contraste, et colorer les icônes — ou doubler la couleur par une forme ou un libellé.
-2. Passer en revue les classes amputées avant de trancher sur l'existence d'un thème sombre : `ConsoleLogItem.tsx` est le seul fichier à gérer correctement les deux thèmes (`text-red-800 dark:text-red-200`), c'est la référence à généraliser.
-3. Décider explicitement : soit déclarer les tokens sombres, soit assumer le light-only et purger les utilitaires `dark:` ainsi que les couleurs calibrées pour le sombre.
+**(c) Le thème sombre était à moitié câblé.** `styles/globals.css` ne déclarait **aucun** token sombre. Or en Tailwind v4 la variante `dark:` est adossée par défaut à `prefers-color-scheme` : sur un système en thème sombre, **les utilitaires basculaient et les variables CSS non**. Fond clair, texte clair par-dessus, et des composants calibrés pour le sombre posés sur des cartes blanches. Le README annonçait un « support Light / Dark mode natif ».
+
+**Correctif :** jeu de tokens sombre complet, sous `@media (prefers-color-scheme: dark)` pour suivre le système et sous `.dark` pour forcer — ce dernier étant le sélecteur que `ui/chart.tsx` attendait déjà. Les couleurs calibrées pour le sombre et appliquées sans condition sont recalibrées sur les deux thèmes (13 sites : liens Jira, retards git, quotas, `bg-white/5`, `scrollbar-color`). `ConsoleLogItem` servait de référence — c'était le seul fichier à gérer correctement les deux thèmes.
+
+> ⚠️ Conséquence visible : un utilisateur dont le système est en thème sombre verra désormais Aegis en sombre. Ce n'est pas un changement de comportement mais la fin d'une incohérence — les utilitaires `dark:` basculaient déjà pour lui.
 
 ### N15. Aucune navigation clavier
 🟡 **Partiellement amélioré — mesure refaite le 21/08/2026 : 2 `tabIndex`, 2 `role=`, 6 `aria-label`** hors `components/ui/` (contre 0, 0 et 2). Ces ajouts viennent des correctifs d'accessibilité imposés par Biome, pas d'une reprise d'ensemble. **`aria-live` reste à 0** : aucun toast n'est annoncé.
@@ -932,7 +926,7 @@ Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points :
 5. ~~**N10** puis **N28**~~ — ✅ **faits le 21/08/2026.** La table d'occurrences porte la clé de §2, les lignes ambiguës sont purgées, et l'invariant des compteurs est verrouillé.
 6. **[C9](#c9-initdb-ignore-son-paramètre) puis [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) et [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours)** — sauvegarde et restauration. Aujourd'hui l'outil affiche « restauration effectuée » sans rien restaurer : c'est le comportement le plus mensonger de l'application.
 7. ~~**Le lot bon marché**~~ — ✅ **neuf sur dix faits le 22/08/2026.** N35 a dépassé son périmètre en révélant que l'import de configuration passait des données non validées à `createProject`. **N40 a été annulé** : le contrat spécifie la sensibilité à la casse, ce n'était pas un défaut — voir son entrée.
-8. **[N9](#n9-le-triage-est-impraticable-au-delà-de-quelques-cve) et [N14](#n14-sévérité-illisible--palette-sans-couleur-de-texte-et-préfixes-dark-amputés)** — les deux défauts qui rendent l'écran de triage inutilisable en pratique, alors qu'il est la raison d'être du produit. N14 commence par un `grep` sur les préfixes `dark:` amputés.
+8. ~~**N9** et **N14**~~ — ✅ **faits le 23/08/2026.** Les deux défauts qui rendaient l'écran de triage inutilisable en pratique. N14 a dépassé son périmètre : le `grep` sur les préfixes amputés a aussi révélé des valeurs arbitraires tronquées et quatre voiles morts, et l'absence de tokens sombres rendait l'application à moitié illisible sur un système en thème sombre.
 9. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — arbitrage du contrat. À trancher avant d'engager le reste : plusieurs entrées sont des fonctionnalités délibérément remplacées, pas des oublis.
 
 ### Comment corriger un défaut épinglé

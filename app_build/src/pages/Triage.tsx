@@ -43,6 +43,35 @@ function plusAncienne(
 	return new Date(b) < new Date(a) ? b : a;
 }
 
+/**
+ * Applique une décision de triage à l'agrégat déjà chargé.
+ *
+ * Ne touche que les occurrences du projet visé au sein du groupe de la CVE : une
+ * même CVE vit dans plusieurs projets, et une décision porte sur un seul.
+ * `note` absente laisse la note en place — c'est le contrat du serveur (N32), et
+ * la copie locale doit dire la même chose.
+ */
+function appliquerStatut(
+	groupes: CveGroup[],
+	cve: string,
+	projectId: number,
+	statut: AnnotationStatus,
+	note?: string,
+): CveGroup[] {
+	return groupes.map((g) =>
+		g.cve !== cve
+			? g
+			: {
+					...g,
+					occurrences: g.occurrences.map((o) =>
+						o.projectId !== projectId
+							? o
+							: { ...o, status: statut, note: note ?? o.note },
+					),
+				},
+	);
+}
+
 /** Réponse de `POST /api/advisories/sync-all` : le bilan, plus l'enveloppe. */
 type BulkSyncResponse = BulkSyncResult & { success: boolean };
 
@@ -69,7 +98,17 @@ export const Triage = React.memo(function Triage() {
 	const [loading, setLoading] = useState(true);
 	const [page, setPage] = useState(1);
 	const [itemsPerPage, setItemsPerPage] = useState(10);
-	const [selectedGroup, setSelectedGroup] = useState<PackageGroup | null>(null);
+	/**
+	 * Groupe ouvert dans la modale — sa **clé**, pas l'objet.
+	 *
+	 * L'état retenait l'objet issu du `useMemo` : après un refetch le memo était
+	 * recalculé, mais la modale continuait d'afficher l'ancien instantané, avec
+	 * l'ancien statut. Fermer la modale après chaque décision masquait cette
+	 * désynchronisation au lieu de la corriger — d'où un package à 8 CVE qui
+	 * coûtait 8 cycles ouvrir/statuer/rouvrir. En gardant la clé et en dérivant le
+	 * groupe, la modale reste ouverte **et** à jour.
+	 */
+	const [selectedKey, setSelectedKey] = useState<string | null>(null);
 	const [ticketModal, setTicketModal] = useState<TicketModalState>({
 		isOpen: false,
 		md: "",
@@ -213,15 +252,35 @@ export const Triage = React.memo(function Triage() {
 			.sort((a, b) => b.projectName.localeCompare(a.projectName));
 	}, [cves, projectId, cveFilter, hideProcessed]);
 
-	// Dependances volontaires utilisees comme declencheurs : le corps ne les lit
-	// pas, mais la pagination doit repartir a la premiere page quand le jeu de
-	// donnees ou un filtre change.
+	// Déclencheurs volontaires : le corps ne les lit pas, mais la pagination doit
+	// repartir à la première page quand un **critère de filtrage** change.
+	//
+	// `cves` n'en fait plus partie : c'est un tableau neuf à chaque refetch, donc
+	// après *toute* annotation. Un référent qui travaillait page 4 était renvoyé
+	// au début de la liste après chaque décision.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: declencheurs volontaires
 	useEffect(() => {
 		setPage(1);
-	}, [cves, projectId, cveFilter, hideProcessed]);
+	}, [projectId, cveFilter, hideProcessed]);
 
 	const totalPages = Math.ceil(packageGroups.length / itemsPerPage);
+
+	// La liste peut rétrécir sous la page courante — en masquant les traitées, ou
+	// quand la dernière CVE d'un package est annotée. Sans ce recadrage la page
+	// s'affiche vide, ce qui se lit comme « plus rien à traiter ».
+	useEffect(() => {
+		setPage((courante) => Math.min(courante, Math.max(1, totalPages)));
+	}, [totalPages]);
+
+	/**
+	 * Le groupe affiché, **dérivé** de l'agrégat courant.
+	 *
+	 * Il disparaît de lui-même si le filtre « masquer les traitées » le vide : en
+	 * mode Zero-Inbox, un package entièrement traité n'a plus de raison de rester
+	 * ouvert.
+	 */
+	const selectedGroup =
+		(selectedKey && packageGroups.find((g) => g.key === selectedKey)) || null;
 	const paginatedGroups = packageGroups.slice(
 		(page - 1) * itemsPerPage,
 		page * itemsPerPage,
@@ -243,6 +302,12 @@ export const Triage = React.memo(function Triage() {
 			if (note !== undefined) {
 				payload.note = note;
 			}
+
+			// Décision appliquée localement d'abord. Le refetch suit, mais il coûte une
+			// reconstruction complète de l'agrégat serveur : sans cette étape, le
+			// badge de la CVE restait sur son ancien statut le temps de l'aller-retour,
+			// et le référent ne savait pas si son clic avait porté.
+			setCves((prec) => appliquerStatut(prec, cve, projectId, newStatus, note));
 
 			await fetchVoid("/api/annotations", jsonInit("POST", payload));
 			fetchCves();
@@ -365,7 +430,7 @@ export const Triage = React.memo(function Triage() {
 									<button
 										type="button"
 										onClick={onClearProject}
-										className="hover:text-red-400"
+										className="hover:text-red-600 dark:hover:text-red-400"
 									>
 										<X className="w-3.5 h-3.5" />
 									</button>
@@ -379,7 +444,7 @@ export const Triage = React.memo(function Triage() {
 									<button
 										type="button"
 										onClick={onClearCve}
-										className="hover:text-red-400"
+										className="hover:text-red-600 dark:hover:text-red-400"
 									>
 										<X className="w-3.5 h-3.5" />
 									</button>
@@ -454,7 +519,7 @@ export const Triage = React.memo(function Triage() {
 				<div className="flex flex-col gap-4">
 					<TriageTable
 						paginatedGroups={paginatedGroups}
-						setSelectedGroup={setSelectedGroup}
+						setSelectedGroup={(g) => setSelectedKey(g.key)}
 						createTicket={createTicket}
 						tickets={tickets}
 						jiraBaseUrl={jiraBaseUrl}
@@ -470,7 +535,7 @@ export const Triage = React.memo(function Triage() {
 
 			<CveDetailsModal
 				selectedGroup={selectedGroup}
-				setSelectedGroup={setSelectedGroup}
+				onClose={() => setSelectedKey(null)}
 				updateStatus={updateStatus}
 				handleConfirmCve={handleConfirmCve}
 				setToast={setToast}

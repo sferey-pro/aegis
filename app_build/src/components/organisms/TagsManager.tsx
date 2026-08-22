@@ -131,7 +131,7 @@ export function TagsManager() {
 			</form>
 
 			{error && (
-				<p className="text-red-400 text-sm mb-4 p-3 rounded-lg border">
+				<p className="text-red-600 dark:text-red-400 text-sm mb-4 p-3 rounded-lg border">
 					{error}
 				</p>
 			)}

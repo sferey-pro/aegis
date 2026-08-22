@@ -460,41 +460,11 @@ describe("Triage", () => {
 		});
 	});
 
-	test("la modale de détail se ferme après une seule décision", async () => {
-		// Défaut N9/UX3 : chaque bouton de statut appelle `onActionComplete`, câblé
-		// sur `setSelectedGroup(null)`. Un package à 8 CVE impose donc 8 cycles
-		// ouvrir/statuer/rouvrir. Documenté, pas validé.
-		mockFetch({
-			...base,
-			"GET /api/cves": [
-				groupe({ cve: "CVE-1", ref: "CVE-1" }),
-				groupe({ cve: "CVE-2", ref: "CVE-2" }),
-			],
-			"POST /api/annotations": { body: {} },
-		});
-		monte();
-		await waitFor(() => {
-			expect(screen.getByText("lodash")).toBeInTheDocument();
-		});
-
-		fireEvent.click(screen.getByText("lodash"));
-		expect(await screen.findByRole("dialog")).toBeInTheDocument();
-
-		fireEvent.click(
-			(
-				await screen.findAllByRole("button", { name: /Faux positif/ })
-			)[0] as HTMLElement,
-		);
-		await waitFor(() => {
-			expect(screen.queryAllByRole("dialog")).toHaveLength(0);
-		});
-	});
-
 	test("la pagination ne retombe pas page 1 après une annotation", async () => {
-		// Défaut N9/UX3, seconde moitié : `useEffect(() => setPage(1), [cves, …])`
-		// et `cves` est un tableau neuf à chaque refetch. Le référent qui
-		// travaillait page 2 est renvoyé au début après *chaque* décision.
-		// Documenté, pas validé.
+		// N9, seconde moitié : `cves` figurait dans les dépendances de
+		// `useEffect(() => setPage(1), …)`, et c'est un tableau **neuf** à chaque
+		// refetch — donc après *toute* annotation. Il n'y est plus : seuls les
+		// critères de filtrage remettent la pagination à la première page.
 		mockFetch({
 			...base,
 			"GET /api/cves": beaucoup(15),
@@ -527,15 +497,9 @@ describe("Triage", () => {
 			)[0] as HTMLElement,
 		);
 
-		// Mesure du 21/08/2026 : la page **ne** revient pas à 1. Le refetch a bien
-		// lieu (deux « GET /api/cves » enregistrés) et l'effet a bien `cves` en
-		// dépendance, mais l'affichage reste sur la seconde page.
-		//
-		// L'assertion précédente — `toContain("Affichage de 1")` — passait sur un
-		// préfixe : « Affichage de 11 à 15 » contient « Affichage de 1 ». Elle ne
-		// pouvait donc pas distinguer les deux pages, et validait le défaut à tort.
-		// Corrigée en exact, elle montre que cette moitié de N9 n'est pas
-		// reproductible en l'état.
+		// Assertion **exacte**, et non `toContain("Affichage de 1")` : ce préfixe
+		// est aussi celui de « Affichage de 11 à 15 », donc l'ancienne assertion ne
+		// distinguait pas les deux pages et validait le défaut à tort.
 		await new Promise((r) => setTimeout(r, 300));
 		expect(screen.getByText(/Affichage de/).textContent).toBe(
 			"Affichage de 11 à 15 sur 15 packages",
@@ -543,32 +507,11 @@ describe("Triage", () => {
 	});
 });
 
-/**
- * Contrats attendus — à activer au correctif.
- *
- * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
- * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
- * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
- * que le défaut existe.
- *
- * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
- * rouge — « this test is marked as failing but it passed. Remove `.failing` if
- * tested behavior now works ». Il est donc impossible de corriger le code sans
- * reprendre le test.
- *
- * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
- * « écart documenté » correspondant, qui épinglait l'ancien comportement.
- */
-
-describe("contrats attendus — à activer au correctif", () => {
-	// N9 — la modale doit rester ouverte et refléter le nouveau statut. La cause
-	// profonde est que `selectedGroup` est un instantané figé issu du `useMemo` :
-	// après refetch, le memo est recalculé mais l'objet retenu reste l'ancien.
-	// Fermer la modale masque cette désynchronisation au lieu de la corriger.
-	//
-	// Correctif attendu (docs/ISSUE.md#n9) : conserver la **clé** du groupe et
-	// dériver le groupe affiché depuis `packageGroups`.
-	test.failing("la modale reste ouverte après une décision (N9)", async () => {
+describe("enchaînement des décisions (N9, corrigé)", () => {
+	// L'état retient la **clé** du groupe et le groupe affiché est dérivé de
+	// `packageGroups` : la modale reste ouverte et à jour, au lieu d'afficher un
+	// instantané figé qu'il fallait fermer pour rafraîchir.
+	test("la modale reste ouverte après une décision", async () => {
 		mockFetch({
 			...base,
 			"GET /api/cves": [
@@ -594,5 +537,93 @@ describe("contrats attendus — à activer au correctif", () => {
 		// La modale doit toujours être là, pour enchaîner la CVE suivante.
 		await new Promise((r) => setTimeout(r, 200));
 		expect(screen.queryAllByRole("dialog")).toHaveLength(1);
+	});
+
+	test("la modale reflète le nouveau statut sans être rouverte", async () => {
+		// La modale retenait un instantané figé : même laissée ouverte, elle aurait
+		// continué d'afficher l'ancien statut. C'est la dérivation depuis
+		// `packageGroups` qui règle les deux moitiés du défaut d'un coup.
+		mockFetch({
+			...base,
+			"GET /api/cves": [groupe({ occurrences: [occ({ status: "ignored" })] })],
+			"POST /api/annotations": { body: {} },
+		});
+		monte();
+		await waitFor(() => expect(screen.getByText("lodash")).toBeDefined());
+
+		fireEvent.click(screen.getByText("lodash"));
+		const bouton = (
+			await screen.findAllByRole("button", { name: /Faux positif/ })
+		)[0] as HTMLElement;
+
+		await waitFor(() => expect(bouton.className).toContain("bg-orange-500/20"));
+	});
+
+	test("la décision est visible avant la fin du rechargement", async () => {
+		// Le refetch reconstruit tout l'agrégat serveur. Sans application locale
+		// immédiate, le badge restait sur son ancien statut pendant l'aller-retour,
+		// et le référent ne savait pas si son clic avait porté.
+		mockFetch({
+			...base,
+			// Le rechargement traîne **et** renvoie encore l'ancien statut : seule la
+			// mise à jour optimiste peut expliquer un changement à l'écran.
+			"GET /api/cves": { body: [groupe()], delayMs: 300 },
+			"POST /api/annotations": { body: {} },
+		});
+		monte();
+		await waitFor(() => expect(screen.getByText("lodash")).toBeDefined(), {
+			timeout: 2000,
+		});
+
+		fireEvent.click(screen.getByText("lodash"));
+		const bouton = (
+			await screen.findAllByRole("button", { name: /Faux positif/ })
+		)[0] as HTMLElement;
+		fireEvent.click(bouton);
+
+		await waitFor(() => expect(bouton.className).toContain("bg-orange-500/20"));
+	});
+
+	test("la page se recadre quand la liste rétrécit", async () => {
+		// Corollaire du retrait de `cves` des dépendances de la remise à zéro : la
+		// pagination ne bouge plus toute seule, donc rien ne la ramenait dans les
+		// bornes si la liste raccourcissait. La page s'affichait alors vide, ce qui
+		// se lit comme « plus rien à traiter » — la conclusion la plus dangereuse
+		// qu'un écran de triage puisse donner.
+		//
+		// 25 groupes, 10 par page : trois pages. On se place sur la troisième.
+		mockFetch({ ...base, "GET /api/cves": beaucoup(25) });
+		monte();
+		await waitFor(() => expect(screen.getByText(/Affichage de/)).toBeDefined());
+
+		const suivant = () =>
+			screen
+				.getAllByRole("button")
+				.filter((b) => b.textContent === "" && !b.hasAttribute("disabled"))
+				.at(-1) as HTMLElement;
+		fireEvent.click(suivant());
+		fireEvent.click(suivant());
+		await waitFor(() =>
+			expect(screen.getByText(/Affichage de/).textContent).toContain("21"),
+		);
+
+		// Le rechargement suivant n'en renvoie plus que 11 : deux pages. La
+		// troisième n'existe plus.
+		mockFetch({
+			...base,
+			"GET /api/cves": beaucoup(11),
+			"POST /api/annotations": { body: {} },
+		});
+		fireEvent.click(screen.getAllByText(/^pkg-2[0-4]$/)[0] as HTMLElement);
+		fireEvent.click(
+			(
+				await screen.findAllByRole("button", { name: /Faux positif/ })
+			)[0] as HTMLElement,
+		);
+
+		// Sans recadrage, la tranche `slice(20, 30)` de 11 éléments est **vide** :
+		// aucune ligne rendue, alors que le pied annonce toujours « 11 sur 11 » —
+		// les deux se contredisent. On assert donc sur les lignes, pas sur le pied.
+		await waitFor(() => expect(screen.getByText("pkg-10")).toBeDefined());
 	});
 });

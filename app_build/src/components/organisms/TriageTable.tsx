@@ -74,13 +74,13 @@ export function TriageTable({
 						return (
 							<React.Fragment key={group.key}>
 								<TableRow
-									className={`cursor-pointer ${group.hasConfirmed ? "bg-red-500/5  :bg-red-950/40" : ""}`}
+									className={`cursor-pointer ${group.hasConfirmed ? "bg-red-500/5 dark:bg-red-950/40" : ""}`}
 									onClick={() => setSelectedGroup(group)}
 								>
 									<TableCell className="whitespace-nowrap">
 										<div className="flex items-center gap-3">
 											<div
-												className={`p-1.5 rounded-lg border ${group.hasConfirmed ? "bg-red-500/20 border-red-500 " : SEVERITY_COLORS[group.worstSeverity]}`}
+												className={`p-1.5 rounded-lg border ${group.hasConfirmed ? "bg-red-500/20 text-red-700 border-red-500 dark:bg-red-500/25 dark:text-red-200" : SEVERITY_COLORS[group.worstSeverity]}`}
 											>
 												{group.hasConfirmed ? (
 													<AlertOctagon className="w-5 h-5" />
@@ -91,7 +91,7 @@ export function TriageTable({
 											<div className="flex flex-col">
 												<div className="flex items-center gap-2">
 													<span
-														className={`font-bold font-mono text-sm ${group.hasConfirmed ? "text-red-400" : "text-foreground"}`}
+														className={`font-bold font-mono text-sm ${group.hasConfirmed ? "text-red-700 dark:text-red-300" : "text-foreground"}`}
 													>
 														{group.package}
 													</span>
@@ -201,7 +201,7 @@ export function TriageTable({
 														href={`${jiraBaseUrl.replace(/\/$/, "")}/browse/${ticket.url}`}
 														target="_blank"
 														rel="noreferrer"
-														className="text-blue-400"
+														className="text-blue-600 dark:text-blue-400"
 														onClick={(e) => e.stopPropagation()}
 													>
 														{ticket.url}

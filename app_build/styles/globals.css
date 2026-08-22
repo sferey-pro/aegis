@@ -67,6 +67,93 @@
 	--mesh-opacity: 0.08;
 }
 
+/*
+ * Jeu de tokens sombre.
+ *
+ * Il manquait entièrement, alors que l'application emploie des utilitaires
+ * `dark:` (`glass-panel`, barres de défilement, `checkbox`, `switch`…). En
+ * Tailwind v4 la variante `dark:` est adossée par défaut à
+ * `prefers-color-scheme`, donc sur un système en thème sombre **les utilitaires
+ * basculaient et les variables CSS non** : fond clair, texte clair par-dessus,
+ * et des composants calibrés pour le sombre posés sur des cartes blanches. Le
+ * README annonce un « support Light / Dark mode natif » ; c'est ce bloc qui le
+ * rend vrai.
+ *
+ * Les valeurs sont dupliquées entre la requête média et la classe `.dark`, à
+ * dessein : la première suit la préférence du système, la seconde permet de
+ * forcer le thème — et c'est le sélecteur que `ui/chart.tsx` attend déjà. CSS
+ * ne sait pas partager un bloc de déclarations entre deux sélecteurs sans une
+ * indirection qui coûterait plus en lisibilité qu'elle ne gagne en lignes.
+ *
+ * `:root:not(.light)` laisse la classe `.light` reprendre la main sur la
+ * préférence système, dans le même esprit.
+ */
+@media (prefers-color-scheme: dark) {
+	:root:not(.light) {
+		--background: 222 47% 7%;
+		--foreground: 210 40% 98%;
+
+		--card: 222 47% 10%;
+		--card-foreground: 210 40% 98%;
+
+		--popover: 222 47% 10%;
+		--popover-foreground: 210 40% 98%;
+
+		--primary: 217 91% 60%;
+		--primary-foreground: 222 47% 11%;
+
+		--secondary: 217 33% 17%;
+		--secondary-foreground: 210 40% 98%;
+
+		--muted: 217 33% 17%;
+		--muted-foreground: 215 20% 65%;
+
+		--accent: 217 33% 17%;
+		--accent-foreground: 210 40% 98%;
+
+		--destructive: 0 72% 51%;
+		--destructive-foreground: 210 40% 98%;
+
+		--border: 217 33% 20%;
+		--input: 217 33% 20%;
+		--ring: 217 91% 60%;
+
+		--mesh-opacity: 0.16;
+	}
+}
+
+.dark {
+	--background: 222 47% 7%;
+	--foreground: 210 40% 98%;
+
+	--card: 222 47% 10%;
+	--card-foreground: 210 40% 98%;
+
+	--popover: 222 47% 10%;
+	--popover-foreground: 210 40% 98%;
+
+	--primary: 217 91% 60%;
+	--primary-foreground: 222 47% 11%;
+
+	--secondary: 217 33% 17%;
+	--secondary-foreground: 210 40% 98%;
+
+	--muted: 217 33% 17%;
+	--muted-foreground: 215 20% 65%;
+
+	--accent: 217 33% 17%;
+	--accent-foreground: 210 40% 98%;
+
+	--destructive: 0 72% 51%;
+	--destructive-foreground: 210 40% 98%;
+
+	--border: 217 33% 20%;
+	--input: 217 33% 20%;
+	--ring: 217 91% 60%;
+
+	--mesh-opacity: 0.16;
+}
+
 @layer base {
 	* {
 		@apply border-border outline-ring/50;

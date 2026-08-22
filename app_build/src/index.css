@@ -102,5 +102,7 @@ body::before {
 
 * {
 	scrollbar-width: thin;
-	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+	/* Un pouce blanc était invisible sur fond clair : la barre existait sans
+	   qu'on puisse la voir. Le token suit le thème. */
+	scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
 }

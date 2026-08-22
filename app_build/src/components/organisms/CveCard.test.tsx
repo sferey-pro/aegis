@@ -31,7 +31,6 @@ function cve(over: Partial<PackageGroupCve> = {}): PackageGroupCve {
 interface Appels {
 	statuts: [string, number, string][];
 	confirmations: [string, number, string | undefined][];
-	fins: number;
 	toasts: (Toast | null)[];
 }
 
@@ -39,7 +38,6 @@ function props(cveObj = cve(), appels?: Appels) {
 	const a: Appels = appels ?? {
 		statuts: [],
 		confirmations: [],
-		fins: 0,
 		toasts: [],
 	};
 	return {
@@ -52,9 +50,6 @@ function props(cveObj = cve(), appels?: Appels) {
 		},
 		handleConfirmCve: (c: string, p: number, r?: string) => {
 			a.confirmations.push([c, p, r]);
-		},
-		onActionComplete: () => {
-			a.fins++;
 		},
 		appels: a,
 	};
@@ -98,17 +93,19 @@ describe("CveCard", () => {
 		expect(screen.getByText(/Patch : 4\.17\.21/)).toBeInTheDocument();
 	});
 
-	test("« À traiter » remet le statut à pending puis clôt l'action", () => {
-		const a: Appels = { statuts: [], confirmations: [], fins: 0, toasts: [] };
+	test("« À traiter » remet le statut à pending sans fermer la modale (N9)", () => {
+		// La carte appelait `onActionComplete`, câblé sur la fermeture de la modale
+		// qui la contient : un package à 8 CVE coûtait 8 cycles ouvrir/statuer/
+		// rouvrir. Elle n'a plus la main sur son conteneur.
+		const a: Appels = { statuts: [], confirmations: [], toasts: [] };
 		const { appels: _, ...p } = props(cve({ status: "confirmed" }), a);
 		render(<CveCard {...p} />);
 		fireEvent.click(screen.getByRole("button", { name: "À traiter" }));
 		expect(a.statuts).toEqual([["CVE-2024-12345", 7, "pending"]]);
-		expect(a.fins).toBe(1);
 	});
 
 	test("« Faux positif » passe le statut à ignored", () => {
-		const a: Appels = { statuts: [], confirmations: [], fins: 0, toasts: [] };
+		const a: Appels = { statuts: [], confirmations: [], toasts: [] };
 		const { appels: _, ...p } = props(cve(), a);
 		render(<CveCard {...p} />);
 		fireEvent.click(screen.getByRole("button", { name: /Faux positif/ }));
@@ -117,7 +114,7 @@ describe("CveCard", () => {
 
 	test("« Confirmé » passe par la modale de justification, pas par updateStatus", () => {
 		// Confirmer exige une raison : le composant délègue, il ne décide pas.
-		const a: Appels = { statuts: [], confirmations: [], fins: 0, toasts: [] };
+		const a: Appels = { statuts: [], confirmations: [], toasts: [] };
 		const { appels: _, ...p } = props(cve({ note: "déjà noté" }), a);
 		render(<CveCard {...p} />);
 		fireEvent.click(screen.getByRole("button", { name: /Confirmé/ }));
@@ -155,7 +152,7 @@ describe("CveCard", () => {
 				body: { success: false, error: "rate limit" },
 			},
 		});
-		const a: Appels = { statuts: [], confirmations: [], fins: 0, toasts: [] };
+		const a: Appels = { statuts: [], confirmations: [], toasts: [] };
 		const { appels: _, ...p } = props(
 			cve({ link: "https://github.com/advisories/GHSA-x" }),
 			a,
@@ -177,7 +174,7 @@ describe("CveCard", () => {
 		mockFetch({
 			"POST /api/advisories/sync": { networkError: "ECONNREFUSED" },
 		});
-		const a: Appels = { statuts: [], confirmations: [], fins: 0, toasts: [] };
+		const a: Appels = { statuts: [], confirmations: [], toasts: [] };
 		const { appels: _, ...p } = props(
 			cve({ link: "https://github.com/advisories/GHSA-x" }),
 			a,

@@ -33,7 +33,7 @@ export const Header = memo(function Header({
 					aria-label="Retour au tableau de bord"
 					className="flex items-center gap-3 cursor-pointer"
 				>
-					<div className="relative flex items-center justify-center w-11 h-11 rounded-xl border overflow-hidden (var(--primary),0.2)] (var(--primary),0.4)]">
+					<div className="relative flex items-center justify-center w-11 h-11 rounded-xl border overflow-hidden">
 						<img
 							src="/aegis-logo.jpg"
 							alt="Aegis Logo"

@@ -28,6 +28,18 @@ describe("db/tags", () => {
 		);
 	});
 
+	test("l'unicité du nom est sensible à la casse (CONTEXT.md §9)", () => {
+		// « web » ≠ « Web » est **spécifié**, pas un défaut : §9 le dit
+		// explicitement (« Dédup sensible casse/espaces internes »). Un correctif
+		// l'avait rendue insensible le 22/08/2026, contredisant le contrat et
+		// fusionnant des tags existants ; annulé le même jour. La question — la
+		// règle est-elle la bonne ? — relève de l'arbitrage de contrat (N31), pas
+		// d'un correctif de défaut.
+		createTag("backend");
+		expect(() => createTag("Backend")).not.toThrow();
+		expect(listTags()).toHaveLength(2);
+	});
+
 	test("listTags trie par nom croissant", () => {
 		createTag("zod");
 		createTag("api");
@@ -99,12 +111,6 @@ describe("contrats attendus — à activer au correctif", () => {
 
 	// N40 — `UNIQUE` sans `COLLATE NOCASE` laisse coexister « backend » et
 	// « Backend », soit deux filtres visuellement identiques.
-	test("l'unicité du nom ignore la casse (N40)", () => {
-		createTag("backend");
-		expect(() => createTag("Backend")).toThrow(
-			"Un tag avec ce nom existe déjà",
-		);
-	});
 
 	// N12 — CONTEXT.md §9 : « retire le nom de tous les projets le référençant ».
 	test.failing("supprimer un tag le retire des projets (N12)", () => {

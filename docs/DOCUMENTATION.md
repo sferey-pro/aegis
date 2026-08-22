@@ -110,6 +110,7 @@ déclarées sont exercées par des tests fonctionnels sur un vrai serveur — vo
 | **GET / PUT** | `/api/settings` | Réglages clé/valeur. Seule `AUDIT_MAX_AGE_HOURS` est contrainte. |
 | **GET** | `/api/config/export` | Exporte projets, réglages et annotations. Les secrets sont masqués par `***`. |
 | **POST** | `/api/config/import` | Restaure un export. Une valeur `***` n'écrase pas le secret en place. |
+| **POST** | `/api/config/reset` | Remet la configuration à zéro en supprimant le fichier SQLite principal, puis le recrée vide. **Conserve** la clé GHSA et le cache d'avis, qui vivent dans un second fichier. Ne touche **jamais** aux projets sur le disque. |
 | **POST** | `/api/snapshots/create` | Instantané intégral de la base (`VACUUM INTO`). |
 | **POST** | `/api/snapshots/restore` | Restaure l'instantané puis provoque le redémarrage du serveur. |
 | **GET** | `/api/console` | Flux *Server-Sent Events* des commandes exécutées. Volatil, sans rejeu. |
@@ -125,7 +126,7 @@ déclarées sont exercées par des tests fonctionnels sur un vrai serveur — vo
 
 | Aspect | État |
 |---|---|
-| Tests | **1136**, 0 échec, colocalisés (chaque fichier de code a son test à côté) |
+| Tests | **1161**, 0 échec, colocalisés (chaque fichier de code a son test à côté) |
 | Typage | `tsc --noEmit` en 0, zéro `any` explicite |
 | Lint | `biome check --error-on-warnings` en 0 (politique zéro warning) |
 | CI | 4 portes : install, lint, typecheck, tests |

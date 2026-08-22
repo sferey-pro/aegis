@@ -1,5 +1,4 @@
 import { errorMessage } from "@/lib/utils";
-import { getDb } from "../db";
 import { buildCveGroups } from "../lib/aggregator";
 import { advisorySyncBodySchema } from "../lib/schemas";
 import { parseBody } from "../lib/validate";
@@ -34,7 +33,9 @@ export const cvesRoutes = {
 	"/api/advisories/cache": {
 		async DELETE() {
 			try {
-				getDb().query("DELETE FROM advisory_cache").run();
+				// La base d'avis est un fichier séparé : c'est là qu'il faut purger.
+				const { getAdvisoryDb } = await import("../db/advisories");
+				getAdvisoryDb().query("DELETE FROM advisory_cache").run();
 				return Response.json({ success: true });
 			} catch (e: unknown) {
 				return Response.json(

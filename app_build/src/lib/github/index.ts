@@ -1,6 +1,9 @@
-import { getDb } from "../../db";
+import {
+	getAdvisoryDb,
+	getGithubConfig,
+	setGithubConfig,
+} from "../../db/advisories";
 import type { ProjectTool } from "../../db/projects";
-import { getSetting } from "../../db/settings";
 import { emitConsoleEnd, emitConsoleStart } from "../console";
 import type { Severity } from "../parsers/types";
 import { normSeverity } from "../parsers/utils";
@@ -52,7 +55,7 @@ type AdvisoryCacheRow = {
 };
 
 export function getCachedAdvisory(id: string): CachedAdvisory | null {
-	const db = getDb();
+	const db = getAdvisoryDb();
 	const row = db
 		.query(
 			`SELECT severity, fixes, html_url, cvss_vector, published_at FROM advisory_cache WHERE id = ?`,
@@ -78,7 +81,7 @@ export function putCachedAdvisory(
 	cvss_vector?: string | null,
 	published_at?: string | null,
 ) {
-	const db = getDb();
+	const db = getAdvisoryDb();
 	db.query(`
     INSERT INTO advisory_cache (id, severity, fixes, html_url, cvss_vector, published_at, fetched_at)
     VALUES ($id, $severity, $fixes, $html_url, $cvss_vector, $published_at, CURRENT_TIMESTAMP)
@@ -127,7 +130,7 @@ async function fetchAdvisory(
 		"x-github-api-version": "2022-11-28",
 	};
 
-	const token = getSetting("GITHUB_TOKEN", process.env.GITHUB_TOKEN);
+	const token = getGithubConfig("GITHUB_TOKEN", process.env.GITHUB_TOKEN ?? "");
 	if (token) {
 		headers.authorization = `Bearer ${token}`;
 	}
@@ -147,10 +150,9 @@ async function fetchAdvisory(
 		const reset = res.headers.get("x-ratelimit-reset");
 
 		if (limit) {
-			const { setSetting } = await import("../../db/settings");
-			setSetting("GITHUB_RL_LIMIT", limit);
-			setSetting("GITHUB_RL_REMAINING", remaining || "0");
-			setSetting("GITHUB_RL_RESET", reset || "0");
+			setGithubConfig("GITHUB_RL_LIMIT", limit);
+			setGithubConfig("GITHUB_RL_REMAINING", remaining || "0");
+			setGithubConfig("GITHUB_RL_RESET", reset || "0");
 		}
 
 		if (res.status === 429 || (res.status === 403 && remaining === "0")) {
@@ -384,7 +386,7 @@ export async function syncAdvisory(
 	const key = keyFrom(cve, link);
 	if (!key) return null;
 
-	const db = getDb();
+	const db = getAdvisoryDb();
 	db.query("DELETE FROM advisory_cache WHERE id = ?").run(key.id);
 
 	const { advisory } = await fetchAdvisory(key);

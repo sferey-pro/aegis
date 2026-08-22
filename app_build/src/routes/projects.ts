@@ -72,6 +72,23 @@ function pathGuard(path: string, auditPath: string | null): Response | null {
 	const root = expandPath(path);
 	const target = resolveAuditTarget(path, auditPath);
 	if (isPathAllowed(root) && isPathAllowed(target)) return null;
+
+	// Deux situations très différentes, et un message qui les confondait : « chemin
+	// non autorisé par AEGIS_ALLOWED_ROOTS » envoyait chercher un périmètre trop
+	// étroit alors que la variable n'était pas définie du tout. Sur une instance
+	// fraîche, tous les projets échouent alors pour cette raison, et l'outil passe
+	// pour cassé.
+	if (!process.env.AEGIS_ALLOWED_ROOTS) {
+		return Response.json(
+			{
+				error:
+					"AEGIS_ALLOWED_ROOTS n'est pas défini : aucun chemin n'est autorisé. " +
+					"Renseignez les racines auditables, ou AEGIS_ALLOWED_ROOTS=/ pour tout autoriser.",
+			},
+			{ status: 403 },
+		);
+	}
+
 	return Response.json(
 		{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
 		{ status: 403 },

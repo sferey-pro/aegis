@@ -53,7 +53,6 @@ describe("db/index — schéma", () => {
 			"cve_occurrences",
 			"tags",
 			"prompts",
-			"advisory_cache",
 			"settings",
 			"reports",
 		]) {
@@ -107,18 +106,20 @@ describe("db/index — schéma", () => {
 		).toThrow(/UNIQUE/);
 	});
 
-	test("les migrations ALTER TABLE tardives ont été appliquées", () => {
-		// Elles sont enveloppées dans des try/catch silencieux : seule une
-		// vérification du schéma prouve qu'elles ont eu lieu.
-		const colonnes = (
-			getDb().query("PRAGMA table_info(advisory_cache)").all() as {
-				name: string;
-			}[]
-		).map((c) => c.name);
-		for (const c of ["html_url", "cvss_vector", "published_at"]) {
-			expect(colonnes).toContain(c);
-		}
+	test("advisory_cache n'est plus dans la base principale", () => {
+		// Le cache d'avis vit dans un fichier séparé depuis le 22/08/2026, pour que
+		// la remise à zéro puisse être la suppression du fichier principal.
+		const tables = (
+			getDb()
+				.query("SELECT name FROM sqlite_master WHERE type = 'table'")
+				.all() as { name: string }[]
+		).map((t) => t.name);
+		expect(tables).not.toContain("advisory_cache");
+	});
 
+	test("les migrations ALTER TABLE tardives ont été appliquées", () => {
+		// Elles n'avalent plus que « duplicate column name » : seule une
+		// vérification du schéma prouve qu'elles ont bien eu lieu.
 		const tickets = (
 			getDb().query("PRAGMA table_info(tickets)").all() as { name: string }[]
 		).map((c) => c.name);

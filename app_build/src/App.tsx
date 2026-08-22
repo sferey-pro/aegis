@@ -15,7 +15,10 @@ interface AuditRunResponse {
 }
 
 import { GlobalLoader } from "./components/layout/GlobalLoader";
-import { ReportModal } from "./components/layout/ReportModal";
+import {
+	type AuditFailure,
+	ReportModal,
+} from "./components/layout/ReportModal";
 import { BlankLayout } from "./components/templates/BlankLayout";
 import { MainLayout } from "./components/templates/MainLayout";
 import { Debug } from "./pages/Debug";
@@ -34,7 +37,7 @@ export function App() {
 	/** Message d'échec du chargement des statistiques, distinct de l'état vide. */
 	const [statsError, setStatsError] = useState<string | null>(null);
 	/** Projets dont l'audit a échoué pendant le dernier lot. */
-	const [auditErrors, setAuditErrors] = useState<string[]>([]);
+	const [auditErrors, setAuditErrors] = useState<AuditFailure[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [auditing, setAuditing] = useState(false);
 	const [auditProgress, setAuditProgress] = useState<{
@@ -143,7 +146,7 @@ export function App() {
 			// N6 : les projets en échec sont recensés, pas ignorés. Les compter zéro
 			// vulnérabilité produisait un compte-rendu faux — « 20 projets, 0
 			// vulnérabilité » quand les vingt avaient échoué — puis l'archivait.
-			const echecs: string[] = [];
+			const echecs: AuditFailure[] = [];
 
 			for (const p of projectsToAudit) {
 				setAuditProgress({ current, total, name: p.name });
@@ -155,15 +158,21 @@ export function App() {
 						{ method: "POST" },
 					);
 				} catch (err) {
-					echecs.push(`${p.name} : ${apiErrorMessage(err)}`);
+					echecs.push({
+						projectId: p.id,
+						name: p.name,
+						message: apiErrorMessage(err),
+					});
 				}
 
 				// Un run en erreur a des compteurs à zéro : c'est un échec, pas un
 				// projet sain.
 				if (auditData?.run?.status === "error") {
-					echecs.push(
-						`${p.name} : ${auditData.run.error ?? "audit en erreur"}`,
-					);
+					echecs.push({
+						projectId: p.id,
+						name: p.name,
+						message: auditData.run.error ?? "audit en erreur",
+					});
 				}
 
 				if (auditData?.run?.counts && auditData.run.status !== "error") {
@@ -206,7 +215,11 @@ export function App() {
 
 			await fetchStats();
 		} catch (err) {
-			setAuditErrors([apiErrorMessage(err)]);
+			// Échec avant même la boucle — par exemple `GET /api/projects`. Aucun
+			// projet n'est en cause, d'où l'identifiant sentinelle.
+			setAuditErrors([
+				{ projectId: -1, name: "Audit global", message: apiErrorMessage(err) },
+			]);
 		} finally {
 			setAuditing(false);
 			setAuditProgress(null);

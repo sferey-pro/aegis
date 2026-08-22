@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 355 tests composants — happy-dom actif
-bun run test:api    # 781 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 361 tests composants — happy-dom actif
+bun run test:api    # 800 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1136 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1161 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -69,6 +69,16 @@ Un seul process Bun sert à la fois l'API et la SPA React. SQLite est le seul st
 **Concurrence** (`src/lib/audit/queue.ts`) : un unique mutex `isProcessing` au niveau du module — un audit à la fois par process, **quel que soit le projet**. Le verrou est libéré dans un `finally`, sans quoi un audit qui lève bloquerait la file jusqu'au redémarrage. Le refus n'a pas le même code selon la porte d'entrée : `POST /api/audit/run` renvoie **429**, mais `POST /api/projects/:id/audit` attrape l'exception dans son `try/catch` générique et renvoie **500** — incohérence connue, épinglée par les tests. `enqueueGlobalAudit` est fire-and-forget, la progression étant sondée via `/api/audit/status` ; attention, `progress` et `total` sont remis à zéro dès la fin du lot, donc un client qui sonde trop tard voit `0/1` et jamais `2/2`. À noter : le `handleRunAudit` du frontend (`App.tsx`) contourne entièrement la file et boucle sur `POST /api/projects/:id/audit` depuis le navigateur.
 
 **Console live** (`src/lib/console.ts`) : diffusion SSE vers des abonnés en mémoire, volatile — jamais persistée. Les wrappers de sous-processus encadrent chaque commande avec `emitConsoleStart`/`emitConsoleEnd` ; un `AsyncLocalStorage` (`projectContext`) étiquette les événements avec le nom du projet sans le faire passer par les signatures d'appel. Toute sortie au-delà de 3000 caractères est tronquée. Ctrl+Shift+D bascule vers la page `/debug` qui affiche le flux.
+
+**Deux bases, et c'est structurant.** `DB_PATH` porte la configuration du parc ; `<base>-advisories.sqlite` (`src/db/advisories.ts`, chemin dérivé, surchargeable par `ADVISORY_DB_PATH`) porte tout ce qui relève du dialogue avec GitHub : le cache d'avis, la clé GHSA et l'état du quota.
+
+Le découpage n'est pas cosmétique — il rend une propriété **structurelle**. `POST /api/config/reset` (`src/db/reset.ts`) est la **suppression du fichier principal**, pas une énumération de tables à vider : il n'y a plus de liste à tenir à jour, donc plus rien à oublier quand une table est ajoutée. Un test le prouve en créant une table à la volée avant le reset. La séquence est `closeDb()` → retrait de `<base>`, `-wal` et `-shm` → `getDb()`, qui recrée le fichier et réapplique le schéma : c'est le même chemin qu'un premier démarrage. Ne pas retirer le `-wal` ferait rejouer d'anciennes écritures par-dessus la base neuve (le défaut que N2 décrit sur la restauration).
+
+Conséquences à connaître :
+- `getPublicSettings` **recompose** les réglages depuis les deux fichiers, et `PUT /api/settings` **route** les clés `GITHUB_*` vers la base d'avis. Le client poste un seul objet ; le tri est côté serveur. Oublier l'un des deux fait disparaître la clé GHSA de l'écran, ou la fait réécrire dans le mauvais fichier — les deux se sont produits pendant le découpage.
+- `useTempDb` isole **les deux** fichiers et ferme **les deux** connexions. Le singleton d'avis ne se réévalue pas seul : ne fermer que la principale laissait le cache s'accumuler d'un test à l'autre, et une assertion « un appel réseau a bien eu lieu » échouait parce qu'un test précédent avait rempli le cache.
+- Une migration `ATTACH` reprend cache et clés restés dans la base principale à la première ouverture, puis les y supprime — sinon la table y resterait et le prochain reset la viderait sans que personne ne s'en aperçoive.
+- La remise à zéro ne touche **jamais** aux projets sur le disque : elle ne supprime que le fichier SQLite d'Aegis, et un test le vérifie.
 
 **Schéma** (`src/db/index.ts`) : uniquement des `CREATE TABLE IF NOT EXISTS` plus des migrations `ALTER TABLE` inline enveloppées dans des try/catch silencieux — c'est toute la stratégie de migration, ajoutez donc vos colonnes de la même façon. Mode WAL, clés étrangères ON, connexion paresseuse en singleton (importer un module db ne doit jamais créer le fichier).
 
@@ -110,5 +120,6 @@ Ce sont des garde-fous du projet, pas des conseils génériques — en casser un
 - Les annotations globales (`project_id = -1`) sont **inatteignables** : la colonne porte une clé étrangère vers `projects` et `PRAGMA foreign_keys` est actif. La branche qui les lit dans l'agrégateur est du code mort et `CveOccurrence.isGlobal` vaut toujours `false`.
 - `POST /api/annotations` **efface** `note` et `fixedIn` quand ils sont omis : le schéma de la route applique ses valeurs par défaut avant que la logique « préserver les champs non fournis » de `upsertAnnotation` puisse agir. Enregistrer un statut détruit la note saisie à la main.
 - La route `"/api/*"` de `src/index.ts` répond 404 en JSON pour tout chemin d'API non capté. Elle doit rester **avant** le fourre-tout `"/*"` : l'ordre de déclaration décide, et l'inverser ferait à nouveau servir `index.html` en 200 sur un appel mal orthographié.
+- ⚠️ Une entrée d'`ISSUE.md` marquée « écart documenté » établit que le comportement a été **observé**, pas qu'il est fautif. **Confrontez toujours à `CONTEXT.md` avant de corriger** : la sensibilité à la casse des noms de tags a été « corrigée » à tort, alors que §9 la spécifie, avec une migration destructive à la clé.
 - **`docs/ISSUE.md` est la liste unique des défauts connus**, groupée par priorité et revérifiée dans le code le 21/08/2026. Ses 25 entrées marquées 🧪 sont **épinglées par un test** qui affirme le comportement défectueux : la régression involontaire est bloquée, mais le défaut n'est pas corrigé. Consultez cette liste avant de conclure qu'un comportement surprenant est un bug neuf. Chaque entrée 🧪 porte **deux** tests : celui qui affirme le comportement actuel (« écart documenté »), et un `test.failing` regroupé en fin de fichier sous `describe("contrats attendus — à activer au correctif")` qui énonce le contrat. Au correctif : corriger le code, retirer `.failing`, supprimer le test « écart documenté ». Bun refuse un `test.failing` qui passe, donc le correctif ne peut pas passer inaperçu. N'utilisez pas `test.skip` ni `test.todo` à cette fin : leur corps n'est pas exécuté.
 - `docs/` contient la spécification fonctionnelle (`CONTEXT.md` est la référence de comportement autoritative — règles de déduplication, messages de validation, cas limites), plus `TESTING.md` (comment on teste), `TESTS.md` (ce qui est couvert), `ISSUE.md`, `VERIFICATION_REPORT.md`, `BACKLOG.md`, `PROJECT_BLUEPRINT.md` et `atomic_design_roadmap.md`. `.agents/` contient une configuration parallèle de personas d'agents (`agents.md`, `rules/`, `skills/`, `workflows/`) dont les fichiers `rules/` constituent les règles de code normatives de ce dépôt.

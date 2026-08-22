@@ -67,11 +67,25 @@ async function attendreChargement() {
 	);
 }
 
+/**
+ * Avertissements React captés pendant le test courant.
+ *
+ * React signale une clé dupliquée par `console.error` sans faire échouer le
+ * rendu : sans cette capture, la collision reste invisible pour la suite.
+ */
+let avertissements: string[] = [];
+const consoleErrorOriginal = console.error;
+
 describe("App", () => {
 	beforeEach(() => {
 		sse = mockEventSource();
+		avertissements = [];
+		console.error = (...args: unknown[]) => {
+			avertissements.push(args.map(String).join(" "));
+		};
 	});
 	afterEach(() => {
+		console.error = consoleErrorOriginal;
 		restoreEventSource();
 		restoreFetch();
 	});
@@ -239,6 +253,52 @@ describe("App", () => {
 			projects_audited: 0,
 			total_vulnerabilities: 0,
 		});
+	});
+
+	test("deux projets de même nom en échec sont tous deux listés", async () => {
+		// Le nom d'un projet n'est pas unique — seule la cible d'audit l'est. Deux
+		// projets homonymes en échec produisaient le **même** message, donc la même
+		// clé React : « Encountered two children with the same key ». React omettait
+		// alors l'un des deux, et le référent croyait n'avoir qu'un échec.
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				{ id: 7, name: "myTemp", ignored: false },
+				{ id: 8, name: "myTemp", ignored: false },
+			],
+			"POST /api/projects/7/audit": {
+				status: 403,
+				body: { error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
+			},
+			"POST /api/projects/8/audit": {
+				status: 403,
+				body: { error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
+			},
+			"POST /api/reports": { body: { id: 1, projects_audited: 0 } },
+		});
+		monte();
+		await attendreChargement();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Lancer l'audit global/ }),
+		);
+
+		expect(
+			await screen.findByText(/2 projets en échec/, undefined, {
+				timeout: 3000,
+			}),
+		).toBeInTheDocument();
+		// Les deux lignes sont rendues…
+		expect(
+			screen.getAllByText(/Chemin non autorisé par AEGIS_ALLOWED_ROOTS/),
+		).toHaveLength(2);
+		// …et surtout, sans avertissement de clé dupliquée. React rend aujourd'hui
+		// les deux enfants malgré la collision, mais s'en réserve le droit :
+		// « the behavior is unsupported and could change in a future version ».
+		// C'est donc l'avertissement qu'il faut épingler, pas le rendu.
+		expect(avertissements.filter((m) => m.includes("same key"))).toHaveLength(
+			0,
+		);
 	});
 
 	test("les projets en échec sont énumérés dans la modale de rapport (N6)", async () => {

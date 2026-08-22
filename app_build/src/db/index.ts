@@ -55,34 +55,42 @@ function initDb(database: Database) {
     );
   `);
 
-	try {
-		database.exec(`ALTER TABLE projects ADD COLUMN slug TEXT;`);
-		database.exec(
-			`CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);`,
-		);
-	} catch (_e) {}
+	/**
+	 * Même règle que plus bas : on n'avale que « duplicate column name », la seule
+	 * erreur attendue d'un `ADD COLUMN` idempotent. Ces blocs avalaient tout, y
+	 * compris une base corrompue ou un index impossible à créer — l'application
+	 * tournait alors sur un schéma qu'elle croyait à jour.
+	 */
+	const ajout = (sql: string) => {
+		try {
+			database.exec(sql);
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : String(e);
+			if (/duplicate column name/i.test(message)) return;
+			throw e;
+		}
+	};
 
-	try {
-		database.exec(
-			`ALTER TABLE projects ADD COLUMN is_remote BOOLEAN DEFAULT 0;`,
-		);
-	} catch (_e) {}
+	ajout(`ALTER TABLE projects ADD COLUMN slug TEXT;`);
+	database.exec(
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_slug ON projects(slug);`,
+	);
+	ajout(`ALTER TABLE projects ADD COLUMN is_remote BOOLEAN DEFAULT 0;`);
 
-	try {
-		database.exec(`ALTER TABLE advisory_cache ADD COLUMN html_url TEXT;`);
-		database.exec(`ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT;`);
-	} catch (_e) {}
+	// Les deux `ALTER TABLE advisory_cache` qui figuraient ici ont été retirées :
+	// elles s'exécutaient **avant** la création de la table, plus bas dans cette
+	// même fonction. Elles échouaient donc à chaque démarrage sur « no such
+	// table », et le `catch` vide le masquait — du code mort depuis son écriture.
+	// Les ajouts réels ont lieu après le `CREATE TABLE`, avec les autres.
 
-	// Populate missing slugs
-	try {
-		database.exec(`
-      UPDATE projects 
-      SET slug = lower(replace(name, ' ', '-')) || '-' || id 
-      WHERE slug IS NULL;
-    `);
-	} catch (e) {
-		console.error("Error populating slugs:", e);
-	}
+	// Populate missing slugs. Pas de `catch` : un slug manquant rend le projet
+	// inatteignable par `POST /api/ingest/:slug`, donc un échec ici doit remonter
+	// plutôt que d'être journalisé et oublié.
+	database.exec(`
+    UPDATE projects
+    SET slug = lower(replace(name, ' ', '-')) || '-' || id
+    WHERE slug IS NULL;
+  `);
 
 	database.exec(`
     CREATE TABLE IF NOT EXISTS runs (
@@ -152,15 +160,6 @@ function initDb(database: Database) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS advisory_cache (
-      id TEXT PRIMARY KEY,
-      severity TEXT,
-      fixes JSON,
-      html_url TEXT,
-      cvss_vector TEXT,
-      published_at DATETIME,
-      fetched_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
 
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -176,30 +175,28 @@ function initDb(database: Database) {
     );
   `);
 
-	// Migration pour ajouter details
-	try {
-		db?.query("ALTER TABLE reports ADD COLUMN details JSON DEFAULT '[]'").run();
-	} catch (_e) {
-		// La colonne existe probablement déjà
-	}
+	/**
+	 * Ajout de colonne idempotent.
+	 *
+	 * SQLite n'a pas d'`ADD COLUMN IF NOT EXISTS` : la seule façon de savoir si la
+	 * colonne existe déjà est de tenter l'ajout. On n'avale donc **que** cette
+	 * erreur précise. Les `catch` vides précédents masquaient aussi une base
+	 * corrompue, une table absente ou un disque plein — une migration qui échoue
+	 * en silence laisse l'application tourner sur un schéma qu'elle croit à jour,
+	 * et le défaut se manifeste bien plus loin, sous une forme incompréhensible.
+	 */
+	const ajouteColonne = (table: string, definition: string) => {
+		try {
+			db?.query(`ALTER TABLE ${table} ADD COLUMN ${definition}`).run();
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : String(e);
+			if (/duplicate column name/i.test(message)) return;
+			throw e;
+		}
+	};
 
-	// Migration pour ajouter published_at, html_url, cvss_vector à advisory_cache
-	try {
-		db?.query(
-			"ALTER TABLE advisory_cache ADD COLUMN published_at DATETIME",
-		).run();
-	} catch (_e) {
-		// La colonne existe probablement déjà
-	}
-	try {
-		db?.query("ALTER TABLE advisory_cache ADD COLUMN html_url TEXT").run();
-	} catch (_e) {}
-	try {
-		db?.query("ALTER TABLE advisory_cache ADD COLUMN cvss_vector TEXT").run();
-	} catch (_e) {}
-	try {
-		db?.query("ALTER TABLE tickets ADD COLUMN content_hash TEXT").run();
-	} catch (_e) {}
+	ajouteColonne("reports", "details JSON DEFAULT '[]'");
+	ajouteColonne("tickets", "content_hash TEXT");
 
 	/**
 	 * Purge des occurrences écrites sous l'ancienne clé d'identité (N10).
@@ -221,76 +218,7 @@ function initDb(database: Database) {
 	 * de l'ancienne convention — aucune référence CVE ou GHSA réelle ne peut
 	 * coïncider avec un nom de paquet.
 	 */
-	try {
-		db?.query("DELETE FROM cve_occurrences WHERE cve = package").run();
-	} catch (_e) {
-		// Table absente sur une base antérieure à `cve_occurrences`.
-	}
-
-	/**
-	 * Unicité des noms de tags **insensible à la casse** (défaut N40).
-	 *
-	 * `UNIQUE` sur du TEXT sans `COLLATE NOCASE` laissait coexister « backend » et
-	 * « Backend », produisant deux filtres visuellement identiques dans la page
-	 * Projets, chacun ne correspondant qu'à une partie des projets. L'erreur est
-	 * invisible à la lecture, et le message « Un tag avec ce nom existe déjà » ne
-	 * se déclenchait pas.
-	 *
-	 * `CREATE TABLE IF NOT EXISTS` ne modifie pas une table existante : on ajoute
-	 * donc un index unique `COLLATE NOCASE`, qui s'applique aussi aux bases déjà
-	 * créées. L'ancienne contrainte `UNIQUE` reste — elle est un sous-ensemble plus
-	 * strict, donc sans effet.
-	 *
-	 * Les collisions déjà en base sont fusionnées avant, sinon l'index refuse de se
-	 * créer : on garde l'orthographe du plus petit `id` — la première saisie — et
-	 * on **réécrit `projects.tags`** pour y remplacer les variantes supprimées. Ne
-	 * pas le faire créerait exactement les tags fantômes de N12.
-	 */
-	try {
-		const collisions = (db
-			?.query(
-				`SELECT LOWER(name) AS cle, MIN(id) AS garde, COUNT(*) AS n
-				 FROM tags GROUP BY LOWER(name) HAVING n > 1`,
-			)
-			.all() ?? []) as { cle: string; garde: number; n: number }[];
-
-		for (const c of collisions) {
-			const survivant = db
-				?.query(`SELECT name FROM tags WHERE id = ?`)
-				.get(c.garde) as { name: string } | undefined;
-			const doublons = (db
-				?.query(`SELECT id, name FROM tags WHERE LOWER(name) = ? AND id <> ?`)
-				.all(c.cle, c.garde) ?? []) as { id: number; name: string }[];
-			if (!survivant) continue;
-
-			for (const d of doublons) {
-				// Réécrire les projets qui référencent l'orthographe supprimée.
-				const projets = (db?.query(`SELECT id, tags FROM projects`).all() ??
-					[]) as { id: number; tags: string | null }[];
-				for (const proj of projets) {
-					let noms: string[];
-					try {
-						noms = JSON.parse(proj.tags || "[]");
-					} catch {
-						continue;
-					}
-					if (!noms.includes(d.name)) continue;
-					const remplaces = [
-						...new Set(noms.map((n) => (n === d.name ? survivant.name : n))),
-					];
-					db?.query(`UPDATE projects SET tags = ? WHERE id = ?`).run(
-						JSON.stringify(remplaces),
-						proj.id,
-					);
-				}
-				db?.query(`DELETE FROM tags WHERE id = ?`).run(d.id);
-			}
-		}
-
-		db?.query(
-			"CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_nocase ON tags(name COLLATE NOCASE)",
-		).run();
-	} catch (_e) {
-		// Base antérieure à la table `tags`, ou index déjà présent.
-	}
+	// Pas de `try/catch` : la table est créée juste au-dessus par le `CREATE TABLE
+	// IF NOT EXISTS`, donc un échec ici est un vrai problème et doit remonter.
+	db?.query("DELETE FROM cve_occurrences WHERE cve = package").run();
 }

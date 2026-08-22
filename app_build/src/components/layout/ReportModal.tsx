@@ -1,6 +1,23 @@
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Report } from "@/db/reports";
+
+/**
+ * Échec d'audit d'un projet.
+ *
+ * Structuré, et non une simple chaîne : le nom d'un projet **n'est pas unique**
+ * — seule sa cible d'audit l'est. Deux projets homonymes en échec produisaient
+ * donc le même message, donc la même clé React, d'où « Encountered two children
+ * with the same key ». React rendait bien les deux lignes, mais s'en réserve
+ * explicitement le droit de ne plus le faire. `projectId` est la seule identité
+ * fiable ici.
+ */
+export interface AuditFailure {
+	projectId: number;
+	name: string;
+	message: string;
+}
+
 import { Button } from "../ui/button";
 import {
 	Dialog,
@@ -23,7 +40,7 @@ export function ReportModal({
 	 * échoué — la conclusion la plus rassurante possible sur l'échec le plus
 	 * complet possible.
 	 */
-	auditErrors?: string[];
+	auditErrors?: AuditFailure[];
 	setReportModal: (val: Report | null) => void;
 }) {
 	const navigate = useNavigate();
@@ -81,8 +98,8 @@ export function ReportModal({
 							</p>
 							<ul className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
 								{auditErrors.map((e) => (
-									<li key={e} className="font-mono break-all">
-										{e}
+									<li key={e.projectId} className="font-mono break-all">
+										{e.name} : {e.message}
 									</li>
 								))}
 							</ul>

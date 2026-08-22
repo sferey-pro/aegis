@@ -38,6 +38,20 @@ export const settingsRoutes = {
 				}
 			}
 
+			// La configuration GitHub vit dans la base d'avis, pour survivre à une
+			// remise à zéro. L'écran Réglages poste un seul objet ; le tri se fait
+			// ici, pas côté client.
+			const { GITHUB_CONFIG_KEYS, setGithubConfig } = await import(
+				"../db/advisories"
+			);
+			for (const cle of GITHUB_CONFIG_KEYS) {
+				const valeur = aEcrire[cle];
+				if (typeof valeur === "string") {
+					setGithubConfig(cle, valeur);
+					delete aEcrire[cle];
+				}
+			}
+
 			setAllSettings(aEcrire);
 			return Response.json({ success: true });
 		},
@@ -130,6 +144,29 @@ export const settingsRoutes = {
 			return Response.json({
 				success: true,
 				message: "Paramètres, projets et annotations importés avec succès.",
+			});
+		},
+	},
+
+	/**
+	 * Remise à zéro de la configuration, pour repartir d'un import propre.
+	 *
+	 * Destructif et sans confirmation côté serveur : c'est l'interface qui porte la
+	 * demande de confirmation. L'API d'Aegis n'a pas d'authentification (elle
+	 * n'écoute que sur `127.0.0.1` par défaut), donc cette route n'ouvre aucune
+	 * capacité nouvelle — supprimer les projets un par un était déjà possible — mais
+	 * elle en concentre l'effet. À protéger le jour où une authentification est
+	 * ajoutée.
+	 */
+	"/api/config/reset": {
+		async POST() {
+			const { resetConfiguration } = await import("../db/reset");
+			const { GITHUB_CONFIG_KEYS } = await import("../db/advisories");
+			return Response.json({
+				success: true,
+				reset: resetConfiguration(),
+				// Ce qui vit dans l'autre fichier, donc hors d'atteinte du reset.
+				preserved: ["advisory_cache", ...GITHUB_CONFIG_KEYS],
 			});
 		},
 	},

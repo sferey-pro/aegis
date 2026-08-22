@@ -3,6 +3,7 @@ import { existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { closeDb, getDb } from "../db";
+import { advisoryDbPath, closeAdvisoryDb } from "../db/advisories";
 
 /**
  * Serveur Aegis réel, pour les tests fonctionnels de bout en bout.
@@ -83,6 +84,7 @@ export async function startTestServer(label = "fn"): Promise<TestServer> {
 	} else {
 		// Le serveur écoute déjà : on ne peut pas en ouvrir un second, mais la
 		// connexion SQLite, elle, se rouvre à la demande.
+		closeAdvisoryDb();
 		closeDb();
 		process.env.DB_PATH = dbPath;
 		getDb();
@@ -111,10 +113,18 @@ export async function startTestServer(label = "fn"): Promise<TestServer> {
 		stop() {
 			// Le serveur reste en écoute : il est partagé avec les fichiers de test
 			// suivants du même run. Seule la base de ce fichier est libérée.
+			//
+			// Une base jetable, c'est **deux** fichiers depuis la séparation du cache
+			// d'avis. Le chemin du second se lit avant fermeture, tant que `DB_PATH`
+			// pointe encore ici.
+			const cheminAvis = advisoryDbPath();
+			closeAdvisoryDb();
 			closeDb();
-			for (const suffixe of ["", "-wal", "-shm"]) {
-				const f = `${dbPath}${suffixe}`;
-				if (existsSync(f)) rmSync(f, { force: true });
+			for (const base of [dbPath, cheminAvis]) {
+				for (const suffixe of ["", "-wal", "-shm"]) {
+					const f = `${base}${suffixe}`;
+					if (existsSync(f)) rmSync(f, { force: true });
+				}
 			}
 		},
 	};

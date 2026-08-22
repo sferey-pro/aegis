@@ -89,7 +89,7 @@ L'application sera accessible sur `http://localhost:3001`.
 
 ## 🧪 Tests
 
-**1136 tests, 0 échec.** Chaque fichier de code porte son test à côté de lui
+**1161 tests, 0 échec.** Chaque fichier de code porte son test à côté de lui
 (colocation), et la politique **zéro warning** s'applique aux tests comme au
 code de production.
 
@@ -100,9 +100,9 @@ démarrer :
 ```bash
 cd app_build
 
-bun run test        # les deux étages (1136 tests)
-bun run test:ui     # 355 tests composants — happy-dom, React, fetch simulé
-bun run test:api    # 781 tests fonctionnels — vrai serveur, vraie base, vrai git
+bun run test        # les deux étages (1161 tests)
+bun run test:ui     # 361 tests composants — happy-dom, React, fetch simulé
+bun run test:api    # 800 tests fonctionnels — vrai serveur, vraie base, vrai git
 bun test --watch src/db/runs.test.ts   # un fichier, en surveillance
 ```
 

@@ -637,6 +637,22 @@ describe("contrats attendus — à activer au correctif", () => {
 		expect(status).toBe(403);
 	});
 
+	test("le message distingue « non défini » de « hors périmètre »", async () => {
+		// Le même message pour les deux envoyait chercher un périmètre trop étroit
+		// alors que la variable n'était pas définie du tout. Sur une instance
+		// fraîche, tous les projets échouent ainsi et l'outil passe pour cassé.
+		delete process.env.AEGIS_ALLOWED_ROOTS;
+		const absent = await creer<{ error: string }>({ path: "/srv/api" });
+		expect(absent.data.error).toContain("n'est pas défini");
+		expect(absent.data.error).toContain("AEGIS_ALLOWED_ROOTS=/");
+
+		process.env.AEGIS_ALLOWED_ROOTS = "/srv/autorise";
+		const dehors = await creer<{ error: string }>({ path: "/srv/interdit" });
+		expect(dehors.data.error).toBe(
+			"Chemin non autorisé par AEGIS_ALLOWED_ROOTS",
+		);
+	});
+
 	// N11 — CONTEXT.md §2 spécifie `?force=1`. Un forçage silencieusement ignoré
 	// est plus dangereux qu'un forçage absent : l'appelant croit avoir réaudité.
 	//

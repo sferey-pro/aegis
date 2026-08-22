@@ -10,3 +10,13 @@ collection/*
 !collection/.gitkeep
 app_build/collection/*
 !app_build/collection/.gitkeep
+
+# Variables d'environnement locales.
+#
+# `app_build/.gitignore` les ignorait déjà, mais le fichier réellement utilisé est
+# à la **racine** du dépôt : il n'était donc pas couvert, et un `git add -A` l'a
+# commité avec un vrai jeton GitHub dedans (push bloqué par la protection de
+# secrets, historique réécrit le 22/08/2026).
+.env
+.env.local
+.env.*.local

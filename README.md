@@ -133,6 +133,9 @@ curl -X POST "http://localhost:3001/api/ingest/mon-projet-slug?sha=VOTRE_HASH_DE
 ```
 *Note : Le paramètre `sha` est primordial pour que les développeurs retrouvent la révision exacte du code liée aux vulnérabilités identifiées.*
 
+**Mise en place pas à pas sur GitHub Actions** — prérequis, workflow complet par
+outil, monorepo, contrat de la route et diagnostic : [`docs/CI_INGEST.md`](./docs/CI_INGEST.md).
+
 ---
 
 ## 🔐 Philosophie

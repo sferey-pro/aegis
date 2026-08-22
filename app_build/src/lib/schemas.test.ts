@@ -126,6 +126,18 @@ describe("schemas — projectBodySchema", () => {
 		).toEqual([]);
 	});
 
+	test("une valeur booléenne invalide est refusée, pas ramenée à false", () => {
+		// Le contrat donne `false` comme défaut d'un champ **absent** ; il ne prévoit
+		// aucun repli pour une valeur invalide. Inventer ce repli ferait absorber au
+		// code une donnée non conforme et enregistrerait un état non demandé.
+		expect(
+			messageDe(projectBodySchema, { ...projetValide, ignored: "peut-être" }),
+		).toBe("Valeur booléenne invalide");
+		expect(
+			messageDe(projectBodySchema, { ...projetValide, is_remote: 7 }),
+		).toBe("Valeur booléenne invalide");
+	});
+
 	test("ignored et is_remote acceptent les formes véhiculées par JSON", () => {
 		const r = projectBodySchema.parse({
 			...projetValide,

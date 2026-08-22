@@ -32,18 +32,22 @@ const tagNames = z
 	});
 
 /**
- * Booléen tolérant, mais **pas** complaisant (défaut N33).
+ * Booléen tolérant sur la forme, **strict sur le sens** (défaut N33).
  *
- * `z.coerce.boolean()` applique la conversion JavaScript : toute chaîne non vide
- * est vraie, `"false"` comprise. Un client qui sérialise ses booléens en texte —
- * un formulaire HTML, un script `curl`, un pipeline CI — activait donc « ignoré »
- * en croyant le désactiver, et le projet disparaissait de l'agrégation CVE sans
- * message. Les formes usuelles sont acceptées, une valeur inattendue retombe sur
- * `false` plutôt que de faire échouer la création du projet — le champ est un
- * réglage d'affichage, pas une donnée de sécurité.
+ * `z.coerce.boolean()` appliquait la conversion JavaScript : toute chaîne non
+ * vide est vraie, `"false"` comprise. Un client qui sérialise ses booléens en
+ * texte — un formulaire HTML, un script `curl`, un pipeline CI — activait donc
+ * « ignoré » en croyant le désactiver, et le projet disparaissait de
+ * l'agrégation CVE sans message.
+ *
+ * Les formes usuelles sont acceptées, mais une valeur inattendue est **refusée**
+ * et non ramenée à `false`. `CONTEXT.md` §1 donne `false` comme valeur par défaut
+ * d'un champ **absent** ; il ne prévoit aucun repli pour une valeur invalide.
+ * Inventer ce repli reviendrait à faire absorber au code une donnée non conforme,
+ * et à enregistrer un état que l'appelant n'a pas demandé.
  */
-const boolStrict = z
-	.union([
+const boolStrict = z.union(
+	[
 		z.boolean(),
 		z
 			.enum(["true", "false", "1", "0", "yes", "no", "on", "off"])
@@ -54,8 +58,9 @@ const boolStrict = z
 			.min(0)
 			.max(1)
 			.transform((v) => v === 1),
-	])
-	.catch(false);
+	],
+	{ message: "Valeur booléenne invalide" },
+);
 
 /**
  * Chaîne trimée dont la version vide devient `null` (CONTEXT.md §1). L'absence

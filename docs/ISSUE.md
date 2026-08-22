@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**30 entrées ouvertes (24 🔴) ou partielles (6 🟡) · 34 fermées · 12 épinglées par un test.**
+**31 entrées ouvertes (24 🔴) ou partielles (6 🟡) · 33 fermées · 12 épinglées par un test.**
 
 ### Priorité 1 — Sécurité
 
@@ -77,13 +77,14 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | ID | Sujet | État | Test |
 |---|---|:-:|:-:|
 | [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) | `CONTEXT.md` n'est plus la spécification du produit | 🟡 | partiel |
+| [N40](#n40-les-noms-de-tags-sont-sensibles-à-la-casse) | Casse des noms de tags — **conforme au contrat**, question produit | ⚫ | — |
 | [C11](#c11-composants-monolithiques) | Composants monolithiques (1057 lignes pour `Projects.tsx`) | 🔴 | — |
 
 ### 🟢 Fermé, vérifié le 21/08/2026
 
 | ID | Sujet | Constat de vérification |
 |---|---|---|
-| T1 | Front quasi non couvert | **355 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
+| T1 | Front quasi non couvert | **356 tests** sur 46 fichiers `.test.tsx`, colocalisés sur toute l'arborescence Atomic Design |
 | T2 | Routes peu couvertes | **11 modules de routes sur 11**, en fonctionnel sur un vrai `Bun.serve` — 227 tests |
 | T3 | Test git dépendant du réseau | dépôts jetables en `tmpdir()` avec un dépôt nu local comme amont ; **aucun accès réseau** dans toute la suite |
 | T4 | Modules sans aucun test | `lib/cvss.ts` (14 tests), `lib/console.ts` (18), `db/backup.ts` (6) |
@@ -105,7 +106,6 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | N36 | Une méthode non déclarée renvoie du HTML en 200 | 🟢 **corrigé le 22/08/2026.** Route `"/api/*"` répondant 404 en JSON, placée **avant** le fourre-tout `"/*"` — l'ordre de déclaration décide. |
 | N37 | `DELETE` sur un identifiant inconnu répond succès | 🟢 **corrigé le 22/08/2026.** Les quatre fonctions de suppression retournent `changes > 0`, et les quatre routes répondent 404 sinon. |
 | N38 | `getReports` trie par `created_at` seul | 🟢 **corrigé le 22/08/2026.** `ORDER BY created_at DESC, id DESC`, même règle que `getLatestRun`. |
-| N40 | Noms de tags sensibles à la casse | 🟢 **corrigé le 22/08/2026.** Index unique `COLLATE NOCASE` — `CREATE TABLE IF NOT EXISTS` ne modifiant pas une table existante. Les collisions déjà en base sont fusionnées avant création de l'index, en conservant l'orthographe du plus petit `id`, **et en réécrivant `projects.tags`** : ne pas le faire aurait créé exactement les tags fantômes de [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs). |
 | N42 | `commit_sha` peut valoir `"HEAD"` | 🟢 **corrigé le 22/08/2026.** `runGit` retourne son code de sortie, et `getGitInfo` s'y fie au lieu de chercher `fatal:` dans stdout. Le SHA est en outre validé sur la forme `/^[0-9a-f]{40}$/` — une valeur non hexadécimale satisfaisait la déduplication d'un run au suivant. |
 | N43 | Repli « Déjà à jour. » inatteignable | 🟢 **corrigé le 22/08/2026.** Trois situations distinguées : pas de remote (« Aucun dépôt distant configuré »), à jour, mis à jour. Le repli se déclenchait au contraire sur un dépôt **sans** remote, où rien n'avait été tenté. |
 | N10 | Clé d'identité de la table d'occurrences | 🟢 **corrigé le 21/08/2026.** `src/lib/vuln-identity.ts` porte les fonctions partagées, et la colonne `cve` de `cve_occurrences` stocke désormais `occurrenceRef` — la CVE, **repli sur le titre**, conformément à la clé de `newCves` (§2). Une migration purge les lignes de l'ancienne convention (`cve = package`), ambiguës par construction. **Correction de cadrage :** le correctif annoncé (« une clé unique pour parsing, table et agrégation ») allait trop loin — `CONTEXT.md` §3 et §2 **spécifient** les clés du dédoublonnage et du diff, volontairement plus fines. Le défaut n'était pas d'avoir trois clés mais d'en avoir une quatrième, non spécifiée. |
@@ -827,7 +827,17 @@ Le référent rédige une recommandation pour `lodash`, annule, ouvre le ticket 
 **Correctif :** réinitialiser `notes` à l'ouverture, ou donner au dialogue une `key` dérivée de `group.key` pour forcer un état neuf par ticket.
 
 ### N40. Les noms de tags sont sensibles à la casse
-🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/db/index.ts` (table `tags`), `src/db/tags.ts`
+⚫ **Ce n'est pas un défaut — reclassé le 22/08/2026 en écart de contrat à arbitrer ([N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)).**
+
+`CONTEXT.md` §9 le spécifie explicitement : « Dédup **sensible casse/espaces internes** (« web » ≠ « Web ») ». La sensibilité à la casse est donc la règle métier, pas un oubli.
+
+> ⚠️ **J'ai corrigé cette entrée à tort le 22/08/2026**, en posant un index unique `COLLATE NOCASE` et une migration qui **fusionnait les tags** dont les noms ne différaient que par la casse. Le code contredisait le contrat, et la migration a détruit des données sur les instances où elle a tourné. Les deux ont été annulés le même jour ; les tags fusionnés sont perdus et doivent être recréés à la main.
+>
+> La leçon : une entrée d'`ISSUE.md` marquée « écart documenté » n'établit pas que le comportement est fautif. Elle établit qu'il a été **observé**. Confronter au contrat **avant** de corriger — ce qui n'avait pas été fait ici.
+
+L'argument d'origine reste valable comme **question produit** : deux filtres visuellement identiques dans la page Projets, chacun ne correspondant qu'à une partie des projets, sont une source d'erreur réelle. Mais y répondre demande de modifier `CONTEXT.md`, pas le code — et cela relève de l'arbitrage de N31, avec les autres écarts de contrat.
+
+Défaut annexe relevé au passage, celui-là bien réel : le message de collision est « Un tag avec ce nom existe déjà » là où §9 spécifie « Tag déjà existant ». — `src/db/index.ts` (table `tags`), `src/db/tags.ts`
 
 `name TEXT NOT NULL UNIQUE` sans `COLLATE NOCASE` : « backend » et « Backend » coexistent, produisant **deux filtres visuellement identiques** dans la barre de la page Projets, chacun ne matchant qu'une partie des projets. L'erreur est invisible à la lecture, et le message « Un tag avec ce nom existe déjà » ne se déclenche pas.
 
@@ -860,14 +870,14 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 
 | Fichier | Lignes |
 |---|---:|
-| `src/pages/Projects.tsx` | **1136** |
+| `src/pages/Projects.tsx` | **1139** |
 | `src/pages/Reports.tsx` | 662 |
 | `src/pages/Settings.tsx` | 653 |
 | `src/pages/Triage.tsx` | 403 |
 
 `Projects.tsx` a franchi le millier de lignes depuis la vague 1. Le refactor Atomic Design a extrait les atomes et les organismes, mais les pages ont continué de grossir : elles portent l'état, les appels réseau, l'orchestration et le markup. C'est ce qui rend [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction) (handlers non mémoïsés), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation) (état serveur local) et [N24](#n24-filtres-et-pagination-hors-de-lurl) (filtres non partagés) difficiles à corriger séparément : les trois ont la même racine.
 
-À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 355 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
+À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 356 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
 
 ### N31. Écarts au contrat CONTEXT.md — arbitrage à trancher
 **⊕2**
@@ -919,7 +929,7 @@ Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points :
 4. **[N1](#n1-github-est-appelé-pendant-chaque-audit)** — sortir l'enrichissement du chemin d'audit. Débloque mécaniquement [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil), [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) et une bonne part de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire).
 5. ~~**N10** puis **N28**~~ — ✅ **faits le 21/08/2026.** La table d'occurrences porte la clé de §2, les lignes ambiguës sont purgées, et l'invariant des compteurs est verrouillé.
 6. **[C9](#c9-initdb-ignore-son-paramètre) puis [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) et [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours)** — sauvegarde et restauration. Aujourd'hui l'outil affiche « restauration effectuée » sans rien restaurer : c'est le comportement le plus mensonger de l'application.
-7. ~~**Le lot bon marché**~~ — ✅ **fait le 22/08/2026.** Les dix correctifs, en une passe. Deux ont dépassé leur périmètre annoncé : N35 a révélé que l'import de configuration passait des données non validées à `createProject`, et N40 a exigé de réécrire `projects.tags` pour ne pas créer les tags fantômes de N12.
+7. ~~**Le lot bon marché**~~ — ✅ **neuf sur dix faits le 22/08/2026.** N35 a dépassé son périmètre en révélant que l'import de configuration passait des données non validées à `createProject`. **N40 a été annulé** : le contrat spécifie la sensibilité à la casse, ce n'était pas un défaut — voir son entrée.
 8. **[N9](#n9-le-triage-est-impraticable-au-delà-de-quelques-cve) et [N14](#n14-sévérité-illisible--palette-sans-couleur-de-texte-et-préfixes-dark-amputés)** — les deux défauts qui rendent l'écran de triage inutilisable en pratique, alors qu'il est la raison d'être du produit. N14 commence par un `grep` sur les préfixes `dark:` amputés.
 9. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — arbitrage du contrat. À trancher avant d'engager le reste : plusieurs entrées sont des fonctionnalités délibérément remplacées, pas des oublis.
 

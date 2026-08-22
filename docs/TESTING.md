@@ -187,6 +187,13 @@ quels événements arrivent et quand.
   La liste est dans [`ISSUE.md`](./ISSUE.md) — entrées marquées 🧪 — et
   [`TESTS.md`](./TESTS.md) § 5 en donne la table de correspondance.
 
+  ⚠️ **« Écart documenté » veut dire « observé », pas « fautif ».** Confrontez le
+  comportement à `docs/CONTEXT.md` **avant** d'écrire un test de contrat : le
+  22/08/2026, la sensibilité à la casse des noms de tags a été « corrigée » alors
+  que §9 la spécifie, et la migration associée a détruit des données. Un test de
+  contrat qui contredit le contrat est pire qu'un défaut : il le rend
+  obligatoire.
+
 ### `test.failing` plutôt que `skip` ou `todo`
 
 Vérifié sur Bun 1.3.14 :

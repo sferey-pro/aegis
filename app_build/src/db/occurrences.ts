@@ -1,5 +1,5 @@
 import { occurrenceRef } from "@/lib/vuln-identity";
-import { getDb } from "./index";
+import { getDb, runInTransaction } from "./index";
 
 /**
  * Fige la date de première détection de chaque vulnérabilité d'un projet.
@@ -16,13 +16,16 @@ export function ensureOccurrences(
 	isBaseline: boolean,
 ) {
 	const db = getDb();
-	const insertStmt = db.prepare(`
+	// `query` met l'instruction en cache sur la connexion ; `prepare` en créait une
+	// nouvelle à chaque audit sans jamais la finaliser, et une instruction vivante
+	// empêche la fermeture de la base.
+	const insertStmt = db.query(`
 		INSERT INTO cve_occurrences (project_id, package, cve, is_baseline) 
 		VALUES ($projectId, $package, $cve, $isBaseline)
 		ON CONFLICT(project_id, package, cve) DO NOTHING
 	`);
 
-	db.transaction(() => {
+	runInTransaction(() => {
 		for (const v of vulns) {
 			insertStmt.run({
 				$projectId: projectId,
@@ -31,7 +34,7 @@ export function ensureOccurrences(
 				$isBaseline: isBaseline ? 1 : 0,
 			});
 		}
-	})();
+	});
 
 	const rows = db
 		.query(

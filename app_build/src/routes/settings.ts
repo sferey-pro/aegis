@@ -1,6 +1,6 @@
 import { errorMessage } from "@/lib/utils";
 import { getAllAnnotations } from "../db/annotations";
-import { createSnapshot, restoreSnapshot } from "../db/backup";
+import { createSnapshot, listSnapshots, restoreSnapshot } from "../db/backup";
 import { listProjects } from "../db/projects";
 import {
 	getAllSettings,
@@ -61,13 +61,24 @@ export const settingsRoutes = {
 		async GET() {
 			const settings = getAllSettings();
 			const safeSettings = { ...settings };
+			const cheminParProjet = new Map(
+				listProjects().map((p) => [p.id, p.path]),
+			);
 			if (safeSettings.GITHUB_TOKEN) safeSettings.GITHUB_TOKEN = "***";
 			if (safeSettings.JIRA_API_KEY) safeSettings.JIRA_API_KEY = "***";
 
 			return Response.json({
 				projects: listProjects(),
 				settings: safeSettings,
-				annotations: getAllAnnotations(),
+				// Chaque annotation porte le **chemin** de son projet (§12), pas
+				// seulement son identifiant : les `id` sont attribués par
+				// auto-incrément, donc un export porteur du seul `project_id` n'était
+				// rejouable que sur la base qui l'avait produit. `project_id` reste
+				// émis pour que les versions antérieures puissent relire ce fichier.
+				annotations: getAllAnnotations().map((a) => ({
+					...a,
+					path: cheminParProjet.get(a.project_id) ?? null,
+				})),
 			});
 		},
 	},
@@ -83,37 +94,67 @@ export const settingsRoutes = {
 			);
 			if (!body) return response;
 
-			if (body.settings) {
-				const newSettings = { ...body.settings };
-				for (const key of Object.keys(newSettings)) {
-					if (newSettings[key] === "***") {
-						delete newSettings[key];
-					}
+			// Tous les modules sont résolus **avant** d'ouvrir la transaction : le
+			// rappel de `db.transaction()` doit être synchrone, un `await` à
+			// l'intérieur la refermerait avant la fin du travail.
+			const { runInTransaction } = await import("../db");
+			const { createProject, getProjectBySlug, updateProject } = await import(
+				"../db/projects"
+			);
+			const { upsertAnnotation } = await import("../db/annotations");
+			const { setAllSettings } = await import("../db/settings");
+			const { isPathAllowedForImport } = await import("./projects");
+
+			// N3 : la garde de chemin passe **avant** toute écriture. L'import était
+			// la voie la plus simple pour enregistrer un projet hors périmètre, puis
+			// l'auditer. Contrôlé ici plutôt que dans la boucle, pour que le refus
+			// n'ait aucun effet de bord à annuler.
+			for (const p of body.projects ?? []) {
+				if (!isPathAllowedForImport(p.path, p.audit_path)) {
+					return Response.json(
+						{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
+						{ status: 403 },
+					);
 				}
-				const { setAllSettings } = await import("../db/settings");
-				setAllSettings(newSettings);
 			}
 
-			const projectIdMap = new Map<number, number>(); // old -> new
-			if (body.projects && Array.isArray(body.projects)) {
-				const { createProject, getProjectBySlug, updateProject } = await import(
-					"../db/projects"
-				);
-				const { isPathAllowedForImport } = await import("./projects");
-				for (const p of body.projects) {
-					// N3 : l'import contournait entièrement la garde de chemin, ce qui en
-					// faisait la voie la plus simple pour enregistrer un projet hors
-					// périmètre — puis l'auditer.
-					if (!isPathAllowedForImport(p.path, p.audit_path)) {
-						return Response.json(
-							{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
-							{ status: 403 },
-						);
+			const compteurs = {
+				projectsAdded: 0,
+				annotationsAdded: 0,
+				annotationsSkipped: 0,
+			};
+
+			/**
+			 * Import en **une seule transaction**.
+			 *
+			 * Sans elle, une section en échec laissait derrière elle ce que les
+			 * précédentes avaient écrit : l'utilisateur relançait l'import et, faute
+			 * de déduplication par cible d'audit, les projets étaient recréés en
+			 * doublon tandis que les annotations restantes n'arrivaient jamais
+			 * (défaut N7). Un échec annule maintenant l'ensemble.
+			 */
+			const importer = () => {
+				if (body.settings) {
+					const aEcrire = { ...body.settings };
+					// Un secret exporté vaut « *** » : le réimporter écraserait la vraie
+					// valeur par ce littéral.
+					for (const cle of Object.keys(aEcrire)) {
+						if (aEcrire[cle] === "***") delete aEcrire[cle];
 					}
-					// `slug` et `id` sont facultatifs dans un export : un fichier
-					// bricolé à la main peut ne pas les porter. Sans slug on crée
-					// toujours, sans id on ne peut relier aucune annotation — mais
-					// l'import du projet reste valide.
+					setAllSettings(aEcrire);
+				}
+
+				// Deux tables de correspondance vers les identifiants créés : par
+				// chemin, forme spécifiée par §12 et portable d'une base à l'autre, et
+				// par ancien identifiant, pour les exports des versions antérieures.
+				const parChemin = new Map<string, number>();
+				const parAncienId = new Map<number, number>();
+
+				for (const p of body.projects ?? []) {
+					// `slug` et `id` sont facultatifs dans un export : un fichier bricolé
+					// à la main peut ne pas les porter. Sans slug on crée toujours, sans
+					// id on ne peut relier aucune annotation par identifiant — mais
+					// l'import du projet reste valide, et le relink par chemin marche.
 					const existing = p.slug ? getProjectBySlug(p.slug) : null;
 					let cibleId: number;
 					if (existing) {
@@ -121,28 +162,55 @@ export const settingsRoutes = {
 						cibleId = existing.id;
 					} else {
 						cibleId = createProject(p).id;
+						compteurs.projectsAdded++;
 					}
-					if (p.id !== undefined) projectIdMap.set(p.id, cibleId);
+					parChemin.set(p.path, cibleId);
+					if (p.id !== undefined) parAncienId.set(p.id, cibleId);
 				}
-			}
 
-			if (body.annotations && Array.isArray(body.annotations)) {
-				const { upsertAnnotation } = await import("../db/annotations");
-				for (const a of body.annotations) {
-					const mappedId = projectIdMap.get(a.project_id);
-					const targetId = a.project_id === -1 ? -1 : mappedId;
-					if (targetId !== undefined) {
-						upsertAnnotation(a.cve, targetId, {
-							status: a.status,
-							note: a.note,
-							fixedIn: a.fixed_in,
-						});
+				for (const a of body.annotations ?? []) {
+					// Le chemin d'abord : c'est la forme portable. L'ancien identifiant
+					// ne sert que de repli pour les fichiers qui ne portent que lui.
+					const cible =
+						(a.path !== undefined ? parChemin.get(a.path) : undefined) ??
+						(a.project_id !== undefined
+							? parAncienId.get(a.project_id)
+							: undefined);
+
+					// Cible non résolvable — projet absent du fichier, ou ancienne
+					// convention `project_id = -1` d'annotation « globale », qui n'a
+					// jamais pu exister en base : la colonne porte une clé étrangère
+					// vers `projects`. §12 impose d'ignorer, pas d'échouer : une
+					// annotation orpheline ne doit pas faire perdre tout l'import.
+					if (cible === undefined) {
+						compteurs.annotationsSkipped++;
+						continue;
 					}
+
+					upsertAnnotation(a.cve, cible, {
+						status: a.status,
+						note: a.note,
+						fixedIn: a.fixed_in,
+					});
+					compteurs.annotationsAdded++;
 				}
+			};
+
+			try {
+				runInTransaction(importer);
+			} catch (e: unknown) {
+				// La transaction est déjà annulée : la base est dans l'état d'avant.
+				return Response.json(
+					{
+						error: `Import interrompu, rien n'a été appliqué : ${errorMessage(e)}`,
+					},
+					{ status: 400 },
+				);
 			}
 
 			return Response.json({
 				success: true,
+				...compteurs,
 				message: "Paramètres, projets et annotations importés avec succès.",
 			});
 		},
@@ -186,6 +254,12 @@ export const settingsRoutes = {
 		},
 	},
 
+	"/api/snapshots": {
+		async GET() {
+			return Response.json({ snapshots: listSnapshots() });
+		},
+	},
+
 	"/api/snapshots/create": {
 		async POST() {
 			return Response.json(createSnapshot());
@@ -197,8 +271,25 @@ export const settingsRoutes = {
 			const { data, response } = await parseBody(req, restoreBodySchema);
 			if (!data) return response;
 
+			// Un audit en cours écrit dans la base qu'on s'apprête à remplacer : le
+			// run finirait à moitié enregistré dans un fichier qui n'existe plus.
+			// Même garde que la remise à zéro, même raison.
+			const { getAuditStatus } = await import("../lib/audit/queue");
+			if (getAuditStatus().isRunning) {
+				return Response.json(
+					{
+						error:
+							"Un audit est en cours : attendez qu'il se termine avant de restaurer.",
+					},
+					{ status: 409 },
+				);
+			}
+
 			try {
-				return Response.json(restoreSnapshot());
+				// Le nom est enfin **transmis**. Il était exigé par le schéma puis
+				// ignoré : le champ ne servait qu'à valider, et l'on restaurait
+				// toujours le même fichier.
+				return Response.json(restoreSnapshot(data.file));
 			} catch (e: unknown) {
 				return Response.json({ error: errorMessage(e) }, { status: 400 });
 			}

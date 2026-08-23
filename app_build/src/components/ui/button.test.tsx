@@ -59,11 +59,3 @@ describe("Button", () => {
 		);
 	});
 });
-
-/**
- * Contrat attendu — à activer au correctif.
- *
- * Voir le préambule des autres fichiers : `test.failing` attend l'échec, donc la
- * suite reste verte tant que le défaut existe, et bascule en rouge le jour du
- * correctif.
- */

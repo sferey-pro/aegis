@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1266 tests · 0 échec · 97 fichiers
-├── 414 composants (51 fichiers) — DOM, React, fetch simulé
-└── 852 fonctionnels (46 fichiers) — vrai serveur, vraie base, vrai git
+1298 tests · 0 échec · 97 fichiers
+├── 421 composants (51 fichiers) — DOM, React, fetch simulé
+└── 877 fonctionnels (46 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -21,7 +21,7 @@ Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
 
 ---
 
-## 1. Frontend — 414 tests
+## 1. Frontend — 421 tests
 
 Colocation intégrale : chaque `.tsx` a son `.test.tsx` à côté, suivant
 l'Atomic Design.
@@ -33,7 +33,7 @@ l'Atomic Design.
 | `components/organisms/` | 11 | 136 | blocs fonctionnels, modales, tableaux, interactions |
 | `components/templates/` | 2 | 11 | gabarits de mise en page, `Outlet` |
 | `components/layout/` | 3 | 16 | chargeur global, voile en portail, modale de rapport |
-| `pages/` | 7 | 101 | écrans complets, chargement, erreurs réseau, pagination |
+| `pages/` | 7 | 108 | écrans complets, chargement, erreurs réseau, pagination, instantanés |
 | `App.tsx` | 1 | 15 | routage `react-router-dom`, montage |
 
 Le réseau est simulé (`mockFetch`) : les pages exercent le chargement, la
@@ -44,7 +44,7 @@ le flux console utilisent le faux `EventSource`, qui gère **les deux API** —
 
 ---
 
-## 2. Base de données — 167 tests
+## 2. Base de données — 192 tests
 
 Tous sur une base SQLite jetable (`useTempDb`). Aucune simulation : le SQL, les
 clés étrangères et les migrations sont réels.
@@ -58,6 +58,7 @@ clés étrangères et les migrations sont réels.
 | `db/annotations.ts` | 14 | un champ non fourni est **conservé**, pas réinitialisé |
 | `db/tickets.ts` | 16 | l'unité est `(projet, paquet)`, hash remplacé à la mise à jour |
 | `db/settings.ts` | 13 | `setAllSettings` **fusionne**, coerce, et est transactionnel |
+| `db/backup.ts` | 26 | instantanés datés, rotation, anti-traversal, **restauration réelle** |
 | `db/reports.ts` | 11 | le détail est un instantané, il survit à la suppression du projet |
 | `db/tags.ts` | 10 | unicité, message d'erreur français |
 | `db/prompts.ts` | 12 | tags JSON, remplacement (pas fusion) à la mise à jour |
@@ -174,7 +175,7 @@ Invariants de sécurité vérifiés de bout en bout :
 
 Les tests de cette suite ne valident pas seulement ce qui marche : quand le comportement réel s'écarte de `CONTEXT.md`, le test **affirme le comportement réel** et son libellé porte la mention « écart documenté ». La régression involontaire est bloquée, et l'écart reste visible.
 
-**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 10 de ses entrées portent encore le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
+**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 9 de ses entrées portent encore le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
 
 Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant. **Dix sont corrigés à ce jour** (N32, N33, N34, N35, N36, N37, N38, N40, N42, N43) ; les autres restent épinglés :
 
@@ -197,7 +198,7 @@ Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlo
 
 Les huit autres écarts relevés par les tests confirmaient un défaut déjà inscrit : `N2` (snapshot, deux angles), `N5` (secrets en clair), `N7` (annotations globales), `N12` (cascade de tags), `N13` (`history-global`, deux angles) et `N18` (perte du `fixedIn`).
 
-**Deux contrats sont passés du rouge au vert le 23/08/2026** : `N9` (la modale de triage reste ouverte et à jour) et `N14` (aucune classe amputée). Leurs `describe` sont renommés « (corrigé) » et le test « écart documenté » correspondant a été supprimé, conformément à la marche à suivre ci-dessous.
+**Cinq contrats sont passés du rouge au vert le 23/08/2026** : `N9` (la modale de triage reste ouverte et à jour), `N14` (aucune classe amputée), `C9`, `N2` (la restauration remplace vraiment la base) et `N7` (import transactionnel, relink par chemin). Leurs `describe` sont renommés « (corrigé) » et le test « écart documenté » correspondant a été supprimé, conformément à la marche à suivre ci-dessous.
 
 ### Corriger un écart épinglé
 

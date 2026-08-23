@@ -28,7 +28,6 @@ function cve(ref: string): PackageGroupCve {
 		firstSeenAt: null,
 		publishedAt: null,
 		isBaseline: false,
-		isGlobal: false,
 	};
 }
 

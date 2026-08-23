@@ -21,6 +21,24 @@ const reglages = {
 
 const put = () => fetchCalls().filter((c) => c.method === "PUT");
 
+/** Inventaire d'instantanés, tel que `GET /api/snapshots` le renvoie. */
+const instantanes = {
+	snapshots: [
+		{
+			file: "audit-2026-08-23.sqlite",
+			size: 4096,
+			mtime: "2026-08-23T10:00:00.000Z",
+			counts: { projects: 3, runs: 12, tags: 2, annotations: 5, prompts: 1 },
+		},
+		{
+			file: "audit-2026-08-22.sqlite",
+			size: 4096,
+			mtime: "2026-08-22T10:00:00.000Z",
+			counts: { projects: 2, runs: 8, tags: 2, annotations: 4, prompts: 1 },
+		},
+	],
+};
+
 describe("Settings", () => {
 	afterEach(restoreFetch);
 
@@ -219,9 +237,9 @@ describe("Settings", () => {
 	});
 
 	test("un snapshot en échec affiche le message d'erreur du serveur", async () => {
-		// `handleSnapshot` vérifie `res.ok` — l'un des rares endroits du dépôt.
 		mockFetch({
 			"GET /api/settings": reglages,
+			"GET /api/snapshots": { snapshots: [] },
 			"POST /api/snapshots/create": {
 				status: 400,
 				body: { error: "Base illisible" },
@@ -236,6 +254,131 @@ describe("Settings", () => {
 		fireEvent.click(bouton as HTMLElement);
 
 		expect(await screen.findByText("Base illisible")).toBeInTheDocument();
+	});
+});
+
+describe("Settings — instantanés", () => {
+	afterEach(restoreFetch);
+
+	function monter(over: Record<string, unknown> = {}) {
+		mockFetch({
+			"GET /api/settings": reglages,
+			"GET /api/snapshots": instantanes,
+			...over,
+		});
+		return render(<Settings />);
+	}
+
+	const liste = () => screen.getByLabelText(/Instantané à restaurer/);
+	const boutonRestaurer = () =>
+		screen.getByRole("button", { name: /Restaurer/ });
+
+	test("l'inventaire est chargé et proposé au choix", async () => {
+		monter();
+		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-23.sqlite"));
+		// Le plus récent est présélectionné : c'est le choix attendu, et cela évite
+		// un 400 sur un champ vide.
+		expect(screen.getAllByRole("option")).toHaveLength(2);
+	});
+
+	test("chaque entrée annonce son contenu", async () => {
+		// Restaurer sans savoir ce que contient l'instantané est un pari : les
+		// compteurs sont la seule information qui distingue deux fichiers datés.
+		monter();
+		expect(
+			await screen.findByText(/audit-2026-08-23\.sqlite — 3 projets, 12 runs/),
+		).toBeInTheDocument();
+	});
+
+	test("la restauration transmet le fichier choisi", async () => {
+		// Le bouton postait un corps **vide** : la route exige `file` et répondait
+		// 400 « Fichier requis ». Il était mort depuis l'interface.
+		monter({
+			"POST /api/snapshots/restore": {
+				preRestore: "pre-restore-1700000000.sqlite",
+				snapshots: instantanes.snapshots,
+			},
+		});
+		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-23.sqlite"));
+
+		fireEvent.change(liste(), { target: { value: "audit-2026-08-22.sqlite" } });
+		fireEvent.click(boutonRestaurer());
+
+		await waitFor(() => {
+			const appel = fetchCalls().find(
+				(c) => c.url === "/api/snapshots/restore",
+			);
+			expect(appel?.body).toEqual({ file: "audit-2026-08-22.sqlite" });
+		});
+	});
+
+	test("le filet de retour arrière est annoncé", async () => {
+		// C'est la seule façon de revenir en arrière, et elle n'existait pas : une
+		// restauration réussie était irréversible.
+		monter({
+			"POST /api/snapshots/restore": {
+				preRestore: "pre-restore-1700000000.sqlite",
+				snapshots: instantanes.snapshots,
+			},
+		});
+		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-23.sqlite"));
+		fireEvent.click(boutonRestaurer());
+
+		expect(
+			await screen.findByText(/pre-restore-1700000000\.sqlite/),
+		).toBeInTheDocument();
+	});
+
+	test("sans instantané, la restauration est désactivée", async () => {
+		monter({ "GET /api/snapshots": { snapshots: [] } });
+		await waitFor(() =>
+			expect(screen.getByText("Aucun instantané disponible")).toBeDefined(),
+		);
+		expect(boutonRestaurer()).toBeDisabled();
+	});
+
+	test("une création rafraîchit la liste et sélectionne le nouveau fichier", async () => {
+		monter({
+			"POST /api/snapshots/create": {
+				file: "audit-2026-08-24.sqlite",
+				snapshots: [
+					{
+						file: "audit-2026-08-24.sqlite",
+						size: 4096,
+						mtime: "2026-08-24T10:00:00.000Z",
+						counts: {
+							projects: 4,
+							runs: 15,
+							tags: 2,
+							annotations: 5,
+							prompts: 1,
+						},
+					},
+					...instantanes.snapshots,
+				],
+			},
+		});
+		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-23.sqlite"));
+
+		fireEvent.click(screen.getByRole("button", { name: /Créer Snapshot/ }));
+
+		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-24.sqlite"));
+		expect(screen.getAllByRole("option")).toHaveLength(3);
+	});
+
+	test("un échec de restauration est signalé", async () => {
+		monter({
+			"POST /api/snapshots/restore": {
+				status: 409,
+				body: { error: "Un audit est en cours" },
+			},
+		});
+		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-23.sqlite"));
+		fireEvent.click(boutonRestaurer());
+
+		expect(
+			await screen.findByText("Un audit est en cours"),
+		).toBeInTheDocument();
 	});
 });
 

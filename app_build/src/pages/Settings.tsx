@@ -10,7 +10,8 @@ import {
 	Upload,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { SnapshotInfo } from "@/db/backup";
 import type { ResetResult } from "@/db/reset";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
 import { errorMessage } from "@/lib/utils";
@@ -49,6 +50,15 @@ export function Settings() {
 
 	// Backup states
 	const [backupLoading, setBackupLoading] = useState(false);
+	/**
+	 * Inventaire des instantanés, et celui que la restauration visera.
+	 *
+	 * Le bouton « Restaurer » postait un corps **vide** : la route exige un nom de
+	 * fichier, elle répondait donc 400 « Fichier requis ». Le bouton était mort
+	 * depuis l'interface, et sans liste il n'y avait rien à choisir.
+	 */
+	const [snapshots, setSnapshots] = useState<SnapshotInfo[]>([]);
+	const [snapshotChoisi, setSnapshotChoisi] = useState("");
 	const [backupMessage, setBackupMessage] = useState<{
 		text: string;
 		type: "success" | "error";
@@ -154,19 +164,66 @@ export function Settings() {
 		}
 	};
 
-	const handleSnapshot = async (action: "create" | "restore") => {
+	const chargerSnapshots = useCallback(async () => {
+		try {
+			const data = await fetchJson<{ snapshots: SnapshotInfo[] }>(
+				"/api/snapshots",
+			);
+			setSnapshots(data.snapshots);
+			// Présélectionner le plus récent : c'est le choix attendu dans la quasi-
+			// totalité des cas, et cela évite un 400 sur un champ vide.
+			setSnapshotChoisi((courant) =>
+				data.snapshots.some((s) => s.file === courant)
+					? courant
+					: (data.snapshots[0]?.file ?? ""),
+			);
+		} catch {
+			// Accessoire : l'absence d'inventaire n'empêche pas de régler le reste.
+			setSnapshots([]);
+		}
+	}, []);
+
+	useEffect(() => {
+		chargerSnapshots();
+	}, [chargerSnapshots]);
+
+	const handleCreateSnapshot = async () => {
 		setBackupLoading(true);
 		setBackupMessage(null);
 		try {
-			const data = await fetchJson<{ path?: string; message?: string }>(
-				`/api/snapshots/${action}`,
+			const data = await fetchJson<{ file: string; snapshots: SnapshotInfo[] }>(
+				"/api/snapshots/create",
 				{ method: "POST" },
 			);
+			setSnapshots(data.snapshots);
+			setSnapshotChoisi(data.file);
 			setBackupMessage({
-				text:
-					action === "create"
-						? `Snapshot créé (${data.path ?? "chemin inconnu"})`
-						: (data.message ?? "Opération effectuée"),
+				text: `Snapshot créé : ${data.file}`,
+				type: "success",
+			});
+		} catch (err: unknown) {
+			setBackupMessage({ text: apiErrorMessage(err), type: "error" });
+		} finally {
+			setBackupLoading(false);
+		}
+	};
+
+	const handleRestoreSnapshot = async () => {
+		if (!snapshotChoisi) return;
+		setBackupLoading(true);
+		setBackupMessage(null);
+		try {
+			const data = await fetchJson<{
+				preRestore: string | null;
+				snapshots: SnapshotInfo[];
+			}>("/api/snapshots/restore", jsonInit("POST", { file: snapshotChoisi }));
+			setSnapshots(data.snapshots);
+			setBackupMessage({
+				// Le filet est nommé : c'est le seul moyen de revenir en arrière, et il
+				// n'existait pas avant — une restauration était irréversible.
+				text: data.preRestore
+					? `Base restaurée depuis ${snapshotChoisi}. Retour arrière possible avec ${data.preRestore}.`
+					: `Base restaurée depuis ${snapshotChoisi}.`,
 				type: "success",
 			});
 		} catch (err: unknown) {
@@ -719,13 +776,38 @@ export function Settings() {
 						</h4>
 						<p className="text-sm text-muted-foreground">
 							Crée une copie parfaite (VACUUM INTO) de la base de données.
-							Pratique avant une migration.
+							Pratique avant une migration. Un instantané de l'état courant est
+							pris automatiquement avant toute restauration.
 						</p>
+
+						<label
+							htmlFor="snapshot-a-restaurer"
+							className="text-sm font-medium mt-2"
+						>
+							Instantané à restaurer
+						</label>
+						<select
+							id="snapshot-a-restaurer"
+							value={snapshotChoisi}
+							onChange={(e) => setSnapshotChoisi(e.target.value)}
+							disabled={backupLoading || snapshots.length === 0}
+							className="h-9 rounded-md border border-border bg-background px-3 text-sm font-mono disabled:opacity-50"
+						>
+							{snapshots.length === 0 && (
+								<option value="">Aucun instantané disponible</option>
+							)}
+							{snapshots.map((s) => (
+								<option key={s.file} value={s.file}>
+									{s.file} — {s.counts.projects} projets, {s.counts.runs} runs
+								</option>
+							))}
+						</select>
+
 						<div className="flex gap-3 mt-2">
 							<Button
 								type="button"
 								variant="secondary"
-								onClick={() => handleSnapshot("create")}
+								onClick={handleCreateSnapshot}
 								disabled={backupLoading}
 							>
 								Créer Snapshot
@@ -733,9 +815,9 @@ export function Settings() {
 							<Button
 								type="button"
 								variant="outline"
-								onClick={() => handleSnapshot("restore")}
-								disabled={backupLoading}
-								className="text-red-500"
+								onClick={handleRestoreSnapshot}
+								disabled={backupLoading || !snapshotChoisi}
+								className="text-red-600 dark:text-red-400"
 							>
 								<AlertTriangle className="w-4 h-4 mr-2" /> Restaurer
 							</Button>

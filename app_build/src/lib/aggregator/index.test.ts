@@ -292,14 +292,19 @@ describe("lib/aggregator — annotations", () => {
 		expect(parCve.get("CVE-2024-2")).toBeNull();
 	});
 
-	test("isGlobal est toujours faux — écart documenté", () => {
-		// Le drapeau vaut `ann.project_id === -1`, or aucune ligne -1 ne peut
-		// exister : la colonne porte une clé étrangère vers `projects`. L'affichage
-		// « annotation globale » du front est donc inatteignable.
+	test("une occurrence n'expose plus de portée globale (N7)", () => {
+		// Le drapeau `isGlobal` valait `ann.project_id === -1`, or aucune ligne -1
+		// ne pouvait exister : la colonne porte une clé étrangère vers `projects`.
+		// Il était donc toujours faux, et l'affichage « annotation globale » du
+		// front inatteignable. Le champ est retiré : CONTEXT.md §7 fixe l'unité de
+		// triage au couple (CVE, projet) et ne prévoit aucune portée globale.
 		const p = projet("api");
 		run(p.id, [vuln()]);
 		upsertAnnotation("CVE-2024-1", p.id, { status: "ignored" });
-		expect(buildCveGroups()[0]?.occurrences[0]?.isGlobal).toBe(false);
+
+		const occurrence = buildCveGroups()[0]?.occurrences[0];
+		expect(occurrence?.status).toBe("ignored");
+		expect(occurrence).not.toHaveProperty("isGlobal");
 	});
 });
 

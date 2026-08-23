@@ -10,7 +10,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 import { getDb } from "@/db";
 import { getGithubConfig, setGithubConfig } from "@/db/advisories";
@@ -32,13 +32,14 @@ async function attendreFinAudit(limiteMs = 8000) {
 }
 
 /**
- * `createSnapshot`/`restoreSnapshot` travaillent sur des chemins figés dans le
- * répertoire de travail du process, sans tenir compte de `DB_PATH`. La
- * restauration appelle en plus `process.exit(0)` : elle n'est donc **pas**
- * exercée ici, seul son refus l'est. Le fichier de sauvegarde est retiré après
- * chaque test pour ne pas laisser un `backup.sqlite` dans le dépôt.
+ * Les instantanés vont dans un dossier temporaire propre à ce fichier.
+ *
+ * `BACKUP_DIR` est repositionné avant chaque test : sans cela les instantanés
+ * s'écriraient dans `backups/` à la racine du dépôt, et un run complet laisserait
+ * des fichiers derrière lui. La restauration réussie est désormais exerçable —
+ * elle ne se termine plus par `process.exit(0)` (N2).
  */
-const FICHIER_SAUVEGARDE = resolve(process.cwd(), "backup.sqlite");
+let dossierSauvegardes: string;
 
 beforeAll(async () => {
 	srv = await startTestServer("settings");
@@ -46,6 +47,8 @@ beforeAll(async () => {
 afterAll(() => srv.stop());
 
 beforeEach(() => {
+	dossierSauvegardes = join(tmpdir(), `aegis-backups-${randomUUID()}`);
+	process.env.BACKUP_DIR = dossierSauvegardes;
 	getDb().query("DELETE FROM settings").run();
 	getDb().query("DELETE FROM projects").run();
 	// `AEGIS_ALLOWED_ROOTS` est en défaut **fermé** (N3) : sans la variable, aucun
@@ -55,8 +58,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	if (existsSync(FICHIER_SAUVEGARDE))
-		rmSync(FICHIER_SAUVEGARDE, { force: true });
+	rmSync(dossierSauvegardes, { recursive: true, force: true });
+	delete process.env.BACKUP_DIR;
 });
 
 describe("GET /api/settings", () => {
@@ -335,17 +338,25 @@ describe("POST /api/config/import", () => {
 		expect(getAllAnnotations()).toEqual([]);
 	});
 
-	test("une annotation globale fait échouer l'import en 500 — écart documenté", async () => {
-		// L'import conserve `project_id = -1` tel quel, mais la colonne porte une
-		// clé étrangère vers `projects` : l'insertion lève et le reste du corps
-		// n'est pas appliqué.
-		const { status } = await srv.json(
+	test("une annotation non rattachable est ignorée, pas fatale (N7)", async () => {
+		// L'ancienne convention `project_id = -1` — l'« annotation globale » —
+		// n'a jamais pu exister : la colonne porte une clé étrangère vers
+		// `projects`. L'import la réinjectait telle quelle, l'insertion levait, et
+		// le handler générique répondait 500 **après** avoir créé les projets.
+		// §12 impose d'ignorer les cibles non résolvables, pas d'échouer.
+		const { status, data } = await srv.json<{
+			success: boolean;
+			annotationsSkipped: number;
+		}>(
 			"/api/config/import",
 			jsonBody({
 				annotations: [{ cve: "CVE-2024-1", project_id: -1, status: "ignored" }],
 			}),
 		);
-		expect(status).toBe(500);
+		expect(status).toBe(200);
+		expect(data.success).toBe(true);
+		expect(data.annotationsSkipped).toBe(1);
+		expect(getAllAnnotations()).toEqual([]);
 	});
 
 	test("un projet hors périmètre est refusé en 403 (N3)", async () => {
@@ -375,6 +386,96 @@ describe("POST /api/config/import", () => {
 		expect(listProjects()).toHaveLength(0);
 	});
 
+	test("l'annotation est rattachée par chemin de projet (N7, §12)", async () => {
+		// Le relink par `path` est la forme spécifiée : les identifiants sont
+		// attribués par auto-incrément, donc un export porteur du seul `project_id`
+		// n'était rejouable que sur la base qui l'avait produit.
+		const { status } = await importer({
+			projects: [
+				{
+					name: "api",
+					path: "/srv/api",
+					type: "node",
+					tool: "npm",
+					tags: [],
+				},
+			],
+			annotations: [
+				{ path: "/srv/api", cve: "CVE-2024-1", status: "confirmed" },
+			],
+		});
+
+		expect(status).toBe(200);
+		const [annotation] = getAllAnnotations();
+		const [projet] = listProjects();
+		expect(annotation?.project_id).toBe(projet?.id as number);
+		expect(annotation?.status).toBe("confirmed");
+	});
+
+	test("un chemin inconnu est ignoré sans faire échouer l'import (§12)", async () => {
+		const { status, data } = await srv.json<{
+			annotationsAdded: number;
+			annotationsSkipped: number;
+		}>(
+			"/api/config/import",
+			jsonBody({
+				annotations: [{ path: "/srv/jamais-vu", cve: "CVE-2024-1" }],
+			}),
+		);
+		expect(status).toBe(200);
+		expect(data.annotationsAdded).toBe(0);
+		expect(data.annotationsSkipped).toBe(1);
+	});
+
+	test("l'import rend compte de ce qu'il a fait (§12)", async () => {
+		const { data } = await srv.json<{
+			projectsAdded: number;
+			annotationsAdded: number;
+		}>(
+			"/api/config/import",
+			jsonBody({
+				projects: [
+					{ name: "a", path: "/srv/a", type: "node", tool: "npm", tags: [] },
+					{ name: "b", path: "/srv/b", type: "node", tool: "npm", tags: [] },
+				],
+				annotations: [{ path: "/srv/a", cve: "CVE-2024-1" }],
+			}),
+		);
+		// Sans ces compteurs, un import silencieux ne se distingue pas d'un import
+		// qui n'a rien trouvé à faire.
+		expect(data.projectsAdded).toBe(2);
+		expect(data.annotationsAdded).toBe(1);
+	});
+
+	test("un refus de périmètre ne laisse aucun projet derrière lui (N7)", async () => {
+		// La garde de chemin passe **avant** toute écriture, et l'ensemble est dans
+		// une transaction : un import refusé à mi-parcours laissait auparavant les
+		// projets déjà créés en base. L'utilisateur relançait, et faute de dédup par
+		// cible d'audit, les projets étaient recréés en doublon.
+		process.env.AEGIS_ALLOWED_ROOTS = "/srv/autorise";
+		const { status } = await importer({
+			projects: [
+				{
+					name: "ok",
+					path: "/srv/autorise/ok",
+					type: "node",
+					tool: "npm",
+					tags: [],
+				},
+				{
+					name: "interdit",
+					path: "/srv/interdit",
+					type: "node",
+					tool: "npm",
+					tags: [],
+				},
+			],
+		});
+
+		expect(status).toBe(403);
+		expect(listProjects()).toHaveLength(0);
+	});
+
 	test("un corps vide est accepté sans rien changer", async () => {
 		const { status, data } = await importer({});
 		expect(status).toBe(200);
@@ -394,28 +495,46 @@ describe("instantanés", () => {
 		expect(existsSync(data.path)).toBe(true);
 	});
 
-	test("le chemin de sauvegarde ignore DB_PATH — écart documenté", async () => {
-		// `backup.sqlite` et `aegis.db` sont résolus depuis le répertoire de
-		// travail du process, pas depuis la base réellement ouverte : une instance
-		// configurée ailleurs sauvegarde et restaure le mauvais fichier.
-		const { data } = await srv.json<{ path: string }>("/api/snapshots/create", {
-			method: "POST",
-		});
-		expect(data.path).toBe(FICHIER_SAUVEGARDE);
-		expect(data.path).not.toBe(srv.dbPath);
+	test("la création écrit dans le dossier d'instantanés (N2)", async () => {
+		// Le chemin dérive de `BACKUP_DIR`, et la base sauvegardée est celle que
+		// `DB_PATH` désigne. La version précédente résolvait `aegis.db` depuis
+		// `process.cwd()` : elle sauvegardait un fichier que personne n'ouvre.
+		const { data } = await srv.json<{ path: string; file: string }>(
+			"/api/snapshots/create",
+			{ method: "POST" },
+		);
+		expect(data.path.startsWith(dossierSauvegardes)).toBe(true);
+		expect(data.file).toMatch(/^audit-\d{4}-\d{2}-\d{2}\.sqlite$/);
 	});
 
-	test("une restauration sans fichier renvoie 400", async () => {
-		// La restauration réussie appelle `process.exit(0)` : seul son refus est
-		// exerçable dans un test.
-		if (existsSync(FICHIER_SAUVEGARDE))
-			rmSync(FICHIER_SAUVEGARDE, { force: true });
+	test("la création renvoie l'inventaire à jour", async () => {
+		const { data } = await srv.json<{
+			file: string;
+			snapshots: { file: string }[];
+		}>("/api/snapshots/create", { method: "POST" });
+		expect(data.snapshots.map((s) => s.file)).toContain(data.file);
+	});
+
+	test("GET /api/snapshots liste les instantanés", async () => {
+		await srv.json("/api/snapshots/create", { method: "POST" });
+		const { status, data } = await srv.json<{
+			snapshots: { file: string; counts: { projects: number } }[];
+		}>("/api/snapshots");
+
+		expect(status).toBe(200);
+		expect(data.snapshots).toHaveLength(1);
+		expect(data.snapshots[0]?.counts.projects).toBe(0);
+	});
+
+	test("un instantané introuvable renvoie 400 en nommant le fichier (N2)", async () => {
+		// Le champ `file` est enfin **transmis**. Il était exigé par le schéma puis
+		// ignoré : on restaurait toujours le même fichier, quel que soit le nom.
 		const { status, data } = await srv.json<{ error: string }>(
 			"/api/snapshots/restore",
-			jsonBody({ file: "backup.sqlite" }),
+			jsonBody({ file: "un-autre-instantane.sqlite" }),
 		);
 		expect(status).toBe(400);
-		expect(data.error).toContain("Aucun snapshot trouvé");
+		expect(data.error).toContain("un-autre-instantane.sqlite");
 	});
 
 	test("une restauration sans nom de fichier renvoie 400", async () => {
@@ -427,37 +546,96 @@ describe("instantanés", () => {
 		expect(data).toEqual({ error: "Fichier requis" });
 	});
 
-	test("le nom de fichier demandé est ignoré — écart documenté", async () => {
-		// Le schéma exige `file`, mais `restoreSnapshot()` ne le reçoit pas : elle
-		// restaure toujours `backup.sqlite`. Le champ ne sert donc qu'à valider.
-		if (existsSync(FICHIER_SAUVEGARDE))
-			rmSync(FICHIER_SAUVEGARDE, { force: true });
-		const { data } = await srv.json<{ error: string }>(
+	test("un nom hors du dossier est refusé", async () => {
+		const { status, data } = await srv.json<{ error: string }>(
 			"/api/snapshots/restore",
-			jsonBody({ file: "un-autre-instantane.sqlite" }),
+			jsonBody({ file: "../../etc/passwd.sqlite" }),
 		);
-		expect(data.error).toContain("backup.sqlite");
+		expect(status).toBe(400);
+		expect(data.error).toBe("Nom de snapshot invalide");
+	});
+
+	test("la restauration remplace vraiment la base (N2)", async () => {
+		// Le cœur du défaut : l'API répondait « Restauration effectuée » et la base
+		// restait identique. Ce test n'était pas exerçable avant le correctif —
+		// `process.exit(0)` aurait tué l'exécuteur.
+		createProject({
+			name: "avant",
+			path: "/srv/avant",
+			type: "node",
+			tool: "npm",
+		});
+		const { data: cree } = await srv.json<{ file: string }>(
+			"/api/snapshots/create",
+			{ method: "POST" },
+		);
+
+		createProject({
+			name: "apres",
+			path: "/srv/apres",
+			type: "node",
+			tool: "npm",
+		});
+
+		const { status, data } = await srv.json<{
+			ok: boolean;
+			preRestore: string;
+		}>("/api/snapshots/restore", jsonBody({ file: cree.file }));
+
+		expect(status).toBe(200);
+		expect(data.ok).toBe(true);
+		expect(data.preRestore).toStartWith("pre-restore-");
+		expect(listProjects().map((p) => p.name)).toEqual(["avant"]);
+	});
+
+	test("une restauration pendant un audit renvoie 409", async () => {
+		// Remplacer le fichier sous un audit en cours laisserait le run à moitié
+		// écrit dans une base disparue. Même garde que la remise à zéro, même raison.
+		const { data: cree } = await srv.json<{ file: string }>(
+			"/api/snapshots/create",
+			{ method: "POST" },
+		);
+
+		// Même montage que la garde du reset : un dossier réel dont la cible
+		// d'audit est absente. L'audit échoue vite, sans rien tenter sur le réseau,
+		// mais occupe la file le temps de l'aller-retour HTTP. Quatre identifiants,
+		// sinon le lot se termine avant que la requête n'arrive.
+		const racine = join(tmpdir(), `aegis-restore-guard-${randomUUID()}`);
+		mkdirSync(racine, { recursive: true });
+		try {
+			const p = createProject({
+				name: "occupe",
+				path: racine,
+				audit_path: "cible-absente",
+				type: "node",
+				tool: "npm",
+			});
+			enqueueGlobalAudit([p.id, p.id, p.id, p.id]);
+			expect(getAuditStatus().isRunning).toBe(true);
+
+			const { status, data } = await srv.json<{ error: string }>(
+				"/api/snapshots/restore",
+				jsonBody({ file: cree.file }),
+			);
+			await attendreFinAudit();
+
+			expect(status).toBe(409);
+			expect(data.error).toContain("audit est en cours");
+		} finally {
+			rmSync(racine, { recursive: true, force: true });
+		}
 	});
 });
 
 /**
- * Contrats attendus — à activer au correctif.
+ * Contrats refermés, conservés en garde-fou.
  *
- * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
- * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
- * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
- * que le défaut existe.
- *
- * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
- * rouge — « this test is marked as failing but it passed. Remove `.failing` if
- * tested behavior now works ». Il est donc impossible de corriger le code sans
- * reprendre le test.
- *
- * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
- * « écart documenté » correspondant, qui épinglait l'ancien comportement.
+ * Ces tests énonçaient un comportement que le code n'avait pas ; ils étaient
+ * marqués `test.failing`. Le défaut corrigé, `.failing` a été retiré et ils
+ * gardent la porte fermée. Aucun `test.failing` ne subsiste dans ce fichier.
  */
 
-describe("contrats attendus — à activer au correctif", () => {
+describe("contrats refermés", () => {
 	// N5 — CONTEXT.md §12 ne spécifie que trois clés en sortie. Un secret ne doit
 	// jamais repartir en clair : l'export voisin prend déjà la peine de le masquer.
 	test("GET /api/settings ne renvoie pas les secrets (N5)", async () => {
@@ -477,51 +655,6 @@ describe("contrats attendus — à activer au correctif", () => {
 		});
 		expect(status).toBe(400);
 		expect(data).toEqual({ error: "JSON invalide" });
-	});
-
-	// N7 — l'import doit être atomique : une annotation en échec ne doit pas
-	// laisser les projets déjà créés derrière elle. Ici, le projet ne doit pas
-	// exister puisque l'annotation qui suit échoue.
-	test.failing("un import qui échoue ne laisse rien derrière lui (N7)", async () => {
-		const { status } = await srv.json(
-			"/api/config/import",
-			jsonBody({
-				projects: [
-					{
-						id: 7,
-						slug: "api",
-						name: "api",
-						path: "/srv/api",
-						type: "node",
-						tool: "npm",
-						tags: [],
-					},
-				],
-				annotations: [{ cve: "CVE-2024-1", project_id: -1, status: "ignored" }],
-			}),
-		);
-		expect(status).not.toBe(500);
-		expect(listProjects()).toHaveLength(0);
-	});
-
-	// N2 — la cible de sauvegarde doit être dérivée de DB_PATH, avec la même
-	// résolution que getDb(), sinon on sauvegarde une base que personne n'ouvre.
-	test.failing("l'instantané est dérivé de DB_PATH (N2)", async () => {
-		const { data } = await srv.json<{ path: string }>("/api/snapshots/create", {
-			method: "POST",
-		});
-		expect(data.path).toContain(srv.dbPath.replace(/\.sqlite$/, ""));
-	});
-
-	// N2 — le champ `file` est exigé par le schéma : il doit être utilisé.
-	test.failing("le nom de fichier demandé est pris en compte (N2)", async () => {
-		if (existsSync(FICHIER_SAUVEGARDE))
-			rmSync(FICHIER_SAUVEGARDE, { force: true });
-		const { data } = await srv.json<{ error: string }>(
-			"/api/snapshots/restore",
-			jsonBody({ file: "un-autre-instantane.sqlite" }),
-		);
-		expect(data.error).toContain("un-autre-instantane.sqlite");
 	});
 });
 

@@ -31,7 +31,6 @@ function cve(over: Partial<PackageGroupCve> = {}): PackageGroupCve {
 		firstSeenAt: null,
 		publishedAt: null,
 		isBaseline: false,
-		isGlobal: false,
 		...over,
 	};
 }

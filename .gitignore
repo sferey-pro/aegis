@@ -20,3 +20,6 @@ app_build/collection/*
 .env
 .env.local
 .env.*.local
+
+# Instantanés SQLite et sauvegardes de configuration (CONTEXT.md §12)
+backups/

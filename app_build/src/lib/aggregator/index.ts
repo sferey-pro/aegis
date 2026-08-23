@@ -33,7 +33,6 @@ export interface CveOccurrence {
 	link: string | null;
 	status: string;
 	note: string;
-	isGlobal?: boolean;
 	cvssVector?: string | null;
 	firstSeenAt?: string | null;
 	ageInDays?: number;
@@ -165,7 +164,6 @@ export function buildCveGroups(): CveGroup[] {
 				link: avisConnu?.html_url || vuln.link || null,
 				status,
 				note,
-				isGlobal: ann ? ann.project_id === -1 : false,
 				cvssVector: avisConnu?.cvss_vector || vuln.cvssVector || null,
 				publishedAt: avisConnu?.published_at ?? vuln.publishedAt,
 				firstSeenAt: vuln.firstSeenAt,

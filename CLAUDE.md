@@ -17,7 +17,7 @@ cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
 bun run test:ui     # 421 tests composants — happy-dom actif
-bun run test:api    # 877 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:api    # 892 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1298 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1313 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -120,6 +120,9 @@ Ce sont des garde-fous du projet, pas des conseils génériques — en casser un
 - ⚠️ **`db.query()` met l'instruction en cache, `db.prepare()` non.** `prepare` crée une instruction par appel et laisse à l'appelant le soin de la finaliser ; une instruction vivante **empêche la fermeture de la base**, et `close()` diffère alors silencieusement. Le fichier reste verrouillé et la connexion suivante échoue en `SQLITE_BUSY` **dès son `PRAGMA journal_mode`** — symptôme observé sur le chemin de restauration, une dizaine de requêtes après le démarrage. Même piège avec `query()` dont le SQL contient une valeur interpolée : la clé de cache change à chaque appel. Utilisez `query()` sur du SQL statique, `exec()` sinon (`VACUUM INTO`).
 - **`PRAGMA busy_timeout` est posé en premier** dans `getDb()`, avant `journal_mode`. Le passage en WAL demande un verrou exclusif ; sans délai de grâce déjà en place, ce tout premier PRAGMA échoue immédiatement au lieu d'attendre.
 - **Pour une écriture multi-étapes, passez par `runInTransaction`** (`src/db/index.ts`) et non `getDb().transaction(fn)` : le wrapper de `bun:sqlite` recompile son jeu d'instructions à chaque construction sans les finaliser, donc un wrapper construit par requête fuit un jeu par appel. `runInTransaction` le mémorise par instance de base et gère la ré-entrance.
+- **`newCves` a une seule définition** (`diffNewCves` dans `src/lib/audit/index.ts`) : le diff contre le dernier run **non-erreur**, sur la clé `package::cve` avec repli sur le titre (CONTEXT.md §2). Elle sert l'audit local *et* l'ingestion CI. Ne la faites pas dépendre de l'état de triage ni passer par `buildCveGroups` : l'agrégat exclut les projets ignorés, filtre dont la finalité est l'affichage, et la porte CI d'un projet ignoré restait verte pour de bon (défaut N45).
+- **Le « dernier run » a une seule définition** : `ran_at DESC, id DESC` (§4), des deux côtés — `getLatestRun` et `getLatestRunsByProjectIds`. La variante batch retenait `MAX(id)`, qui ne diverge qu'après une restauration ou un import hors ordre chronologique — donc silencieusement (défaut N29).
+- **`DELETE /api/tags/:id` applique une cascade fonctionnelle** (§9) : les tags d'un projet sont un tableau JSON, pas une table de jonction, donc aucune clé étrangère ne peut la porter. Elle est transactionnelle, et le rapprochement est **sensible à la casse** — §9 le spécifie, et l'arbitrage inverse a déjà été tenté à tort (N40).
 - **La notion d'annotation globale (`project_id = -1`) a été retirée** le 23/08/2026, pas réparée : la colonne porte une clé étrangère vers `projects`, donc aucune ligne `-1` n'a jamais pu exister, et `CONTEXT.md` §7 fixe l'unité de triage au couple **(CVE, projet)**. Ne la réintroduisez pas — ni la lecture `OR project_id = -1`, ni le champ `isGlobal`.
 - **`POST /api/config/import` est transactionnel et relie les annotations par `path`** (§12), pas par `project_id` : les identifiants viennent d'un auto-incrément, donc un export porteur du seul `project_id` n'est rejouable que sur la base qui l'a produit. L'export émet les deux, l'import préfère le chemin, et une cible non résolvable est **ignorée** — pas fatale. La réponse porte les compteurs `{projectsAdded, annotationsAdded, annotationsSkipped}`.
 - `POST /api/annotations` **efface** `note` et `fixedIn` quand ils sont omis : le schéma de la route applique ses valeurs par défaut avant que la logique « préserver les champs non fournis » de `upsertAnnotation` puisse agir. Enregistrer un statut détruit la note saisie à la main.

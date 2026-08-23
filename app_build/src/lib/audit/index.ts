@@ -10,7 +10,6 @@ import {
 	type ProjectTool,
 } from "../../db/projects";
 import { addRun, getLatestRun, type Run } from "../../db/runs";
-import type { CveGroup } from "../aggregator";
 import { emitConsoleEnd, emitConsoleStart, projectContext } from "../console";
 import { expandPath, getGitInfo } from "../git";
 import { parseAuditOutput } from "../parsers";
@@ -21,6 +20,41 @@ export interface NewCve {
 	ref: string;
 	package: string;
 	severity: Severity;
+}
+
+/**
+ * Vulnérabilités absentes du run précédent.
+ *
+ * `CONTEXT.md` §2 définit `newCves` comme le **diff contre le dernier run
+ * non-erreur**, sur la clé `package::cve` avec repli sur le titre. Une seule
+ * implémentation pour les deux portes d'entrée — audit local et ingestion CI —
+ * parce qu'elles répondent à la même question et que la réponse sert de porte
+ * de non-régression côté client.
+ *
+ * `precedent` à `null` (premier run, ou précédent en erreur) : **tout** est
+ * nouveau. C'est délibéré — on ne peut pas affirmer qu'une faille était déjà là
+ * sans point de comparaison, et un rapport vide serait plus trompeur qu'un
+ * rapport complet.
+ */
+export function diffNewCves(
+	precedent: Run | null,
+	courant: Vulnerability[],
+): NewCve[] {
+	const connues =
+		precedent && precedent.status !== "error"
+			? new Set(precedent.vulnerabilities.map((v) => occurrenceKey(v)))
+			: null;
+
+	const nouvelles: NewCve[] = [];
+	for (const v of courant) {
+		if (connues?.has(occurrenceKey(v))) continue;
+		nouvelles.push({
+			ref: vulnRef(v.cve) ?? v.package,
+			package: v.package,
+			severity: v.severity,
+		});
+	}
+	return nouvelles;
 }
 
 /**
@@ -307,34 +341,11 @@ export async function runAudit(
 				duration_ms,
 			});
 
-			// Calculer newCves par rapport à l'ancien run valide
-			const newCves = [];
-			if (lastRun && lastRun.status !== "error") {
-				const oldSet = new Set(
-					lastRun.vulnerabilities.map((v) => occurrenceKey(v)),
-				);
-				for (const v of enhancedVulns) {
-					const key = occurrenceKey(v);
-					if (!oldSet.has(key)) {
-						newCves.push({
-							ref: vulnRef(v.cve) ?? v.package,
-							package: v.package,
-							severity: v.severity,
-						});
-					}
-				}
-			} else {
-				// Premier run ou précédent en erreur -> toutes les failles trouvées sont considérées "nouvelles"
-				for (const v of enhancedVulns) {
-					newCves.push({
-						ref: vulnRef(v.cve) ?? v.package,
-						package: v.package,
-						severity: v.severity,
-					});
-				}
-			}
-
-			return { run: successRun, deduped: false, newCves };
+			return {
+				run: successRun,
+				deduped: false,
+				newCves: diffNewCves(lastRun, enhancedVulns),
+			};
 		} catch (err: unknown) {
 			const errorBody = [
 				errorMessage(err),
@@ -373,7 +384,7 @@ export async function ingestAudit(
 	projectId: number,
 	stdout: string,
 	commitSha: string = "",
-): Promise<{ run: Run | null; newCves: CveGroup[] }> {
+): Promise<{ run: Run | null; newCves: NewCve[] }> {
 	const project = getProjectById(projectId);
 	if (!project) throw new Error("Projet introuvable");
 
@@ -409,22 +420,18 @@ export async function ingestAudit(
 		duration_ms: 0,
 	});
 
-	const { buildCveGroups } = await import("../aggregator");
-	const groups = buildCveGroups();
-
-	const newCves = [];
-	const projectGroups = groups.filter((g) =>
-		g.occurrences.some((o) => o.projectId === projectId),
-	);
-	for (const g of projectGroups) {
-		if (
-			g.occurrences.some(
-				(o) => o.projectId === projectId && o.status === "pending",
-			)
-		) {
-			newCves.push(g);
-		}
-	}
-
-	return { run, newCves };
+	/*
+	 * Diff calculé sur le run précédent **de ce projet** (N45).
+	 *
+	 * Le calcul passait par `buildCveGroups()`, l'agrégat global, qui **exclut les
+	 * projets ignorés** — un filtre dont la finalité est l'affichage. Un projet
+	 * marqué « ignoré » qui ingérait un rapport obtenait donc toujours
+	 * `newCvesCount: 0`, quelle que soit la charge : le run était bien enregistré
+	 * avec ses vulnérabilités, mais la porte CI restait verte pour de bon.
+	 *
+	 * Le passage par l'agrégat introduisait par ailleurs deux écarts au contrat :
+	 * il comptait les CVE **non triées** (`status === "pending"`) plutôt que les
+	 * **nouvelles**, et reconstruisait tout l'agrégat du parc à chaque ingestion.
+	 */
+	return { run, newCves: diffNewCves(lastRun, enhancedVulns) };
 }

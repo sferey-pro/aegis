@@ -126,24 +126,44 @@ export function getLatestRun(projectId: number): Run | null {
 	return row ? parseRun(row) : null;
 }
 
+/**
+ * Dernier run de chaque projet, en une requête.
+ *
+ * **Même définition que `getLatestRun`** : `ran_at DESC, id DESC`, comme
+ * `CONTEXT.md` §4 l'exige. Cette variante retenait `MAX(id)`. Les deux
+ * coïncident tant que les identifiants sont monotones avec le temps, mais
+ * divergent après une restauration de snapshot ou un import de runs hors ordre
+ * chronologique — et la divergence est silencieuse : la carte projet affiche un
+ * run, l'agrégation CVE et la déduplication d'audit en utilisent un autre
+ * (défaut N29).
+ *
+ * `ROW_NUMBER()` plutôt qu'un `MAX()` joint : c'est le seul moyen de trier sur
+ * deux colonnes dans l'agrégat, et SQLite le supporte depuis 3.25.
+ *
+ * Les identifiants passent en **bindings**, plus par concaténation. Ils viennent
+ * aujourd'hui d'un `SELECT id FROM projects`, donc rien n'est exploitable en
+ * l'état, mais un futur appelant passant un `parseInt` non gardé produisait un
+ * `IN (NaN)` — soit un 500 « no such column: NaN ».
+ */
 export function getLatestRunsByProjectIds(
 	projectIds: number[],
 ): Record<number, Run> {
 	if (projectIds.length === 0) return {};
 	const db = getDb();
-	const ids = projectIds.join(",");
+	const marques = projectIds.map(() => "?").join(",");
 
 	const rows = db
 		.query(`
-		SELECT r.* FROM runs r
-		INNER JOIN (
-			SELECT project_id, MAX(id) as max_id
-			FROM runs
-			WHERE project_id IN (${ids})
-			GROUP BY project_id
-		) max_runs ON r.project_id = max_runs.project_id AND r.id = max_runs.max_id
+		SELECT * FROM (
+			SELECT r.*, ROW_NUMBER() OVER (
+				PARTITION BY r.project_id ORDER BY r.ran_at DESC, r.id DESC
+			) AS rang
+			FROM runs r
+			WHERE r.project_id IN (${marques})
+		)
+		WHERE rang = 1
 	`)
-		.all() as RunRow[];
+		.all(...projectIds) as (RunRow & { rang: number })[];
 
 	const res: Record<number, Run> = {};
 	for (const row of rows) {

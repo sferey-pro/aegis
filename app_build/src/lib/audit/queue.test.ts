@@ -7,7 +7,12 @@ import { join } from "node:path";
 import { createProject } from "@/db/projects";
 import { getRunsForProject } from "@/db/runs";
 import { useTempDb } from "@/test/db";
-import { enqueueGlobalAudit, getAuditStatus, runSingleAudit } from "./queue";
+import {
+	enqueueGlobalAudit,
+	getAuditStatus,
+	resetAuditHistory,
+	runSingleAudit,
+} from "./queue";
 
 /**
  * La file d'audit est un mutex unique de portée processus (CONTEXT.md §2) : un
@@ -193,17 +198,71 @@ describe("lib/audit/queue", () => {
 		expect(getAuditStatus().isRunning).toBe(false);
 	});
 
-	test("la progression n'est pas observable après coup — écart documenté", async () => {
-		// `progress` et `total` sont remis à zéro dès la fin du lot : le client qui
-		// interroge l'état après le dernier projet ne voit jamais « 2 / 2 », mais
-		// « 0 / 1 ». Un sondage trop lent conclut donc qu'aucun audit n'a eu lieu.
+	test("le dernier lot terminé reste observable (N39)", async () => {
+		// `progress` et `total` sont remis à zéro dès la fin du lot : un client qui
+		// sonde après le dernier projet lit « 0 / 1 », indistinguable d'un état au
+		// repos. `lastCompleted`/`lastTotal` conservent le bilan, et
+		// `lastFinishedAt` distingue « terminé » de « jamais lancé ».
 		sansReseau();
-		const a = projet("progression");
+		const a = projet("progression-a");
+		const b = projet("progression-b");
+		enqueueGlobalAudit([a.id, b.id]);
+		await attendreLaFin();
+
+		const etat = getAuditStatus();
+		expect(etat.lastCompleted).toBe(2);
+		expect(etat.lastTotal).toBe(2);
+		expect(Number.isNaN(Date.parse(etat.lastFinishedAt as string))).toBe(false);
+	});
+
+	test("avant tout lot, aucun bilan n'est annoncé", async () => {
+		// Trois `null` plutôt que des zéros : un bilan à zéro se lirait comme « un
+		// lot a tourné et n'a rien trouvé », ce qui est exactement la confusion que
+		// le correctif lève.
+		//
+		// `resetAuditHistory` est nécessaire ici : la file est un état de module et
+		// `bun test` partage un seul process, donc un lot d'un test précédent aurait
+		// laissé son bilan derrière lui.
+		resetAuditHistory();
+
+		const etat = getAuditStatus();
+		expect(etat.lastCompleted).toBeNull();
+		expect(etat.lastTotal).toBeNull();
+		expect(etat.lastFinishedAt).toBeNull();
+	});
+
+	test("la progression en vol reste remise à zéro après le lot", async () => {
+		// `progress`/`total` gardent leur sémantique « en cours » : c'est
+		// `lastCompleted`/`lastTotal` qui portent l'après-coup.
+		sansReseau();
+		const a = projet("progression-c");
 		enqueueGlobalAudit([a.id]);
 		await attendreLaFin();
 
 		expect(getAuditStatus().progress).toBe(0);
 		expect(getAuditStatus().total).toBe(1);
+	});
+
+	test("un lot vide est un lot terminé, pas un lot absent", async () => {
+		enqueueGlobalAudit([]);
+		await attendreLaFin();
+
+		const etat = getAuditStatus();
+		expect(etat.lastTotal).toBe(0);
+		expect(etat.lastCompleted).toBe(0);
+		expect(etat.lastFinishedAt).not.toBeNull();
+	});
+
+	test("un second lot remplace le bilan du premier", async () => {
+		sansReseau();
+		const a = projet("progression-d");
+		const b = projet("progression-e");
+		enqueueGlobalAudit([a.id, b.id]);
+		await attendreLaFin();
+		enqueueGlobalAudit([a.id]);
+		await attendreLaFin();
+
+		expect(getAuditStatus().lastTotal).toBe(1);
 	});
 });
 
@@ -226,20 +285,4 @@ describe("lib/audit/queue", () => {
 
 describe("contrats attendus — à activer au correctif", () => {
 	useTempDb("queue-contrats");
-
-	// N39 — l'état est remis à zéro dès la fin du lot : un client qui sonde après
-	// le dernier projet lit `0/1`, indistinguable d'un état au repos. Impossible de
-	// savoir si un lot vient de se terminer ou n'a jamais eu lieu.
-	test.failing("le dernier lot terminé reste observable (N39)", async () => {
-		globalThis.fetch = (() =>
-			Promise.reject(new Error("hors ligne"))) as unknown as typeof fetch;
-		const a = projet("obs-a");
-		const b = projet("obs-b");
-		enqueueGlobalAudit([a.id, b.id]);
-		await attendreLaFin();
-
-		const s = getAuditStatus() as unknown as Record<string, unknown>;
-		expect(s.lastTotal).toBe(2);
-		expect(s.lastCompleted).toBe(2);
-	});
 });

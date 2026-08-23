@@ -292,10 +292,13 @@ régression :
           fi
 ```
 
-⚠️ Le tout premier envoi d'un projet est un **baseline** : les vulnérabilités
-existantes n'y sont pas comptées comme nouvelles, et `newCvesCount` vaut 0. Ne
-concluez pas d'un premier passage vert que le projet est sain — regardez
-`run.total`.
+⚠️ Au **tout premier envoi** d'un projet, `CONTEXT.md` §2 impose de considérer
+tout comme nouveau : sans run précédent, on ne peut pas affirmer qu'une faille
+était déjà là. `newCvesCount` vaut donc le nombre total de vulnérabilités, et une
+porte CI stricte échouera sur ce premier passage. C'est voulu — ingérez une fois
+avant de brancher la porte, ou tolérez le premier échec.
+
+Même règle si le run précédent était en erreur : le diff repart de zéro.
 
 ### Codes de réponse
 
@@ -321,6 +324,8 @@ existent.
 - fige la date de première détection de chaque vulnérabilité — c'est la date
   *Aegis* affichée dans le triage, et elle sert de base au SLA de découverte
   nette ;
+- **remonte les nouvelles CVE d'un projet même marqué « ignoré »** : ce drapeau
+  a une finalité d'affichage, il ne décide pas du résultat d'une porte CI ;
 - complète sévérité, vecteur CVSS et version corrigée depuis le cache d'avis GHSA
   **local** ;
 - calcule le diff des nouvelles CVE contre le dernier run non-erreur ;

@@ -462,9 +462,15 @@ export async function syncAdvisory(
 	const key = keyFrom(cve, link);
 	if (!key) return null;
 
-	const db = getAdvisoryDb();
-	db.query("DELETE FROM advisory_cache WHERE id = ?").run(key.id);
-
+	// **Aucune suppression préalable** (N44). La version précédente vidait la ligne
+	// avant l'appel réseau : hors ligne, en quota dépassé ou sur un 5xx GitHub,
+	// l'avis déjà connu — sévérité, correctifs par branche, vecteur CVSS, date de
+	// publication — était définitivement perdu, et l'enrichissement repartait de
+	// zéro au prochain audit. L'action « rafraîchir » dégradait donc l'état quand
+	// elle échouait, c'est-à-dire précisément quand on ne le voulait pas.
+	//
+	// Le `DELETE` était de surcroît superflu : `putCachedAdvisory` écrit avec un
+	// `ON CONFLICT` qui remplace la ligne existante.
 	const { advisory } = await fetchAdvisory(key);
 	if (advisory) {
 		putCachedAdvisory(

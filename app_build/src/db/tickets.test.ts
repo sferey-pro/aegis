@@ -112,16 +112,32 @@ describe("db/tickets", () => {
 		expect(getTicketByHash("hash-v2")?.cves).toHaveLength(2);
 	});
 
-	test("le hash n'est pas unique en base — écart documenté", () => {
-		// Aucune contrainte UNIQUE sur `content_hash` : deux projets peuvent porter
-		// le même hash, et `getTicketByHash` en renvoie un arbitrairement.
+	test("la recherche par hash peut être bornée au projet (N41)", () => {
+		// `content_hash` ne porte aucune contrainte `UNIQUE`, donc deux lignes
+		// peuvent en théorie partager une empreinte et la requête en renvoyait une
+		// arbitrairement — le refus 409 de la création citait alors la référence
+		// d'un ticket appartenant à un autre projet, sur lequel le référent n'a
+		// aucune prise.
 		const a = projet("a");
 		const b = projet("b");
 		saveTicket(a.id, "lodash", "SEC-1", ["CVE-2024-1"], "collision");
 		saveTicket(b.id, "lodash", "SEC-2", ["CVE-2024-1"], "collision");
 
-		expect(getTickets()).toHaveLength(2);
-		expect(getTicketByHash("collision")).toBeDefined();
+		expect(getTicketByHash("collision", a.id)?.url).toBe("SEC-1");
+		expect(getTicketByHash("collision", b.id)?.url).toBe("SEC-2");
+	});
+
+	test("sans projet, la recherche par hash reste possible", () => {
+		// Compatibilité de la signature : les appelants historiques ne passent
+		// qu'un hash.
+		const p = projet("a");
+		saveTicket(p.id, "lodash", "SEC-1", [], "empreinte");
+		expect(getTicketByHash("empreinte")?.url).toBe("SEC-1");
+	});
+
+	test("un hash inconnu ne renvoie rien, même avec un projet", () => {
+		const p = projet("a");
+		expect(getTicketByHash("jamais-vu", p.id)).toBeUndefined();
 	});
 
 	test("deleteTicket ne retire que le couple visé", () => {
@@ -148,38 +164,5 @@ describe("db/tickets", () => {
 		saveTicket(p.id, "lodash", "SEC-1", []);
 		getDb().query("DELETE FROM projects WHERE id = ?").run(p.id);
 		expect(getTickets()).toEqual([]);
-	});
-});
-
-/**
- * Contrats attendus — à activer au correctif.
- *
- * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
- * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
- * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
- * que le défaut existe.
- *
- * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
- * rouge — « this test is marked as failing but it passed. Remove `.failing` if
- * tested behavior now works ». Il est donc impossible de corriger le code sans
- * reprendre le test.
- *
- * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
- * « écart documenté » correspondant, qui épinglait l'ancien comportement.
- */
-
-describe("contrats attendus — à activer au correctif", () => {
-	useTempDb("tickets-contrats");
-
-	// N41 — `content_hash` est le garde-fou anti-doublon de la création Jira. Deux
-	// projets ne doivent pas pouvoir porter la même empreinte, sinon le message de
-	// refus cite la référence d'un ticket appartenant à un autre projet.
-	test.failing("le hash distingue deux projets (N41)", () => {
-		const a = projet("a");
-		const b = projet("b");
-		saveTicket(a.id, "lodash", "SEC-1", ["CVE-2020-8203"], "collision");
-		expect(() =>
-			saveTicket(b.id, "lodash", "SEC-2", ["CVE-2020-8203"], "collision"),
-		).toThrow(/UNIQUE/i);
 	});
 });

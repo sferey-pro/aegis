@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1313 tests · 0 échec · 97 fichiers
-├── 421 composants (51 fichiers) — DOM, React, fetch simulé
-└── 892 fonctionnels (46 fichiers) — vrai serveur, vraie base, vrai git
+1343 tests · 0 échec · 100 fichiers
+├── 434 composants (52 fichiers) — DOM, React, fetch simulé
+└── 909 fonctionnels (48 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -21,7 +21,7 @@ Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
 
 ---
 
-## 1. Frontend — 421 tests
+## 1. Frontend — 434 tests
 
 Colocation intégrale : chaque `.tsx` a son `.test.tsx` à côté, suivant
 l'Atomic Design.
@@ -29,12 +29,12 @@ l'Atomic Design.
 | Couche | Fichiers | Tests | Ce qui est vérifié |
 |---|---:|---:|---|
 | `components/ui/` (atomes) | 16 | 66 | rendu, variantes `cva`, transfert des props, `data-slot` |
-| `components/molecules/` | 11 | 69 | composition d'atomes, états conditionnels, pastilles et dates |
+| `components/molecules/` | 12 | 77 | composition d'atomes, états conditionnels, pastilles, dates, progression |
 | `components/organisms/` | 11 | 136 | blocs fonctionnels, modales, tableaux, interactions |
 | `components/templates/` | 2 | 11 | gabarits de mise en page, `Outlet` |
 | `components/layout/` | 3 | 16 | chargeur global, voile en portail, modale de rapport |
 | `pages/` | 7 | 108 | écrans complets, chargement, erreurs réseau, pagination, instantanés |
-| `App.tsx` | 1 | 15 | routage `react-router-dom`, montage |
+| `App.tsx` | 1 | 19 | routage, montage, **orchestration de l'audit global** |
 
 Le réseau est simulé (`mockFetch`) : les pages exercent le chargement, la
 réponse vide, l'erreur réseau et le JSON invalide. Les composants qui consomment
@@ -125,6 +125,11 @@ Points qui méritaient d'être épinglés :
 - **L'enrichissement en masse s'arrête au premier 429** et annonce ce qui reste.
   Ce qui a été récupéré avant l'arrêt est conservé : un second appel reprend là où
   le premier s'était arrêté.
+- **Le pool d'audit est vérifié en mesurant *avant* la première réponse.** Une
+  attente sur « au moins 4 appels partis » ne prouverait rien : une exécution
+  séquentielle finit par y passer aussi. Le test mesure à 30 ms contre 120 ms de
+  latence simulée, et il a été confronté à un pool réduit à 1 pour vérifier qu'il
+  rougit.
 - **Les classes Tailwind écrites en dur sont vérifiées à la source.** Ni Tailwind,
   ni Biome, ni `tsc` ne signalent un ` :bg-input/50` — Tailwind ignore ce qu'il ne
   reconnaît pas, et les deux autres ne lisent pas le contenu des chaînes. Onze
@@ -175,7 +180,7 @@ Invariants de sécurité vérifiés de bout en bout :
 
 Les tests de cette suite ne valident pas seulement ce qui marche : quand le comportement réel s'écarte de `CONTEXT.md`, le test **affirme le comportement réel** et son libellé porte la mention « écart documenté ». La régression involontaire est bloquée, et l'écart reste visible.
 
-**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 3 de ses entrées portent encore le marqueur 🧪 (N8, N13, N18) et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
+**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 2 de ses entrées portent encore le marqueur 🧪 (N13, N18) et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
 
 Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant. **Dix sont corrigés à ce jour** (N32, N33, N34, N35, N36, N37, N38, N40, N42, N43) ; les autres restent épinglés :
 

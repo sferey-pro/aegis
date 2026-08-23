@@ -3,20 +3,29 @@ import { Loader2 } from "lucide-react";
 import { ShieldLoader } from "../molecules/ShieldLoader";
 import { FullScreenOverlay } from "./FullScreenOverlay";
 
+/**
+ * Voile de chargement initial.
+ *
+ * Il couvrait aussi « Tout auditer », ce qui immobilisait l'application pendant
+ * plusieurs minutes — console live comprise, alors que c'est le seul endroit où
+ * l'on voit les commandes d'audit tourner et échouer. Et il annonçait des étapes
+ * imaginaires : un tableau de messages tournant toutes les 800 ms
+ * (« Recherche GHSA », « Calcul de la criticité ») qui ne correspondaient à
+ * aucun travail réel, §2 interdisant tout appel GitHub pendant un audit
+ * (défaut N8).
+ *
+ * L'audit a désormais sa propre barre non modale (`AuditProgressBar`), qui
+ * n'annonce que ce qui se passe. Ce composant ne gère plus que le démarrage,
+ * où bloquer l'écran est légitime : il n'y a encore rien à afficher.
+ */
 export function GlobalLoader({
 	loading,
-	auditing,
 	loadingMessage,
-	auditProgress,
-	auditMessageIndex,
 }: {
 	loading: boolean;
-	auditing: boolean;
 	loadingMessage: string;
-	auditProgress: { current: number; total: number; name: string } | null;
-	auditMessageIndex: number;
 }) {
-	if (!loading && !auditing) return null;
+	if (!loading) return null;
 
 	return (
 		<FullScreenOverlay>
@@ -27,11 +36,7 @@ export function GlobalLoader({
 				<h1 className="text-3xl font-bold font-heading text-gradient">AEGIS</h1>
 				<div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
 					<Loader2 className="w-4 h-4 text-primary animate-spin" />
-					{loading
-						? loadingMessage
-						: auditProgress
-							? `${["Scan des dépendances", "Recherche GHSA", "Calcul de la criticité", "Génération des patchs"][auditMessageIndex]} de ${auditProgress.name} .... ${auditProgress.current}/${auditProgress.total}`
-							: "Démarrage de l'audit global..."}
+					{loadingMessage}
 				</div>
 			</div>
 		</FullScreenOverlay>

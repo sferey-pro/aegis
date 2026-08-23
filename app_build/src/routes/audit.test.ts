@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { getDb } from "@/db";
 import { createProject, type Project } from "@/db/projects";
 import { getRunsForProject } from "@/db/runs";
-import { getAuditStatus } from "@/lib/audit/queue";
+import { getAuditStatus, runSingleAudit } from "@/lib/audit/queue";
 import { startTestServer, type TestServer } from "@/test/server";
 
 let srv: TestServer;
@@ -29,6 +29,10 @@ afterAll(() => srv.stop());
 
 beforeEach(() => {
 	getDb().query("DELETE FROM projects").run();
+	// `AEGIS_ALLOWED_ROOTS` est en défaut **fermé** (N3) : sans la variable, aucun
+	// chemin n'est autorisé, et le lot global écarte désormais tout le monde. Les
+	// tests déclarent leur périmètre, comme un déploiement réel.
+	process.env.AEGIS_ALLOWED_ROOTS = "/";
 	// L'enrichissement GitHub ne doit jamais sortir du process.
 	globalThis.fetch = (() =>
 		Promise.reject(new Error("hors ligne"))) as unknown as typeof fetch;
@@ -102,10 +106,11 @@ describe("POST /api/audit/run", () => {
 		const { status, data } = await srv.json<{
 			status: string;
 			count: number;
+			skipped: number;
 		}>("/api/audit/run", { method: "POST" });
 
 		expect(status).toBe(200);
-		expect(data).toEqual({ status: "started", count: 2 });
+		expect(data).toEqual({ status: "started", count: 2, skipped: 0 });
 		await attendreLaFin();
 	});
 
@@ -141,23 +146,27 @@ describe("POST /api/audit/run", () => {
 		expect(getRunsForProject(b.id)).toHaveLength(1);
 	});
 
-	test("un second lancement pendant un audit renvoie 429", async () => {
-		// Le mutex est global : la route traduit le refus de la file en « trop de
-		// requêtes », pas en erreur serveur.
-		for (let i = 0; i < 4; i++) projet(`charge-${i}`);
+	test("un second lancement pendant un lot renvoie 409 (N8)", async () => {
+		// **409 et non 429** : une ressource occupée est un conflit, pas une limite
+		// de débit. La route unitaire répondait 500 pour la même cause — deux codes
+		// différents pour un même refus, dont aucun n'était juste.
+		for (let i = 0; i < 12; i++) projet(`charge-${i}`);
 		await srv.json("/api/audit/run", { method: "POST" });
 
 		const { status, data } = await srv.json<{ error: string }>(
 			"/api/audit/run",
 			{ method: "POST" },
 		);
-		expect(status).toBe(429);
+		expect(status).toBe(409);
 		expect(data.error).toBe("Un audit est déjà en cours");
 		await attendreLaFin();
 	});
 
 	test("le statut reflète l'audit en cours puis retombe au repos", async () => {
-		for (let i = 0; i < 4; i++) projet(`statut-${i}`);
+		// Douze projets, pool de quatre : le lot est encore en vol quand la requête
+		// de statut arrive. Avec quatre projets qui échouent vite, il se terminait
+		// avant l'aller-retour HTTP.
+		for (let i = 0; i < 12; i++) projet(`statut-${i}`);
 		await srv.json("/api/audit/run", { method: "POST" });
 
 		const { data: pendant } = await srv.json<{ isRunning: boolean }>(
@@ -170,6 +179,19 @@ describe("POST /api/audit/run", () => {
 			"/api/audit/status",
 		);
 		expect(apres.isRunning).toBe(false);
+	});
+
+	test("le statut expose les projets en cours (N8)", async () => {
+		// Avec la concurrence, `currentProject` ne suffit plus à décrire l'état.
+		for (let i = 0; i < 12; i++) projet(`vol-${i}`);
+		await srv.json("/api/audit/run", { method: "POST" });
+
+		const { data } = await srv.json<{ runningProjects: number[] }>(
+			"/api/audit/status",
+		);
+		expect(data.runningProjects.length).toBeGreaterThan(0);
+		expect(data.runningProjects.length).toBeLessThanOrEqual(4);
+		await attendreLaFin();
 	});
 });
 
@@ -349,37 +371,82 @@ describe("POST /api/ingest/:slug", () => {
 	});
 });
 
-/**
- * Contrats attendus — à activer au correctif.
- *
- * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
- * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
- * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
- * que le défaut existe.
- *
- * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
- * rouge — « this test is marked as failing but it passed. Remove `.failing` if
- * tested behavior now works ». Il est donc impossible de corriger le code sans
- * reprendre le test.
- *
- * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
- * « écart documenté » correspondant, qui épinglait l'ancien comportement.
- */
+describe("périmètre du lot global", () => {
+	test("un projet hors périmètre est écarté du lot, pas fatal (N3)", async () => {
+		// Cette route ne contrôlait pas les chemins : elle lançait l'outil d'audit
+		// dans chaque projet — et des commandes git à sa racine, donc les hooks du
+		// dépôt — sans vérifier le périmètre.
+		const dedans = projet("dans-le-perimetre");
+		createProject({
+			name: "hors-perimetre",
+			path: "/srv/interdit",
+			type: "node",
+			tool: "npm",
+		});
+		process.env.AEGIS_ALLOWED_ROOTS = dedans.path;
 
-describe("contrats attendus — à activer au correctif", () => {
-	// N8 — un audit refusé pour cause de concurrence est un conflit, pas une panne
-	// serveur. `/api/audit/run` répond déjà 429 ; `/api/projects/:id/audit` avale
-	// l'exception dans son try/catch générique et répond 500, ce qui rend le refus
-	// indistinguable d'un plantage côté client.
-	test.failing("un audit concurrent renvoie 409, pas 500 (N8)", async () => {
-		for (let i = 0; i < 4; i++) projet(`conflit-${i}`);
+		const { status, data } = await srv.json<{
+			count: number;
+			skipped: number;
+		}>("/api/audit/run", { method: "POST" });
+
+		expect(status).toBe(200);
+		expect(data.count).toBe(1);
+		// Le compte des écartés est rendu, sans quoi le lot mentirait sur sa
+		// couverture.
+		expect(data.skipped).toBe(1);
+		await attendreLaFin();
+
+		expect(getRunsForProject(dedans.id)).toHaveLength(1);
+	});
+
+	test("sans AEGIS_ALLOWED_ROOTS, le lot n'audite rien", async () => {
+		// Défaut fermé, comme partout ailleurs.
+		projet("orphelin");
+		delete process.env.AEGIS_ALLOWED_ROOTS;
+
+		const { data } = await srv.json<{ count: number; skipped: number }>(
+			"/api/audit/run",
+			{ method: "POST" },
+		);
+		expect(data.count).toBe(0);
+		expect(data.skipped).toBe(1);
+		await attendreLaFin();
+	});
+});
+
+describe("refus de concurrence (N8, corrigé)", () => {
+	test("un audit du même projet déjà en vol renvoie 409, pas 500", async () => {
+		// Le refus tombait dans le `catch` générique de la route et sortait en 500 :
+		// indistinguable d'un plantage, alors que le client orchestrateur doit
+		// savoir qu'il peut réessayer.
+		//
+		// Le verrou est pris **depuis le test**, pas par un lot : c'est le seul
+		// montage déterministe. Un lot sur N projets ne garantit pas que le projet
+		// visé soit encore en vol au moment de la requête HTTP.
 		const p = projet("conflit-cible");
-		await srv.json("/api/audit/run", { method: "POST" });
+		const enVol = runSingleAudit(p.id).catch(() => null);
 
-		const { status } = await srv.json(`/api/projects/${p.id}/audit`, {
+		const { status, data } = await srv.json<{ error: string }>(
+			`/api/projects/${p.id}/audit`,
+			{ method: "POST" },
+		);
+		expect(status).toBe(409);
+		expect(data.error).toContain("déjà en cours");
+		await enVol;
+	});
+
+	test("un autre projet reste auditable pendant ce temps", async () => {
+		// Le verrou est par projet : c'est ce qui rend possible l'orchestration en
+		// parallèle borné que §2 prescrit.
+		const occupe = projet("occupe");
+		const libre = projet("libre");
+		const enVol = runSingleAudit(occupe.id).catch(() => null);
+
+		const { status } = await srv.json(`/api/projects/${libre.id}/audit`, {
 			method: "POST",
 		});
-		expect(status).toBe(409);
-		await attendreLaFin();
+		expect(status).toBe(200);
+		await enVol;
 	});
 });

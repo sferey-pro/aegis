@@ -1,24 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import {
+	Route,
+	Routes,
+	useLocation,
+	useNavigate,
+	useSearchParams,
+} from "react-router-dom";
 import type { Report, ReportDetail } from "@/db/reports";
-import type { Run } from "@/db/runs";
 import { apiErrorMessage, fetchJson, jsonInit } from "@/lib/api";
+import { useGlobalAudit } from "@/lib/useGlobalAudit";
 import type { ProjectListItem } from "@/routes/projects";
 import type { StatsResponse } from "@/routes/stats";
-
-/** Réponse de `POST /api/projects/:id/audit`, telle que la route la construit. */
-interface AuditRunResponse {
-	success: boolean;
-	deduped?: boolean;
-	run?: Run | null;
-	error?: string;
-}
 
 import { GlobalLoader } from "./components/layout/GlobalLoader";
 import {
 	type AuditFailure,
 	ReportModal,
 } from "./components/layout/ReportModal";
+import { AuditProgressBar } from "./components/molecules/AuditProgressBar";
 import { BlankLayout } from "./components/templates/BlankLayout";
 import { MainLayout } from "./components/templates/MainLayout";
 import { Debug } from "./pages/Debug";
@@ -39,28 +38,32 @@ export function App() {
 	/** Projets dont l'audit a échoué pendant le dernier lot. */
 	const [auditErrors, setAuditErrors] = useState<AuditFailure[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [auditing, setAuditing] = useState(false);
-	const [auditProgress, setAuditProgress] = useState<{
-		current: number;
-		total: number;
-		name: string;
-	} | null>(null);
 	const [reportModal, setReportModal] = useState<Report | null>(null);
 
 	const [loadingMessage, setLoadingMessage] = useState(
 		"Connexion à la base de données...",
 	);
-	const [auditMessageIndex, setAuditMessageIndex] = useState(0);
 
-	useEffect(() => {
-		if (!auditing) return;
-		let step = 0;
-		const interval = setInterval(() => {
-			step = (step + 1) % 4;
-			setAuditMessageIndex(step);
-		}, 800);
-		return () => clearInterval(interval);
-	}, [auditing]);
+	/**
+	 * Orchestration de « Tout auditer » : pool de 4, annulable, triée (§2).
+	 *
+	 * Le tableau de messages tournant toutes les 800 ms a disparu avec le voile
+	 * plein écran : « Recherche GHSA », « Calcul de la criticité » ne
+	 * correspondaient à aucune étape réelle, et §2 interdit précisément tout appel
+	 * GitHub pendant un audit.
+	 */
+	const { enMarche: auditing, progression, lancer, annuler } = useGlobalAudit();
+
+	/**
+	 * Périmètre de l'audit global : le filtre par tag de la page Projets, porté
+	 * par l'URL.
+	 *
+	 * Il vivait dans l'état local de `Projects`, un composant enfant auquel `App`
+	 * n'a pas accès : filtrer sur « Prod » pour n'auditer que trois projets en
+	 * auditait quand même quinze. §2 fixe le périmètre aux projets **visibles**.
+	 */
+	const [searchParams] = useSearchParams();
+	const filtreTag = searchParams.get("tag");
 
 	useEffect(() => {
 		const messages = [
@@ -123,16 +126,17 @@ export function App() {
 	}, [navigate, location.pathname]);
 
 	const handleRunAudit = useCallback(async () => {
-		setAuditing(true);
-		setAuditProgress(null);
 		setAuditErrors([]);
 		try {
-			const allProjects = await fetchJson<ProjectListItem[]>("/api/projects");
-			const projectsToAudit = allProjects.filter((p) => !p.ignored);
+			const tous = await fetchJson<ProjectListItem[]>("/api/projects");
+			// Périmètre = projets **visibles** (§2) : non ignorés, et filtrés par le
+			// tag porté par l'URL quand il y en a un.
+			const perimetre = tous
+				.filter((p) => !p.ignored)
+				.filter((p) => !filtreTag || p.tags?.includes(filtreTag));
 
-			let current = 1;
-			const total = projectsToAudit.length;
-			let totalVulns = 0;
+			const resultats = await lancer(perimetre);
+
 			const counts = {
 				critical: 0,
 				high: 0,
@@ -141,62 +145,59 @@ export function App() {
 				info: 0,
 				unknown: 0,
 			};
+			let totalVulns = 0;
 			const reportDetails: ReportDetail[] = [];
-
 			// N6 : les projets en échec sont recensés, pas ignorés. Les compter zéro
 			// vulnérabilité produisait un compte-rendu faux — « 20 projets, 0
 			// vulnérabilité » quand les vingt avaient échoué — puis l'archivait.
 			const echecs: AuditFailure[] = [];
 
-			for (const p of projectsToAudit) {
-				setAuditProgress({ current, total, name: p.name });
-
-				let auditData: AuditRunResponse | null = null;
-				try {
-					auditData = await fetchJson<AuditRunResponse>(
-						`/api/projects/${p.id}/audit`,
-						{ method: "POST" },
-					);
-				} catch (err) {
+			// `resultats` arrive déjà trié : erreurs d'abord, puis plus de nouvelles
+			// CVE (§2). L'ordre du compte-rendu et celui des détails en découlent.
+			for (const r of resultats) {
+				if (r.annule) continue;
+				if (r.erreur) {
 					echecs.push({
-						projectId: p.id,
-						name: p.name,
-						message: apiErrorMessage(err),
+						projectId: r.project.id,
+						name: r.project.name,
+						message: r.erreur,
+					});
+					continue;
+				}
+
+				const run = r.reponse?.run;
+				if (!run?.counts) continue;
+
+				totalVulns += run.total || 0;
+				counts.critical += run.counts.critical || 0;
+				counts.high += run.counts.high || 0;
+				counts.moderate += run.counts.moderate || 0;
+				counts.low += run.counts.low || 0;
+				counts.info += run.counts.info || 0;
+				counts.unknown += run.counts.unknown || 0;
+
+				if (run.vulnerabilities && run.vulnerabilities.length > 0) {
+					reportDetails.push({
+						projectId: r.project.id,
+						projectName: r.project.name,
+						vulns: run.vulnerabilities,
 					});
 				}
+			}
 
-				// Un run en erreur a des compteurs à zéro : c'est un échec, pas un
-				// projet sain.
-				if (auditData?.run?.status === "error") {
-					echecs.push({
-						projectId: p.id,
-						name: p.name,
-						message: auditData.run.error ?? "audit en erreur",
-					});
-				}
+			const annules = resultats.filter((r) => r.annule).length;
 
-				if (auditData?.run?.counts && auditData.run.status !== "error") {
-					totalVulns += auditData.run.total || 0;
-					counts.critical += auditData.run.counts.critical || 0;
-					counts.high += auditData.run.counts.high || 0;
-					counts.moderate += auditData.run.counts.moderate || 0;
-					counts.low += auditData.run.counts.low || 0;
-					counts.info += auditData.run.counts.info || 0;
-					counts.unknown += auditData.run.counts.unknown || 0;
-
-					if (
-						auditData.run.vulnerabilities &&
-						auditData.run.vulnerabilities.length > 0
-					) {
-						reportDetails.push({
-							projectId: p.id,
-							projectName: p.name,
-							vulns: auditData.run.vulnerabilities,
-						});
-					}
-				}
-
-				current++;
+			// Un lot annulé de bout en bout n'a rien mesuré : l'archiver produirait un
+			// compte-rendu qui décrit un parc qu'on n'a pas regardé.
+			if (annules === resultats.length && resultats.length > 0) {
+				setAuditErrors([
+					{
+						projectId: -1,
+						name: "Audit global",
+						message: "Audit annulé : aucun projet n'a été analysé.",
+					},
+				]);
+				return;
 			}
 
 			const generatedReport = await fetchJson<Report>(
@@ -204,27 +205,35 @@ export function App() {
 				jsonInit("POST", {
 					// Seuls les projets réellement audités sont comptés : le total et
 					// le nombre de projets doivent décrire la même chose.
-					projects_audited: projectsToAudit.length - echecs.length,
+					projects_audited: resultats.length - echecs.length - annules,
 					total_vulnerabilities: totalVulns,
 					counts: counts,
 					details: reportDetails,
 				}),
 			);
 			setReportModal(generatedReport);
-			setAuditErrors(echecs);
+			setAuditErrors(
+				annules > 0
+					? [
+							...echecs,
+							{
+								projectId: -1,
+								name: "Audit global",
+								message: `${annules} projet(s) non analysé(s) : audit annulé.`,
+							},
+						]
+					: echecs,
+			);
 
 			await fetchStats();
 		} catch (err) {
-			// Échec avant même la boucle — par exemple `GET /api/projects`. Aucun
-			// projet n'est en cause, d'où l'identifiant sentinelle.
+			// Échec avant même le lot — par exemple `GET /api/projects`. Aucun projet
+			// n'est en cause, d'où l'identifiant sentinelle.
 			setAuditErrors([
 				{ projectId: -1, name: "Audit global", message: apiErrorMessage(err) },
 			]);
-		} finally {
-			setAuditing(false);
-			setAuditProgress(null);
 		}
-	}, [fetchStats]);
+	}, [fetchStats, filtreTag, lancer]);
 
 	let syncDisplay = "Aucune synchronisation";
 	if (stats?.lastSync) {
@@ -241,16 +250,15 @@ export function App() {
 
 	return (
 		<>
-			<GlobalLoader
-				loading={loading}
-				auditing={auditing}
-				loadingMessage={loadingMessage}
-				auditProgress={auditProgress}
-				auditMessageIndex={auditMessageIndex}
-			/>
+			{/* Le voile plein écran ne couvre plus que le chargement initial. Pendant
+			    un audit, la page reste utilisable : c'est là que se trouve la console
+			    live, seul endroit où l'on voit les commandes tourner et échouer. */}
+			<GlobalLoader loading={loading} loadingMessage={loadingMessage} />
+
+			<AuditProgressBar progression={progression} onCancel={annuler} />
 
 			<div
-				className={`flex flex-col min-h-screen overflow-x-hidden relative transition-opacity duration-300 ${loading || auditing ? "opacity-50 pointer-events-none blur-sm" : "opacity-100"}`}
+				className={`flex flex-col min-h-screen overflow-x-hidden relative transition-opacity duration-300 ${loading ? "opacity-50 pointer-events-none blur-sm" : "opacity-100"}`}
 			>
 				<Routes>
 					<Route

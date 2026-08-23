@@ -183,10 +183,7 @@ describe("App", () => {
 		expect(sse.instances).toHaveLength(0);
 	});
 
-	test("l'audit global est séquentiel et couvre tous les projets non ignorés", async () => {
-		// Défaut N8/UX2 : le contrat impose un parallélisme borné à 4 sur les
-		// projets *visibles* (filtres appliqués). L'implémentation enchaîne un par
-		// un sur `!p.ignored`, sans connaître le filtre de la page Projets.
+	test("l'audit global couvre les projets non ignorés", async () => {
 		mockFetch({
 			...base,
 			"GET /api/projects": [
@@ -216,9 +213,150 @@ describe("App", () => {
 			{ timeout: 3000 },
 		);
 		const audits = post().filter((c) => c.url.includes("/audit"));
-		// Ordre d'enregistrement = exécution séquentielle. Le projet ignoré est exclu.
-		expect(audits[0]?.url).toBe("/api/projects/7/audit");
-		expect(audits[1]?.url).toBe("/api/projects/8/audit");
+		expect(audits.map((c) => c.url).sort()).toEqual([
+			"/api/projects/7/audit",
+			"/api/projects/8/audit",
+		]);
+	});
+
+	test("le périmètre suit le filtre par tag de l'URL (N8)", async () => {
+		// §2 fixe le périmètre aux projets **visibles**. Le filtre vivait dans
+		// l'état local de la page Projets, auquel `App` n'a pas accès : filtrer sur
+		// « prod » pour n'auditer que le projet concerné en auditait quand même
+		// tous. Il est désormais porté par l'URL.
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				{ id: 7, name: "Mon API", ignored: false, tags: ["prod"] },
+				{ id: 8, name: "Front", ignored: false, tags: ["staging"] },
+			],
+			"POST /api/projects/7/audit": {
+				body: { run: { total: 0, counts: {} } },
+			},
+			"POST /api/reports": { body: { id: 1, projects_audited: 1 } },
+		});
+		monte("/?tag=prod");
+		await attendreChargement();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Lancer l'audit global/ }),
+		);
+
+		await waitFor(() =>
+			expect(post().filter((c) => c.url.includes("/audit"))).toHaveLength(1),
+		);
+		expect(post().find((c) => c.url.includes("/audit"))?.url).toBe(
+			"/api/projects/7/audit",
+		);
+	});
+
+	test("l'audit global est parallèle, borné à quatre (N8)", async () => {
+		// Séquentiel, quinze projets à ~8 s : deux minutes au lieu de trente
+		// secondes. Le pool est vérifié en observant combien d'appels partent avant
+		// qu'aucune réponse n'ait été rendue.
+		const projets = Array.from({ length: 6 }, (_, i) => ({
+			id: 10 + i,
+			name: `p${i}`,
+			ignored: false,
+		}));
+		const routes: Record<string, unknown> = { ...base };
+		routes["GET /api/projects"] = projets;
+		for (const p of projets) {
+			routes[`POST /api/projects/${p.id}/audit`] = {
+				body: { run: { total: 0, counts: {} } },
+				delayMs: 120,
+			};
+		}
+		routes["POST /api/reports"] = { body: { id: 1, projects_audited: 6 } };
+		mockFetch(routes);
+		monte();
+		await attendreChargement();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Lancer l'audit global/ }),
+		);
+
+		// Mesure prise **avant** qu'aucune réponse n'ait été rendue (30 ms contre
+		// 120 ms de latence simulée) : quatre appels doivent déjà être partis. Une
+		// exécution séquentielle n'en montrerait qu'un. Une attente sur « au moins
+		// 4 » ne prouverait rien — le séquentiel finit par y passer aussi.
+		await new Promise((r) => setTimeout(r, 30));
+		expect(post().filter((c) => c.url.includes("/audit"))).toHaveLength(4);
+
+		// Et le pool ne dépasse pas quatre : les deux derniers attendent un créneau.
+		await waitFor(
+			() =>
+				expect(post().filter((c) => c.url.includes("/audit"))).toHaveLength(6),
+			{ timeout: 3000 },
+		);
+	});
+
+	test("la progression est affichée sans bloquer la page (N8)", async () => {
+		// Le voile plein écran floutait l'application entière, console live
+		// comprise. La barre est non modale.
+		const projets = Array.from({ length: 4 }, (_, i) => ({
+			id: 20 + i,
+			name: `bar-${i}`,
+			ignored: false,
+		}));
+		const routes: Record<string, unknown> = { ...base };
+		routes["GET /api/projects"] = projets;
+		for (const p of projets) {
+			routes[`POST /api/projects/${p.id}/audit`] = {
+				body: { run: { total: 0, counts: {} } },
+				delayMs: 150,
+			};
+		}
+		routes["POST /api/reports"] = { body: { id: 1, projects_audited: 4 } };
+		mockFetch(routes);
+		monte();
+		await attendreChargement();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Lancer l'audit global/ }),
+		);
+
+		expect(await screen.findByText(/Audit global — /)).toBeInTheDocument();
+		// Aucun voile plein écran : la navigation et la console restent utilisables.
+		expect(document.querySelector(".fixed.inset-0")).toBeNull();
+	});
+
+	test("l'audit global est annulable (N8)", async () => {
+		// Aucun `AbortController` n'existait dans le frontend : un `npm audit` qui
+		// pend bloquait l'application, et le seul recours était de recharger la page.
+		const projets = Array.from({ length: 8 }, (_, i) => ({
+			id: 30 + i,
+			name: `annul-${i}`,
+			ignored: false,
+		}));
+		const routes: Record<string, unknown> = { ...base };
+		routes["GET /api/projects"] = projets;
+		for (const p of projets) {
+			routes[`POST /api/projects/${p.id}/audit`] = {
+				body: { run: { total: 0, counts: {} } },
+				delayMs: 200,
+			};
+		}
+		routes["POST /api/reports"] = { body: { id: 1, projects_audited: 8 } };
+		mockFetch(routes);
+		monte();
+		await attendreChargement();
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Lancer l'audit global/ }),
+		);
+		await screen.findByText(/Audit global — /);
+
+		fireEvent.click(screen.getByRole("button", { name: /Annuler/ }));
+
+		// La barre disparaît, et les projets non lancés ne partent jamais : le lot
+		// s'arrête au lieu d'aller au bout.
+		await waitFor(() =>
+			expect(screen.queryAllByText(/Audit global — /)).toHaveLength(0),
+		);
+		expect(post().filter((c) => c.url.includes("/audit")).length).toBeLessThan(
+			8,
+		);
 	});
 
 	test("un audit en échec n'est pas compté comme un projet sain (N6)", async () => {

@@ -8,6 +8,7 @@ import { createProject } from "@/db/projects";
 import { getRunsForProject } from "@/db/runs";
 import { useTempDb } from "@/test/db";
 import {
+	AuditEnCoursError,
 	enqueueGlobalAudit,
 	getAuditStatus,
 	resetAuditHistory,
@@ -91,30 +92,96 @@ describe("lib/audit/queue", () => {
 		expect(getAuditStatus().currentProject).toBeNull();
 	});
 
-	test("un second audit lancé pendant le premier est refusé", async () => {
-		// C'est l'invariant : deux `npm audit` simultanés sur le même dépôt se
-		// marcheraient dessus, et la console mélangerait leurs sorties.
+	test("deux audits du même projet ne coexistent pas", async () => {
+		// C'est l'invariant : deux `npm audit` simultanés sur le même dépôt
+		// écriraient deux runs pour un seul état du lockfile, et se
+		// dédupliqueraient l'un contre l'autre de façon indéterminée.
 		sansReseau();
 		const p = projet("concurrent");
 		const premier = runSingleAudit(p.id);
 
 		expect(getAuditStatus().isRunning).toBe(true);
 		await expect(runSingleAudit(p.id)).rejects.toThrow(
-			"Un audit est déjà en cours, veuillez patienter.",
+			"Un audit de ce projet est déjà en cours",
 		);
 
 		await premier;
 		expect(getAuditStatus().isRunning).toBe(false);
 	});
 
-	test("le verrou est global, pas par projet", async () => {
+	test("le refus de concurrence est typé, pas un message à reconnaître", async () => {
+		// Les routes doivent répondre 409 sans faire de correspondance sur le texte,
+		// qui est destiné à l'utilisateur et peut être reformulé.
+		sansReseau();
+		const p = projet("typé");
+		const premier = runSingleAudit(p.id);
+
+		await expect(runSingleAudit(p.id)).rejects.toBeInstanceOf(
+			AuditEnCoursError,
+		);
+		await premier;
+	});
+
+	test("le verrou est par projet, pas global (N8)", async () => {
+		// Le verrou était global : un client conforme à §2, qui orchestre en
+		// parallèle borné à 4, voyait trois audits sur quatre échouer
+		// systématiquement. C'était le résiduel de C8 — un verrou posé pour un
+		// endpoint batch que la spécification interdit, bloquant le mode
+		// d'orchestration qu'elle prescrit.
 		sansReseau();
 		const a = projet("a");
 		const b = projet("b");
-		const premier = runSingleAudit(a.id);
 
-		await expect(runSingleAudit(b.id)).rejects.toThrow(/déjà en cours/);
-		await premier;
+		const deux = await Promise.all([
+			runSingleAudit(a.id),
+			runSingleAudit(b.id),
+		]);
+		expect(deux.map((r) => r.run?.project_id).sort()).toEqual(
+			[a.id, b.id].sort(),
+		);
+	});
+
+	test("quatre audits simultanés passent, le cinquième est refusé", async () => {
+		// §2 borne la concurrence à 4. Le plafond est **appliqué** ici, pas
+		// seulement demandé : un client qui l'ignore est refusé au lieu de saturer
+		// la machine en `npm audit` concurrents.
+		sansReseau();
+		const projets = Array.from({ length: 5 }, (_, i) => projet(`pool-${i}`));
+		const quatre = projets
+			.slice(0, 4)
+			.map((p) => runSingleAudit(p.id).catch(() => null));
+
+		await expect(
+			runSingleAudit((projets[4] as { id: number }).id),
+		).rejects.toThrow(/Trop d'audits simultanés/);
+
+		await Promise.all(quatre);
+	});
+
+	test("le plafond se libère à mesure que les audits finissent", async () => {
+		sansReseau();
+		const projets = Array.from({ length: 5 }, (_, i) => projet(`libere-${i}`));
+		await Promise.all(
+			projets.slice(0, 4).map((p) => runSingleAudit(p.id).catch(() => null)),
+		);
+
+		// Les quatre sont terminés : la cinquième place est disponible.
+		await expect(
+			runSingleAudit((projets[4] as { id: number }).id),
+		).resolves.toBeDefined();
+	});
+
+	test("les projets en cours sont tous exposés", async () => {
+		sansReseau();
+		const a = projet("expose-a");
+		const b = projet("expose-b");
+		const enCours = Promise.all([runSingleAudit(a.id), runSingleAudit(b.id)]);
+
+		expect(getAuditStatus().runningProjects.sort()).toEqual(
+			[a.id, b.id].sort(),
+		);
+		await enCours;
+		expect(getAuditStatus().runningProjects).toEqual([]);
 	});
 
 	test("le projet en cours est exposé pendant l'audit", async () => {
@@ -148,25 +215,43 @@ describe("lib/audit/queue", () => {
 		expect(getRunsForProject(b.id)).toHaveLength(1);
 	});
 
-	test("l'audit global refuse de démarrer si un audit tourne", async () => {
+	test("un second lot refuse de démarrer pendant le premier", async () => {
+		// Un seul lot à la fois : deux lots se disputeraient le même pool et le
+		// compte-rendu de progression n'aurait plus de sens.
 		sansReseau();
 		const p = projet("global-occupe");
-		const premier = runSingleAudit(p.id);
+		enqueueGlobalAudit([p.id]);
 
 		expect(() => enqueueGlobalAudit([p.id])).toThrow(
 			"Un audit est déjà en cours",
 		);
-		await premier;
+		await attendreLaFin();
 	});
 
-	test("un audit unitaire est refusé pendant un audit global", async () => {
+	test("un lot n'empêche pas d'auditer un autre projet (N8)", async () => {
+		// Le verrou global refusait tout audit unitaire pendant un lot. Un référent
+		// qui voulait réauditer un projet précis devait attendre la fin du lot
+		// entier.
 		sansReseau();
-		const a = projet("global-a");
-		const b = projet("global-b");
+		const a = projet("lot-x");
+		const b = projet("lot-y");
+		const horsLot = projet("hors-lot");
 		enqueueGlobalAudit([a.id, b.id]);
 
-		await expect(runSingleAudit(b.id)).rejects.toThrow(/déjà en cours/);
+		await expect(runSingleAudit(horsLot.id)).resolves.toBeDefined();
 		await attendreLaFin();
+	});
+
+	test("un lot borne sa concurrence à quatre", async () => {
+		// Sans borne, « Tout auditer » sur trente projets lancerait trente
+		// `npm audit` d'un coup.
+		sansReseau();
+		const projets = Array.from({ length: 8 }, (_, i) => projet(`borne-${i}`));
+		enqueueGlobalAudit(projets.map((p) => p.id));
+
+		expect(getAuditStatus().runningProjects.length).toBeLessThanOrEqual(4);
+		await attendreLaFin();
+		expect(getAuditStatus().runningProjects).toEqual([]);
 	});
 
 	test("l'échec d'un projet n'interrompt pas le lot", async () => {

@@ -884,51 +884,57 @@ Ce qui a été extrait l'a été correctement — `useGlobalAudit` a sorti l'orc
 À traiter de façon opportuniste, à l'occasion de ces correctifs, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie tient : les 434 tests de composants couvrent ces pages, donc un découpage est vérifiable.
 
 ### N31. Écarts au contrat CONTEXT.md — arbitrage à trancher
-**⊕2**
+🟡 **Arbitré le 23/08/2026 sur le principe ; l'application reste à finir.**
 
-`CONTEXT.md` n'est plus la spécification de cette application. Le **noyau technique est fidèle**, et cela a été vérifié ligne à ligne : les quatre parseurs, `normSeverity`/`dedupe`/`SEV_ORDER`/`emptyCounts`, le pipeline dédup→tri→comptage, les six conditions de déduplication d'audit et la sémantique d'`isFresh`, le format multi-ligne des erreurs, le calcul de `newCves`, la séquence git en six commandes avec son env, `keyFrom` et la détection de rate-limit, `buildCveGroups` (source, clé, `worst`, dédup, tri, override `fixed_in`), le modèle d'événement de la console et le fait qu'un résultat servi depuis le cache n'émette rien, la connexion SQLite paresseuse, l'absence de shell. Ce socle est solide.
+## La décision rendue
 
-C'est la couche produit qui a divergé, **dans les deux sens**.
+**`CONTEXT.md` était obsolète et a été supprimé.** C'était un prompt de reconstruction, écrit *avant* l'application pour la faire naître ; le produit a dépassé son niveau de détail. Un nouveau document le remplace, découpé en quinze fichiers (`docs/context/NN-*.md`) décrivant le produit **tel qu'il est construit**. L'ancienne version reste dans l'historique git (`git show 92ffb14:docs/CONTEXT.md`).
 
-**Spécifié, absent :**
+Le sens de la marche était le point à décider, et il est tranché : **on réaligne le document sur le produit**, pas l'inverse. Ramener le produit au contrat aurait coûté la suppression de l'intégration Jira, de l'ingestion CI et des SLA — indéfendable.
 
-| Route / fonctionnalité spécifiée | État | Conséquence |
+La numérotation `§1`–`§12` est conservée, les 124 renvois du code restent donc valides. `§13`–`§15` couvrent ce qui existait sans être décrit : ingestion CI, comptes-rendus d'audit, invariants de sécurité.
+
+## Ce que la réécriture a réglé
+
+Les quatorze fonctionnalités « implémentées, non spécifiées » sont désormais **décrites** : Jira réel, ingestion CI, comptes-rendus, `cve_occurrences` et les deux compteurs d'âge, CVSS, base d'avis séparée, remise à zéro, enrichissement GHSA en masse, instantanés, `AEGIS_ALLOWED_ROOTS`/`AEGIS_INGEST_TOKEN`/`HOST`, colonnes `slug`/`is_remote`, `?days=` borné, `?tag=`, champs de statut du lot. Elles ne sont plus des écarts.
+
+Les dix écarts « spécifié, absent ou divergent » sont conservés **en tant que défauts nommés** dans le nouveau document, avec un ⚠️ à l'endroit concerné plutôt qu'en liste séparée — un lecteur qui ouvre `context/01-projets.md` voit sur place que la détection d'outil ne teste pas `bun.lock`.
+
+## Ce qui reste à faire
+
+**Trois manques du contrat, à implémenter — le document a raison, le code est en retard :**
+
+| Manquant | Ce que ça coûte | Où |
 |---|---|---|
-| `GET /api/projects/:id/history` (30 derniers runs) | **absent** — `getRunsForProject` existe (`src/db/runs.ts:82`), appelée par son seul test | Impossible de consulter l'historique d'un projet, donc de voir des erreurs répétées |
-| `DELETE /api/runs/:id` | **absent** — `deleteRun` existe (`:132`), appelée par son seul test | Un run pollué reste l'état courant jusqu'au prochain audit |
-| `POST /api/annotations/fetch-fix` | **absent** — remplacé par `POST /api/advisories/sync`, qui ne persiste **aucune** annotation et ne renvoie jamais 429 | La « seule porte manuelle » de §6 n'existe pas ; `setAnnotationFix` n'est appelé que par son test |
-| ~~`GET /api/snapshots` (liste + compteurs)~~ | ✅ **implémenté le 23/08/2026** avec [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | — |
-| `POST /api/detect` (algorithme complet) | **divergent** — `/api/projects/detect` renvoie `{tool}` au lieu d'`entries[]` : pas de scan de profondeur 1, pas de `dir`, pas de dédup par outil ; **`bun.lock` n'est jamais testé**, `bun` prime sur `yarn`/`npm`, et `composer.json`/`package.json` (hors catalogue) servent de repli | Un monorepo dont le lockfile est dans `app/` n'est pas détecté ; un projet Yarn avec un `bun.lockb` résiduel est classé `bun` ; un projet sans lockfile est proposé en `npm`, ce qui garantit un run `error` |
-| `POST /api/projects/:id/ignore` | **absent** — fait via `PUT` avec `{ignored}` | Le `PUT` réécrit `name`/`path`/`audit_path`/`type`/`tool`/`tags` à chaque bascule, sans validation ni contrôle d'existence — cf. [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin) |
-| §12 niveau 1 — sauvegarde config JSON | **non implémenté** — `buildConfig`, `writeBackup`, `scheduleBackup`, `startPeriodicBackup`, `BACKUP_KEEP` et `BACKUP_INTERVAL_MIN` restent absents de `src/`. Le **niveau 2** (instantanés `.sqlite` datés, rotation, inventaire, restauration nommée) est en revanche livré depuis le 23/08/2026 | Aucune sauvegarde **automatique** de la configuration, aucun historique JSON daté. Les mentions « + sauvegarde » de §1, §7, §8, §9 et §10 restent **inopérantes** |
-| ~~§9 cascade tags~~ | ✅ **implémentée le 23/08/2026** — voir [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) | — |
-| ~~§1 validations + 409 doublon de cible~~ | ✅ **fermé** — `projectBodySchema` (Zod) et `findDuplicate` sur la cible **résolue**, appliqués à `POST` et `PUT`. Cette ligne contredisait le tableau « Fermé en bloc » depuis le 21/08/2026 | — |
-| ~~§7/§10/§12 validations d'annotation, de prompt, de réglage~~ | ✅ **fermé** — `annotationBodySchema`, `promptBodySchema`, `settingsBodySchema`, messages conformes. Contredisait aussi le tableau « Fermé en bloc » | — |
-| §10 tri des prompts | **divergent** — `ORDER BY title ASC` (`src/db/prompts.ts:14`) au lieu de création décroissante | Bibliothèque triée alphabétiquement, pas par nouveauté |
-| §12 variables d'environnement | **divergent, réduit le 23/08/2026** — `DB_PATH` conforme ; `BACKUP_DIR` et `BACKUP_DB_KEEP` sont désormais lus et documentés dans `.env.example` (livrés avec [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien)). Restent : `PORT` non lu (c'est `AEGIS_PORT`, défaut **3001** et non 3000), `AUDIT_MAX_AGE_HOURS` lu seulement dans la table `settings`, `BACKUP_KEEP` et `BACKUP_INTERVAL_MIN` absents | Un déploiement configuré selon le contrat démarre sur le mauvais port et ignore la fenêtre de fraîcheur par défaut |
+| `GET /api/projects/:id/history` | impossible de voir l'historique d'un projet, donc de repérer des erreurs répétées. `getRunsForProject` existe et est testée | [§4](context/04-historique.md) |
+| `DELETE /api/runs/:id` | un run pollué reste l'état courant jusqu'au prochain audit. `deleteRun` existe et est testée | [§4](context/04-historique.md) |
+| §12 niveau 1 — sauvegarde config JSON automatique | aucune sauvegarde périodique, aucun historique daté. C'était le mensonge le plus large de l'ancien contrat : les « + sauvegarde » de cinq sections étaient inopérants | [§12](context/12-sauvegarde.md) |
 
-**Implémenté, non spécifié** — c'est là qu'est passé l'essentiel de l'effort :
+**Deux remplacements par moins bien, à corriger :**
 
-1. **Intégration Jira complète** (`src/routes/tickets.ts:85-277`) : création réelle d'issues via l'API v3, document ADF, anti-doublon par hash SHA-256 (`src/db/tickets.ts:41-51`), test de connexion. §8 se limite à « préparer » un markdown copiable et stocker une URL.
-2. **Ingestion CI** (`POST /api/ingest/:slug`) authentifiée par token en comparaison à temps constant.
-3. **Batch d'audit côté serveur** (`/api/audit/run`, `/api/audit/status`) alors que §2 stipule « aucun endpoint batch » — et ce batch n'est toujours appelé par aucun écran. Le correctif de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) l'a **conservé et amélioré** (pool de 4, garde de chemin, 409) plutôt que supprimé : le retirer relève de cet arbitrage. Sa réponse porte désormais un champ `skipped`, et `/api/audit/status` expose `runningProjects`, `lastCompleted`, `lastTotal` et `lastFinishedAt` — quatre champs de plus, aucun spécifié.
-4. **Table `reports`** et page associée : persistance des comptes-rendus de « Tout auditer ».
-5. **Table `cve_occurrences`** avec `is_baseline`/`exposure_start`/`resolved_at` et calcul d'ancienneté — socle des SLA d'[UPGRADE.md §1](UPGRADE.md).
-6. **Enrichissement CVSS** (`src/lib/cvss.ts`, colonnes `cvss_vector`/`html_url`/`published_at`).
-7. ~~**Annotations globales** via `project_id = -1`~~ — ✅ **arbitré le 23/08/2026 en faveur du contrat** : la notion est retirée du code, §7 reste la référence et l'unité de triage demeure le couple CVE/projet. Voir [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours).
-8. **Colonnes `slug` et `is_remote`** sur `projects`, absentes du modèle de §1.
-9. **`AEGIS_ALLOWED_ROOTS`, `AEGIS_INGEST_TOKEN`, `HOST`** — durcissements utiles, issus de la vague 1, non spécifiés.
-10. **Base d'avis séparée** (`<base>-advisories.sqlite`, `ADVISORY_DB_PATH`) et **`POST /api/config/reset`** — ajoutés le 22/08/2026 pour que la remise à zéro soit la suppression d'un fichier, donc sans liste de tables à tenir à jour. Aucun des deux n'est dans §12.
-11. **`POST /api/advisories/sync-all`** — enrichissement GHSA en masse, ajouté le 23/08/2026. §6 réserve l'interrogation de GitHub à « la porte manuelle par CVE » : une passe sur tout le parc est un troisième mode, utile mais hors contrat.
-12. **`?days=` sur `/api/history-global`** — §4 ne décrit aucune fenêtre paramétrable. Le paramètre existait sans garde ; il est désormais borné à `[1, 365]` ([N13](#n13-apihistory-global--deux-sévérités-perdues-pas-de-total-fuseau-local-days-non-validé)), mais les bornes elles-mêmes ne sont pas spécifiées.
-13. **`?tag=` sur la page Projets** — le périmètre de « Tout auditer » est désormais porté par l'URL, ce que §2 n'évoque pas. Nécessaire au correctif de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) ; la mono-sélection reste par ailleurs un écart à §9 (cf. [N24](#n24-filtres-et-pagination-hors-de-lurl)).
-14. **`resolveFixedVersion` sans appelant** — depuis [N1](#n1-github-est-appelé-pendant-chaque-audit), le chemin d'audit lit le cache et l'enrichissement en masse passe par `fetchAdvisory` : cette fonction exportée n'est plus appelée que par ses tests. Elle a été **corrigée** ([N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil)) et non supprimée, parce que la retirer est une décision de surface qui appartient à cet arbitrage.
+1. **`/api/advisories/sync` ne persiste aucune annotation**, là où `/api/annotations/fetch-fix` le prévoyait. `setAnnotationFix` n'est appelée que par son test. Perte fonctionnelle réelle, pas un renommage.
+2. **Basculer `ignored` passe par le `PUT`**, qui réécrit nom, chemin, type, outil et tags à chaque fois. Un endpoint dédié serait plus sûr.
 
-**Correctif — décision produit, à prendre avant tout correctif de conformité :** trancher si `CONTEXT.md` est réaligné sur le produit réel (Jira, ingestion CI, reports, SLA deviennent contractuels ; les endpoints jamais implémentés sont retirés ou déplacés vers [UPGRADE.md](UPGRADE.md)), ou si le produit revient au contrat. Corriger ces écarts un par un sans cet arbitrage produira des allers-retours : plusieurs entrées de cette liste sont des fonctionnalités délibérément remplacées, pas des oublis.
+**Trois divergences de détail, dont une bloque un déploiement :**
 
-> **Deux points ont été tranchés en chemin, tous deux en faveur du contrat** : les annotations globales (retirées, cf. ligne 7 ci-dessus) et la sensibilité à la casse des noms de tags ([N40](#n40-la-casse-des-noms-de-tags) — « corrigée » à tort une première fois, avec une migration destructive à la clé, puis annulée). Le précédent est utile : quand `CONTEXT.md` est explicite, il gagne. Les écarts restants sont ceux où il est **muet**, et c'est précisément pour ceux-là qu'un arbitrage est nécessaire.
+- `AEGIS_PORT` défaut **3001** là où l'ancien contrat annonçait `PORT` défaut 3000 : un déploiement suivant la doc démarrait sur le mauvais port. **Le nouveau document dit `AEGIS_PORT`** — écart fermé par la réécriture.
+- `AUDIT_MAX_AGE_HOURS` n'est **jamais lu depuis l'environnement**, uniquement dans la table `settings`. Documenté comme tel, à décider s'il faut l'ajouter.
+- Les prompts sont triés par `title ASC` et non par création décroissante. Documenté comme tel.
 
-> ⚠️ **La surface non spécifiée s'accroît à chaque correctif.** Elle est passée de 9 à 14 lignes entre le 21 et le 23/08/2026 — non par négligence, mais parce que corriger un défaut demande souvent d'ajouter un champ ou un paramètre que le contrat n'a jamais décrit. Plus l'arbitrage tarde, plus il coûte.
+**Une suppression à décider, et elle attend un fait :**
+
+> `POST /api/audit/run` et `GET /api/audit/status` ne sont appelés par **aucun écran**. Vérifié le 23/08/2026 : le frontend appelle 27 chemins d'API, ni l'un ni l'autre n'en fait partie. Le bouton « Lancer l'audit global » orchestre côté client — `GET /api/projects`, puis `POST /api/projects/:id/audit` par projet avec un pool de 4 — conformément à [§2](context/02-audits.md).
+>
+> Ces deux routes n'ont de sens que pour un déclenchement **sans navigateur** : cron, script d'exploitation. Si aucun usage externe n'existe, ce sont ~180 lignes et 12 tests à supprimer. À noter : la **fonction** `getAuditStatus()` sert aux gardes 409 du reset et de la restauration ; retirer la route ne la touche pas.
+>
+> Le correctif de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) a amélioré ce lot — pool de 4, garde de chemin, 409 — avant que son absence d'appelant ne soit établie. C'est du travail qui pourrait être jeté, et il valait mieux le dire.
+
+## Leçon consignée
+
+**Deux arbitrages avaient déjà été rendus en chemin, tous deux en faveur du contrat** quand il était explicite : les annotations globales (retirées, §7 fixe l'unité au couple CVE/projet) et la casse des noms de tags (rétablie après avoir été « corrigée » à tort, avec une migration destructive à la clé — §9 la spécifie).
+
+Le précédent tient : **quand le document est explicite, il gagne.** Les écarts qui ont demandé un arbitrage étaient ceux où il était **muet** — et c'est exactement ce que la réécriture supprime, en décrivant ce qui existe au lieu de ce qui était imaginé.
+
 
 ---
 

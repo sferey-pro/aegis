@@ -74,6 +74,8 @@ Un refus lève un **`AuditEnCoursError`**, que les deux routes traduisent en **4
 
 ⚠️ **`POST /api/audit/run` applique `pathGuard`** et **écarte** du lot les projets hors périmètre, en rendant leur nombre dans `skipped`. C'était le huitième point d'entrée touchant un chemin, et le seul à ne pas le faire.
 
+Cette route n'est appelée par **aucun écran**, et c'est normal : elle existe pour un **cron sur la machine Aegis** qui audite périodiquement tous les projets locaux. Ne la traitez pas comme du code mort. Une migration vers un cron d'ingestion par projet est envisagée ; elle demanderait d'abord de doter `/api/ingest/:slug` d'une déduplication par commit, sans quoi un cron horaire produirait vingt-quatre runs identiques par jour et par projet.
+
 **« Tout auditer » est orchestré côté client** (§2 : aucun endpoint batch), par `useGlobalAudit` (`src/lib/useGlobalAudit.ts`) : pool de 4, `AbortController` exposé, résultats triés **erreurs d'abord puis plus de nouvelles CVE**. Le périmètre est fourni par l'appelant — jamais recalculé dans le hook — et vient du filtre `?tag=` porté par l'URL, sans quoi `App` ne peut pas connaître les projets *visibles*. La progression passe par `AuditProgressBar`, **non modale** : le voile plein écran couvrait la console live, seul endroit où l'on voit les commandes tourner.
 
 **Série globale** (`getGlobalHistory` dans `src/db/runs.ts`) : parcours chronologique maintenant un **état par projet**, un run `error` étant ignoré **sans écraser** l'état connu — une erreur ne doit pas faire disparaître les vulnérabilités déjà mesurées. Trois règles à ne pas défaire :

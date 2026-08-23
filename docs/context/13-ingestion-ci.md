@@ -24,6 +24,8 @@ Réponse : `{ success: true, run, newCvesCount }`.
 
 - **Aucun appel réseau vers GitHub** : le cache est lu, pas alimenté.
 - **Aucune déduplication par commit**, contrairement à l'audit local : dix envois sur le même `sha` créent dix runs.
+
+  Ce choix convient à une CI — un push, un build, un run qui a du sens. Il **ne convient pas à un cron** : une passe horaire produirait vingt-quatre runs identiques par jour et par projet, et noierait l'historique comme la série globale ([§4](04-historique.md)). Une déduplication est donc un prérequis si l'ingestion doit remplacer le lot serveur de [§2](02-audits.md).
 - **Aucune opération git.**
 
 ---

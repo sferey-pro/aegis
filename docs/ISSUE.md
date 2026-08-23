@@ -921,13 +921,13 @@ Les dix écarts « spécifié, absent ou divergent » sont conservés **en tant 
 - `AUDIT_MAX_AGE_HOURS` n'est **jamais lu depuis l'environnement**, uniquement dans la table `settings`. Documenté comme tel, à décider s'il faut l'ajouter.
 - Les prompts sont triés par `title ASC` et non par création décroissante. Documenté comme tel.
 
-**Une suppression à décider, et elle attend un fait :**
+**Un endpoint dont l'usage est établi, et une migration à instruire :**
 
-> `POST /api/audit/run` et `GET /api/audit/status` ne sont appelés par **aucun écran**. Vérifié le 23/08/2026 : le frontend appelle 27 chemins d'API, ni l'un ni l'autre n'en fait partie. Le bouton « Lancer l'audit global » orchestre côté client — `GET /api/projects`, puis `POST /api/projects/:id/audit` par projet avec un pool de 4 — conformément à [§2](context/02-audits.md).
+> `POST /api/audit/run` est appelé par un **cron sur la machine Aegis**, qui audite périodiquement tous les projets présents en local. Aucun écran ne l'appelle — le bouton « Lancer l'audit global » orchestre côté client, conformément à [§2](context/02-audits.md) — mais l'endpoint a bien un appelant, et il est **conservé et documenté** comme mode de déclenchement sans navigateur.
 >
-> Ces deux routes n'ont de sens que pour un déclenchement **sans navigateur** : cron, script d'exploitation. Si aucun usage externe n'existe, ce sont ~180 lignes et 12 tests à supprimer. À noter : la **fonction** `getAuditStatus()` sert aux gardes 409 du reset et de la restauration ; retirer la route ne la touche pas.
+> La question ouverte est ailleurs : **faut-il le remplacer par un cron d'ingestion par projet** ([§13](context/13-ingestion-ci.md)) ? Le gain serait réel — plus aucun code à garder en local sur la machine Aegis, plus aucun outil d'audit à y installer, et le lockfile audité devient celui du build. Trois choses se perdraient en revanche : la **déduplication par commit**, l'**état git** (`ahead`/`behind`, `dirty`, bannière de retard), et la configuration en un seul endroit.
 >
-> Le correctif de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) a amélioré ce lot — pool de 4, garde de chemin, 409 — avant que son absence d'appelant ne soit établie. C'est du travail qui pourrait être jeté, et il valait mieux le dire.
+> ⚠️ **Prérequis à cette migration : doter l'ingestion d'une déduplication.** Son absence est délibérée et convient à une CI — un push, un build, un run qui a du sens — mais un cron horaire produirait vingt-quatre runs identiques par jour et par projet. L'historique et la série globale en seraient noyés. C'est le seul point bloquant, et il est petit : la barrière de §2 existe déjà, il s'agit de l'appliquer au chemin d'ingestion quand un `?sha=` est fourni.
 
 ## Leçon consignée
 

@@ -76,7 +76,20 @@ Résultats agrégés dans un compte-rendu (§14), **triés erreurs d'abord, puis
 
 ## Lot serveur (`POST /api/audit/run`)
 
-Endpoint de déclenchement **sans navigateur**, destiné à un cron ou un script d'exploitation. Même pool de 4, un seul lot à la fois (409 sinon). Applique le contrôle de chemin (§15) et **écarte** du lot les projets hors périmètre, en rendant leur nombre dans `skipped` — un projet mal placé ne doit pas empêcher d'auditer les autres, mais le lot ne doit pas mentir sur sa couverture.
+Endpoint de déclenchement **sans navigateur**. C'est sa raison d'être : il est appelé par un **cron sur la machine Aegis**, qui audite périodiquement tous les projets présents en local. Aucun écran ne l'appelle, et c'est normal — l'interface orchestre côté client (voir « Mode Tout auditer » ci-dessus).
+
+Les deux modes d'audit périodique coexistent donc, et ne couvrent pas le même cas :
+
+| | Cron sur Aegis → `/api/audit/run` | Cron par projet → `/api/ingest/:slug` ([§13](13-ingestion-ci.md)) |
+|---|---|---|
+| Code | doit être **présent en local**, et à jour | aucun code côté Aegis |
+| Outils d'audit | installés sur la machine Aegis, dans les bonnes versions | ceux du projet, dans son propre environnement |
+| Lockfile audité | celui de la copie locale | **celui du build**, donc celui qui compte |
+| Déduplication par commit | **oui** | **non** — dix envois sur le même `sha` créent dix runs |
+| État git (`ahead`/`behind`, `dirty`) | disponible | absent |
+| Configuration | un seul endroit | une par projet |
+
+⚠️ **Migrer entièrement vers l'ingestion demanderait d'abord de doter §13 d'une déduplication.** Son absence est délibérée et convient à une CI — un push, un build, un run qui a du sens — mais un cron horaire produirait vingt-quatre runs identiques par jour et par projet. L'historique et la série globale ([§4](04-historique.md)) en seraient noyés. Même pool de 4, un seul lot à la fois (409 sinon). Applique le contrôle de chemin (§15) et **écarte** du lot les projets hors périmètre, en rendant leur nombre dans `skipped` — un projet mal placé ne doit pas empêcher d'auditer les autres, mais le lot ne doit pas mentir sur sa couverture.
 
 Progression sondée par `GET /api/audit/status` : `isRunning`, `currentProject`, `runningProjects`, `progress`/`total` pour le lot en cours, et `lastCompleted`/`lastTotal`/`lastFinishedAt` pour le dernier lot **terminé** — ces trois derniers valent `null` avant tout lot, car un bilan à zéro se lirait « un lot a tourné et n'a rien trouvé ».
 

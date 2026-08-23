@@ -1,5 +1,10 @@
 import { listProjects } from "../db/projects";
-import { getGlobalHistory, getLatestRun } from "../db/runs";
+import {
+	getGlobalHistory,
+	getLatestRun,
+	HISTORY_DAYS_MAX,
+	HISTORY_DAYS_MIN,
+} from "../db/runs";
 import { buildCveGroups } from "../lib/aggregator";
 import type { Severity } from "../lib/parsers/types";
 
@@ -38,18 +43,10 @@ export interface StatsResponse {
 /**
  * Un point de la série temporelle de `GET /api/history-global`.
  *
- * `date` est un libellé d'affichage (« JJ/MM », ou « NNh » en vue horaire) ;
- * `rawDate` porte la clé du bucket. `info` et `unknown` ne sont pas agrégés par
- * l'implémentation actuelle (écart N13 dans docs/ISSUE.md).
+ * Le type est **celui de la couche de données** : la route ne remodèle rien, et
+ * un changement de forme casse la compilation des deux côtés à la fois.
  */
-export interface HistoryPoint {
-	date: string;
-	rawDate: string;
-	critical: number;
-	high: number;
-	moderate: number;
-	low: number;
-}
+export type { HistoryPoint } from "@/db/runs";
 
 export const statsRoutes = {
 	"/api/stats": {
@@ -135,8 +132,27 @@ export const statsRoutes = {
 	"/api/history-global": {
 		async GET(req: Request) {
 			const url = new URL(req.url);
-			const days = parseInt(url.searchParams.get("days") || "30", 10);
-			return Response.json(getGlobalHistory(days));
+			const brut = url.searchParams.get("days");
+
+			// `parseInt` sans garde : `?days=abc` donnait `NaN`, la boucle de buckets
+			// ne tournait pas, et la réponse était `[]` en **200** — un graphique vide
+			// sans la moindre erreur, indistinguable d'un parc sans historique.
+			// `?days=100000` construisait cent mille buckets et bloquait le process.
+			const jours = brut === null ? 30 : Number(brut);
+			if (
+				!Number.isInteger(jours) ||
+				jours < HISTORY_DAYS_MIN ||
+				jours > HISTORY_DAYS_MAX
+			) {
+				return Response.json(
+					{
+						error: `Fenêtre invalide : days doit être un entier entre ${HISTORY_DAYS_MIN} et ${HISTORY_DAYS_MAX}`,
+					},
+					{ status: 400 },
+				);
+			}
+
+			return Response.json(getGlobalHistory(jours));
 		},
 	},
 };

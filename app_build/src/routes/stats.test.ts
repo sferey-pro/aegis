@@ -264,13 +264,17 @@ describe("GET /api/history-global", () => {
 		);
 		expect(status).toBe(200);
 		expect(data.length).toBeGreaterThan(0);
-		expect(data.every((p) => p.critical === 0 && p.high === 0)).toBe(true);
+		expect(data.every((p) => p.counts.critical === 0 && p.total === 0)).toBe(
+			true,
+		);
 	});
 
-	test("chaque point porte un libellé et une clé de bucket", async () => {
+	test("chaque point porte une date ISO et un libellé (N13)", async () => {
+		// `date` portait un libellé d'affichage « JJ/MM » et la donnée métier vivait
+		// dans un `rawDate` additionnel. §4 demande `date: "YYYY-MM-DD"`.
 		const { data } = await srv.json<HistoryPoint[]>("/api/history-global");
-		expect(data[0]?.date).toBeTruthy();
-		expect(data[0]?.rawDate).toBeTruthy();
+		expect(data[0]?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+		expect(data[0]?.label).toMatch(/^\d{2}\/\d{2}$/);
 	});
 
 	test("le paramètre days détermine la largeur de la fenêtre", async () => {
@@ -292,8 +296,9 @@ describe("GET /api/history-global", () => {
 		const { data } = await srv.json<HistoryPoint[]>(
 			"/api/history-global?days=7",
 		);
-		expect(data.at(-1)?.critical).toBe(2);
-		expect(data.at(-1)?.high).toBe(1);
+		expect(data.at(-1)?.counts.critical).toBe(2);
+		expect(data.at(-1)?.counts.high).toBe(1);
+		expect(data.at(-1)?.total).toBe(3);
 	});
 
 	test("les projets ignorés sont exclus de la série", async () => {
@@ -306,28 +311,59 @@ describe("GET /api/history-global", () => {
 		const { data } = await srv.json<HistoryPoint[]>(
 			"/api/history-global?days=7",
 		);
-		expect(data.at(-1)?.critical).toBe(0);
+		expect(data.at(-1)?.counts.critical).toBe(0);
 	});
 
-	test("info et unknown ne figurent pas dans la série — écart documenté", async () => {
-		// Le contrat demande les six sévérités et un total ; l'implémentation n'en
-		// agrège que quatre (défaut N13).
-		const { data } = await srv.json<Record<string, unknown>[]>(
+	test("chaque point porte les six sévérités et un total (N13)", async () => {
+		const { data } = await srv.json<HistoryPoint[]>(
 			"/api/history-global?days=7",
 		);
-		expect(data[0]).not.toHaveProperty("info");
-		expect(data[0]).not.toHaveProperty("unknown");
-		expect(data[0]).not.toHaveProperty("total");
+		expect(Object.keys(data[0]?.counts ?? {}).sort()).toEqual([
+			"critical",
+			"high",
+			"info",
+			"low",
+			"moderate",
+			"unknown",
+		]);
+		expect(data[0]?.total).toBe(0);
 	});
 
-	test("un days non numérique renvoie une série vide — écart documenté", async () => {
-		// `parseInt("abc")` vaut NaN et la boucle de construction des buckets ne
-		// s'exécute pas : le graphique se vide sans message d'erreur.
-		const { status, data } = await srv.json<HistoryPoint[]>(
+	test("un days non numérique est rejeté en 400 (N13)", async () => {
+		// `parseInt("abc")` valait NaN, la boucle de buckets ne tournait pas, et la
+		// réponse était `[]` en **200** : un graphique vide sans message, que rien ne
+		// distinguait d'un parc sans historique.
+		const { status, data } = await srv.json<{ error: string }>(
 			"/api/history-global?days=abc",
 		);
-		expect(status).toBe(200);
-		expect(data).toEqual([]);
+		expect(status).toBe(400);
+		expect(data.error).toContain("Fenêtre invalide");
+	});
+
+	test("un days démesuré est rejeté (N13)", async () => {
+		// `?days=100000` construisait cent mille buckets, chacun parcourant la map
+		// d'état de tous les projets — sur un process unique, l'API se bloquait.
+		const { status } = await srv.json("/api/history-global?days=100000");
+		expect(status).toBe(400);
+	});
+
+	test("un days nul ou négatif est rejeté", async () => {
+		for (const valeur of ["0", "-3"]) {
+			const { status } = await srv.json(`/api/history-global?days=${valeur}`);
+			expect(status).toBe(400);
+		}
+	});
+
+	test("un days fractionnaire est rejeté", async () => {
+		// `parseInt("7.5")` valait 7 en silence : la fenêtre demandée n'était pas
+		// celle rendue.
+		const { status } = await srv.json("/api/history-global?days=7.5");
+		expect(status).toBe(400);
+	});
+
+	test("les bornes sont acceptées", async () => {
+		expect((await srv.json("/api/history-global?days=1")).status).toBe(200);
+		expect((await srv.json("/api/history-global?days=365")).status).toBe(200);
 	});
 
 	test("days absent retombe sur trente jours", async () => {
@@ -336,51 +372,5 @@ describe("GET /api/history-global", () => {
 			await srv.json<HistoryPoint[]>("/api/history-global?days=30")
 		).data;
 		expect(defaut.length).toBe(trente.length);
-	});
-});
-
-/**
- * Contrats attendus — à activer au correctif.
- *
- * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
- * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
- * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
- * que le défaut existe.
- *
- * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
- * rouge — « this test is marked as failing but it passed. Remove `.failing` if
- * tested behavior now works ». Il est donc impossible de corriger le code sans
- * reprendre le test.
- *
- * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
- * « écart documenté » correspondant, qui épinglait l'ancien comportement.
- */
-
-describe("contrats attendus — à activer au correctif", () => {
-	// N13 — CONTEXT.md §4 spécifie les six sévérités et un `total`.
-	test.failing("chaque point porte les six sévérités et un total (N13)", async () => {
-		const { data } = await srv.json<Record<string, unknown>[]>(
-			"/api/history-global?days=7",
-		);
-		const point = data[0] as Record<string, unknown>;
-		expect(point.info).toBeDefined();
-		expect(point.unknown).toBeDefined();
-		expect(point.total).toBeDefined();
-	});
-
-	// N13 — un `days` non numérique doit être rejeté, pas produire un graphique
-	// vide sans message.
-	test.failing("un days non numérique est rejeté (N13)", async () => {
-		const { status } = await srv.json("/api/history-global?days=abc");
-		expect(status).toBe(400);
-	});
-
-	// N13 — `days` doit être borné : 100 000 buckets bloquent le process.
-	test.failing("un days démesuré est borné (N13)", async () => {
-		const { status, data } = await srv.json<unknown[]>(
-			"/api/history-global?days=100000",
-		);
-		expect(status).toBe(200);
-		expect(data.length).toBeLessThanOrEqual(400);
 	});
 });

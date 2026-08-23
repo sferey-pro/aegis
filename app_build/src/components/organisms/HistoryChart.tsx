@@ -35,12 +35,20 @@ const chartConfig = {
 	},
 } satisfies ChartConfig;
 
-interface HistoryPoint {
-	date: string;
-	critical: number;
-	high: number;
-	moderate: number;
-	low: number;
+/**
+ * Forme d'un point, importée de la route qui la produit : un changement de forme
+ * casse la compilation au lieu de dériver en silence.
+ */
+type HistoryPoint = import("@/routes/stats").HistoryPoint;
+
+/**
+ * Aplatit un point pour recharts : `dataKey` doit désigner la clé du
+ * `chartConfig` (« critical », « high »…) pour que le libellé et la couleur de
+ * la légende soient résolus. La réponse d'API, elle, garde la forme du contrat —
+ * `{date, label, counts, total}` (§4).
+ */
+function aplatir(p: HistoryPoint) {
+	return { label: p.label, total: p.total, ...p.counts };
 }
 
 export function HistoryChart() {
@@ -63,6 +71,8 @@ export function HistoryChart() {
 				setLoading(false);
 			});
 	}, [days]);
+
+	const pourLeGraphique = data.map(aplatir);
 
 	if (loading) {
 		return (
@@ -112,7 +122,7 @@ export function HistoryChart() {
 			<div className="h-[300px] w-full">
 				<ChartContainer config={chartConfig} className="h-full w-full">
 					<AreaChart
-						data={data}
+						data={pourLeGraphique}
 						margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
 					>
 						<defs>
@@ -167,7 +177,7 @@ export function HistoryChart() {
 						</defs>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis
-							dataKey="date"
+							dataKey="label"
 							tickMargin={10}
 							axisLine={false}
 							tickLine={false}

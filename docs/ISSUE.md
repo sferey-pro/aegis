@@ -22,7 +22,9 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**19 entrées ouvertes (15 🔴) ou partielles (4 🟡) · 45 fermées · 2 épinglées par un test** (N13, N18).
+**17 entrées ouvertes (13 🔴) ou partielles (4 🟡) · 47 fermées · aucune épinglée par un test.**
+
+> **Plus aucun `test.failing` dans le dépôt.** Chaque défaut restant est ouvert *sans* verrou : la régression n'y est plus bloquée, contrairement à ce qui prévalait depuis le 21/08/2026. Les prochaines entrées corrigées devront réécrire leur propre contrat.
 
 ### Priorité 1 — Sécurité
 
@@ -36,8 +38,8 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | La restauration de snapshot ne restaure rien | 🟢 | ✅ |
 | [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours) | Annotations globales impossibles, import de config non transactionnel | 🟢 | ✅ |
 | [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) | La suppression d'un tag laisse des tags fantômes | 🟢 | ✅ |
-| [N13](#n13-apihistory-global--deux-sévérités-perdues-pas-de-total-fuseau-local-days-non-validé) | `/api/history-global` : sévérités perdues, `days` non validé | 🔴 | 🧪 |
-| [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil) | Rate-limit ignoré, perte du `fixedIn` de l'outil | 🔴 | 🧪 |
+| [N13](#n13-apihistory-global--deux-sévérités-perdues-pas-de-total-fuseau-local-days-non-validé) | `/api/history-global` : sévérités perdues, `days` non validé | 🟢 | ✅ |
+| [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil) | Rate-limit ignoré, perte du `fixedIn` de l'outil | 🟢 | ✅ |
 | [N20](#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile) | Aucune vérification préalable du chemin d'audit ni du lockfile | 🔴 | — |
 | [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) | `syncAdvisory` vide le cache avant de refetcher | 🟢 | ✅ |
 | [N45](#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte) | La porte CI d'un projet ignoré est toujours verte | 🟢 | ✅ |
@@ -390,40 +392,40 @@ Le rapprochement reste **sensible à la casse**, conformément à §9 : supprime
 
 
 ### N13. `/api/history-global` : deux sévérités perdues, pas de `total`, fuseau local, `days` non validé
-🔴 **Ouvert — vérifié le 21/08/2026.** L'agrégation ne cumule toujours que quatre sévérités (`src/db/runs.ts:102-110`). 🧪 Épinglé deux fois, dans `src/db/runs.test.ts` et `src/routes/stats.test.ts` : `info`, `unknown` et `total` sont absents de chaque point, et `?days=abc` renvoie `[]` en 200. Le défaut de fuseau et l'absence de borne supérieure sur `days` ne sont **pas** couverts.
+🟢 **Corrigé le 23/08/2026.** ✅ Neuf tests dans `src/db/runs.test.ts` et sept dans `src/routes/stats.test.ts`.
 
-**⊕2** — `src/db/runs.ts:238-252`, `src/routes/stats.ts:87`
+**⊕2** — `src/db/runs.ts`, `src/routes/stats.ts`, `src/components/organisms/HistoryChart.tsx`
 
-```ts
-let critical = 0, high = 0, moderate = 0, low = 0;
-for (const counts of latestCounts.values()) {
-  critical += counts.critical || 0;
-  high     += counts.high     || 0;
-  moderate += counts.moderate || 0;
-  low      += counts.low      || 0;
-}
-```
+**Deux sévérités définitivement absentes.** L'agrégation ne cumulait que `critical`, `high`, `moderate` et `low` : `info` et `unknown` n'entraient jamais dans la série, et il n'y avait pas de `total` — alors que §4 le définit comme la somme des **six**. La sortie porte désormais `{date, label, counts, total}`, la forme du contrat.
 
-`info` et `unknown` ne sont jamais agrégés — ils sont **définitivement absents** de la série temporelle. §4 spécifie `{date, counts, total}` avec `total` = somme des **six** sévérités ; il n'y a ni `counts` ni `total`, et `date` est un libellé d'affichage `"JJ/MM"` (la donnée métier n'existe que dans un champ additionnel `rawDate`).
+**`date` n'était pas une date.** Elle portait un libellé d'affichage « JJ/MM » ; la donnée métier vivait dans un champ additionnel `rawDate`. §4 demande `date: "YYYY-MM-DD"`. Les deux sont maintenant nommés pour ce qu'ils sont — `date` et `label`.
 
-Deux défauts connexes :
-- **Fuseau.** Les buckets sont calculés en heure locale (`getFullYear`/`getMonth`) alors que `ran_at` est UTC. En fin de journée dans un fuseau positif, un run est rangé dans le bucket du lendemain.
-- **`days` non borné.** `parseInt(searchParams.get("days") || "30", 10)` sans garde. `?days=abc` → `NaN` → la boucle ne s'exécute pas → réponse `[]`, graphique vide **sans erreur**. `?days=100000` → 100 000 buckets × N itérations sur la map d'état, sur un process unique : l'API entière est bloquée. La requête SQL charge de toute façon **tous** les runs de tous les projets actifs, sans filtre de date.
+**Fuseau.** Les buckets étaient calculés en heure locale (`getFullYear`/`getMonth`) alors que `ran_at` est stocké en UTC : en fin de journée dans un fuseau positif, un run était rangé dans le bucket du lendemain. §4 dit `ran_at[0:10]` — la clé se **découpe dans la chaîne**, sans conversion, ce qui rend le décalage impossible par construction.
 
-*Conforme en revanche, et vérifié : les runs `error` sont ignorés sans écraser l'état connu (`:217,230`), l'état est porté dans le temps (`:191`), la dernière écriture du jour gagne (`:229-236`), seuls les projets non ignorés sont pris (`:140`).*
+> Le test de non-régression a été confronté à l'ancien calcul : il échoue sous `TZ=Asia/Tokyo` et passe sous `TZ=UTC`. Un test de fuseau qui ne tourne qu'en UTC ne prouve rien, et c'est exactement le piège dans lequel l'environnement de CI place ce genre de défaut.
 
-**Correctifs :** valider et borner `days` ; ajouter `info`, `unknown` et `total` ; exposer la date ISO ; calculer les buckets en UTC ; restreindre le `SELECT` à la fenêtre demandée plus un état initial.
+**`days` non validé ni borné.** `parseInt(… || "30", 10)` sans garde : `?days=abc` donnait `NaN`, la boucle de buckets ne tournait pas, et la réponse était `[]` en **200** — un graphique vide sans message, indistinguable d'un parc sans historique. `?days=100000` construisait cent mille buckets, chacun parcourant la map d'état de tous les projets, sur un process unique. La route valide désormais un entier dans `[1, 365]` et refuse en 400. Un `?days=7.5`, que `parseInt` ramenait silencieusement à 7, est également refusé.
+
+**Requête non bornée.** Le `SELECT` chargeait **tous** les runs de tous les projets actifs, quelle que soit la fenêtre. Deux requêtes le remplacent : les runs de la fenêtre, et l'**état d'entrée** — le dernier run non-erreur de chaque projet avant la fenêtre. Sans cet amorçage, un projet audité une seule fois il y a six mois disparaîtrait de la série, ce qui se lirait comme une remédiation. L'amorçage utilise la même définition du « dernier run » que partout ailleurs (§4, voir [N29](#n29-deux-définitions-du--dernier-run--coexistent)).
+
+*Conforme et conservé : un run `error` est ignoré sans écraser l'état connu, l'état est porté dans le temps, la dernière écriture du jour gagne, seuls les projets non ignorés comptent.*
+
+> Le graphique aplatit les points pour recharts, dont le `dataKey` doit désigner la clé du `chartConfig` pour résoudre libellé et couleur. La réponse d'API garde la forme du contrat ; c'est la vue qui s'adapte, pas l'inverse.
 
 ### N18. Rate-limit ignoré, et perte du `fixedIn` fourni par l'outil
-🔴 **Ouvert — vérifié le 21/08/2026.** 🧪 Épinglé dans `src/lib/github/index.test.ts` : « un échec réseau perd le `originalFixedIn` — écart documenté ». Le volet rate-limit est vérifié comme *détecté* (un 403 avec `x-ratelimit-remaining: 0` est bien classé quota dépassé) mais **jamais propagé** pour interrompre la boucle appelante.
+🟢 **Corrigé le 23/08/2026.** ✅ Quatre tests dans `src/lib/github/index.test.ts`.
 
-**⊕1** — `src/lib/github/index.ts:274-281` et `:308-313`, boucle appelante `src/lib/audit/index.ts:24-49`
+**⊕1** — `src/lib/github/index.ts`
 
-La branche « clé non résolvable » (`:244-251`) préserve correctement `params.originalFixedIn`. Les branches « rate-limited » (`:274-281`) et « avis introuvable » (`:308-313`) renvoient `fixedIn: null` **sans le répercuter**. Comme l'appelant écrit `fixedIn: res.fixedIn` (`src/lib/audit/index.ts:47`), la version corrigée que `npm`/`yarn` avaient pourtant fournie est **effacée du run**.
+La branche « clé non résolvable » préservait correctement `params.originalFixedIn`. Les branches **« quota dépassé »** et **« avis introuvable »** — cette dernière couvrant aussi la panne réseau absorbée par `fetchAdvisory` — renvoyaient `fixedIn: null` sans le répercuter. L'appelant écrivant `fixedIn: res.fixedIn`, la version corrigée que `npm`/`yarn` avaient pourtant fournie était **effacée du run**.
 
-Audit npm de 100 paquets sans token : après ~60 appels, GitHub répond 403 avec `x-ratelimit-remaining: 0`. Les 40 vulnérabilités suivantes sont persistées avec `fixedIn = null` alors que `npm audit` indiquait `fixAvailable.version`. Le référent lit « aucune correction disponible » à tort, et l'écran Tickets propose « Version cible : N/A ».
+Audit npm de 100 paquets sans jeton : après ~60 appels, GitHub répond 403 avec `x-ratelimit-remaining: 0`. Les 40 vulnérabilités suivantes étaient persistées avec `fixedIn = null` alors que `npm audit` indiquait `fixAvailable.version`. Le référent lisait « aucune correction disponible » à tort, et l'écran Tickets proposait « Version cible : N/A ».
 
-**Correctifs :** propager `rateLimited` pour interrompre l'enrichissement (§6 : « l'appelant doit s'arrêter »), et faire de `originalFixedIn` la valeur de repli dans **toutes** les branches d'échec. Résolu de fait par [N1](#n1-github-est-appelé-pendant-chaque-audit) si l'enrichissement quitte le chemin d'audit.
+**Correctif :** `originalFixedIn` est le repli dans **toutes** les branches d'échec. Ne rien savoir n'est pas savoir qu'il n'y a rien. Un test vérifie l'inverse aussi : sans version fournie par l'outil, l'échec reste un `null` honnête — le repli n'invente rien.
+
+Le drapeau `rateLimited` reste levé, et il est désormais **effectivement honoré** : `syncAllAdvisories` interrompt sa passe au premier 429 et annonce ce qui reste (livré avec l'enrichissement en masse). La boucle qui l'ignorait — l'enrichissement sur le chemin d'audit — n'existe plus depuis [N1](#n1-github-est-appelé-pendant-chaque-audit).
+
+> ⚠️ **`resolveFixedVersion` n'a plus aucun appelant en production.** Depuis N1, le chemin d'audit passe par `resolveFixedVersionFromCache` (hors ligne) et l'enrichissement en masse par `fetchAdvisory`. Le correctif ci-dessus ferme donc un défaut **latent** : réel, testé, mais qu'aucun écran ne déclenche aujourd'hui. La suppression de cette fonction relève d'un arbitrage de surface non spécifiée — voir [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) — et n'a pas été décidée ici.
 
 ### N20. Aucune vérification préalable du chemin d'audit ni du lockfile
 🔴 **Ouvert — vérifié le 21/08/2026.** 0 occurrence de `existsSync`, « Chemin introuvable » ou « Lockfile manquant » dans `src/lib/audit/index.ts`. Les tests exercent le run en erreur produit par l'échec du `spawn`, ce qui **confirme** le défaut : le message est « Erreur système: … », pas celui du contrat.

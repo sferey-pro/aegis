@@ -415,7 +415,15 @@ export async function resolveFixedVersion(params: {
 
 	if (res.rateLimited) {
 		return {
-			fixedIn: null,
+			// **`originalFixedIn`, pas `null`** (N18). Cette branche écrasait la
+			// version corrigée que `npm`/`yarn` avaient pourtant fournie : un audit de
+			// 100 paquets sans jeton épuise le quota vers le 60ᵉ appel, et les 40
+			// vulnérabilités suivantes étaient persistées avec `fixedIn = null`. Le
+			// référent lisait « aucune correction disponible » à tort, et l'écran
+			// Tickets proposait « Version cible : N/A ».
+			//
+			// Ne rien savoir n'est pas savoir qu'il n'y a rien.
+			fixedIn: params.originalFixedIn || null,
 			rateLimited: true,
 			resolvable: true,
 			severity: "unknown",
@@ -447,8 +455,11 @@ export async function resolveFixedVersion(params: {
 		};
 	}
 
+	// Avis introuvable, ou panne réseau absorbée par `fetchAdvisory` : même règle
+	// que ci-dessus (N18). Un 404 peut venir d'une référence mal saisie par l'outil
+	// d'audit — ce n'est pas une raison d'effacer ce que cet outil avait trouvé.
 	return {
-		fixedIn: null,
+		fixedIn: params.originalFixedIn || null,
 		rateLimited: false,
 		resolvable: true,
 		severity: "unknown",

@@ -194,7 +194,9 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 	test("aucun run donne une série vide de points sans données", () => {
 		const points = getGlobalHistory(7);
 		// La fenêtre est calendaire : les buckets existent, tous à zéro.
-		expect(points.every((p) => p.critical === 0 && p.high === 0)).toBe(true);
+		expect(points.every((p) => p.counts.critical === 0 && p.total === 0)).toBe(
+			true,
+		);
 	});
 
 	test("un run non-erreur alimente son jour", () => {
@@ -215,8 +217,9 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 
 		const points = getGlobalHistory(7);
 		const dernier = points[points.length - 1];
-		expect(dernier?.critical).toBe(2);
-		expect(dernier?.high).toBe(1);
+		expect(dernier?.counts.critical).toBe(2);
+		expect(dernier?.counts.high).toBe(1);
+		expect(dernier?.total).toBe(3);
 	});
 
 	test("un run en erreur n'écrase pas l'état connu du projet", () => {
@@ -252,7 +255,7 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 		daterRun(err.id, `${jour} 11:00:00`);
 
 		const points = getGlobalHistory(7);
-		expect(points[points.length - 1]?.critical).toBe(3);
+		expect(points[points.length - 1]?.counts.critical).toBe(3);
 	});
 
 	test("les projets ignorés sont exclus de la série", () => {
@@ -273,20 +276,21 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 		getDb().query("UPDATE projects SET ignored = 1 WHERE id = ?").run(p.id);
 
 		const points = getGlobalHistory(7);
-		expect(points[points.length - 1]?.critical).toBe(0);
+		expect(points[points.length - 1]?.counts.critical).toBe(0);
 	});
 
-	test("info et unknown ne sont pas agrégés — écart documenté", () => {
-		// Défaut N13 : le contrat demande les six sévérités et un `total`.
-		// L'implémentation n'additionne que critical, high, moderate et low.
+	test("les six sévérités sont agrégées, et le total les somme (N13)", () => {
+		// `info` et `unknown` n'étaient jamais additionnés : ils étaient
+		// **définitivement absents** de la série, et il n'y avait pas de `total` —
+		// alors que §4 le définit comme la somme des six.
 		const p = projet();
 		const r = addRun(
 			run(p.id, {
 				counts: {
-					critical: 0,
-					high: 0,
-					moderate: 0,
-					low: 0,
+					critical: 1,
+					high: 2,
+					moderate: 3,
+					low: 4,
 					info: 9,
 					unknown: 7,
 				},
@@ -294,67 +298,116 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 		);
 		daterRun(r.id, `${new Date().toISOString().slice(0, 10)} 10:00:00`);
 
-		const dernier = getGlobalHistory(7).at(-1) as Record<string, unknown>;
-		expect(dernier.info).toBeUndefined();
-		expect(dernier.unknown).toBeUndefined();
-		expect(dernier.total).toBeUndefined();
+		const dernier = getGlobalHistory(7).at(-1);
+		expect(dernier?.counts).toEqual({
+			critical: 1,
+			high: 2,
+			moderate: 3,
+			low: 4,
+			info: 9,
+			unknown: 7,
+		});
+		expect(dernier?.total).toBe(26);
 	});
 
-	test("un days non numérique produit une série vide — écart documenté", () => {
-		// Défaut N13 : `parseInt` non gardé côté route donne NaN, et la boucle de
-		// construction des buckets ne s'exécute pas. Le graphique reste vide sans
-		// erreur.
-		expect(getGlobalHistory(Number.NaN)).toEqual([]);
+	test("chaque point porte une date ISO et un libellé distincts (N13)", () => {
+		// `date` portait un libellé d'affichage « JJ/MM » ; la donnée métier vivait
+		// dans un champ additionnel `rawDate`. §4 demande `date: "YYYY-MM-DD"`.
+		const points = getGlobalHistory(7);
+		const dernier = points.at(-1);
+		expect(dernier?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+		expect(dernier?.label).toMatch(/^\d{2}\/\d{2}$/);
+		expect(dernier?.date).toBe(new Date().toISOString().slice(0, 10));
 	});
-});
 
-/**
- * Contrats attendus — à activer au correctif.
- *
- * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
- * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
- * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
- * que le défaut existe.
- *
- * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
- * rouge — « this test is marked as failing but it passed. Remove `.failing` if
- * tested behavior now works ». Il est donc impossible de corriger le code sans
- * reprendre le test.
- *
- * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
- * « écart documenté » correspondant, qui épinglait l'ancien comportement.
- */
+	test("le bucket est lu dans la chaîne, sans conversion de fuseau (N13)", () => {
+		// Les buckets étaient calculés en heure locale alors que `ran_at` est stocké
+		// en UTC : en fin de journée dans un fuseau positif, un run était rangé dans
+		// le bucket du lendemain. §4 dit `ran_at[0:10]` — la clé se découpe dans la
+		// chaîne, ce qui rend le décalage impossible par construction.
+		const p = projet();
+		const jour = new Date().toISOString().slice(0, 10);
+		const r = addRun(
+			run(p.id, {
+				counts: {
+					critical: 4,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 0,
+					unknown: 0,
+				},
+			}),
+		);
+		// 23 h 30 UTC : rangé la veille dans tout fuseau négatif, le lendemain dans
+		// tout fuseau positif, si l'on convertit.
+		daterRun(r.id, `${jour} 23:30:00`);
 
-describe("contrats attendus — à activer au correctif", () => {
-	useTempDb("runs-contrats");
+		const point = getGlobalHistory(7).find((x) => x.date === jour);
+		expect(point?.counts.critical).toBe(4);
+	});
 
-	// N13 — CONTEXT.md §4 spécifie les six sévérités et un `total`.
-	test.failing("la série porte les six sévérités et un total (N13)", () => {
+	test("un projet audité avant la fenêtre reste compté (N13)", () => {
+		// La requête est désormais bornée à la fenêtre : sans amorçage par le
+		// dernier run non-erreur antérieur, un projet audité une seule fois il y a
+		// six mois disparaîtrait de la série — ce qui se lirait comme une
+		// remédiation.
 		const p = projet();
 		const r = addRun(
 			run(p.id, {
+				counts: {
+					critical: 6,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 0,
+					unknown: 0,
+				},
+			}),
+		);
+		daterRun(r.id, "2020-01-01 10:00:00");
+
+		expect(getGlobalHistory(7).at(-1)?.counts.critical).toBe(6);
+	});
+
+	test("l'amorçage ignore un run en erreur antérieur à la fenêtre", () => {
+		const p = projet();
+		const bon = addRun(
+			run(p.id, {
+				counts: {
+					critical: 6,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 0,
+					unknown: 0,
+				},
+			}),
+		);
+		const casse = addRun(
+			run(p.id, {
+				status: "error",
 				counts: {
 					critical: 0,
 					high: 0,
 					moderate: 0,
 					low: 0,
-					info: 9,
-					unknown: 7,
+					info: 0,
+					unknown: 0,
 				},
 			}),
 		);
-		daterRun(r.id, `${new Date().toISOString().slice(0, 10)} 10:00:00`);
+		daterRun(bon.id, "2020-01-01 10:00:00");
+		daterRun(casse.id, "2020-02-01 10:00:00");
 
-		const dernier = getGlobalHistory(7).at(-1) as Record<string, unknown>;
-		expect(dernier.info).toBe(9);
-		expect(dernier.unknown).toBe(7);
-		expect(dernier.total).toBe(16);
+		expect(getGlobalHistory(7).at(-1)?.counts.critical).toBe(6);
 	});
 
-	// N13 — un `days` illisible doit être rejeté en amont, pas produire une série
-	// vide qui se lit comme « aucune donnée ».
-	test.failing("un days non numérique est rejeté (N13)", () => {
-		expect(() => getGlobalHistory(Number.NaN)).toThrow();
+	test("la vue horaire découpe sur vingt-quatre heures", () => {
+		const points = getGlobalHistory(1);
+		expect(points).toHaveLength(24);
+		expect(points.at(-1)?.date).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}$/);
+		expect(points.at(-1)?.label).toMatch(/^\d{2}h$/);
 	});
 });
 

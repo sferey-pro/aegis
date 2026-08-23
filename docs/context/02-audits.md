@@ -54,11 +54,34 @@ Deux replis distincts, à ne pas confondre : un **réglage illisible** retombe s
 
 Joint à la réponse de l'audit, **non persisté** — recalculé à chaque run. Une seule implémentation (`diffNewCves`) sert l'audit local **et** l'ingestion CI (§13).
 
+## Contrôles préalables
+
+Trois refus **avant** tout `spawn`, chacun persisté comme un run en erreur ordinaire :
+
+| Cas | Message |
+|---|---|
+| `tool` hors énumération | `Outil d'audit inconnu: <tool>` |
+| cible d'audit absente | `Chemin introuvable: <cwd>` |
+| lockfile absent | `Lockfile manquant: <noms> (cherché dans <cwd>)` |
+
+Dans cet ordre. Un chemin absent ne peut pas porter de lockfile : annoncer le lockfile masquerait la cause. Un chemin qui existe **sans être un dossier** est traité comme introuvable — en tant que cible d'audit, il n'existe pas.
+
+Lockfiles attendus : `package-lock.json` (npm), `yarn.lock` (yarn), `composer.lock` (composer), et pour bun **`bun.lock` ou `bun.lockb`** — l'un suffit. Le contrôle ne descend pas dans les sous-dossiers : le lockfile d'un monorepo se déclare par `audit_path` (§1). Un manifeste (`package.json`, `composer.json`) ne remplace pas un lockfile, alors que la détection (§1) suffit à en proposer un.
+
+Le but n'est pas d'économiser un `spawn`, c'est de **nommer la cause**. Un dossier renommé rendait « Erreur système: … » avec le `ENOENT` brut de l'outil, et un dossier sans lockfile un message parlant de `package.json` — la mauvaise piste dans les deux cas.
+
+Deux conséquences à connaître :
+
+- **pas de ligne `exit:`** dans ces trois runs, et `duration_ms` à `0` : rien n'a été exécuté, et un code inventé se lirait comme un échec de l'outil ;
+- **aucun événement de console** (§11), pour la même raison — il n'y a pas de commande à tracer. Le run en erreur reste, lui, visible partout.
+
+Ils passent **après** la barrière de déduplication, et c'est voulu : un run dédupliqué suppose un arbre git propre au même commit, état dans lequel un lockfile supprimé aurait rendu l'arbre sale. Contrôler le disque avant la barrière ne changerait donc rien, sinon un `stat` par audit évité.
+
+`command` conserve tout de même la commande qui **aurait** été tentée : c'est la première question posée devant un audit en erreur. Elle est `null` dans le seul cas de l'outil inconnu, où il n'y en a pas.
+
 ## Sortie et erreurs
 
 Tout échec devient une ligne de run `status: "error"` portant un champ `error` **multi-ligne** : raison, `cwd:`, `exit:`, stderr brut, stdout brut. Un échec d'audit n'est **jamais** avalé, et un run en erreur porte des compteurs à zéro — c'est un échec, pas un projet sain.
-
-⚠️ **Manque connu** : aucun contrôle préalable d'existence du chemin ni du lockfile. Un dossier renommé produit « Erreur système: … » avec le `ENOENT` brut de l'outil, là où deux messages dédiés seraient plus utiles.
 
 ## Concurrence
 

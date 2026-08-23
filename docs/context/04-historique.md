@@ -12,13 +12,21 @@ Table `runs` : `project_id`, `status` (`ok` \| `vulnerable` \| `error`), `total`
 
 Deux définitions concurrentes coexistaient — l'une par `ran_at`, l'autre par `MAX(id)`. Elles coïncident tant que les identifiants suivent le temps, et divergent **silencieusement** après une restauration de snapshot ou un import de runs hors ordre chronologique : la carte projet affichait un run, l'agrégation CVE en utilisait un autre.
 
-## Suppression d'un run
+## Suppression d'un run (`DELETE /api/runs/:id`)
 
-`deleteRun` existe et est testée, mais **aucune route ne l'expose**. Un run pollué reste donc l'état courant jusqu'au prochain audit.
+Succès → **204**. Identifiant inconnu → **404** « Run introuvable » ; identifiant non numérique → **400** « Identifiant de run invalide ».
 
-## Historique par projet
+**Unitaire, sans contrainte.** Le dernier run étant *recalculé* à chaque lecture, supprimer le plus récent fait du précédent l'état courant, et supprimer le dernier restant laisse le projet sans état. Ni l'une ni l'autre n'est une erreur : ce sont les issues normales de l'opération, déjà gérées en aval — un projet sans run est simplement absent des agrégations.
 
-`getRunsForProject(projectId, limit = 30)` — `ran_at DESC` puis `id DESC`, erreurs incluses. **Aucune route ne l'expose** non plus.
+Le 404 sur un identifiant inconnu est délibéré, contre l'ancienne spécification qui annonçait un 204 idempotent : l'interface doit distinguer « supprimé » de « n'existait pas », sinon elle masque une désynchronisation entre la liste affichée et l'état réel (motif établi par N37).
+
+## Historique par projet (`GET /api/projects/:id/history`)
+
+Les runs du projet, `ran_at DESC` puis `id DESC` — la définition unique ci-dessus —, **limités aux 30 derniers**, chaque run **complet** (`counts` et `vulnerabilities` désérialisés). **Erreurs incluses** : c'est le signal que cette route apporte et qu'un audit unitaire ne donne pas. Un run en erreur affiche son message, mais rien ne dit que c'est le cinquième d'affilée.
+
+Projet inconnu → **404** « Projet introuvable », jamais une liste vide : « aucun historique » et « ce projet n'existe pas » ne se lisent pas de la même façon, et les confondre est le mode de défaillance que N6 a fermé partout ailleurs.
+
+Aucun paramètre de pagination : la limite de 30 est fixée par le contrat, et en inventer un ajouterait de la surface non spécifiée.
 
 ## Évolution globale (`GET /api/history-global`)
 

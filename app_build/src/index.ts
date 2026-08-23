@@ -14,6 +14,7 @@ import { cvesRoutes } from "./routes/cves";
 import { projectsRoutes } from "./routes/projects";
 import { promptsRoutes } from "./routes/prompts";
 import { reportsRoutes } from "./routes/reports";
+import { runsRoutes } from "./routes/runs";
 import { settingsRoutes } from "./routes/settings";
 import { statsRoutes } from "./routes/stats";
 import { tagsRoutes } from "./routes/tags";
@@ -37,6 +38,7 @@ export const server = serve({
 		...reportsRoutes,
 		...annotationsRoutes,
 		...auditRoutes,
+		...runsRoutes,
 
 		// Serve static assets
 		"/aegis-logo.jpg": {

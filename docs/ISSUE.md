@@ -910,9 +910,11 @@ Les dix écarts « spécifié, absent ou divergent » sont conservés **en tant 
 
 | Manquant | Ce que ça coûte | Où |
 |---|---|---|
-| `GET /api/projects/:id/history` | impossible de voir l'historique d'un projet, donc de repérer des erreurs répétées. `getRunsForProject` existe et est testée | [§4](context/04-historique.md) |
-| `DELETE /api/runs/:id` | un run pollué reste l'état courant jusqu'au prochain audit. `deleteRun` existe et est testée | [§4](context/04-historique.md) |
+| ~~`GET /api/projects/:id/history`~~ | ✅ **implémenté le 23/08/2026** | [§4](context/04-historique.md) |
+| ~~`DELETE /api/runs/:id`~~ | ✅ **implémenté le 23/08/2026** | [§4](context/04-historique.md) |
 | §12 niveau 1 — sauvegarde config JSON automatique | aucune sauvegarde périodique, aucun historique daté. C'était le mensonge le plus large de l'ancien contrat : les « + sauvegarde » de cinq sections étaient inopérants | [§12](context/12-sauvegarde.md) |
+
+> Les deux routes exposaient des fonctions qui **existaient déjà et étaient testées** : il ne manquait que la porte. Le `DELETE` s'écarte volontairement de l'ancienne spécification, qui annonçait un 204 idempotent : un identifiant inconnu répond **404**, comme tous les autres `DELETE` du produit depuis N37. La réécriture de §9 avait recopié l'ancien libellé pour les tags alors que le code tranchait dans l'autre sens — corrigé du même coup.
 
 **Deux remplacements par moins bien, à corriger :**
 

@@ -21,11 +21,11 @@ import {
 
 /**
  * `runAudit` lance un vrai `spawn`. Pour rester déterministe et hors réseau, la
- * cible d'audit de ces tests est un sous-dossier inexistant du dépôt : le
- * processus échoue toujours, quel que soit l'outil installé sur la machine. Ce
- * qu'on vérifie ici n'est pas la sortie de `npm audit` — les parseurs s'en
- * chargent — mais tout ce qui l'entoure : déduplication, run d'erreur, diff des
- * nouvelles CVE.
+ * cible d'audit de ces tests est un sous-dossier inexistant du dépôt : depuis
+ * N20, le contrôle préalable la refuse avant tout lancement, donc aucun outil
+ * n'est sollicité — quelle que soit la machine. Ce qu'on vérifie ici n'est pas
+ * la sortie de `npm audit` — les parseurs s'en chargent — mais tout ce qui
+ * l'entoure : déduplication, run d'erreur, diff des nouvelles CVE.
  */
 
 const aNettoyer: string[] = [];
@@ -82,7 +82,7 @@ function depot(label = "repo"): string {
 
 /**
  * Projet dont la racine est un vrai dépôt git (pour l'état git) mais dont la
- * cible d'audit n'existe pas (pour un échec de spawn garanti).
+ * cible d'audit n'existe pas (pour un échec garanti, sans exécuter d'outil).
  */
 function projetSurDepot(label = "p"): { project: Project; repo: string } {
 	const repo = depot(label);
@@ -378,16 +378,14 @@ describe("lib/audit — runAudit, échec de la commande", () => {
 		expect(r.run?.vulnerabilities).toEqual([]);
 	});
 
-	test("le message d'erreur porte la cible et le code de sortie", async () => {
+	test("le message d'erreur porte la cible", async () => {
 		// C'est ce que l'écran Debug affiche : sans le `cwd`, une erreur de chemin
 		// est indiscernable d'une erreur d'outil.
 		sansReseau();
 		const { project, repo } = projetSurDepot("message");
 		const erreur = (await runAudit(project.id)).run?.error ?? "";
 
-		expect(erreur).toContain("Erreur système:");
 		expect(erreur).toContain(`cwd: ${join(repo, "cible-absente")}`);
-		expect(erreur).toContain("exit:");
 	});
 
 	test("le run en erreur mémorise la commande et le commit", async () => {
@@ -426,6 +424,123 @@ describe("lib/audit — runAudit, échec de la commande", () => {
 		const { project } = projetSurDepot("dernier");
 		await runAudit(project.id);
 		expect(getLatestRun(project.id)?.status).toBe("error");
+	});
+});
+
+/**
+ * Contrôles préalables (CONTEXT.md §2, « Cas limites »).
+ *
+ * L'enjeu n'est pas d'éviter un `spawn` mais de **nommer la cause** : avant N20,
+ * un dossier renommé et un lockfile supprimé rendaient tous deux « Erreur
+ * système: … » avec le `ENOENT` brut de l'outil, à charge du référent de
+ * l'interpréter.
+ */
+describe("lib/audit — runAudit, contrôles préalables", () => {
+	useTempDb("audit-preflight");
+
+	/** Projet dont la cible d'audit est la racine du dépôt. */
+	function projetSurCible(label: string, tool: "npm" | "bun" = "npm") {
+		const repo = depot(label);
+		const project = createProject({
+			name: label,
+			path: repo,
+			audit_path: null,
+			type: "node",
+			tool,
+		});
+		return { project, repo };
+	}
+
+	test("une cible absente est nommée, sans exécuter l'outil", async () => {
+		sansReseau();
+		const { project, repo } = projetSurDepot("chemin");
+		const cible = join(repo, "cible-absente");
+		const run = (await runAudit(project.id)).run;
+
+		expect(run?.error).toContain(`Chemin introuvable: ${cible}`);
+		expect(run?.error).toContain(`cwd: ${cible}`);
+		// Aucune ligne `exit:` : rien n'a tourné, et un code inventé se lirait
+		// comme un échec de l'outil.
+		expect(run?.error).not.toContain("exit:");
+		expect(run?.duration_ms).toBe(0);
+	});
+
+	test("la commande est consignée même si elle n'est pas lancée", async () => {
+		// Le run doit dire ce qui *aurait* été tenté : c'est la première question
+		// posée devant un audit en erreur.
+		sansReseau();
+		const { project } = projetSurDepot("commande-preflight");
+		expect((await runAudit(project.id)).run?.command).toBe("npm audit --json");
+	});
+
+	test("un lockfile manquant nomme le fichier et le dossier cherché", async () => {
+		sansReseau();
+		const { project, repo } = projetSurCible("lockfile");
+		const run = (await runAudit(project.id)).run;
+
+		expect(run?.error).toContain(
+			`Lockfile manquant: package-lock.json (cherché dans ${repo})`,
+		);
+		expect(run?.status).toBe("error");
+	});
+
+	test("bun énumère ses deux lockfiles dans le message", async () => {
+		sansReseau();
+		const { project } = projetSurCible("lockfile-bun", "bun");
+		expect((await runAudit(project.id)).run?.error).toContain(
+			"Lockfile manquant: bun.lock ou bun.lockb",
+		);
+	});
+
+	test("un run refusé au contrôle porte des compteurs à zéro", async () => {
+		// Un échec n'est pas un projet sain : sans cela, l'agrégat compterait ce
+		// projet comme dépourvu de vulnérabilité.
+		sansReseau();
+		const { project } = projetSurCible("compteurs");
+		const r = await runAudit(project.id);
+
+		expect(r.deduped).toBe(false);
+		expect(r.newCves).toEqual([]);
+		expect(r.run?.total).toBe(0);
+		expect(r.run?.counts).toEqual(vide());
+		expect(getLatestRun(project.id)?.status).toBe("error");
+	});
+
+	test("un outil hors énumération ne tente aucune commande", async () => {
+		// Seule une écriture directe en base peut produire ce cas : les portes
+		// d'entrée valident `tool` par une énumération Zod. L'ancienne cascade de
+		// `if` laissait pourtant `args` à `[]`, d'où un `spawn([])` et un run en
+		// erreur sans commande — inexploitable pour le diagnostic.
+		sansReseau();
+		const { project } = projetSurCible("outil-inconnu");
+		getDb()
+			.query("UPDATE projects SET tool = 'pnpm' WHERE id = ?")
+			.run(project.id);
+
+		const run = (await runAudit(project.id)).run;
+		expect(run?.error).toContain("Outil d'audit inconnu: pnpm");
+		// `addRun` normalise la chaîne vide en `null` : il n'y a pas de commande.
+		expect(run?.command).toBeNull();
+		expect(run?.status).toBe("error");
+	});
+
+	test("un échec d'exécution reste distinct d'un échec de contrôle", async () => {
+		// Chemin et lockfile en place, mais l'outil est introuvable : on doit
+		// retomber sur « Erreur système: … » avec son code de sortie. Sans ce
+		// test, un contrôle préalable trop large masquerait les vrais échecs.
+		sansReseau();
+		const { project, repo } = projetSurCible("exec");
+		writeFileSync(join(repo, "package-lock.json"), "{}");
+
+		const pathInitial = process.env.PATH;
+		process.env.PATH = ""; // aucun binaire résoluble
+		try {
+			const run = (await runAudit(project.id)).run;
+			expect(run?.error).toContain("Erreur système:");
+			expect(run?.error).toContain("exit:");
+		} finally {
+			process.env.PATH = pathInitial;
+		}
 	});
 });
 

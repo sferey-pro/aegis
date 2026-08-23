@@ -17,7 +17,7 @@ cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
 bun run test:ui     # 440 tests composants — happy-dom actif
-bun run test:api    # 946 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:api    # 972 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1386 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1412 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -56,11 +56,12 @@ Un seul process Bun sert à la fois l'API et la SPA React. SQLite est le seul st
 
 1. `getAuditTarget(project)` résout le cwd, en déléguant à **`resolveAuditTarget(path, auditPath)` — source de vérité unique**. `path` est la **racine git**, `audit_path` le **dossier du lockfile** : relatif à la racine, ou bien **absolu, auquel cas il la remplace** (un `audit_path` commençant par `/` ou `~` n'est jamais concaténé). Les opérations git utilisent la racine ; l'outil d'audit tourne dans la cible. Le contrôle d'autorisation de chemin et la détection de doublon doivent appeler cette fonction, **jamais recomposer le chemin de leur côté** : les deux calculs avaient divergé, si bien qu'un `audit_path` absolu était validé comme relatif puis exécuté comme absolu.
 2. Barrière de déduplication — on saute le run et on renvoie `{ deduped: true }` seulement si *toutes* ces conditions tiennent : pas de forçage, arbre propre, SHA du HEAD connu, dernier run non-erreur avec le même `commit_sha`, et dernier run encore frais selon le réglage `AUDIT_MAX_AGE_HOURS` (>0 = N heures ; 0 = jamais périmé ; <0 = toujours périmé ; **réglage illisible = repli sur 24 h**, tandis qu'une *date de run* illisible est considérée fraîche par sécurité — deux replis distincts, ne les confondez pas).
-3. `spawn([...args])` — **tableaux d'arguments, jamais de shell**, avec `NO_COLOR=1`. Règle appliquée partout : audit, git, tout sous-processus.
-4. `parseAuditOutput(tool, stdout)` dispatche vers `src/lib/parsers/{npm,yarn,bun,composer}.ts`, chacun normalisant un format différent (JSON npm/bun/composer, NDJSON yarn) vers `ParseResult { vulnerabilities, counts, total }`, avec sévérités normalisées en `critical|high|moderate|low|info|unknown`.
-5. `enhanceVulnerabilities` appelle `ensureOccurrences` (gèle `first_seen_at` par `(project, package, cve)`, en marquant le tout premier run comme `is_baseline`) puis `resolveFixedVersion` de `src/lib/github` (GitHub Advisory Database, mise en cache dans `advisory_cache`, gestion du rate-limit) pour compléter `fixedIn`/sévérité/CVSS.
-6. Chaque issue persiste un run — les échecs deviennent des lignes `status: "error"` avec un champ `error` multi-ligne (raison, `cwd:`, `exit:`, stderr brut, stdout brut). Ne jamais avaler un échec d'audit.
-7. `newCves` diffe le nouveau run contre le précédent non-erreur sur la clé `package::cve` (repli sur `package::title`). Calculé à chaque réponse, **jamais persisté**.
+3. Contrôles préalables (`src/lib/audit/preflight.ts`, CONTEXT.md §2) — **avant tout `spawn`**, dans cet ordre : outil connu (`Outil d'audit inconnu: …`), cible existante (`Chemin introuvable: …`), lockfile présent (`Lockfile manquant: … (cherché dans …)`, `bun.lock` **ou** `bun.lockb` pour bun). Les trois donnent un run en erreur ordinaire, sans ligne `exit:` ni événement de console — rien n'a tourné. `AUDIT_TOOLS` y est la **source de vérité unique** de la commande et des lockfiles attendus ; la cascade de `if` qu'il remplace laissait `args` à `[]` sur un outil inconnu. ⚠️ Une table de correspondance en objet littéral se teste avec `Object.hasOwn`, jamais avec `in` : `in` remonte la chaîne de prototype, et `constructor` passait pour un outil valide.
+4. `spawn([...args])` — **tableaux d'arguments, jamais de shell**, avec `NO_COLOR=1`. Règle appliquée partout : audit, git, tout sous-processus.
+5. `parseAuditOutput(tool, stdout)` dispatche vers `src/lib/parsers/{npm,yarn,bun,composer}.ts`, chacun normalisant un format différent (JSON npm/bun/composer, NDJSON yarn) vers `ParseResult { vulnerabilities, counts, total }`, avec sévérités normalisées en `critical|high|moderate|low|info|unknown`.
+6. `enhanceVulnerabilities` appelle `ensureOccurrences` (gèle `first_seen_at` par `(project, package, cve)`, en marquant le tout premier run comme `is_baseline`) puis `resolveFixedVersion` de `src/lib/github` (GitHub Advisory Database, mise en cache dans `advisory_cache`, gestion du rate-limit) pour compléter `fixedIn`/sévérité/CVSS.
+7. Chaque issue persiste un run — les échecs deviennent des lignes `status: "error"` avec un champ `error` multi-ligne (raison, `cwd:`, `exit:`, stderr brut, stdout brut). Ne jamais avaler un échec d'audit.
+8. `newCves` diffe le nouveau run contre le précédent non-erreur sur la clé `package::cve` (repli sur `package::title`). Calculé à chaque réponse, **jamais persisté**.
 
 **Identité d'une vulnérabilité** (`src/lib/vuln-identity.ts`) : `CONTEXT.md` définit **trois** clés distinctes, et c'est délibéré — `dedupe` (§3) emploie `` `${package}|${title}|${cve ?? ""}` ``, le diff `newCves` (§2) emploie `package::cve` avec repli `package::title`, et le regroupement du triage (§7) emploie `cve` avec repli `` `${package}: ${title}` ``. Elles servent des granularités différentes ; **ne les unifiez pas**. La table `cve_occurrences` en avait une quatrième, non spécifiée (`cve || package`), seule à laisser tomber le titre — d'où deux avis sans CVE d'un même paquet partageant leur `first_seen_at` (défaut N10, corrigé). Elle emploie désormais `occurrenceRef`, la clé de §2.
 
@@ -113,6 +114,7 @@ Conséquences à connaître :
 ## Conventions
 
 - Commentaires, logs, textes affichés et messages d'erreur d'API sont en **français**. Restez cohérent.
+- **Les identifiants sont en anglais** — fonctions, variables, types, constantes, propriétés. Le français est réservé à ce qui se lit : commentaires, messages, libellés. ⚠️ Le dépôt porte encore une centaine d'identifiants français hérités (`enVol`, `minuteur`, `passeSilencieuse`, `trierResultats`…) ; ils sont à renommer, pas à imiter.
 - `tsconfig.json` est strict, avec `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `noUnusedLocals` et `noUnusedParameters` — un accès indexé exige une garde, et un argument non utilisé fait échouer le typecheck. **Préférez la garde (`if (!x) return`, déstructuration puis test) à l'assertion `!`** : les 13 assertions non-nulles du dépôt ont été remplacées par de vraies gardes, n'en réintroduisez pas.
 - **Zéro `any` explicite, zéro warning Biome, tests compris.** Les fichiers de test ne sont pas une zone de non-droit : `biome.json` n'a *pas* de surcharge les exemptant de `noExplicitAny`, et c'est délibéré — un `any` dans un test désactive aussi la détection des vraies erreurs de type du bloc, précisément là où un test cassé se cache.
 - Les types de réponse d'API sont **colocalisés avec la route qui les produit** (`ProjectListItem` dans `routes/projects.ts`, `StatsResponse` dans `routes/stats.ts`), et le handler est annoté pour les satisfaire : un changement de forme casse la compilation au lieu de dériver en silence.

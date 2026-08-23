@@ -14,6 +14,7 @@ import { emitConsoleEnd, emitConsoleStart, projectContext } from "../console";
 import { expandPath, getGitInfo } from "../git";
 import { parseAuditOutput } from "../parsers";
 import type { Severity, Vulnerability } from "../parsers/types";
+import { auditCommand, isKnownTool, preflightAudit } from "./preflight";
 
 /** Entrée du diff « nouvelles CVE » d'un run (CONTEXT.md §2). */
 export interface NewCve {
@@ -129,6 +130,46 @@ async function enhanceVulnerabilities(
 	return { enhancedVulns: triees, counts };
 }
 
+/** Compteurs d'un run sans vulnérabilité — un échec n'est pas un projet sain. */
+function emptyCounts() {
+	return {
+		critical: 0,
+		high: 0,
+		moderate: 0,
+		low: 0,
+		info: 0,
+		unknown: 0,
+	};
+}
+
+/**
+ * Persiste un run en erreur (CONTEXT.md §2) : compteurs à zéro, aucune
+ * vulnérabilité, `command` conservée telle qu'elle a été tentée.
+ *
+ * Un seul endroit, parce qu'il y a désormais quatre chemins d'échec — outil
+ * inconnu, contrôle préalable, exécution, parsing — et qu'un compteur oublié
+ * dans l'un d'eux ferait passer un échec pour un projet propre.
+ */
+function addErrorRun(fields: {
+	projectId: number;
+	command: string;
+	commitSha: string | null;
+	error: string;
+	duration_ms: number;
+}): Run {
+	return addRun({
+		project_id: fields.projectId,
+		status: "error",
+		total: 0,
+		counts: emptyCounts(),
+		vulnerabilities: [],
+		command: fields.command,
+		commit_sha: fields.commitSha,
+		error: fields.error,
+		duration_ms: fields.duration_ms,
+	});
+}
+
 function getAuditMaxAgeHours(): number {
 	const db = getDb();
 	const row = db
@@ -223,27 +264,42 @@ export async function runAudit(
 			}
 		}
 
-		// 4. Lancement de l'audit
-		let commandStr = "";
-		let args: string[] = [];
-
-		if (project.tool === "npm") {
-			args = ["npm", "audit", "--json"];
-		} else if (project.tool === "yarn") {
-			args = ["yarn", "audit", "--json"];
-		} else if (project.tool === "bun") {
-			args = ["bun", "audit", "--json"];
-		} else if (project.tool === "composer") {
-			args = [
-				"composer",
-				"audit",
-				"--format=json",
-				"--locked",
-				"--no-interaction",
-			];
+		// 4. Outil connu ? Sinon il n'y a pas de commande à tenter, et l'ancienne
+		// cascade de `if` laissait `args` à `[]` : `spawn([])` levait, le run en
+		// erreur ne portait aucune commande, et le diagnostic était vide (N20).
+		if (!isKnownTool(project.tool)) {
+			const errRun = addErrorRun({
+				projectId,
+				command: "",
+				commitSha: gitInfo.sha,
+				error: [`Outil d'audit inconnu: ${project.tool}`, `cwd: ${cwd}`].join(
+					"\n",
+				),
+				duration_ms: 0,
+			});
+			return { run: errRun, deduped: false, newCves: [] };
 		}
 
-		commandStr = args.join(" ");
+		// 5. Contrôles préalables (§2, « Cas limites ») : chemin puis lockfile,
+		// avant tout `spawn`. Nommer la cause, plutôt que de laisser l'outil
+		// remonter un ENOENT brut que le référent devra interpréter.
+		const preflightError = preflightAudit(project.tool, cwd);
+		if (preflightError) {
+			// Aucune ligne `exit:` : rien n'a été exécuté, et un code inventé se
+			// lirait comme un échec de l'outil.
+			const errRun = addErrorRun({
+				projectId,
+				command: auditCommand(project.tool).join(" "),
+				commitSha: gitInfo.sha,
+				error: [preflightError, `cwd: ${cwd}`].join("\n"),
+				duration_ms: 0,
+			});
+			return { run: errRun, deduped: false, newCves: [] };
+		}
+
+		// 6. Lancement de l'audit
+		const args = auditCommand(project.tool);
+		const commandStr = args.join(" ");
 		const startTime = Date.now();
 
 		const eventId = emitConsoleStart({ cmd: commandStr, cwd, label: "audit" });
@@ -296,21 +352,10 @@ export async function runAudit(
 				.filter(Boolean)
 				.join("\n");
 
-			const errRun = addRun({
-				project_id: projectId,
-				status: "error",
-				total: 0,
-				counts: {
-					critical: 0,
-					high: 0,
-					moderate: 0,
-					low: 0,
-					info: 0,
-					unknown: 0,
-				},
-				vulnerabilities: [],
+			const errRun = addErrorRun({
+				projectId,
 				command: commandStr,
-				commit_sha: gitInfo.sha,
+				commitSha: gitInfo.sha,
 				error: errorBody,
 				duration_ms,
 			});
@@ -357,21 +402,10 @@ export async function runAudit(
 				.filter(Boolean)
 				.join("\n");
 
-			const parseErrRun = addRun({
-				project_id: projectId,
-				status: "error",
-				total: 0,
-				counts: {
-					critical: 0,
-					high: 0,
-					moderate: 0,
-					low: 0,
-					info: 0,
-					unknown: 0,
-				},
-				vulnerabilities: [],
+			const parseErrRun = addErrorRun({
+				projectId,
 				command: commandStr,
-				commit_sha: gitInfo.sha,
+				commitSha: gitInfo.sha,
 				error: errorBody,
 				duration_ms,
 			});

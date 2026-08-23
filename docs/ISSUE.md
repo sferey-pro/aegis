@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**61 entrées distinctes · 45 fermées · 15 ouvertes — 8 🔴, 6 🟡, plus [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) en arbitrage · 1 ⚫ ([N40](#n40-la-casse-des-noms-de-tags), question produit et non défaut) · aucune épinglée par un test.**
+**61 entrées distinctes · 46 fermées · 14 ouvertes — 7 🔴, 6 🟡, plus [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) en arbitrage · 1 ⚫ ([N40](#n40-la-casse-des-noms-de-tags), question produit et non défaut) · aucune épinglée par un test.**
 
 > **Les compteurs sont dédoublonnés.** Les versions précédentes additionnaient le tableau « Fermé en bloc » et les entrées détaillées, qui se recoupent — `N28` y figurait même deux fois. D'où une dérive sur *tous* les chiffres : le 23/08/2026 le tableau de bord annonçait « 17 ouvertes (13 🔴) · 47 fermées » là où le décompte réel donnait 16 ouvertes (9 🔴) et 44 fermées. Le chiffre juste est l'union des identifiants, pas la somme des lignes.
 
@@ -42,7 +42,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) | La suppression d'un tag laisse des tags fantômes | 🟢 | ✅ |
 | [N13](#n13-apihistory-global--deux-sévérités-perdues-pas-de-total-fuseau-local-days-non-validé) | `/api/history-global` : sévérités perdues, `days` non validé | 🟢 | ✅ |
 | [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil) | Rate-limit ignoré, perte du `fixedIn` de l'outil | 🟢 | ✅ |
-| [N20](#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile) | Aucune vérification préalable du chemin d'audit ni du lockfile | 🔴 | — |
+| [N20](#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile) | Aucune vérification préalable du chemin d'audit ni du lockfile | 🟢 | ✅ |
 | [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) | `syncAdvisory` vide le cache avant de refetcher | 🟢 | ✅ |
 | [N45](#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte) | La porte CI d'un projet ignoré est toujours verte | 🟢 | ✅ |
 | [C4](#c4-apiconfigimport-ne-restaure-que-trois-sections-sur-cinq) | `/api/config/import` ne restaure que trois sections sur cinq | 🟡 | — |
@@ -430,19 +430,24 @@ Le drapeau `rateLimited` reste levé, et il est désormais **effectivement honor
 > ⚠️ **`resolveFixedVersion` n'a plus aucun appelant en production.** Depuis N1, le chemin d'audit passe par `resolveFixedVersionFromCache` (hors ligne) et l'enrichissement en masse par `fetchAdvisory`. Le correctif ci-dessus ferme donc un défaut **latent** : réel, testé, mais qu'aucun écran ne déclenche aujourd'hui. La suppression de cette fonction relève d'un arbitrage de surface non spécifiée — voir [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) — et n'a pas été décidée ici.
 
 ### N20. Aucune vérification préalable du chemin d'audit ni du lockfile
-🔴 **Ouvert — vérifié le 21/08/2026.** 0 occurrence de `existsSync`, « Chemin introuvable » ou « Lockfile manquant » dans `src/lib/audit/index.ts`. Les tests exercent le run en erreur produit par l'échec du `spawn`, ce qui **confirme** le défaut : le message est « Erreur système: … », pas celui du contrat.
+🟢 **Corrigé le 24/08/2026** — `src/lib/audit/preflight.ts`, `src/lib/audit/preflight.test.ts` (23 tests) et `src/lib/audit/index.test.ts` (7 tests d'intégration).
 
-**⊕2** — `src/lib/audit/index.ts:143-175`, `:196-199`
+**⊕2** — était en `src/lib/audit/index.ts:143-175`, `:196-199`
 
-CONTEXT.md §2 « Cas limites » exige deux contrôles **avant** lancement :
-- « Chemin introuvable: … » sans exécuter,
-- « Lockfile manquant: … (cherché dans `<cwd>`) », le cas bun étant satisfait par `bun.lock` **ou** `bun.lockb`.
+Le défaut : aucun `existsSync` sur la cible, et les deux chaînes du contrat absentes de tout le dépôt. Le code passait directement à `spawn` et reformatait l'échec en « Erreur système: … » ou « `<outil>`: aucune sortie (exit N) ». Un dossier renommé produisait un run `error` portant le `ENOENT` brut de l'outil : au référent de l'interpréter.
 
-Aucun `existsSync` sur le chemin d'audit ; les deux chaînes sont absentes de tout le dépôt. Le code passe directement à `spawn` et reformate l'échec en « Erreur système: … » ou « `<outil>`: aucune sortie (exit N) ». Un dossier renommé produit un run `error` contenant le `ENOENT` brut de l'outil : au référent d'interpréter la sortie.
+`preflightAudit(tool, cwd)` rend désormais le message exact de §2, ou `null` :
 
-Défaut connexe : si `project.tool` n'est aucune des quatre valeurs — possible, puisqu'aucune validation n'existe à la création ([N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)) — `args` reste `[]`, `spawn([])` lève, l'exception est capturée en `systemError`, mais `commandStr` est vide : le run est inexploitable pour le diagnostic.
+| Cas | Message |
+|---|---|
+| cible absente, ou existante sans être un dossier | `Chemin introuvable: <cwd>` |
+| lockfile absent | `Lockfile manquant: <noms> (cherché dans <cwd>)` |
 
-**Correctifs :** ajouter les deux `existsSync` avec les messages exacts du contrat avant tout `spawn` ; rejeter en amont un `tool` hors énumération.
+Le chemin est contrôlé **avant** le lockfile — sur un dossier absent, annoncer le lockfile masquerait la cause. Pour bun, `bun.lock` **ou** `bun.lockb` suffit. Ces runs ne portent **pas** de ligne `exit:` et ont `duration_ms` à `0` : rien n'a tourné, et un code inventé se lirait comme un échec de l'outil.
+
+**Le défaut connexe est corrigé lui aussi, et il a débordé.** La cascade de `if` qui construisait `args` est devenue un catalogue (`AUDIT_TOOLS`), source de vérité unique de la commande et des lockfiles attendus ; un `tool` hors énumération est refusé en amont par `Outil d'audit inconnu: <tool>`, sans commande à consigner. Au passage, l'entrée affirmait qu'« aucune validation n'existe à la création » : c'est faux aujourd'hui — `projectToolSchema` est une énumération Zod, appliquée à la création, à la modification et à l'import de configuration. Le contrôle couvre donc ce que les portes d'entrée ne voient pas — une ligne écrite à la main dans SQLite.
+
+⚠️ **Et le test du contrôle a trouvé un défaut dans le contrôle.** Écrit en `tool in AUDIT_TOOLS`, il remontait la chaîne de prototype : `constructor`, `toString` et `valueOf` passaient pour des outils d'audit valides, et l'audit repartait vers un `spawn` sans commande. C'est `Object.hasOwn` qu'il faut sur un objet littéral servant de table de correspondance — le piège vaut pour tout le dépôt.
 
 ### N28. Le verrou de non-régression de C3
 🟢 **Écrit le 21/08/2026** — `src/lib/audit/index.test.ts`
@@ -962,7 +967,7 @@ Révisé le **23/08/2026**. Les dix premiers points sont faits ; ce qui reste ti
 10. ~~**N8**~~ — ✅ **fait le 23/08/2026.** Sept écarts à §2 dans une seule fonctionnalité. A débordé sur un huitième point d'entrée sans garde de chemin (`POST /api/audit/run`), et sur le résiduel d'annulation que [N6](#n6-les-erreurs-http-sont-consommées-comme-des-succès) avait laissé ouvert.
 11. ~~**N13** et **N18**~~ — ✅ **faits le 23/08/2026.** Les deux derniers défauts épinglés. Plus aucun `test.failing` dans le dépôt.
 12. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — **arbitrage du contrat, désormais le point bloquant.** Quatorze fonctionnalités implémentées hors contrat, dix spécifiées et absentes ou divergentes. Deux points ont été tranchés en faveur du contrat quand il était explicite ; les autres attendent une décision produit. Chaque correctif suivant ajoutera de la surface non spécifiée, donc l'arbitrage se paie de plus en plus cher.
-13. **[N20](#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile)** — dernier 🔴 de priorité 2, et le seul défaut restant qui produise un message trompeur : un dossier renommé donne « Erreur système: … » là où §2 exige « Chemin introuvable: … ». Indépendant de l'arbitrage.
+13. ~~**N20**~~ — ✅ **fait le 24/08/2026.** Le dernier 🔴 de priorité 2. A débordé de son périmètre annoncé, comme sept correctifs avant lui : la cascade de `if` qui construisait la commande est devenue un catalogue, et le contrôle « outil connu » écrit à cette occasion a révélé qu'un `in` sur objet littéral remonte la chaîne de prototype — `constructor` et `toString` passaient pour des outils d'audit valides.
 14. **Le nœud du frontend : [C11](#c11-composants-monolithiques) → [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation), [N24](#n24-filtres-et-pagination-hors-de-lurl), [N17](#n17-double-flux-sse-et-console-perdue-au-passage-sur-debug).** Les quatre ont la même racine — les pages portent l'état serveur, les appels réseau et l'orchestration — et se corrigent mieux ensemble que séparément. N19 est le plus visible pour l'utilisateur : le badge du header reste à 40 CVE après en avoir traité 25.
 15. **Performance : [N21](#n21-n1-systématiques-et-double-désérialisation-des-blobs), [N22](#n22-race-condition-sur-le-graphique-dhistorique), [N26](#n26-setinterval-jamais-nettoyé-état-de-module-perdu-sous-bun---hot).** Trois résiduels partiels, sans urgence tant que le parc reste petit. `getLatestRunsByProjectIds` existe et est corrigé : le N+1 de l'agrégateur est à portée de main.
 16. **Accessibilité et UX : [N15](#n15-navigation-clavier), [N23](#n23-les-aides-à-la-décision-de-8-sont-absentes), [N27](#n27-design-system-contourné).** ~~N25~~ en a été sorti et corrigé le 23/08/2026 : une note rédigée pour un paquet partait dans le ticket Jira d'un autre.

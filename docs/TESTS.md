@@ -1,12 +1,12 @@
-# ✅ Couverture de test — état au 23/08/2026
+# ✅ Couverture de test — état au 24/08/2026
 
 Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1386 tests · 0 échec · 102 fichiers
+1412 tests · 0 échec · 102 fichiers
 ├── 440 composants (52 fichiers) — DOM, React, fetch simulé
-└── 946 fonctionnels (50 fichiers) — vrai serveur, vraie base, vrai git
+└── 972 fonctionnels (50 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -77,12 +77,13 @@ clés étrangères et les migrations sont réels.
 
 ---
 
-## 3. Logique métier — 397 tests
+## 3. Logique métier — 423 tests
 
 | Module | Tests | Contrats notables |
 |---|---:|---|
 | `lib/schemas.ts` | 45 | **messages identiques à `CONTEXT.md`**, mot pour mot |
-| `lib/audit/index.ts` | 43 | `resolveAuditTarget`, déduplication §12, run en erreur, `ingestAudit` |
+| `lib/audit/index.ts` | 59 | `resolveAuditTarget`, déduplication §12, contrôles préalables, run en erreur, `ingestAudit` |
+| `lib/audit/preflight.ts` | 19 | catalogue des commandes, chemin et lockfile manquants, messages **mot pour mot** |
 | `lib/github/index.ts` | 39 | cache d'avis, quota, choix du correctif par branche majeure |
 | `lib/aggregator/index.ts` | 38 | regroupement par CVE, clé de repli, âge baseline vs SLA, **superposition des avis** |
 | `lib/advisory-sync.ts` | 19 | clés distinctes des derniers runs, arrêt sur quota, reprise, **verrou partagé** |
@@ -99,6 +100,14 @@ clés étrangères et les migrations sont réels.
 
 Points qui méritaient d'être épinglés :
 
+- **Le contrôle préalable a trouvé un défaut dans le contrôle préalable.** Écrit
+  en `tool in AUDIT_TOOLS`, `isKnownTool` remontait la chaîne de prototype :
+  `constructor` passait pour un outil d'audit valide. Le test énumérait quatre
+  entrées invalides plutôt qu'une, dont ce nom-là — sans quoi le défaut passait.
+  `Object.hasOwn` sur toute table de correspondance en objet littéral.
+- **Les messages sont comparés en `toBe`, pas en `toContain`.** Ceux de §2 sont
+  contractuels à la ponctuation près (`Lockfile manquant: bun.lock ou bun.lockb
+  (cherché dans <cwd>)`) : un `toContain` laisserait passer une reformulation.
 - **`resolveAuditTarget` est la source de vérité unique.** Un `audit_path`
   commençant par `/` ou `~` **remplace** la racine git au lieu d'y être
   concaténé. C'est la divergence qui permettait de valider un chemin absolu comme

@@ -236,13 +236,20 @@ export const ticketsRoutes = {
 			}
 
 			const crypto = await import("node:crypto");
+			// `projectId` entre dans l'empreinte (N41). Deux projets partageant le
+			// même paquet et les mêmes CVE produisaient sinon le **même** hash, et
+			// `getTicketByHash` en renvoyait un arbitrairement : le refus 409 citait
+			// alors la référence d'un ticket appartenant à un autre projet, sur lequel
+			// le référent n'a aucune prise.
 			const contentHash = crypto
 				.createHash("sha256")
-				.update(JSON.stringify(issueData))
+				.update(JSON.stringify({ projectId, issueData }))
 				.digest("hex");
 
 			const { getTicketByHash } = await import("../db/tickets");
-			const existingTicket = getTicketByHash(contentHash);
+			// Recherche bornée au projet, en plus du hash : ceinture et bretelles,
+			// pour que la garde reste juste même si l'empreinte venait à collisionner.
+			const existingTicket = getTicketByHash(contentHash, projectId);
 
 			if (existingTicket) {
 				return Response.json(

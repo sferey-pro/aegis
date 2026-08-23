@@ -560,26 +560,52 @@ describe("lib/audit — ingestAudit (CI)", () => {
 		);
 	});
 
-	test("les CVE non traitées sont remontées comme nouvelles", async () => {
+	test("le premier envoi remonte tout comme nouveau (§2)", async () => {
+		// §2 : « Premier audit ou run précédent en erreur → tout est nouveau ». On
+		// ne peut pas affirmer qu'une faille était déjà là sans point de
+		// comparaison, et un rapport vide serait plus trompeur qu'un rapport
+		// complet.
 		sansReseau();
 		const p = projetSimple();
 		const { newCves } = await ingestAudit(p.id, sortieNpm());
 
 		expect(newCves).toHaveLength(1);
-		expect(newCves[0]?.occurrences[0]?.package).toBe("lodash");
-		expect(newCves[0]?.occurrences[0]?.status).toBe("pending");
+		expect(newCves[0]).toMatchObject({ package: "lodash" });
 	});
 
-	test("une CVE déjà triée n'est plus remontée", async () => {
-		// C'est ce qui rend l'étape CI utilisable en garde-fou : seul le non-traité
-		// doit faire échouer la construction.
+	test("une charge inchangée ne remonte plus rien (§2)", async () => {
+		// Le diff porte sur le run précédent, pas sur l'état de triage : une CI qui
+		// réingère la même charge doit rester verte.
 		sansReseau();
 		const p = projetSimple();
-		const premier = await ingestAudit(p.id, sortieNpm());
-		const ref = premier.newCves[0]?.cve as string;
-		upsertAnnotation(ref, p.id, { status: "not_affected" });
+		await ingestAudit(p.id, sortieNpm());
 
 		expect((await ingestAudit(p.id, sortieNpm())).newCves).toEqual([]);
+	});
+
+	test("une faille apparue depuis le dernier envoi est remontée (§2)", async () => {
+		sansReseau();
+		const p = projetSimple();
+		await ingestAudit(p.id, sortieNpm("lodash"));
+		const { newCves } = await ingestAudit(p.id, sortieNpm("axios", "CWE-918"));
+
+		expect(newCves).toHaveLength(1);
+		expect(newCves[0]).toMatchObject({ package: "axios" });
+	});
+
+	test("le triage n'éteint plus la porte CI (§2)", async () => {
+		// L'ingestion comptait auparavant les CVE **non triées** du projet, et non
+		// les nouvelles : une décision de triage suffisait à faire taire la porte,
+		// alors que §2 ne parle que du diff au run précédent. La forme retournée
+		// divergeait aussi — des `CveGroup` là où l'audit renvoie
+		// `{ref, package, severity}`.
+		sansReseau();
+		const p = projetSimple();
+		await ingestAudit(p.id, sortieNpm("lodash"));
+		upsertAnnotation("CVE-2020-8203", p.id, { status: "not_affected" });
+
+		const { newCves } = await ingestAudit(p.id, sortieNpm("axios", "CWE-918"));
+		expect(newCves.map((c) => c.package)).toEqual(["axios"]);
 	});
 
 	test("les failles d'un autre projet ne sont pas remontées", async () => {
@@ -590,13 +616,16 @@ describe("lib/audit — ingestAudit (CI)", () => {
 		const { newCves } = await ingestAudit(b.id, sortieNpm("axios", "CWE-918"));
 
 		expect(newCves).toHaveLength(1);
-		expect(newCves[0]?.occurrences[0]?.package).toBe("axios");
+		expect(newCves[0]).toMatchObject({ package: "axios" });
 	});
 
-	test("un projet ignoré ne remonte aucune nouvelle CVE — écart documenté", async () => {
-		// Le diff passe par `buildCveGroups`, qui exclut les projets ignorés : la
-		// porte CI d'un projet ignoré est donc toujours verte, même s'il vient
-		// d'ingérer une faille critique.
+	test("un projet ignoré remonte quand même ses nouvelles CVE (N45)", async () => {
+		// Le diff passait par `buildCveGroups`, l'agrégat global, qui **exclut les
+		// projets ignorés** — un filtre dont la finalité est l'affichage. La porte
+		// CI d'un projet ignoré était donc verte pour de bon, même en venant
+		// d'ingérer une faille critique. Combiné à N33, le scénario était
+		// atteignable sans intention : un `ignored: "false"` sérialisé en chaîne
+		// marquait le projet ignoré.
 		sansReseau();
 		const p = createProject({
 			name: "ignore",
@@ -608,7 +637,7 @@ describe("lib/audit — ingestAudit (CI)", () => {
 		const { run, newCves } = await ingestAudit(p.id, sortieNpm());
 
 		expect(run?.total).toBe(1);
-		expect(newCves).toEqual([]);
+		expect(newCves).toHaveLength(1);
 	});
 
 	/**
@@ -847,57 +876,5 @@ describe("lib/audit — ingestAudit (CI)", () => {
 		const { run } = await ingestAudit(p.id, sortieNpm());
 		expect(run?.status).toBe("vulnerable");
 		expect(run?.vulnerabilities[0]?.publishedAt).toBeNull();
-	});
-});
-
-/**
- * Contrats attendus — à activer au correctif.
- *
- * Chaque test ci-dessous énonce le comportement que `CONTEXT.md` demande, sur un
- * point où le code s'en écarte aujourd'hui. Ils sont marqués `test.failing` :
- * Bun exécute le corps et **attend son échec**, donc la suite reste verte tant
- * que le défaut existe.
- *
- * Le jour où le défaut est corrigé, le test se met à passer et Bun le signale en
- * rouge — « this test is marked as failing but it passed. Remove `.failing` if
- * tested behavior now works ». Il est donc impossible de corriger le code sans
- * reprendre le test.
- *
- * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
- * « écart documenté » correspondant, qui épinglait l'ancien comportement.
- */
-
-describe("contrats attendus — à activer au correctif", () => {
-	useTempDb("audit-contrats");
-
-	// N45 — le diff d'ingestion passe par `buildCveGroups`, qui exclut les projets
-	// ignorés. La porte CI d'un projet ignoré est donc toujours verte, même après
-	// ingestion d'une faille critique. Le filtre « ignoré » a une finalité
-	// d'affichage : il ne doit pas décider du résultat d'une porte CI.
-	test.failing("un projet ignoré remonte quand même ses nouvelles CVE (N45)", async () => {
-		sansReseau();
-		const p = createProject({
-			name: "ignore-contrat",
-			path: "/srv/ignore-contrat",
-			type: "node",
-			tool: "npm",
-			ignored: true,
-		});
-		const { run: r, newCves } = await ingestAudit(
-			p.id,
-			JSON.stringify({
-				vulnerabilities: {
-					lodash: {
-						name: "lodash",
-						severity: "high",
-						via: [
-							{ title: "Prototype pollution", url: "u", cwe: ["CWE-1321"] },
-						],
-					},
-				},
-			}),
-		);
-		expect(r?.total).toBe(1);
-		expect(newCves).toHaveLength(1);
 	});
 });

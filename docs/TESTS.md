@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1298 tests · 0 échec · 97 fichiers
+1313 tests · 0 échec · 97 fichiers
 ├── 421 composants (51 fichiers) — DOM, React, fetch simulé
-└── 877 fonctionnels (46 fichiers) — vrai serveur, vraie base, vrai git
+└── 892 fonctionnels (46 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -175,7 +175,7 @@ Invariants de sécurité vérifiés de bout en bout :
 
 Les tests de cette suite ne valident pas seulement ce qui marche : quand le comportement réel s'écarte de `CONTEXT.md`, le test **affirme le comportement réel** et son libellé porte la mention « écart documenté ». La régression involontaire est bloquée, et l'écart reste visible.
 
-**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 9 de ses entrées portent encore le marqueur 🧪 et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
+**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 3 de ses entrées portent encore le marqueur 🧪 (N8, N13, N18) et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
 
 Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant. **Dix sont corrigés à ce jour** (N32, N33, N34, N35, N36, N37, N38, N40, N42, N43) ; les autres restent épinglés :
 
@@ -198,7 +198,9 @@ Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlo
 
 Les huit autres écarts relevés par les tests confirmaient un défaut déjà inscrit : `N2` (snapshot, deux angles), `N5` (secrets en clair), `N7` (annotations globales), `N12` (cascade de tags), `N13` (`history-global`, deux angles) et `N18` (perte du `fixedIn`).
 
-**Cinq contrats sont passés du rouge au vert le 23/08/2026** : `N9` (la modale de triage reste ouverte et à jour), `N14` (aucune classe amputée), `C9`, `N2` (la restauration remplace vraiment la base) et `N7` (import transactionnel, relink par chemin). Leurs `describe` sont renommés « (corrigé) » et le test « écart documenté » correspondant a été supprimé, conformément à la marche à suivre ci-dessous.
+**Onze contrats sont passés du rouge au vert le 23/08/2026** : `N9`, `N14`, `C9`, `N2`, `N7`, puis le lot des petits épinglés — `N12` (cascade de tags), `N29` (une seule définition du dernier run), `N39` (bilan du lot observable), `N41` (empreinte de ticket par projet), `N44` (le cache survit à un rafraîchissement échoué) et `N45` (la porte CI d'un projet ignoré remonte ses CVE).
+
+**Deux d'entre eux ont été réécrits plutôt que satisfaits.** Le contrat de `N41` exigeait une contrainte `UNIQUE` sur `content_hash` — dangereuse en migration, et traitant le symptôme plutôt que la cause. Celui de `N45` supposait une porte CI sensible à l'état de triage, que `CONTEXT.md` §2 ne prévoit pas : le diff porte sur le run précédent, pas sur les décisions du référent. Un contrat épinglé dit ce qui a été **observé**, pas ce qui doit être. Leurs `describe` sont renommés « (corrigé) » et le test « écart documenté » correspondant a été supprimé, conformément à la marche à suivre ci-dessous.
 
 ### Corriger un écart épinglé
 

@@ -454,6 +454,30 @@ describe("POST /api/tickets/create — Jira", () => {
 		expect(appelsJira).toHaveLength(0);
 	});
 
+	test("deux projets aux charges identiques ne se bloquent pas (N41)", async () => {
+		// L'empreinte ne contenait pas le projet : deux projets partageant paquet et
+		// CVE produisaient le **même** hash, et le second recevait un 409 citant le
+		// ticket du premier — une référence sur laquelle son référent n'a aucune
+		// prise. Le projet entre désormais dans l'empreinte.
+		configurerJira();
+		const autre = createProject({
+			name: "jumeau",
+			path: "/srv/jumeau",
+			type: "node",
+			tool: "npm",
+		});
+		run([vuln()]);
+		run([vuln()], autre.id);
+
+		stubJira({ body: { key: "SEC-42" } });
+		expect((await creer()).status).toBe(200);
+
+		stubJira({ body: { key: "SEC-43" } });
+		const { status, data } = await creer({ projectId: autre.id });
+		expect(status).toBe(200);
+		expect(data.ticketRef).toBe("SEC-43");
+	});
+
 	test("un contenu différent n'est pas vu comme un doublon", async () => {
 		configurerJira();
 		run([vuln()]);

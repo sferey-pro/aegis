@@ -465,16 +465,35 @@ describe("lib/github — syncAdvisory", () => {
 		expect(getCachedAdvisory("CVE-2020-8203")?.severity).toBe("critical");
 	});
 
-	test("un échec de rafraîchissement vide le cache — écart documenté", async () => {
-		// La ligne est supprimée *avant* l'appel. Si celui-ci échoue, l'avis connu
-		// est perdu et l'enrichissement repart de zéro au prochain audit.
+	test("un échec réseau conserve l'avis déjà connu (N44)", async () => {
+		// La suppression précédait l'appel : hors ligne ou sur un 5xx, l'avis connu
+		// était définitivement perdu. « Rafraîchir » dégradait l'état quand il
+		// échouait — précisément le moment où il ne faut rien casser.
 		putCachedAdvisory("CVE-2020-8203", "critical", {
 			"npm:lodash": [{ range: "<4.17.21", patched: "4.17.21" }],
 		});
 		stubFetch({ throws: true });
 
 		expect(await syncAdvisory("CVE-2020-8203")).toBeNull();
-		expect(getCachedAdvisory("CVE-2020-8203")).toBeNull();
+		expect(getCachedAdvisory("CVE-2020-8203")?.severity).toBe("critical");
+	});
+
+	test("un quota dépassé conserve l'avis déjà connu (N44)", async () => {
+		putCachedAdvisory("CVE-2020-8203", "critical", {});
+		stubFetch({ status: 429 });
+
+		await syncAdvisory("CVE-2020-8203");
+		expect(getCachedAdvisory("CVE-2020-8203")?.severity).toBe("critical");
+	});
+
+	test("un avis introuvable conserve l'avis déjà connu (N44)", async () => {
+		// Un 404 peut venir d'une référence mal saisie côté outil d'audit : ce n'est
+		// pas une raison d'effacer ce que GitHub avait déjà donné.
+		putCachedAdvisory("CVE-2020-8203", "high", {});
+		stubFetch({ status: 404 });
+
+		await syncAdvisory("CVE-2020-8203");
+		expect(getCachedAdvisory("CVE-2020-8203")?.severity).toBe("high");
 	});
 });
 
@@ -522,18 +541,5 @@ describe("contrats attendus — à activer au correctif", () => {
 			originalFixedIn: "4.17.21",
 		});
 		expect(r.fixedIn).toBe("4.17.21");
-	});
-
-	// N44 — la suppression précède l'appel réseau : un rafraîchissement qui échoue
-	// perd l'avis connu. `putCachedAdvisory` fait déjà un ON CONFLICT, le DELETE
-	// est superflu.
-	test.failing("un rafraîchissement échoué conserve le cache (N44)", async () => {
-		putCachedAdvisory("CVE-2020-8203", "critical", {
-			"npm:lodash": [{ range: "<4.17.21", patched: "4.17.21" }],
-		});
-		stubFetch({ throws: true });
-
-		await syncAdvisory("CVE-2020-8203");
-		expect(getCachedAdvisory("CVE-2020-8203")?.severity).toBe("critical");
 	});
 });

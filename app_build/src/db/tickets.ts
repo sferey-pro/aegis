@@ -41,11 +41,29 @@ export function saveTicket(
   `).run(projectId, pkg, url, JSON.stringify(cves), contentHash || null);
 }
 
-export function getTicketByHash(hash: string): Ticket | undefined {
+/**
+ * Ticket portant cette empreinte, éventuellement borné à un projet.
+ *
+ * La colonne ne porte aucune contrainte `UNIQUE` — deux lignes peuvent stocker le
+ * même hash — et la requête renvoyait la première venue. Le refus 409 de la
+ * création citait donc potentiellement un ticket d'un autre projet (N41). Le
+ * `projectId` est désormais dans l'empreinte *et* filtrable ici, et un index
+ * couvre la colonne, interrogée par égalité.
+ */
+export function getTicketByHash(
+	hash: string,
+	projectId?: number,
+): Ticket | undefined {
 	const db = getDb();
 	const row = db
-		.query(`SELECT * FROM tickets WHERE content_hash = ?`)
-		.get(hash) as TicketRow | null;
+		.query(
+			projectId === undefined
+				? `SELECT * FROM tickets WHERE content_hash = ?`
+				: `SELECT * FROM tickets WHERE content_hash = ? AND project_id = ?`,
+		)
+		.get(
+			...(projectId === undefined ? [hash] : [hash, projectId]),
+		) as TicketRow | null;
 	if (!row) return undefined;
 	return {
 		...row,

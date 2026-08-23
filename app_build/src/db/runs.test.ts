@@ -358,15 +358,16 @@ describe("contrats attendus — à activer au correctif", () => {
 	});
 });
 
-describe("contrats attendus — N29", () => {
+describe("une seule définition du dernier run (N29)", () => {
 	useTempDb("runs-n29");
 
-	// N29 — `getLatestRun` respecte §4 (`ran_at DESC, id DESC`) mais la variante
-	// batch employée par `GET /api/projects` retient `MAX(id)`. Les deux divergent
-	// après une restauration de snapshot ou un import de runs hors ordre
-	// chronologique : la carte projet affiche un run, l'agrégation CVE en utilise
-	// un autre.
-	test.failing("les deux définitions du dernier run coïncident (N29)", () => {
+	test("les deux lectures coïncident quand les id contredisent les dates", () => {
+		// `getLatestRun` respectait §4 (`ran_at DESC, id DESC`) ; la variante batch
+		// employée par `GET /api/projects` retenait `MAX(id)`. Les deux coïncident
+		// tant que les id sont monotones avec le temps, mais divergent après une
+		// restauration de snapshot ou un import de runs hors ordre chronologique —
+		// et silencieusement : la carte projet affichait un run, l'agrégation CVE et
+		// la déduplication d'audit en utilisaient un autre.
 		const p = projet();
 		const ancienEnApparence = addRun(run(p.id, { total: 1 }));
 		const recentEnApparence = addRun(run(p.id, { total: 2 }));
@@ -377,5 +378,52 @@ describe("contrats attendus — N29", () => {
 		const parDate = getLatestRun(p.id);
 		const parLot = getLatestRunsByProjectIds([p.id])[p.id];
 		expect(parLot?.id).toBe(parDate?.id);
+		expect(parLot?.total).toBe(1);
+	});
+
+	test("à date égale, l'identifiant le plus grand gagne — des deux côtés", () => {
+		// Deux audits dans la même seconde : c'est le `id DESC` de §4 qui tranche.
+		const p = projet();
+		const premier = addRun(run(p.id, { total: 1 }));
+		const second = addRun(run(p.id, { total: 2 }));
+		daterRun(premier.id, "2026-01-01 10:00:00");
+		daterRun(second.id, "2026-01-01 10:00:00");
+
+		expect(getLatestRun(p.id)?.id).toBe(second.id);
+		expect(getLatestRunsByProjectIds([p.id])[p.id]?.id).toBe(second.id);
+	});
+
+	test("chaque projet reçoit son propre dernier run", () => {
+		const a = projet("a");
+		const b = projet("b");
+		addRun(run(a.id, { total: 1 }));
+		const dernierA = addRun(run(a.id, { total: 2 }));
+		const dernierB = addRun(run(b.id, { total: 3 }));
+
+		const lot = getLatestRunsByProjectIds([a.id, b.id]);
+		expect(lot[a.id]?.id).toBe(dernierA.id);
+		expect(lot[b.id]?.id).toBe(dernierB.id);
+	});
+
+	test("un projet sans run est simplement absent", () => {
+		const a = projet("a");
+		const b = projet("b");
+		addRun(run(a.id, { total: 1 }));
+
+		const lot = getLatestRunsByProjectIds([a.id, b.id]);
+		expect(lot[b.id]).toBeUndefined();
+	});
+
+	test("les identifiants passent en bindings, pas en concaténation", () => {
+		// `IN (${ids})` était construit par concaténation. Les valeurs viennent d'un
+		// `SELECT id FROM projects`, donc rien n'était exploitable en l'état, mais un
+		// appelant passant un `parseInt` non gardé produisait `IN (NaN)`, soit un
+		// 500 « no such column: NaN ».
+		expect(() => getLatestRunsByProjectIds([Number.NaN])).not.toThrow();
+		expect(getLatestRunsByProjectIds([Number.NaN])).toEqual({});
+	});
+
+	test("une liste vide ne déclenche aucune requête", () => {
+		expect(getLatestRunsByProjectIds([])).toEqual({});
 	});
 });

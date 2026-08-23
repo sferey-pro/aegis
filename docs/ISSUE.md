@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**26 entrées ouvertes (21 🔴) ou partielles (4 🟡) · 38 fermées · 9 épinglées par un test** (N8, N12, N13, N18, N29, N39, N41, N44, N45).
+**20 entrées ouvertes (16 🔴) ou partielles (4 🟡) · 44 fermées · 3 épinglées par un test** (N8, N13, N18).
 
 ### Priorité 1 — Sécurité
 
@@ -35,12 +35,12 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 |---|---|:-:|:-:|
 | [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | La restauration de snapshot ne restaure rien | 🟢 | ✅ |
 | [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours) | Annotations globales impossibles, import de config non transactionnel | 🟢 | ✅ |
-| [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) | La suppression d'un tag laisse des tags fantômes | 🔴 | 🧪 |
+| [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) | La suppression d'un tag laisse des tags fantômes | 🟢 | ✅ |
 | [N13](#n13-apihistory-global--deux-sévérités-perdues-pas-de-total-fuseau-local-days-non-validé) | `/api/history-global` : sévérités perdues, `days` non validé | 🔴 | 🧪 |
 | [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil) | Rate-limit ignoré, perte du `fixedIn` de l'outil | 🔴 | 🧪 |
 | [N20](#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile) | Aucune vérification préalable du chemin d'audit ni du lockfile | 🔴 | — |
-| [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) | `syncAdvisory` vide le cache avant de refetcher | 🔴 | 🧪 |
-| [N45](#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte) | La porte CI d'un projet ignoré est toujours verte | 🔴 | 🧪 |
+| [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) | `syncAdvisory` vide le cache avant de refetcher | 🟢 | ✅ |
+| [N45](#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte) | La porte CI d'un projet ignoré est toujours verte | 🟢 | ✅ |
 | [C4](#c4-apiconfigimport-ne-restaure-que-trois-sections-sur-cinq) | `/api/config/import` ne restaure que trois sections sur cinq | 🟡 | — |
 
 ### Priorité 3 — Robustesse & performance
@@ -54,10 +54,10 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N21](#n21-n1-systématiques-et-double-désérialisation-des-blobs) | N+1 systématiques, double désérialisation des blobs | 🟡 | — |
 | [N22](#n22-race-condition-sur-le-graphique-dhistorique) | Race condition sur le graphique d'historique | 🔴 | — |
 | [N26](#n26-setinterval-jamais-nettoyé-état-de-module-perdu-sous-bun---hot) | `setInterval` jamais nettoyé, état de module perdu sous `bun --hot` | 🔴 | — |
-| [N29](#n29-deux-définitions-du--dernier-run--coexistent) | Deux définitions du « dernier run » coexistent | 🔴 | 🧪 |
+| [N29](#n29-deux-définitions-du--dernier-run--coexistent) | Deux définitions du « dernier run » coexistent | 🟢 | ✅ |
 | [N30](#n30-le-contexte-projet-nenveloppe-pas-les-commandes-git-du-listing) | Le contexte projet n'enveloppe pas les commandes git du listing | 🔴 | — |
-| [N39](#n39-la-progression-du-lot-daudit-nest-pas-observable-après-coup) | La progression du lot d'audit n'est pas observable après coup | 🔴 | 🧪 |
-| [N41](#n41-content_hash-nest-pas-unique-en-base) | `content_hash` n'est pas unique en base | 🔴 | 🧪 |
+| [N39](#n39-la-progression-du-lot-daudit-nest-pas-observable-après-coup) | La progression du lot d'audit n'est pas observable après coup | 🟢 | ✅ |
+| [N41](#n41-content_hash-nest-pas-unique-en-base) | `content_hash` n'est pas unique en base | 🟢 | ✅ |
 | [C9](#c9-initdb-ignore-son-paramètre) | `initDb` ignore son paramètre | 🟢 | ✅ |
 
 ### Priorité 4 — UX & accessibilité
@@ -229,29 +229,24 @@ Conséquence : le panneau de triage envoyant un seul champ à la fois, **enregis
 **Correctif :** remplacer par un préprocesseur explicite acceptant `true`/`false`, `1`/`0`, `"true"`/`"false"`, et rejetant le reste.
 
 ### N44. `syncAdvisory` vide le cache avant de refetcher
-🔴 **Ouvert — relevé par la suite de tests** — `src/lib/github/index.ts` (fin de fichier)
+🟢 **Corrigé le 23/08/2026.** ✅ Trois tests dans `src/lib/github/index.test.ts` — échec réseau, quota dépassé, avis introuvable.
 
-```ts
-db.query("DELETE FROM advisory_cache WHERE id = ?").run(key.id);
-const { advisory } = await fetchAdvisory(key);   // ← peut échouer
-```
+La suppression de la ligne précédait l'appel réseau. Hors ligne, en quota dépassé ou sur un 5xx GitHub, l'avis déjà connu — sévérité, correctifs par branche, vecteur CVSS, date de publication — était **définitivement perdu**, et l'enrichissement repartait de zéro au prochain audit. L'action « rafraîchir » dégradait donc l'état quand elle échouait, c'est-à-dire précisément quand il ne faut rien casser.
 
-La suppression précède l'appel réseau. Hors ligne, en quota dépassé ou sur un 5xx GitHub, l'avis déjà connu — sévérité, correctifs par branche, vecteur CVSS, date de publication — est **définitivement perdu**, et l'enrichissement repart de zéro au prochain audit. L'action « rafraîchir » dégrade donc l'état quand elle échoue.
+**Correctif :** le `DELETE` est retiré, sans remplacement. Il était de surcroît superflu — `putCachedAdvisory` écrit avec un `ON CONFLICT` qui remplace la ligne existante.
 
-🧪 Épinglé dans `src/lib/github/index.test.ts` : « un échec de rafraîchissement vide le cache — écart documenté ».
-
-**Correctif :** ne supprimer qu'après un `fetchAdvisory` réussi, ou écrire par-dessus via le `ON CONFLICT` de `putCachedAdvisory` — qui fait déjà exactement cela, rendant le `DELETE` superflu.
 
 ### N45. La porte CI d'un projet ignoré est toujours verte
-🔴 **Ouvert — relevé par la suite de tests** — `src/lib/audit/index.ts` (fin d'`ingestAudit`), via `buildCveGroups`
+🟢 **Corrigé le 23/08/2026.** ✅ Six tests dans `src/lib/audit/index.test.ts`.
 
-`ingestAudit` calcule ses `newCves` en appelant `buildCveGroups()`, qui **exclut les projets ignorés** (`if (project.ignored) continue`). Un projet marqué « ignoré » qui ingère un rapport par `POST /api/ingest/:slug` obtient donc toujours `newCvesCount: 0`, quelle que soit la charge — le run est bien enregistré avec ses vulnérabilités, mais la porte CI ne signale rien.
+`ingestAudit` calculait ses `newCves` en appelant `buildCveGroups()`, l'agrégat global, qui **exclut les projets ignorés** — un filtre dont la finalité est l'affichage. Un projet marqué « ignoré » qui ingérait un rapport obtenait donc toujours `newCvesCount: 0`, quelle que soit la charge : le run était bien enregistré avec ses vulnérabilités, mais la porte CI restait verte pour de bon. Combiné à N33, le scénario était atteignable sans intention — un `ignored: "false"` sérialisé en chaîne marquait le projet ignoré.
 
-Combiné à [N33](#n33-zcoerceboolean-rend-la-chaîne-false-vraie), le scénario est atteignable sans intention : un client sérialisant `ignored: "false"` marque le projet ignoré, et sa CI passe au vert pour de bon.
+**Correctif :** le diff est calculé sur le run précédent **de ce projet**, via un `diffNewCves` partagé avec `runAudit`. Une seule implémentation pour les deux portes d'entrée, puisqu'elles répondent à la même question.
 
-🧪 Épinglé dans `src/lib/audit/index.test.ts` : « un projet ignoré ne remonte aucune nouvelle CVE — écart documenté », qui vérifie aussi que le run porte bien `total: 1`.
+Le passage par l'agrégat cachait deux écarts supplémentaires au contrat, refermés du même coup. `newCves` comptait les CVE **non triées** (`status === "pending"`) et non les **nouvelles**, alors que §2 définit le diff par rapport au run précédent, sans mention du triage : une décision de triage suffisait à faire taire la porte. Et la **forme retournée divergeait** — des `CveGroup` là où l'audit renvoie `{ref, package, severity}` sous le même nom de champ. Au passage, l'ingestion ne reconstruit plus tout l'agrégat du parc à chaque appel.
 
-**Correctif :** calculer le diff d'ingestion sur le run précédent du projet — comme le fait `runAudit` — plutôt qu'en passant par l'agrégat global, dont le filtre « ignoré » a une finalité d'affichage.
+> Conséquence à connaître : au **premier** envoi d'un projet, §2 impose de considérer tout comme nouveau — sans run précédent, on ne peut pas affirmer qu'une faille était déjà là. Une porte CI stricte échouera donc sur ce premier passage. `docs/CI_INGEST.md` le dit désormais explicitement ; il annonçait l'inverse.
+
 
 ### N1. GitHub est appelé pendant chaque audit
 🟢 **Corrigé le 21/08/2026.** Le chemin d'audit appelle `resolveFixedVersionFromCache`, qui lit le cache et n'émet aucune requête. 🧪 Épinglé par un **compteur d'appels sortants** : il ne suffit pas qu'un audit aboutisse hors ligne, il faut qu'il n'ait rien tenté. Trois tests couvrent l'enrichissement depuis le cache, la préservation du `fixedIn` de l'outil en cas d'absence, et le retri par gravité.
@@ -385,22 +380,14 @@ CONTEXT.md §2 et le récapitulatif d'endpoints spécifient `?force=1`. Le front
 **Correctif :** accepter `1` et `true`, et le documenter. Le forçage est le seul recours quand la fenêtre de fraîcheur masque une CVE nouvellement publiée : un forçage qui échoue en silence est plus dangereux qu'un forçage absent.
 
 ### N12. La suppression d'un tag laisse des tags fantômes définitifs
-🔴 **Ouvert — vérifié le 21/08/2026.** `src/db/tags.ts` ne contient aucune écriture sur `projects` : la cascade fonctionnelle est absente. La route renvoie bien 204. 🧪 Épinglé dans `src/db/tags.test.ts` : après `deleteTag`, `listTags()` est vide mais `getProjectById(p.id).tags` vaut toujours `["legacy"]`.
+🟢 **Corrigé le 23/08/2026.** ✅ Cinq tests dans `src/db/tags.test.ts`.
 
-**⊕1** — `src/db/tags.ts:31-34`, `src/routes/tags.ts:19-24`
+`deleteTag` ne supprimait que la ligne du catalogue. Or `CONTEXT.md` §9 spécifie une **cascade fonctionnelle** — « retire le nom de tous les projets le référençant (lit le nom, supprime la ligne, réécrit chaque projet concerné) ». Le nom restait donc dans le JSON `projects.tags`, continuait de s'afficher sur les cartes, mais disparaissait de la liste des filtres, qui vient de `/api/tags` : des projets étiquetés d'un tag inexistant, sur lequel plus aucun filtre ne pouvait porter. État irrécupérable sans éditer chaque projet à la main.
 
-```ts
-export function deleteTag(id: number): void {
-  const db = getDb();
-  db.query(`DELETE FROM tags WHERE id = ?`).run(id);
-}
-```
+**Correctif :** la cascade est applicative — les tags d'un projet sont un tableau JSON, pas une table de jonction, donc aucune clé étrangère n'est possible. Elle est **transactionnelle** : une suppression appliquée sans les réécritures recrée exactement le défaut. Le filtrage des projets concernés se fait en SQL (`json_each`) plutôt qu'en chargeant tout le parc.
 
-CONTEXT.md §9 spécifie une **cascade fonctionnelle** : « retire le nom de tous les projets le référençant (lit le nom, supprime la ligne, réécrit chaque projet concerné) ». Rien de tout cela. §1 le redit : « La suppression d'un tag du catalogue le retire automatiquement de tous les projets. »
+Le rapprochement reste **sensible à la casse**, conformément à §9 : supprimer « legacy » n'emporte pas « Legacy ». Un test le fixe explicitement — l'arbitrage inverse a déjà été tenté à tort une fois (voir N40 et N31).
 
-Conséquence : le nom reste dans le JSON `projects.tags`, continue de s'afficher sur les cartes projet (`src/pages/Projects.tsx:849`), mais disparaît de la liste des filtres — qui vient de `/api/tags` (`:155`). Des projets restent étiquetés d'un tag qui n'existe plus et sur lequel on ne peut plus filtrer. État irrécupérable sans édition manuelle de chaque projet.
-
-**Correctif :** implémenter la cascade dans une transaction (lecture du nom, suppression, réécriture des projets concernés), et renvoyer 204 comme spécifié.
 
 ### N13. `/api/history-global` : deux sévérités perdues, pas de `total`, fuseau local, `days` non validé
 🔴 **Ouvert — vérifié le 21/08/2026.** L'agrégation ne cumule toujours que quatre sévérités (`src/db/runs.ts:102-110`). 🧪 Épinglé deux fois, dans `src/db/runs.test.ts` et `src/routes/stats.test.ts` : `info`, `unknown` et `total` sont absents de chaque point, et `?days=abc` renvoie `[]` en 200. Le défaut de fuseau et l'absence de borne supérieure sur `days` ne sont **pas** couverts.
@@ -589,15 +576,14 @@ Le même mécanisme réinitialise `isProcessing`/`completedInBatch` alors qu'un 
 **Correctif :** enregistrer l'intervalle dans un singleton idempotent, l'annuler quand le `Set` de clients est vide, et externaliser l'état de la file hors du module rechargeable.
 
 ### N29. Deux définitions du « dernier run » coexistent
-🔴 **Ouvert — vérifié le 21/08/2026.** `MAX(id)` toujours présent dans la variante batch, et `IN (${ids})` toujours construit par concaténation (2 occurrences). 🧪 Les deux définitions sont épinglées séparément dans `src/db/runs.test.ts` : `getLatestRun` par `ran_at` puis `id`, `getLatestRunsByProjectIds` par projet — le test ne les met pas en contradiction, il fixe chacune.
+🟢 **Corrigé le 23/08/2026.** ✅ Six tests dans `src/db/runs.test.ts`.
 
-**⊕1** — `src/db/runs.ts:96-108` vs `:110-123`
+`getLatestRun` respectait §4 (`ORDER BY ran_at DESC, id DESC`) ; la variante batch employée par `GET /api/projects` retenait `MAX(id)`. Les deux coïncident tant que les identifiants sont monotones avec le temps, mais divergent après une restauration de snapshot ou un import de runs hors ordre chronologique — **et silencieusement** : la carte projet affichait un run, l'agrégation CVE et la déduplication d'audit en utilisaient un autre.
 
-`getLatestRun` respecte §4 : `ORDER BY ran_at DESC, id DESC`. La variante batch employée par `GET /api/projects` retient `MAX(id)`. Les deux coïncident tant que les `id` sont monotones avec le temps — mais divergent après une restauration de snapshot ou un import de runs hors ordre chronologique, produisant une incohérence entre le run affiché sur la carte projet et celui utilisé par l'agrégation CVE et la déduplication d'audit.
+**Correctif :** la variante batch passe par `ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY ran_at DESC, id DESC)`, seul moyen de trier sur deux colonnes dans l'agrégat. Une seule définition, écrite une seule fois.
 
-Défaut connexe dans la même fonction : `IN (${ids})` est construit par concaténation de chaîne (`:113`). Les valeurs viennent aujourd'hui exclusivement d'un `SELECT id FROM projects`, donc non exploitable en l'état — mais un futur appelant passant un `parseInt` non gardé provoquerait un 500 (`IN (NaN)` → `no such column: NaN`).
+Défaut connexe refermé dans le même mouvement : `IN (${ids})` était construit par concaténation de chaîne. Les valeurs venaient d'un `SELECT id FROM projects`, donc rien n'était exploitable en l'état, mais un appelant passant un `parseInt` non gardé produisait `IN (NaN)`, soit un 500 « no such column: NaN ». Les identifiants passent en bindings, et un test le vérifie avec `Number.NaN`.
 
-**Correctif :** aligner la variante batch sur `ran_at DESC, id DESC`, et passer les identifiants en bindings.
 
 ### N30. Le contexte projet n'enveloppe pas les commandes git du listing
 🔴 **Ouvert — vérifié le 21/08/2026.** 0 occurrence de `projectContext` dans le handler `GET /api/projects`.
@@ -663,24 +649,24 @@ Aucune des quatre routes de suppression ne vérifie l'existence de la ligne : `D
 **Correctif :** `ORDER BY created_at DESC, id DESC`.
 
 ### N39. La progression du lot d'audit n'est pas observable après coup
-🔴 **Ouvert — relevé par la suite de tests** — `src/lib/audit/queue.ts`
+🟢 **Corrigé le 23/08/2026.** ✅ Cinq tests dans `src/lib/audit/queue.test.ts`.
 
-À la fin du lot, `enqueueGlobalAudit` remet `completedInBatch` et `totalInBatch` à zéro. Un client qui sonde `/api/audit/status` après le dernier projet ne lit donc jamais « 2 / 2 » : il lit `progress: 0, total: 1`, indistinguable d'un état au repos. Impossible de savoir, depuis l'API, si un lot vient de se terminer ou n'a jamais eu lieu.
+À la fin du lot, `enqueueGlobalAudit` remettait `completedInBatch` et `totalInBatch` à zéro. Un client qui sondait `/api/audit/status` après le dernier projet lisait `progress: 0, total: 1` — indistinguable d'un état au repos. Impossible de savoir, depuis l'API, si un lot venait de se terminer ou n'avait jamais eu lieu, donc impossible d'afficher un compte-rendu final sans sonder assez vite pour attraper le lot en vol.
 
-🧪 Épinglé dans `src/lib/audit/queue.test.ts` : « la progression n'est pas observable après coup — écart documenté ».
+**Correctif :** `lastCompleted`, `lastTotal` et `lastFinishedAt` conservent le bilan du dernier lot terminé. Trois `null` avant tout lot, et non des zéros : un bilan à zéro se lirait « un lot a tourné et n'a rien trouvé », soit précisément la confusion que le correctif lève. `progress`/`total` gardent leur sémantique « en cours ».
 
-**Correctif :** conserver le dernier état terminé (`lastCompleted`, `lastTotal`, `finishedAt`) plutôt que de le remettre à zéro — à traiter avec [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire), dont le compte-rendu final a le même besoin.
+`resetAuditHistory()` est appelé par `POST /api/config/reset` : un bilan qui survit à la suppression des projets qu'il décomptait n'a plus de sens.
+
 
 ### N41. `content_hash` n'est pas unique en base
-🔴 **Ouvert — relevé par la suite de tests** — `src/db/index.ts` (table `tickets`), `src/db/tickets.ts`
+🟢 **Corrigé le 23/08/2026.** ✅ Trois tests dans `src/db/tickets.test.ts` et un test de route dans `src/routes/tickets.test.ts`.
 
-`content_hash` est le garde-fou anti-doublon de la création de tickets Jira : `POST /api/tickets/create` hache la charge et refuse en 409 si `getTicketByHash` trouve une correspondance. Mais la colonne ne porte **aucune contrainte `UNIQUE`**, et `getTicketByHash` fait un `SELECT … LIMIT`-implicite : deux projets peuvent stocker le même hash, et la fonction en renvoie un **arbitrairement**. Le message d'erreur cite alors la référence d'un ticket appartenant potentiellement à un autre projet.
+`content_hash` est le garde-fou anti-doublon de la création de tickets Jira : `POST /api/tickets/create` hache la charge et refuse en 409 si `getTicketByHash` trouve une correspondance. Mais le hash portait sur la seule charge Jira, donc **deux projets partageant paquet et CVE produisaient la même empreinte**. `getTicketByHash` en renvoyait un arbitrairement : le second projet recevait un 409 citant la référence d'un ticket appartenant au premier, sur lequel son référent n'a aucune prise.
 
-Défaut connexe déjà noté en [N21](#n21-n1-systématiques-et-double-désérialisation-des-blobs) : la colonne n'a pas d'index non plus, alors qu'elle est interrogée par égalité.
+**Correctif :** `projectId` entre dans l'empreinte — deux projets ne peuvent plus collisionner — et `getTicketByHash` accepte une portée projet, en ceinture et bretelles. Un index couvre la colonne, interrogée par égalité (défaut connexe noté en N21).
 
-🧪 Épinglé dans `src/db/tickets.test.ts` : « le hash n'est pas unique en base — écart documenté ».
+> **Le contrat épinglé proposait autre chose : une contrainte `UNIQUE` sur la colonne, qui aurait levé sur collision.** Écarté pour deux raisons. D'abord la contrainte traite le symptôme et non la cause : avec le projet dans l'empreinte, la collision n'existe plus. Ensuite l'ajout est un danger de migration — `CREATE UNIQUE INDEX` échoue sur une base portant déjà des doublons produits par la version fautive, et l'échec se produirait dans `initDb`, donc au démarrage. Le correctif de l'entrée prescrivait déjà la voie retenue.
 
-**Correctif :** inclure `project_id` dans le hash — deux projets ne devant jamais produire la même empreinte — et ajouter un index sur la colonne.
 
 ### N42. `commit_sha` peut valoir la chaîne `"HEAD"`
 🟢 **Corrigé le 22/08/2026** — relevé par la suite de tests — `src/lib/git/index.ts` (`getGitInfo`)
@@ -927,7 +913,9 @@ Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points :
 6. ~~**C9** puis **N2** et **N7**~~ — ✅ **faits le 23/08/2026.** L'outil affichait « restauration effectuée » sans rien restaurer. Le correctif a débordé : quatre fuites d'instructions préparées, invisibles jusque-là, empêchaient la base de se fermer — voir l'encadré de N2.
 7. ~~**Le lot bon marché**~~ — ✅ **neuf sur dix faits le 22/08/2026.** N35 a dépassé son périmètre en révélant que l'import de configuration passait des données non validées à `createProject`. **N40 a été annulé** : le contrat spécifie la sensibilité à la casse, ce n'était pas un défaut — voir son entrée.
 8. ~~**N9** et **N14**~~ — ✅ **faits le 23/08/2026.** Les deux défauts qui rendaient l'écran de triage inutilisable en pratique. N14 a dépassé son périmètre : le `grep` sur les préfixes amputés a aussi révélé des valeurs arbitraires tronquées et quatre voiles morts, et l'absence de tokens sombres rendait l'application à moitié illisible sur un système en thème sombre.
-9. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — arbitrage du contrat. À trancher avant d'engager le reste : plusieurs entrées sont des fonctionnalités délibérément remplacées, pas des oublis.
+9. ~~**Le lot des petits épinglés**~~ — ✅ **fait le 23/08/2026** : N12, N29, N39, N41, N44, N45. Trois d'entre eux ont débordé de leur périmètre annoncé — N29 emportait une concaténation SQL, N41 un index manquant, N45 deux écarts de sémantique et de forme sur `newCves`. Deux contrats épinglés ont dû être **réécrits plutôt que satisfaits** : celui de N41 exigeait une contrainte `UNIQUE` dangereuse en migration, celui de N45 supposait une porte CI sensible au triage que §2 ne prévoit pas.
+10. **[N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire)** — « Tout auditer » : séquentiel, périmètre faux, non annulable, et le verrou serveur se contredit selon la porte d'entrée (429 d'un côté, 500 de l'autre). Le plus gros morceau restant.
+11. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — arbitrage du contrat. À trancher avant d'engager le reste : plusieurs entrées sont des fonctionnalités délibérément remplacées, pas des oublis.
 
 ### Comment corriger un défaut épinglé
 

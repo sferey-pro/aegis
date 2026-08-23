@@ -243,6 +243,11 @@ export const settingsRoutes = {
 				);
 			}
 
+			// Le bilan du dernier lot décomptait des projets qui n'existent plus :
+			// l'écran l'afficherait comme s'il venait d'avoir lieu sur le parc actuel.
+			const { resetAuditHistory } = await import("../lib/audit/queue");
+			resetAuditHistory();
+
 			const { resetConfiguration } = await import("../db/reset");
 			const { GITHUB_CONFIG_KEYS } = await import("../db/advisories");
 			return Response.json({

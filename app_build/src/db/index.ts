@@ -283,6 +283,15 @@ function initDb(database: Database) {
 	ajouteColonne("reports", "details JSON DEFAULT '[]'");
 	ajouteColonne("tickets", "content_hash TEXT");
 
+	// Index sur `content_hash`, interrogée par égalité à chaque création de ticket
+	// pour la garde anti-doublon (N41, et N21 sur les N+1). Créé après la migration
+	// de colonne, sans quoi la colonne n'existerait pas encore sur une base
+	// antérieure.
+	database.exec(
+		`CREATE INDEX IF NOT EXISTS idx_tickets_content_hash
+		   ON tickets (content_hash)`,
+	);
+
 	/**
 	 * Purge des occurrences écrites sous l'ancienne clé d'identité (N10).
 	 *

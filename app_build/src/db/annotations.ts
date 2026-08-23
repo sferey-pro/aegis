@@ -65,12 +65,25 @@ export function setAnnotationFix(
 	return upsertAnnotation(cve, projectId, { fixedIn });
 }
 
+/**
+ * Annotations d'un projet.
+ *
+ * La requête interrogeait aussi `project_id = -1`, une convention d'« annotation
+ * globale » qui se superposait à tous les projets. Cette convention était
+ * **inatteignable** : la colonne porte une clé étrangère vers `projects` et
+ * `PRAGMA foreign_keys` est actif, donc l'insertion d'un `-1` levait. La branche
+ * n'a donc jamais rien renvoyé (défaut N7).
+ *
+ * Elle est retirée plutôt que matérialisée par un projet fictif : `CONTEXT.md`
+ * §7 fixe l'unité de triage au couple **(CVE, projet)** et ne mentionne aucune
+ * portée globale. Garder la lecture aurait entretenu l'illusion d'une
+ * fonctionnalité, et le `ORDER BY project_id DESC` qui servait à faire gagner le
+ * projet sur le global n'a plus d'objet.
+ */
 export function getAnnotationsForProject(projectId: number): Annotation[] {
 	const db = getDb();
 	return db
-		.query(
-			`SELECT * FROM annotations WHERE project_id = ? OR project_id = -1 ORDER BY project_id DESC`,
-		)
+		.query(`SELECT * FROM annotations WHERE project_id = ?`)
 		.all(projectId) as Annotation[];
 }
 

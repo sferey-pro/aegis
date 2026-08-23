@@ -36,7 +36,11 @@ export function createReport(data: {
 	details: ReportDetail[];
 }): Report {
 	const db = getDb();
-	const stmt = db.prepare(`
+	// `query` et non `prepare` : `prepare` crée une instruction par appel et ne la
+	// finalise jamais. Chaque instruction vivante empêche la fermeture de la base,
+	// et un `closeDb()` qui ne ferme pas laisse le fichier verrouillé — c'est ce
+	// qui faisait échouer la restauration sur « database is locked ».
+	const stmt = db.query(`
     INSERT INTO reports (projects_audited, total_vulnerabilities, counts, details)
     VALUES ($projects, $total, $counts, $details)
     RETURNING *
@@ -62,10 +66,9 @@ export function getReports(): Report[] {
 	// deux audits lancés dans la même seconde remontaient dans un ordre indéfini —
 	// or c'est cet ordre qui détermine quel compte-rendu l'écran Rapports compare
 	// au précédent. Même règle que `getLatestRun` pour les runs.
-	const stmt = db.prepare(
-		`SELECT * FROM reports ORDER BY created_at DESC, id DESC`,
-	);
-	const rows = stmt.all() as ReportRow[];
+	const rows = db
+		.query(`SELECT * FROM reports ORDER BY created_at DESC, id DESC`)
+		.all() as ReportRow[];
 
 	return rows.map((r) => ({
 		...r,
@@ -80,6 +83,6 @@ export function deleteReport(id: number): boolean {
 	// 404 sur un identifiant inconnu. Sans cela, l'interface ne distinguait
 	// pas « supprimé » de « n'existait pas », ce qui masquait une
 	// désynchronisation entre la liste affichée et l'état réel.
-	const info = db.prepare(`DELETE FROM reports WHERE id = ?`).run(id);
+	const info = db.query(`DELETE FROM reports WHERE id = ?`).run(id);
 	return info.changes > 0;
 }

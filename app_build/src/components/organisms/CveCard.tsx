@@ -267,16 +267,12 @@ export function CveCard({
 					<Check className="w-3.5 h-3.5" /> Confirmé
 				</Button>
 				<Button
-					variant={
-						cveObj.status === "ignored" && !cveObj.isGlobal
-							? "outline"
-							: "ghost"
-					}
+					variant={cveObj.status === "ignored" ? "outline" : "ghost"}
 					size="sm"
 					onClick={() => {
 						updateStatus(cveObj.cve, projectId, "ignored");
 					}}
-					className={`text-xs font-medium flex items-center gap-1.5 ${cveObj.status === "ignored" && !cveObj.isGlobal ? "bg-orange-500/20 text-orange-500 border-orange-500/50" : ""}`}
+					className={`text-xs font-medium flex items-center gap-1.5 ${cveObj.status === "ignored" ? "bg-orange-500/20 text-orange-700 border-orange-500/50 dark:text-orange-300" : ""}`}
 					title="Faux positif pour ce projet"
 				>
 					<X className="w-3.5 h-3.5" /> Faux positif

@@ -26,7 +26,6 @@ function occ(over: Partial<CveOccurrence> = {}): CveOccurrence {
 		firstSeenAt: null,
 		publishedAt: null,
 		isBaseline: false,
-		isGlobal: false,
 		...over,
 	};
 }

@@ -127,15 +127,34 @@ describe("db/annotations", () => {
 		);
 	});
 
-	test("l'annotation globale (project_id = -1) est inatteignable — écart documenté", () => {
-		// `getAnnotationsForProject` interroge `project_id = -1` pour superposer des
-		// annotations globales aux annotations projet. Mais `annotations.project_id`
-		// porte une clé étrangère vers `projects(id)` et `PRAGMA foreign_keys` est
-		// actif : aucune ligne -1 ne peut exister. La branche est donc morte, et
-		// une décision « ignorer partout » n'est pas exprimable.
+	test("une annotation doit viser un projet existant (N7)", () => {
+		// `annotations.project_id` porte une clé étrangère vers `projects(id)` et
+		// `PRAGMA foreign_keys` est actif : aucun identifiant fantaisiste ne peut
+		// être enregistré. C'est ce qui rendait inatteignable la convention
+		// `project_id = -1` — l'« annotation globale ». Elle a été retirée du code
+		// plutôt que matérialisée : CONTEXT.md §7 fixe l'unité de triage au couple
+		// (CVE, projet) et ne prévoit aucune portée globale.
 		expect(() =>
 			upsertAnnotation("CVE-GLOBAL", -1, { status: "ignored" }),
 		).toThrow(/FOREIGN KEY/i);
+	});
+
+	test("la lecture d'un projet ne remonte que ses propres annotations (N7)", () => {
+		// La requête interrogeait aussi `project_id = -1`, une branche qui n'a
+		// jamais rien pu renvoyer. Sa suppression ne doit rien changer au résultat
+		// pour un projet réel — c'est le sens de « code mort ».
+		const a = projet();
+		const b = createProject({
+			name: "autre",
+			path: "/srv/autre",
+			type: "node",
+			tool: "npm",
+		});
+		upsertAnnotation("CVE-A", a.id, { status: "confirmed" });
+		upsertAnnotation("CVE-B", b.id, { status: "ignored" });
+
+		expect(getAnnotationsForProject(a.id).map((x) => x.cve)).toEqual(["CVE-A"]);
+		expect(getAnnotationsForProject(b.id).map((x) => x.cve)).toEqual(["CVE-B"]);
 	});
 
 	test("supprimer le projet supprime ses annotations en cascade", () => {

@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
+import { dbPath } from "./index";
 
 /**
  * Base séparée pour tout ce qui concerne les avis GitHub.
@@ -29,7 +30,7 @@ let db: Database | null = null;
 /** Chemin du fichier d'avis, dérivé de celui de la base principale. */
 export function advisoryDbPath(): string {
 	if (process.env.ADVISORY_DB_PATH) return process.env.ADVISORY_DB_PATH;
-	const principal = process.env.DB_PATH || "audit.sqlite";
+	const principal = dbPath();
 	return principal.replace(/(\.sqlite|\.db)?$/, "-advisories.sqlite");
 }
 
@@ -118,7 +119,7 @@ export function getAllGithubConfig(): Record<string, string> {
  * transaction SQLite, donc atomique.
  */
 function migrerDepuisBasePrincipale(database: Database): void {
-	const principal = process.env.DB_PATH || "audit.sqlite";
+	const principal = dbPath();
 	if (!existsSync(principal)) return;
 
 	database.exec(

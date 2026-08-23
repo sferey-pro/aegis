@@ -58,7 +58,6 @@ export interface PackageGroupCve
 		| "firstSeenAt"
 		| "publishedAt"
 		| "isBaseline"
-		| "isGlobal"
 	> {
 	/** Clé du groupe CVE : la référence, ou le libellé de repli. */
 	cve: string;

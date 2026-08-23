@@ -1,5 +1,5 @@
 import { getAllGithubConfig } from "./advisories";
-import { getDb } from "./index";
+import { getDb, runInTransaction } from "./index";
 
 export function getSetting(key: string, defaultValue = ""): string {
 	const db = getDb();
@@ -35,18 +35,27 @@ export function getAllSettings(): Record<string, string> {
 
 export function setAllSettings(settings: Record<string, string>): void {
 	const db = getDb();
-	const stmt = db.prepare(`
+	// `query` et non `prepare` : `query` met l'instruction en cache sur la
+	// connexion, `prepare` en crée une nouvelle à chaque appel et laisse à
+	// l'appelant le soin de la finaliser — ce qui n'était pas fait. Une
+	// instruction non finalisée retient un verrou de lecture sur le fichier :
+	// inoffensif tant que rien n'englobe l'appel, mais dès que cette fonction est
+	// appelée depuis une transaction extérieure (import de configuration), le
+	// verrou d'écriture n'est plus jamais relâché et la base reste bloquée jusqu'à
+	// la fin du process. Diagnostiqué sur un `SQLITE_BUSY` au `PRAGMA
+	// journal_mode` de la connexion suivante.
+	const stmt = db.query<unknown, { $key: string; $value: string }>(`
     INSERT INTO settings (key, value) 
     VALUES ($key, $value)
     ON CONFLICT(key) DO UPDATE SET value = $value
   `);
-	db.transaction(() => {
+	runInTransaction(() => {
 		for (const [key, value] of Object.entries(settings)) {
 			if (value !== undefined && value !== null) {
 				stmt.run({ $key: key, $value: value.toString() });
 			}
 		}
-	})();
+	});
 }
 
 /**

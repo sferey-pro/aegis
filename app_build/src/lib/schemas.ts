@@ -291,10 +291,22 @@ const importedProjectSchema = z
 	// réimportable au premier ajout de colonne.
 	.loose();
 
+/**
+ * Annotation dans un fichier d'import.
+ *
+ * `path` est la forme spécifiée (CONTEXT.md §12) : le relink se fait par chemin
+ * de projet, ce qui rend l'export rejouable sur une autre base. `project_id`
+ * reste accepté pour les fichiers produits par les versions antérieures, qui ne
+ * portaient que lui — les refuser rendrait tout export existant inutilisable.
+ *
+ * Les deux sont donc optionnels ici, et c'est l'import qui écarte les lignes dont
+ * aucun ne résout : le schéma garantit la lisibilité, pas la résolvabilité.
+ */
 const importedAnnotationSchema = z
 	.object({
 		cve: z.string().trim().min(1, "CVE requise"),
-		project_id: z.coerce.number().int(),
+		path: z.string().trim().optional(),
+		project_id: z.coerce.number().int().optional(),
 		status: annotationStatusSchema.catch("pending").default("pending"),
 		note: z.string().optional(),
 		fixed_in: z.string().nullish(),

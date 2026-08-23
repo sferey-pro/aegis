@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 414 tests composants — happy-dom actif
-bun run test:api    # 852 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 421 tests composants — happy-dom actif
+bun run test:api    # 877 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1266 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1298 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -116,10 +116,12 @@ Ce sont des garde-fous du projet, pas des conseils génériques — en casser un
 
 ## Pièges connus
 
-- `src/db/backup.ts` résout `backup.sqlite` et `aegis.db` depuis le **répertoire de travail du process**, sans tenir compte de `DB_PATH`, alors que `getDb()` cible par défaut `audit.sqlite`. La restauration ne vise donc pas le fichier réellement ouvert. Vérifiez le chemin avant de compter sur elle.
-- `restoreSnapshot()` appelle volontairement `process.exit(0)` et s'appuie sur `bun --hot`/le gestionnaire de process pour redémarrer. **Conséquence pour les tests** : le chemin de restauration réussie n'est pas exerçable, il tuerait l'exécuteur. Seul son refus est testé.
-- `restoreSnapshot()` ne reçoit jamais le nom de fichier que `restoreBodySchema` exige : le champ `file` ne sert qu'à valider, on restaure toujours `backup.sqlite`.
-- Les annotations globales (`project_id = -1`) sont **inatteignables** : la colonne porte une clé étrangère vers `projects` et `PRAGMA foreign_keys` est actif. La branche qui les lit dans l'agrégateur est du code mort et `CveOccurrence.isGlobal` vaut toujours `false`.
+- **`dbPath()` de `src/db/index.ts` est la source de vérité unique du chemin de base.** Ne recomposez jamais `process.env.DB_PATH || "audit.sqlite"` ailleurs : c'est cette duplication qui faisait sauvegarder et restaurer un `aegis.db` que personne n'ouvrait (défaut N2). La restauration suit `CONTEXT.md` §12 en **sept étapes dont l'ordre est la garantie** — valider le nom avant de toucher au disque, prendre le filet `pre-restore-*` avant de fermer, fermer avant de copier, purger `-wal`/`-shm` avant de laisser rouvrir. Pas de `process.exit` : la connexion est paresseuse, la requête suivante ouvre la base restaurée.
+- ⚠️ **`db.query()` met l'instruction en cache, `db.prepare()` non.** `prepare` crée une instruction par appel et laisse à l'appelant le soin de la finaliser ; une instruction vivante **empêche la fermeture de la base**, et `close()` diffère alors silencieusement. Le fichier reste verrouillé et la connexion suivante échoue en `SQLITE_BUSY` **dès son `PRAGMA journal_mode`** — symptôme observé sur le chemin de restauration, une dizaine de requêtes après le démarrage. Même piège avec `query()` dont le SQL contient une valeur interpolée : la clé de cache change à chaque appel. Utilisez `query()` sur du SQL statique, `exec()` sinon (`VACUUM INTO`).
+- **`PRAGMA busy_timeout` est posé en premier** dans `getDb()`, avant `journal_mode`. Le passage en WAL demande un verrou exclusif ; sans délai de grâce déjà en place, ce tout premier PRAGMA échoue immédiatement au lieu d'attendre.
+- **Pour une écriture multi-étapes, passez par `runInTransaction`** (`src/db/index.ts`) et non `getDb().transaction(fn)` : le wrapper de `bun:sqlite` recompile son jeu d'instructions à chaque construction sans les finaliser, donc un wrapper construit par requête fuit un jeu par appel. `runInTransaction` le mémorise par instance de base et gère la ré-entrance.
+- **La notion d'annotation globale (`project_id = -1`) a été retirée** le 23/08/2026, pas réparée : la colonne porte une clé étrangère vers `projects`, donc aucune ligne `-1` n'a jamais pu exister, et `CONTEXT.md` §7 fixe l'unité de triage au couple **(CVE, projet)**. Ne la réintroduisez pas — ni la lecture `OR project_id = -1`, ni le champ `isGlobal`.
+- **`POST /api/config/import` est transactionnel et relie les annotations par `path`** (§12), pas par `project_id` : les identifiants viennent d'un auto-incrément, donc un export porteur du seul `project_id` n'est rejouable que sur la base qui l'a produit. L'export émet les deux, l'import préfère le chemin, et une cible non résolvable est **ignorée** — pas fatale. La réponse porte les compteurs `{projectsAdded, annotationsAdded, annotationsSkipped}`.
 - `POST /api/annotations` **efface** `note` et `fixedIn` quand ils sont omis : le schéma de la route applique ses valeurs par défaut avant que la logique « préserver les champs non fournis » de `upsertAnnotation` puisse agir. Enregistrer un statut détruit la note saisie à la main.
 - La route `"/api/*"` de `src/index.ts` répond 404 en JSON pour tout chemin d'API non capté. Elle doit rester **avant** le fourre-tout `"/*"` : l'ordre de déclaration décide, et l'inverser ferait à nouveau servir `index.html` en 200 sur un appel mal orthographié.
 - ⚠️ Une entrée d'`ISSUE.md` marquée « écart documenté » établit que le comportement a été **observé**, pas qu'il est fautif. **Confrontez toujours à `CONTEXT.md` avant de corriger** : la sensibilité à la casse des noms de tags a été « corrigée » à tort, alors que §9 la spécifie, avec une migration destructive à la clé.

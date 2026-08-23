@@ -243,7 +243,6 @@ export const Triage = React.memo(function Triage() {
 					firstSeenAt: occ.firstSeenAt,
 					publishedAt: occ.publishedAt,
 					isBaseline: occ.isBaseline,
-					isGlobal: occ.isGlobal,
 				});
 			});
 		});

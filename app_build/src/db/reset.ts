@@ -1,5 +1,5 @@
 import { existsSync, rmSync } from "node:fs";
-import { closeDb, getDb } from "./index";
+import { closeDb, dbPath, getDb } from "./index";
 
 /**
  * Remise à zéro de la configuration : **suppression du fichier principal**.
@@ -29,7 +29,7 @@ export interface ResetResult {
 }
 
 export function resetConfiguration(): ResetResult {
-	const path = process.env.DB_PATH || "audit.sqlite";
+	const path = dbPath();
 
 	// Compté avant fermeture : après, il n'y a plus de base à interroger. Sert
 	// uniquement au compte rendu affiché à l'utilisateur.

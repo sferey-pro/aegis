@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**29 entrées ouvertes (23 🔴) ou partielles (5 🟡) · 35 fermées · 10 épinglées par un test.**
+**26 entrées ouvertes (21 🔴) ou partielles (4 🟡) · 38 fermées · 9 épinglées par un test** (N8, N12, N13, N18, N29, N39, N41, N44, N45).
 
 ### Priorité 1 — Sécurité
 
@@ -33,8 +33,8 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 | ID | Sujet | État | Test |
 |---|---|:-:|:-:|
-| [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | La restauration de snapshot ne restaure rien | 🔴 | 🧪 |
-| [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours) | Annotations globales impossibles, import de config non transactionnel | 🔴 | 🧪 |
+| [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) | La restauration de snapshot ne restaure rien | 🟢 | ✅ |
+| [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours) | Annotations globales impossibles, import de config non transactionnel | 🟢 | ✅ |
 | [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) | La suppression d'un tag laisse des tags fantômes | 🔴 | 🧪 |
 | [N13](#n13-apihistory-global--deux-sévérités-perdues-pas-de-total-fuseau-local-days-non-validé) | `/api/history-global` : sévérités perdues, `days` non validé | 🔴 | 🧪 |
 | [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil) | Rate-limit ignoré, perte du `fixedIn` de l'outil | 🔴 | 🧪 |
@@ -58,7 +58,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N30](#n30-le-contexte-projet-nenveloppe-pas-les-commandes-git-du-listing) | Le contexte projet n'enveloppe pas les commandes git du listing | 🔴 | — |
 | [N39](#n39-la-progression-du-lot-daudit-nest-pas-observable-après-coup) | La progression du lot d'audit n'est pas observable après coup | 🔴 | 🧪 |
 | [N41](#n41-content_hash-nest-pas-unique-en-base) | `content_hash` n'est pas unique en base | 🔴 | 🧪 |
-| [C9](#c9-initdb-ignore-son-paramètre) | `initDb` ignore son paramètre | 🔴 | — |
+| [C9](#c9-initdb-ignore-son-paramètre) | `initDb` ignore son paramètre | 🟢 | ✅ |
 
 ### Priorité 4 — UX & accessibilité
 
@@ -280,28 +280,26 @@ Une requête HTTP sérialisée par vulnérabilité à chaque cache-miss, sur le 
 3. Solution intermédiaire acceptable si l'enrichissement automatique doit être conservé : ne consulter que le **cache local**, sans aucun accès réseau, et propager `rateLimited` pour interrompre la boucle.
 
 ### N2. La restauration de snapshot ne restaure rien
-🔴 **Ouvert — vérifié le 21/08/2026.** `src/db/backup.ts` ne contient aucune occurrence de `DB_PATH`, `wal`, `shm` ni `pre-restore` : ni la cible, ni la purge, ni le filet de sécurité. 🧪 Épinglé sous trois angles : `src/db/backup.test.ts` (le chemin ignore `DB_PATH`) et `src/routes/settings.test.ts` (le nom de fichier demandé est ignoré ; une restauration sans instantané renvoie 400). Le chemin de restauration **réussie** n'est pas testable — `process.exit(0)` tuerait l'exécuteur.
+🟢 **Corrigé le 23/08/2026.** ✅ Verrouillé par 26 tests dans `src/db/backup.test.ts` et 9 dans `src/routes/settings.test.ts`.
 
-**⊕2** — `src/db/backup.ts:5-6`, `:26`, `:30`
+**⊕2** — `src/db/backup.ts`, `src/routes/settings.ts`, `src/pages/Settings.tsx`
 
-```ts
-const MAIN_FILE = resolve(process.cwd(), "aegis.db");   // ligne 6
-…
-copyFileSync(BACKUP_FILE, MAIN_FILE);                   // ligne 26
-setTimeout(() => process.exit(0), 100);                 // ligne 30
-```
+`createSnapshot` écrivait dans `resolve(process.cwd(), "backup.sqlite")` et `restoreSnapshot` copiait par-dessus `resolve(process.cwd(), "aegis.db")`, alors que la base réellement ouverte est `DB_PATH` (défaut `audit.sqlite`). La restauration écrasait donc un fichier **que personne n'ouvre jamais**, répondait « Restauration effectuée, redémarrage du serveur… », redémarrait — et la base était identique à avant. L'application affirmait avoir fait ce qu'elle n'avait pas fait.
 
-La base réellement ouverte est `process.env.DB_PATH || "audit.sqlite"` (`src/db/index.ts:11`). Le snapshot est donc copié sur `aegis.db`, fichier que personne n'ouvre jamais. L'API répond `{success:true, message:"Restauration effectuée, redémarrage du serveur..."}`, le serveur redémarre, et la base est **identique** à avant.
+Trois défauts aggravants tenaient dans les huit lignes suivantes : aucune purge du `-wal` (l'ancien journal se rejouait par-dessus la base restaurée, donnant ni l'ancien état ni le nouveau) ; `process.exit(0)`, qui tuait le process sans attendre les réponses HTTP en vol ; et aucun filet, donc une restauration réussie irréversible. Le champ `file` exigé par le schéma de la route n'était par ailleurs jamais transmis.
 
-Deux défauts aggravants :
-- **Aucune purge `-wal`/`-shm`** (CONTEXT.md §12, étape 6). Si l'exploitant a positionné `DB_PATH=aegis.db`, la copie a bien lieu mais l'ancien `-wal` est rejoué par-dessus le fichier restauré → base incohérente.
-- `process.exit(0)` tue le process sans attendre les réponses HTTP en vol, là où §12 prévoit une simple reconnexion paresseuse.
+**Correctif** — `src/db/backup.ts` est réécrit sur `CONTEXT.md` §12 : dossier `BACKUP_DIR/db`, instantanés datés, rotation `BACKUP_DB_KEEP` (les `pre-restore-*` en sont exclus — ce sont des recours, pas des sauvegardes périodiques), inventaire avec compteurs lus en lecture seule, et une restauration nommée en sept étapes dont **l'ordre est la garantie** : valider le nom avant de toucher au disque, prendre le filet avant de fermer, fermer avant de copier, purger le journal avant de laisser rouvrir. `GET /api/snapshots` est ajouté, et `POST /api/snapshots/restore` reçoit enfin son `{file}`, avec la garde anti-traversal de §12 et un 409 si un audit tourne.
 
-**Correctifs :**
-1. Dériver la cible de `DB_PATH` avec exactement la même résolution que `getDb()`.
-2. Supprimer `<db>-wal` et `<db>-shm` après la copie.
-3. Remplacer `process.exit` par `closeDb()` — la connexion paresseuse rouvrira la nouvelle base à la requête suivante.
-4. Ajouter le filet de sécurité `pre-restore-<timestamp>.sqlite` prévu par §12 : aujourd'hui, une restauration réussie est irréversible.
+Côté interface, le bouton « Restaurer » postait un corps **vide** : la route exige `file`, elle répondait 400 « Fichier requis ». Il était donc mort depuis l'écran Réglages. Une liste déroulante affiche l'inventaire avec ses compteurs — restaurer sans savoir ce que contient le fichier est un pari — et le nom du filet est annoncé après l'opération.
+
+> **Le correctif a mis au jour quatre fuites d'instructions préparées**, toutes du même mécanisme et toutes invisibles jusque-là.
+>
+> `bun:sqlite` distingue `db.query()`, qui met l'instruction en cache sur la connexion, de `db.prepare()`, qui en crée une nouvelle à chaque appel et laisse à l'appelant le soin de la finaliser. Quatre sites utilisaient `prepare` sans finaliser (`db/reports.ts` × 3, `db/occurrences.ts`), un cinquième utilisait `query` avec un **chemin interpolé dans le SQL** — donc une clé de cache différente par instantané, ce qui revient au même.
+>
+> Or une instruction vivante empêche la fermeture de la base : `close()` diffère silencieusement. Le descripteur restait ouvert, le fichier verrouillé, et la connexion suivante échouait en `SQLITE_BUSY` **dès son `PRAGMA journal_mode`**. Symptôme : la restauration échouait sur son propre `closeDb()`, une dizaine de requêtes après le démarrage. Diagnostiqué en passant temporairement à `close(true)`, qui lève au lieu de différer.
+>
+> Deux corollaires : `PRAGMA busy_timeout` est désormais posé **en premier**, avant `journal_mode`, sinon ce tout premier PRAGMA n'a aucun délai de grâce ; et `runInTransaction` (`src/db/index.ts`) mémorise le wrapper de transaction **par instance de base**, parce que `db.transaction(fn)` recompile son jeu d'instructions à chaque construction — construit par requête, il fuyait un jeu par appel.
+
 
 ### N6. Les erreurs HTTP sont consommées comme des succès
 🟢 **Corrigé le 21/08/2026.** Les 43 appels passent par `src/lib/api.ts` ; il ne reste aucun `fetch` brut dans `pages/`, `components/` ni `App.tsx`. 🧪 Épinglé par dix tests, dont ceux qui affirment qu'un chargement échoué n'affiche **pas** de chiffre de sécurité — « — » et non « 0 ».
@@ -327,24 +325,24 @@ Les trois seules vérifications sont `TagsManager.tsx:44`, `Settings.tsx:109`, `
 4. `.catch` systématique coupant l'état `loading`.
 
 ### N7. Les annotations globales sont impossibles, et l'import de config meurt à mi-parcours
-🔴 **Ouvert — vérifié le 21/08/2026.** Aucune transaction dans `/api/config/import`, aucun compteur en réponse. 🧪 Épinglé deux fois : `src/db/annotations.test.ts` (l'insertion `project_id = -1` lève sur la clé étrangère) et `src/routes/settings.test.ts` (une annotation globale dans l'import produit un 500). Voir aussi [N45](#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte), même racine.
+🟢 **Corrigé le 23/08/2026.** ✅ Verrouillé par `src/db/annotations.test.ts` et six tests d'import dans `src/routes/settings.test.ts`.
 
-**⊕1** — `src/db/index.ts:105-115`, `src/routes/settings.ts:64-77`, `src/db/annotations.ts:68-75`
+**⊕1** — `src/db/annotations.ts`, `src/routes/settings.ts`, `src/lib/aggregator/index.ts`
 
-La table `annotations` déclare `FOREIGN KEY (project_id) REFERENCES projects(id)` et la connexion active `PRAGMA foreign_keys = ON` (`src/db/index.ts:21`). Vérifié expérimentalement en isolant le schéma sur `bun:sqlite` :
+**La convention `project_id = -1` était inatteignable.** La table `annotations` déclare `FOREIGN KEY (project_id) REFERENCES projects(id)` et la connexion active `PRAGMA foreign_keys = ON` : aucune ligne `-1` ne peut exister. Elle était pourtant employée à trois endroits — l'import la réinjectait, l'agrégateur la lisait (`OR project_id = -1`), et un champ `isGlobal` était exposé au client. La fonctionnalité entière était morte, et `isGlobal` valait toujours `false`.
 
-```
-INSERT INTO annotations (cve, project_id) VALUES ('CVE-2024-1', -1)
-  → FOREIGN KEY constraint failed
-```
+**Correctif : la notion est retirée, pas matérialisée.** `CONTEXT.md` §7 fixe l'unité de triage au couple **(CVE, projet)** et ne prévoit aucune portée globale ; inventer un projet fictif pour porter des annotations transverses aurait ajouté une entité que le contrat ne connaît pas. La lecture `OR project_id = -1`, le champ `isGlobal` et sa propagation jusqu'à `CveCard` disparaissent.
 
-Or la convention `project_id = -1` est utilisée à trois endroits : l'import la réinjecte explicitement (`src/routes/settings.ts:67` : `a.project_id === -1 ? -1 : mappedId`), l'agrégateur lit `WHERE project_id = ? OR project_id = -1` (`src/db/annotations.ts:72`), et un champ `isGlobal` est exposé au client (`src/lib/aggregator/index.ts:107`). **La fonctionnalité entière est morte.**
+**L'import n'était pas transactionnel.** L'exception remontait au handler générique, qui répondait 500 — **après** avoir créé ou modifié les projets. L'utilisateur relançait, et faute de déduplication par cible d'audit ([N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)), les projets étaient recréés en doublon tandis que les annotations restantes n'arrivaient jamais.
 
-Aggravant : l'import n'est pas encapsulé dans une transaction. L'exception remonte non capturée à la route, le handler global renvoie 500 — **après** avoir déjà créé ou modifié les projets. L'utilisateur relance l'import, et comme il n'y a pas de dédup par cible d'audit ([N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)), les projets sont recréés en doublon tandis que les annotations restantes ne sont jamais importées.
+**Correctif :** l'import complet passe par `runInTransaction`, la garde de chemin (N3) s'exécute **avant** toute écriture, et la réponse porte les compteurs `{projectsAdded, annotationsAdded, annotationsSkipped}` prévus par §12 — sans quoi un import silencieux ne se distingue pas d'un import qui n'a rien trouvé à faire.
 
-**Correctifs :**
-1. Trancher sur `project_id = -1` : soit supprimer la notion (elle est absente de CONTEXT.md §7, où l'unité de triage est le couple CVE/projet), soit la matérialiser par une ligne « projet global » réelle en base.
-2. Envelopper l'import complet dans **une seule transaction**, et retourner les compteurs `{tagsAdded, projectsAdded, annotationsAdded, …}` prévus par §12.
+**Le relink passe au chemin de projet.** §12 spécifie `{path, cve, status, note, fixed_in}` : les identifiants sont attribués par auto-incrément, donc un export porteur du seul `project_id` n'était rejouable que sur la base qui l'avait produit. L'export émet désormais les deux — `path` pour la portabilité, `project_id` pour que les versions antérieures relisent le fichier — et l'import préfère le premier.
+
+> **Le contrat épinglé pour ce défaut était faux, et il a fallu le corriger plutôt que le satisfaire.** Il affirmait qu'un import contenant une annotation globale devait **échouer et tout annuler** (`expect(listProjects()).toHaveLength(0)`). Or §12, étape 3, dit l'inverse : « path inconnu / CVE vide **ignorés** ». Une annotation orpheline ne doit pas faire perdre le reste de l'import. Le test a donc été réécrit sur le contrat, et le « rien derrière lui » est vérifié sur le cas où l'échec est réel — un refus de périmètre.
+>
+> Même leçon que N40 : une entrée d'`ISSUE.md` établit qu'un comportement a été **observé**, pas que la cible qu'elle propose est la bonne. `CONTEXT.md` tranche.
+
 
 ### N10. Trois clés d'identité différentes pour la même vulnérabilité
 🟢 **Corrigé le 21/08/2026.**
@@ -710,13 +708,15 @@ Le repli existe pour éviter d'afficher un journal vide, qui se lit comme un éc
 **Correctif :** distinguer les trois cas — pas de remote (message explicite), à jour, mis à jour — depuis le code de sortie et la sortie de git, plutôt que depuis la vacuité du journal.
 
 ### C9. `initDb` ignore son paramètre
-🔴 **Ouvert — vérifié le 21/08/2026.** 5 occurrences de `db?.query` subsistent dans `initDb`. À faire avant [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) : la restauration est précisément le cas où l'instance diffère.
+🟢 **Corrigé le 23/08/2026.** ✅ Couvert par les tests de `db/index` et, indirectement, par tout le chemin de restauration.
 
-🔴 *Non traité — entrée conservée depuis la vague 1* — `src/db/index.ts:181, 188, 195, 198, 201`
+**⊕1** — `src/db/index.ts`
 
-La fonction reçoit `database: Database` (`:41`) et l'utilise correctement jusqu'à la ligne 87, puis retombe sur la variable globale `db!` pour les **cinq** migrations tardives (`ALTER TABLE reports`, `advisory_cache` × 3, `tickets`). Le code fonctionne parce que les deux références coïncident, mais casse dès que `initDb` est appelée sur une autre instance : tests, restauration de snapshot.
+La fonction recevait `database: Database` et l'utilisait correctement jusqu'aux migrations tardives, puis retombait sur la variable globale `db!`. Le code fonctionnait parce que les deux références coïncidaient au démarrage normal.
 
-**Correctif :** utiliser `database` partout dans la fonction. Correctif d'une ligne × 5, à faire avant [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) — la restauration est précisément le cas où l'instance diffère.
+Le point sous-estimé : la forme employée était `db?.query(...)`. Sur une autre instance, elle **n'échouait pas** — elle ne faisait rien du tout. La migration était donc silencieusement sautée, et l'application continuait sur un schéma qu'elle croyait à jour. C'est le mode de défaillance le plus difficile à diagnostiquer, et il visait précisément le scénario de la restauration.
+
+**Correctif :** `database` partout. Dans le même mouvement, `dbPath()` devient la **source de vérité unique** du chemin de base : trois modules le recomposaient de leur côté (`reset.ts`, `advisories.ts`, et la sauvegarde, qui visait un fichier différent — voir [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien)).
 
 ---
 
@@ -907,7 +907,7 @@ C'est la couche produit qui a divergé, **dans les deux sens**.
 4. **Table `reports`** et page associée : persistance des comptes-rendus de « Tout auditer ».
 5. **Table `cve_occurrences`** avec `is_baseline`/`exposure_start`/`resolved_at` et calcul d'ancienneté — socle des SLA d'[UPGRADE.md §1](UPGRADE.md).
 6. **Enrichissement CVSS** (`src/lib/cvss.ts`, colonnes `cvss_vector`/`html_url`/`published_at`).
-7. **Annotations globales** via `project_id = -1`, contraire à §7 où l'unité est le couple CVE/projet — et non fonctionnelles ([N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours)).
+7. ~~**Annotations globales** via `project_id = -1`~~ — ✅ **arbitré le 23/08/2026 en faveur du contrat** : la notion est retirée du code, §7 reste la référence et l'unité de triage demeure le couple CVE/projet. Voir [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours).
 8. **Colonnes `slug` et `is_remote`** sur `projects`, absentes du modèle de §1.
 9. **`AEGIS_ALLOWED_ROOTS`, `AEGIS_INGEST_TOKEN`, `HOST`** — durcissements utiles, issus de la vague 1, non spécifiés.
 
@@ -924,7 +924,7 @@ Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points :
 3. **[N6](#n6-les-erreurs-http-sont-consommées-comme-des-succès)** — un wrapper `fetchJson` unique couvre les 43 appels et supprime d'un coup le faux négatif « écosystème sain » et les rapports d'audit faux persistés en base.
 4. **[N1](#n1-github-est-appelé-pendant-chaque-audit)** — sortir l'enrichissement du chemin d'audit. Débloque mécaniquement [N18](#n18-rate-limit-ignoré-et-perte-du-fixedin-fourni-par-loutil), [N44](#n44-syncadvisory-vide-le-cache-avant-de-refetcher) et une bonne part de [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire).
 5. ~~**N10** puis **N28**~~ — ✅ **faits le 21/08/2026.** La table d'occurrences porte la clé de §2, les lignes ambiguës sont purgées, et l'invariant des compteurs est verrouillé.
-6. **[C9](#c9-initdb-ignore-son-paramètre) puis [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) et [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours)** — sauvegarde et restauration. Aujourd'hui l'outil affiche « restauration effectuée » sans rien restaurer : c'est le comportement le plus mensonger de l'application.
+6. ~~**C9** puis **N2** et **N7**~~ — ✅ **faits le 23/08/2026.** L'outil affichait « restauration effectuée » sans rien restaurer. Le correctif a débordé : quatre fuites d'instructions préparées, invisibles jusque-là, empêchaient la base de se fermer — voir l'encadré de N2.
 7. ~~**Le lot bon marché**~~ — ✅ **neuf sur dix faits le 22/08/2026.** N35 a dépassé son périmètre en révélant que l'import de configuration passait des données non validées à `createProject`. **N40 a été annulé** : le contrat spécifie la sensibilité à la casse, ce n'était pas un défaut — voir son entrée.
 8. ~~**N9** et **N14**~~ — ✅ **faits le 23/08/2026.** Les deux défauts qui rendaient l'écran de triage inutilisable en pratique. N14 a dépassé son périmètre : le `grep` sur les préfixes amputés a aussi révélé des valeurs arbitraires tronquées et quatre voiles morts, et l'absence de tokens sombres rendait l'application à moitié illisible sur un système en thème sombre.
 9. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — arbitrage du contrat. À trancher avant d'engager le reste : plusieurs entrées sont des fonctionnalités délibérément remplacées, pas des oublis.

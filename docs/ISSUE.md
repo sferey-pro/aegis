@@ -22,7 +22,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**61 entrées distinctes · 44 fermées · 16 ouvertes — 9 🔴, 6 🟡, plus [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) en arbitrage · 1 ⚫ ([N40](#n40-la-casse-des-noms-de-tags), question produit et non défaut) · aucune épinglée par un test.**
+**61 entrées distinctes · 45 fermées · 15 ouvertes — 8 🔴, 6 🟡, plus [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) en arbitrage · 1 ⚫ ([N40](#n40-la-casse-des-noms-de-tags), question produit et non défaut) · aucune épinglée par un test.**
 
 > **Les compteurs sont dédoublonnés.** Les versions précédentes additionnaient le tableau « Fermé en bloc » et les entrées détaillées, qui se recoupent — `N28` y figurait même deux fois. D'où une dérive sur *tous* les chiffres : le 23/08/2026 le tableau de bord annonçait « 17 ouvertes (13 🔴) · 47 fermées » là où le décompte réel donnait 16 ouvertes (9 🔴) et 44 fermées. Le chiffre juste est l'union des identifiants, pas la somme des lignes.
 
@@ -73,7 +73,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N15](#n15-aucune-navigation-clavier) | Navigation clavier | 🟡 | — |
 | [N23](#n23-les-aides-à-la-décision-de-8-sont-absentes-alors-que-la-donnée-existe) | Les aides à la décision de §8 sont absentes | 🔴 | — |
 | [N24](#n24-filtres-et-pagination-hors-de-lurl) | Filtres et pagination hors de l'URL | 🟡 | — |
-| [N25](#n25-ticketmodal--les-notes-fuient-dun-ticket-à-lautre) | `TicketModal` : les notes fuient d'un ticket à l'autre | 🔴 | — |
+| [N25](#n25-ticketmodal--les-notes-fuient-dun-ticket-à-lautre) | `TicketModal` : les notes fuient d'un ticket à l'autre | 🟢 | — |
 | [N27](#n27-design-system-contourné) | Design system contourné | 🟡 | — |
 
 ### Priorité 5 — Écart de contrat à arbitrer
@@ -818,15 +818,19 @@ Défaut d'affichage associé : l'état vide de la page Projets (`:767-776`) est 
 **Correctifs :** porter ces états dans les `searchParams` (`useSearchParams` est déjà utilisé dans `Triage`), valeurs par défaut absentes de l'URL pour garder les liens propres ; passer le filtre tags en multi-sélection (Set + OU) ; ajouter un état « Aucun projet pour ce filtre » avec réinitialisation.
 
 ### N25. `TicketModal` : les notes fuient d'un ticket à l'autre
-🔴 **Ouvert — vérifié le 21/08/2026.** `const [notes, setNotes] = useState("")` sans aucune réinitialisation.
+🟢 **Corrigé le 23/08/2026.** ✅ Quatre tests dans `src/components/organisms/TicketModal.test.tsx`.
 
-**⊕1** — `src/components/organisms/TicketModal.tsx:20`, `src/pages/Triage.tsx:349-355`
+**⊕1** — `src/components/organisms/TicketModal.tsx`
 
-`const [notes, setNotes] = useState("")` dans un composant rendu **inconditionnellement** : seul le `DialogContent` de Radix est démonté à la fermeture, jamais `TicketModal`. `notes` n'est réinitialisé nulle part — ni dans le handler de fermeture, ni après création réussie.
+`const [notes, setNotes] = useState("")` dans un composant rendu **inconditionnellement** par la page Triage : seul le `DialogContent` de Radix est démonté à la fermeture, jamais son parent. La note n'était donc réinitialisée nulle part — ni à l'annulation, ni après une création réussie.
 
-Le référent rédige une recommandation pour `lodash`, annule, ouvre le ticket d'`axios` : le champ contient encore la recommandation de `lodash`, et elle partira dans le ticket Jira si elle n'est pas repérée.
+Le référent rédigeait une recommandation pour `lodash`, annulait, ouvrait le ticket d'`axios` : le champ contenait encore celle de `lodash`, et elle partait dans le ticket Jira si personne ne la repérait.
 
-**Correctif :** réinitialiser `notes` à l'ouverture, ou donner au dialogue une `key` dérivée de `group.key` pour forcer un état neuf par ticket.
+**Correctif — structurel plutôt que ponctuel.** L'entrée proposait de réinitialiser à l'ouverture, ou de poser une `key`. L'état de saisie est descendu **sous** le `DialogContent`, dans un `FormulaireTicket` que Radix démonte à chaque fermeture : l'oubli n'est plus possible, et tout état ajouté là plus tard bénéficie de la même garantie. Une `key` dérivée du paquet couvre en plus le changement de cible **sans** fermeture — cas non atteignable par l'interface, le dialogue étant modal, mais qui coûte un attribut à fermer.
+
+Conséquence assumée : un brouillon abandonné est perdu, y compris en réouvrant le même paquet. « Annuler » annule.
+
+> **Le test existant validait le défaut sous un nom qui promettait l'inverse.** Il s'appelait « les notes ne fuient pas d'un ticket au suivant » et affirmait `toHaveValue("note pour lodash")` — donc la fuite. Il **passait encore après le correctif structurel**, parce qu'il ne fermait jamais le dialogue : il n'exerçait que le cas non atteignable. Les quatre tests qui le remplacent ont été confrontés au défaut d'origine, état remonté dans la coquille : ils rougissent tous les quatre. Un nom de test n'est pas une assertion.
 
 ### N40. Les noms de tags sont sensibles à la casse
 ⚫ **Ce n'est pas un défaut — reclassé le 22/08/2026 en écart de contrat à arbitrer ([N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)).**
@@ -959,7 +963,7 @@ Révisé le **23/08/2026**. Les dix premiers points sont faits ; ce qui reste ti
 13. **[N20](#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile)** — dernier 🔴 de priorité 2, et le seul défaut restant qui produise un message trompeur : un dossier renommé donne « Erreur système: … » là où §2 exige « Chemin introuvable: … ». Indépendant de l'arbitrage.
 14. **Le nœud du frontend : [C11](#c11-composants-monolithiques) → [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation), [N24](#n24-filtres-et-pagination-hors-de-lurl), [N17](#n17-double-flux-sse-et-console-perdue-au-passage-sur-debug).** Les quatre ont la même racine — les pages portent l'état serveur, les appels réseau et l'orchestration — et se corrigent mieux ensemble que séparément. N19 est le plus visible pour l'utilisateur : le badge du header reste à 40 CVE après en avoir traité 25.
 15. **Performance : [N21](#n21-n1-systématiques-et-double-désérialisation-des-blobs), [N22](#n22-race-condition-sur-le-graphique-dhistorique), [N26](#n26-setinterval-jamais-nettoyé-état-de-module-perdu-sous-bun---hot).** Trois résiduels partiels, sans urgence tant que le parc reste petit. `getLatestRunsByProjectIds` existe et est corrigé : le N+1 de l'agrégateur est à portée de main.
-16. **Accessibilité et UX : [N15](#n15-navigation-clavier), [N23](#n23-les-aides-à-la-décision-de-8-sont-absentes), [N25](#n25-ticketmodal--les-notes-fuient-dun-ticket-à-lautre), [N27](#n27-design-system-contourné).** [N25](#n25-ticketmodal--les-notes-fuient-dun-ticket-à-lautre) mérite d'être sorti du lot : une note rédigée pour un paquet part dans le ticket Jira d'un autre. C'est un correctif d'une ligne.
+16. **Accessibilité et UX : [N15](#n15-navigation-clavier), [N23](#n23-les-aides-à-la-décision-de-8-sont-absentes), [N27](#n27-design-system-contourné).** ~~N25~~ en a été sorti et corrigé le 23/08/2026 : une note rédigée pour un paquet partait dans le ticket Jira d'un autre.
 
 ### Comment corriger un défaut épinglé
 

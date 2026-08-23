@@ -228,15 +228,12 @@ describe("TicketModal", () => {
 		expect(fetchCalls()).toHaveLength(0);
 	});
 
-	test("les notes ne fuient pas d'un ticket au suivant", () => {
-		// Défaut FE12 relevé par l'audit : `notes` est un état local d'un composant
-		// rendu inconditionnellement — seul le DialogContent est démonté à la
-		// fermeture. Une recommandation rédigée pour lodash se retrouve donc dans
-		// le ticket du package suivant.
-		//
-		// Ce test documente le comportement actuel. Le jour où la remise à zéro
-		// est ajoutée (reset à l'ouverture, ou `key` dérivée de `group.key`), il
-		// échouera et signalera la correction.
+	test("une note ne survit pas à la fermeture (N25)", () => {
+		// Le défaut : `notes` vivait dans un composant rendu **inconditionnellement**
+		// par la page Triage. Seul le `DialogContent` de Radix est démonté à la
+		// fermeture, jamais son parent. Le référent rédigeait une recommandation
+		// pour lodash, annulait, ouvrait le ticket d'axios — et elle était encore là,
+		// prête à partir dans le ticket Jira.
 		const { props: p } = props();
 		const { rerender } = render(<TicketModal {...p} />);
 
@@ -244,13 +241,83 @@ describe("TicketModal", () => {
 			target: { value: "note pour lodash" },
 		});
 
+		// Fermeture, puis réouverture sur un autre paquet.
+		rerender(<TicketModal {...props(etat({ isOpen: false })).props} />);
+		rerender(
+			<TicketModal
+				{...props(
+					etat({ group: groupe({ key: "7::axios", package: "axios" }) }),
+				).props}
+			/>,
+		);
+
+		expect(screen.getByLabelText(/Notes additionnelles/)).toHaveValue("");
+	});
+
+	test("une note ne survit pas non plus au même paquet réouvert (N25)", () => {
+		// « Annuler » annule : un brouillon abandonné est perdu, y compris pour le
+		// même paquet. Conséquence assumée du choix de porter l'état sous le
+		// dialogue plutôt que de le réinitialiser à la main.
+		const { props: p } = props();
+		const { rerender } = render(<TicketModal {...p} />);
+
+		fireEvent.change(screen.getByLabelText(/Notes additionnelles/), {
+			target: { value: "brouillon abandonné" },
+		});
+		rerender(<TicketModal {...props(etat({ isOpen: false })).props} />);
+		rerender(<TicketModal {...props().props} />);
+
+		expect(screen.getByLabelText(/Notes additionnelles/)).toHaveValue("");
+	});
+
+	test("une note ne suit pas un changement de paquet sans fermeture (N25)", () => {
+		// Cas non atteignable par l'interface — le dialogue est modal — mais couvert
+		// par la `key` posée sur le formulaire. Le laisser ouvert reviendrait à
+		// parier sur l'absence d'un futur appelant.
+		const { props: p } = props();
+		const { rerender } = render(<TicketModal {...p} />);
+
+		fireEvent.change(screen.getByLabelText(/Notes additionnelles/), {
+			target: { value: "note pour lodash" },
+		});
+
+		rerender(
+			<TicketModal
+				{...props(
+					etat({ group: groupe({ key: "7::axios", package: "axios" }) }),
+				).props}
+			/>,
+		);
+
+		expect(screen.getByLabelText(/Notes additionnelles/)).toHaveValue("");
+	});
+
+	test("la note du ticket envoyé est bien celle du paquet visé (N25)", async () => {
+		// L'assertion qui compte vraiment : ce n'est pas l'affichage du champ qui
+		// nuit, c'est ce qui partirait dans Jira.
+		mockFetch({
+			"POST /api/tickets/create": {
+				body: { success: true, ticketRef: "SEC-1" },
+			},
+		});
+		const { props: p, appels } = props();
+		const { rerender } = render(<TicketModal {...p} />);
+
+		fireEvent.change(screen.getByLabelText(/Notes additionnelles/), {
+			target: { value: "note pour lodash" },
+		});
+		rerender(<TicketModal {...props(etat({ isOpen: false })).props} />);
+
 		const suivant = props(
 			etat({ group: groupe({ key: "7::axios", package: "axios" }) }),
+			appels,
 		);
 		rerender(<TicketModal {...suivant.props} />);
+		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
-		expect(screen.getByLabelText(/Notes additionnelles/)).toHaveValue(
-			"note pour lodash",
-		);
+		await waitFor(() => expect(fetchCalls()).toHaveLength(1));
+		const corps = fetchCalls()[0]?.body as Record<string, unknown>;
+		expect(corps?.packageName).toBe("axios");
+		expect(corps?.notes).toBe("");
 	});
 });

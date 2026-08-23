@@ -2,6 +2,23 @@
 
 > Ce document est une **spécification fonctionnelle complète et autonome**. Il décrit *ce que fait* l'application, jamais *comment elle est présentée*. Aucun élément de design, d'UX, de mise en page ou de couleur n'y figure : uniquement des données, des règles métier, des algorithmes, des endpoints et des cas limites. Il est destiné à être utilisé comme prompt pour reconstruire l'outil à l'identique sur le plan fonctionnel.
 
+---
+
+## ⚠️ Statut de ce document — à lire avant de s'en servir
+
+**Ce document reste la référence de comportement autoritative, et il fait foi partout où il est explicite.** Deux arbitrages l'ont confirmé à l'usage : la notion d'« annotation globale » a été retirée du code parce que §7 fixe l'unité de triage au couple (CVE, projet), et la sensibilité à la casse des noms de tags a été rétablie après avoir été « corrigée » à tort — §9 la spécifie.
+
+**Mais il n'est plus la description complète du produit livré**, et le savoir évite de longues erreurs. L'écart est documenté entrée par entrée dans [`ISSUE.md` → N31](ISSUE.md#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher), qui reste la source de vérité sur *ce qui diverge*. En résumé, au **23/08/2026** :
+
+- **Le noyau technique est fidèle**, vérifié ligne à ligne : parseurs, normalisation, déduplication, fenêtre de fraîcheur, format des erreurs, `newCves`, séquence git, agrégation CVE, modèle d'événement de console, connexion paresseuse, absence de shell.
+- **Cinq endpoints spécifiés ici n'existent pas** : `/api/projects/:id/history`, `/api/runs/:id`, `/api/annotations/fetch-fix`, `/api/projects/:id/ignore`, et `/api/detect` (implémenté sous `/api/projects/detect`, avec un algorithme divergent).
+- **Quatorze fonctionnalités livrées ne sont pas décrites ici**, dont l'intégration Jira réelle, l'ingestion CI (`/api/ingest/:slug`), le batch d'audit serveur (`/api/audit/run`, que §2 interdit), la table `reports`, les instantanés `.sqlite`, la base d'avis séparée et l'enrichissement GHSA en masse.
+- **Le niveau 1 de §12** — sauvegarde automatique de la configuration en JSON — n'est pas implémenté. Les mentions « + sauvegarde » de §1, §7, §8, §9 et §10 sont donc **inopérantes**. Le niveau 2 (instantanés `.sqlite`) l'est, et conformément à la spécification.
+
+**L'arbitrage n'a pas été rendu** : faut-il réaligner ce document sur le produit, ou ramener le produit au document ? Tant qu'il ne l'est pas, les sections ci-dessous restent normatives et **ne doivent pas être réécrites pour coller au code** — c'est précisément ce que N31 demande de décider, pas de subir.
+
+Les endpoints marqués **⛔ non implémenté** ou **⚠️ divergent** dans la table de §13 portent cette information au plus près.
+
 ## Objectif de l'application
 
 Construire un outil qui **agrège les rapports de vulnérabilités de dépendances** (`composer audit`, `npm audit`, `yarn audit`, `bun audit`) de plusieurs projets dans un tableau de bord unique, à destination d'un **référent sécurité**.
@@ -592,26 +609,46 @@ Table `settings` (clé/valeur). `GET /api/settings` → `{auditMaxAgeHours, JIRA
 | POST | `/api/projects` | créer (409 si doublon de cible) |
 | PUT | `/api/projects/:id` | modifier (409 si doublon) |
 | DELETE | `/api/projects/:id` | supprimer (cascade runs/annotations/tickets) |
-| POST | `/api/projects/:id/ignore` | ignorer / réactiver `{ignored}` |
+| POST | `/api/projects/:id/ignore` | ⛔ **non implémenté** — fait via `PUT /api/projects/:id` avec `{ignored}` |
 | POST | `/api/projects/:id/audit` | auditer (dédup ; `?force=1`) → run + `newCves` + `deduped` |
-| GET | `/api/projects/:id/history` | 30 derniers runs |
+| GET | `/api/projects/:id/history` | ⛔ **non implémenté** — `getRunsForProject` existe mais n'est appelée par aucune route |
 | POST | `/api/projects/:id/git-fetch` | `git fetch --verbose` + recompute |
 | POST | `/api/projects/:id/git-pull` | `git pull --ff-only` + recompute |
-| POST | `/api/detect` | auto-détection des lockfiles `{path, auditPath?}` |
-| DELETE | `/api/runs/:id` | supprimer un run |
-| GET | `/api/history-global` | série temporelle globale par jour |
+| POST | `/api/detect` | ⚠️ **divergent** — implémenté sous `/api/projects/detect`, renvoie `{tool}` au lieu d'`entries[]` |
+| DELETE | `/api/runs/:id` | ⛔ **non implémenté** — `deleteRun` existe mais n'est appelée par aucune route |
+| GET | `/api/history-global` | série temporelle globale par jour. ⚠️ Accepte un `?days=` **non spécifié ici**, borné à `[1, 365]` |
 | GET | `/api/stats` | aggrégation des statistiques globales (grade, risques, `pendingCves`) |
 | GET | `/api/cves` | CVE agrégées par référence + annotation |
 | POST | `/api/annotations` | upsert triage `{cve, projectId, status, note, fixedIn}` |
-| POST | `/api/annotations/fetch-fix` | version corrigée d'UNE CVE via GitHub (429 si rate-limit) |
+| POST | `/api/annotations/fetch-fix` | ⛔ **non implémenté** — remplacé par `POST /api/advisories/sync`, qui ne persiste aucune annotation |
 | GET / POST | `/api/tickets` | lister / upsert lien Jira |
 | GET / POST | `/api/prompts` | lister / créer un prompt |
 | PUT / DELETE | `/api/prompts/:id` | modifier / supprimer un prompt |
 | GET / POST | `/api/tags` | lister / créer un tag |
-| DELETE | `/api/tags/:id` | supprimer un tag (cascade projets) |
+| DELETE | `/api/tags/:id` | supprimer un tag (cascade projets). ✅ Cascade implémentée le 23/08/2026 |
 | GET / PUT | `/api/settings` | lire / modifier `{auditMaxAgeHours}` |
-| GET | `/api/snapshots` | lister les snapshots `.sqlite` + compteurs |
+| GET | `/api/snapshots` | lister les snapshots `.sqlite` + compteurs. ✅ Implémenté le 23/08/2026 |
 | POST | `/api/snapshots/restore` | restaurer un snapshot `{file}` |
 | GET | `/api/config/export` | exporter la config JSON (sans runs) |
 | POST | `/api/config/import` | importer la config (idempotent) |
 | GET | `/api/console` | flux SSE temps réel des commandes (non persisté) |
+
+**Routes livrées mais absentes de cette spécification** — voir [`ISSUE.md` → N31](ISSUE.md#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) :
+
+| Méthode | Route | Rôle |
+|---------|-------|------|
+| POST | `/api/audit/run` | lot d'audits côté serveur, alors que §2 stipule « aucun endpoint batch » |
+| GET | `/api/audit/status` | progression du lot ; expose aussi `runningProjects`, `lastCompleted`, `lastTotal`, `lastFinishedAt` |
+| POST | `/api/ingest/:slug` | ingestion d'un rapport depuis une CI, authentifiée par `X-Aegis-Token` |
+| POST | `/api/projects/detect` | détection d'outil (forme divergente de `/api/detect`) |
+| GET / POST | `/api/reports` | historique des comptes-rendus de « Tout auditer » |
+| DELETE | `/api/reports/:id` | supprimer un compte-rendu |
+| POST | `/api/advisories/sync` | rafraîchir l'avis d'une CVE |
+| POST | `/api/advisories/sync-all` | enrichir tous les avis manquants du parc, s'arrête au quota |
+| DELETE | `/api/advisories/cache` | purger le cache d'avis |
+| POST | `/api/snapshots/create` | écrire l'instantané du jour |
+| POST | `/api/config/reset` | remise à zéro de la configuration (suppression du fichier de base) |
+| GET | `/api/tickets/list` | lister les liens de tickets |
+| POST | `/api/tickets/create` | créer réellement une issue Jira (API v3, document ADF) |
+| POST | `/api/tickets/link` / `/api/tickets/unlink` | attacher / détacher un lien manuel |
+| POST | `/api/tickets/test-connection` | tester la configuration Jira enregistrée |

@@ -9,7 +9,7 @@ import {
 	type Project,
 	updateProject,
 } from "../db/projects";
-import { getLatestRun, type Run } from "../db/runs";
+import { getLatestRun, getRunsForProject, type Run } from "../db/runs";
 import { auditTargetKey, resolveAuditTarget } from "../lib/audit";
 import { runSingleAudit } from "../lib/audit/queue";
 import {
@@ -262,6 +262,36 @@ export const projectsRoutes = {
 				return Response.json({ error: "Projet introuvable" }, { status: 404 });
 			}
 			return Response.json({ success: true });
+		},
+	},
+
+	/**
+	 * Historique des runs d'un projet.
+	 *
+	 * `getRunsForProject` existait, était testée, et **aucune route ne l'exposait**
+	 * (écart de contrat relevé par N31). Conséquence pratique : impossible de voir
+	 * qu'un projet échoue de façon répétée, alors que c'est exactement le signal
+	 * qu'un audit unitaire ne donne pas — un run en erreur affiche son message, mais
+	 * rien ne dit que c'est le cinquième d'affilée.
+	 *
+	 * `ran_at DESC` puis `id DESC` — la définition unique du §4 —, **limité aux 30
+	 * derniers**, erreurs incluses. Pas de paramètre de pagination : la limite est
+	 * fixée par le contrat, et en inventer un ajouterait de la surface non
+	 * spécifiée.
+	 */
+	"/api/projects/:id/history": {
+		async GET(req: BunRequest<"/api/projects/:id/history">) {
+			const id = Number.parseInt(req.params.id, 10);
+
+			// 404 sur un projet inconnu, jamais une liste vide : « aucun historique »
+			// et « ce projet n'existe pas » ne se lisent pas de la même façon, et
+			// confondre les deux est le mode de défaillance que N6 a fermé partout
+			// ailleurs.
+			if (!Number.isInteger(id) || !getProjectById(id)) {
+				return Response.json({ error: "Projet introuvable" }, { status: 404 });
+			}
+
+			return Response.json(getRunsForProject(id));
 		},
 	},
 

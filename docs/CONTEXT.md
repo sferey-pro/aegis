@@ -42,7 +42,7 @@ Chaque fichier est autonome : ce que la fonctionnalité fait, ses règles, ses c
 | [1](context/01-projets.md) | **Gestion des projets** | modèle, cible d'audit résolue, doublon par cible, projet ignoré, messages de validation, détection d'outil |
 | [2](context/02-audits.md) | **Exécution des audits** | commandes par outil, six conditions de déduplication, fenêtre de fraîcheur, `newCves`, concurrence, « Tout auditer », lot serveur |
 | [3](context/03-parsing.md) | **Parsing & normalisation** | modèle `Vulnerability`, six sévérités, formats par outil, clé de déduplication |
-| [4](context/04-historique.md) | **Historique & évolution** | définition unique du « dernier run », série globale, buckets UTC, amorçage, bornes de `?days` |
+| [4](context/04-historique.md) | **Historique & évolution** | définition unique du « dernier run », historique par projet, suppression d'un run, série globale, buckets UTC, amorçage, bornes de `?days` |
 | [5](context/05-git.md) | **Intégration Git** | `GitInfo`, séquence de lecture, sens de `rev-list`, `fetch` et `pull --ff-only` |
 | [6](context/06-advisories.md) | **GitHub Advisory Database** | `keyFrom`, cache en base séparée, détection de quota, trois modes d'interrogation, repli sur la valeur de l'outil |
 | [7](context/07-triage.md) | **Agrégation CVE & triage** | `buildCveGroups`, superposition des avis, **les trois clés d'identité**, annotations, ancienneté et SLA |
@@ -72,6 +72,8 @@ Chaque fichier est autonome : ce que la fonctionnalité fait, ses règles, ses c
 | GET / PUT / DELETE | `/api/projects/:id` | lire / modifier / supprimer (cascade) | [1](context/01-projets.md) |
 | POST | `/api/projects/detect` | détection d'outil `{path, auditPath?}` → `{tool}` | [1](context/01-projets.md) |
 | POST | `/api/projects/:id/audit` | auditer (dédup ; `?force=1`) → run + `newCves` + `deduped` ; 409 si occupé | [2](context/02-audits.md) |
+| GET | `/api/projects/:id/history` | 30 derniers runs, complets, erreurs incluses ; 404 si projet inconnu | [4](context/04-historique.md) |
+| DELETE | `/api/runs/:id` | supprimer un run ; 204, 404 si inconnu, 400 si non numérique | [4](context/04-historique.md) |
 | POST | `/api/projects/:id/git-fetch` | `git fetch --verbose` + recalcul | [5](context/05-git.md) |
 | POST | `/api/projects/:id/git-pull` | `git pull --ff-only` + recalcul | [5](context/05-git.md) |
 | POST | `/api/audit/run` | lot serveur, pool de 4 → `{status, count, skipped}` ; 409 si un lot tourne | [2](context/02-audits.md) |

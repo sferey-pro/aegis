@@ -16,7 +16,7 @@ Convertis en texte, trimés, chaînes vides retirées, dédupliqués.
 
 Sans elle, le nom restait collé aux projets, continuait de s'afficher, mais disparaissait de la liste des filtres : un tag inexistant et non filtrable, irrécupérable sans éditer chaque projet à la main.
 
-Id inexistant → no-op, aucun projet modifié, 204 (idempotent). Nom déjà pris → « Un tag avec ce nom existe déjà ».
+Succès → **204**. Id inexistant → **404** « Tag introuvable » : l'interface doit distinguer « supprimé » de « n'existait pas », sinon elle masque une désynchronisation entre la liste affichée et l'état réel (défaut N37). L'ancienne spécification annonçait un 204 idempotent ; le code a tranché dans l'autre sens, et c'est le motif appliqué à tous les `DELETE` du produit. Nom déjà pris → « Un tag avec ce nom existe déjà ».
 
 ## Filtrage et périmètre d'audit
 

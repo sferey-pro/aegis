@@ -172,9 +172,18 @@ export function getLatestRunsByProjectIds(
 	return res;
 }
 
-export function deleteRun(id: number): void {
+/**
+ * Supprime un run. Retourne `false` si l'identifiant n'existait pas.
+ *
+ * Le booléen permet à la route de répondre 404 plutôt qu'un succès trompeur :
+ * l'interface doit distinguer « supprimé » de « n'existait pas », sinon elle
+ * masque une désynchronisation entre la liste affichée et l'état réel (motif
+ * établi par N37 sur les rapports, les tags et les prompts).
+ */
+export function deleteRun(id: number): boolean {
 	const db = getDb();
-	db.query(`DELETE FROM runs WHERE id = ?`).run(id);
+	const info = db.query(`DELETE FROM runs WHERE id = ?`).run(id);
+	return info.changes > 0;
 }
 
 /** Un point de la série globale, tel que CONTEXT.md §4 le spécifie. */

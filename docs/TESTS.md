@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1343 tests · 0 échec · 100 fichiers
+1347 tests · 0 échec · 100 fichiers
 ├── 434 composants (52 fichiers) — DOM, React, fetch simulé
-└── 909 fonctionnels (48 fichiers) — vrai serveur, vraie base, vrai git
+└── 913 fonctionnels (48 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -125,6 +125,12 @@ Points qui méritaient d'être épinglés :
 - **L'enrichissement en masse s'arrête au premier 429** et annonce ce qui reste.
   Ce qui a été récupéré avant l'arrêt est conservé : un second appel reprend là où
   le premier s'était arrêté.
+- **Le test de fuseau tourne sous plusieurs `TZ`.** Un test qui ne s'exécute
+  qu'en UTC ne prouve rien sur un défaut de fuseau : celui de la série globale a
+  été confronté à l'ancien calcul, qui échoue sous `TZ=Asia/Tokyo` et passe sous
+  `TZ=UTC` (défaut N13). La parade est de découper la clé de bucket **dans la
+  chaîne** `ran_at`, sans jamais construire de `Date` — le décalage devient
+  impossible par construction.
 - **Le pool d'audit est vérifié en mesurant *avant* la première réponse.** Une
   attente sur « au moins 4 appels partis » ne prouverait rien : une exécution
   séquentielle finit par y passer aussi. Le test mesure à 30 ms contre 120 ms de
@@ -180,7 +186,7 @@ Invariants de sécurité vérifiés de bout en bout :
 
 Les tests de cette suite ne valident pas seulement ce qui marche : quand le comportement réel s'écarte de `CONTEXT.md`, le test **affirme le comportement réel** et son libellé porte la mention « écart documenté ». La régression involontaire est bloquée, et l'écart reste visible.
 
-**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — 2 de ses entrées portent encore le marqueur 🧪 (N13, N18) et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
+**Ces écarts ne sont plus numérotés ici.** Ils sont inscrits dans [`ISSUE.md`](./ISSUE.md), qui est la liste unique des défauts, groupée par priorité — **aucune n'y porte plus le marqueur 🧪** et renvoient au fichier de test correspondant. Maintenir deux numérotations produisait des doublons : le même défaut portait un identifiant `N` et un numéro local, décrits différemment.
 
 Les 14 écarts que cette suite a mis au jour et qui n'étaient dans aucun backlog y ont reçu un identifiant. **Dix sont corrigés à ce jour** (N32, N33, N34, N35, N36, N37, N38, N40, N42, N43) ; les autres restent épinglés :
 

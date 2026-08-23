@@ -177,123 +177,180 @@ export function deleteRun(id: number): void {
 	db.query(`DELETE FROM runs WHERE id = ?`).run(id);
 }
 
-export function getGlobalHistory(days = 30) {
+/** Un point de la série globale, tel que CONTEXT.md §4 le spécifie. */
+export interface HistoryPoint {
+	/** Jour du bucket, `YYYY-MM-DD` (ou `YYYY-MM-DD HH` en vue horaire). */
+	date: string;
+	/** Libellé d'affichage : « JJ/MM », ou « NNh » en vue horaire. */
+	label: string;
+	counts: RunCounts;
+	/** Somme des **six** sévérités. */
+	total: number;
+}
+
+const SEVERITES = [
+	"critical",
+	"high",
+	"moderate",
+	"low",
+	"info",
+	"unknown",
+] as const;
+
+function countsVides(): RunCounts {
+	return { critical: 0, high: 0, moderate: 0, low: 0, info: 0, unknown: 0 };
+}
+
+/**
+ * Bornes acceptées pour la fenêtre, appliquées par la route.
+ *
+ * `?days=100000` construisait cent mille buckets, chacun parcourant la map
+ * d'état de tous les projets — sur un process unique, l'API entière se bloquait.
+ * Un an couvre tous les usages réels de cet écran.
+ */
+export const HISTORY_DAYS_MIN = 1;
+export const HISTORY_DAYS_MAX = 365;
+
+/**
+ * Série temporelle globale : total agrégé de tous les projets actifs, par jour.
+ *
+ * ## Ce qui était cassé (N13)
+ *
+ *  - **Deux sévérités perdues.** L'agrégation ne cumulait que `critical`,
+ *    `high`, `moderate` et `low` : `info` et `unknown` étaient *définitivement
+ *    absents* de la série, et il n'y avait pas de `total` — alors que §4 le
+ *    définit comme la somme des **six**.
+ *  - **Fuseau.** Les buckets étaient calculés en heure locale
+ *    (`getFullYear`/`getMonth`) alors que `ran_at` est stocké en UTC : en fin de
+ *    journée dans un fuseau positif, un run était rangé dans le bucket du
+ *    lendemain. §4 dit `ran_at[0:10]` — la clé se lit **dans la chaîne**, sans
+ *    conversion, ce qui rend le problème impossible par construction.
+ *  - **Pas de date exploitable.** `date` portait un libellé d'affichage
+ *    « JJ/MM » ; la donnée métier vivait dans un champ additionnel `rawDate`.
+ *    Les deux sont désormais nommés pour ce qu'ils sont.
+ *  - **Requête non bornée.** Le `SELECT` chargeait **tous** les runs de tous les
+ *    projets actifs, quelle que soit la fenêtre demandée.
+ *
+ * ## Ce que garantit cette version
+ *
+ * Deux requêtes au lieu d'une : les runs **de la fenêtre**, et l'état d'entrée —
+ * le dernier run non-erreur de chaque projet **avant** la fenêtre. Sans cet
+ * amorçage, un projet audité une seule fois il y a six mois disparaîtrait de la
+ * série, ce qui se lirait comme une remédiation.
+ *
+ * Conforme et conservé : un run `error` est ignoré sans écraser l'état connu
+ * (une erreur ne doit pas faire disparaître les vulnérabilités précédentes),
+ * l'état est porté dans le temps, la dernière écriture du jour gagne, et seuls
+ * les projets non ignorés comptent.
+ */
+export function getGlobalHistory(days = 30): HistoryPoint[] {
 	const db = getDb();
-	const projects = db
+	const projets = db
 		.query(`SELECT id FROM projects WHERE ignored = 0`)
 		.all() as { id: number }[];
-	const projectIds = projects.map((p) => p.id).join(",");
 
 	const isHourly = days === 1;
-	const today = new Date();
+	/** Longueur de la clé de bucket dans `ran_at` : « YYYY-MM-DD » ou « … HH ». */
+	const tailleCle = isHourly ? 13 : 10;
+
+	/** Libellé d'affichage d'une clé de bucket. */
+	const libelle = (cle: string) =>
+		isHourly
+			? `${cle.slice(11, 13)}h`
+			: `${cle.slice(8, 10)}/${cle.slice(5, 7)}`;
+
+	// Buckets construits **en UTC**, dans le même format que `ran_at`, pour que la
+	// comparaison reste une comparaison de chaînes.
+	const maintenant = Date.now();
+	const pas = isHourly ? 3_600_000 : 86_400_000;
+	const nb = isHourly ? 24 : days;
 	const buckets: string[] = [];
-
-	if (isHourly) {
-		for (let i = 23; i >= 0; i--) {
-			const d = new Date(today);
-			d.setHours(d.getHours() - i);
-			const y = d.getFullYear();
-			const m = String(d.getMonth() + 1).padStart(2, "0");
-			const day = String(d.getDate()).padStart(2, "0");
-			const h = String(d.getHours()).padStart(2, "0");
-			buckets.push(`${y}-${m}-${day} ${h}`);
-		}
-	} else {
-		for (let i = days - 1; i >= 0; i--) {
-			const d = new Date(today);
-			d.setDate(d.getDate() - i);
-			const y = d.getFullYear();
-			const m = String(d.getMonth() + 1).padStart(2, "0");
-			const day = String(d.getDate()).padStart(2, "0");
-			buckets.push(`${y}-${m}-${day}`);
-		}
+	for (let i = nb - 1; i >= 0; i--) {
+		const iso = new Date(maintenant - i * pas).toISOString();
+		buckets.push(
+			isHourly ? `${iso.slice(0, 10)} ${iso.slice(11, 13)}` : iso.slice(0, 10),
+		);
 	}
 
-	if (!projectIds) {
-		return buckets.map((b) => ({
-			date: isHourly
-				? `${b.split(" ")[1]}h`
-				: `${b.split("-")[2]}/${b.split("-")[1]}`,
-			rawDate: b,
-			critical: 0,
-			high: 0,
-			moderate: 0,
-			low: 0,
+	const vide = (): HistoryPoint[] =>
+		buckets.map((b) => ({
+			date: b,
+			label: libelle(b),
+			counts: countsVides(),
+			total: 0,
 		}));
-	}
 
+	if (projets.length === 0) return vide();
+
+	const premier = buckets[0];
+	if (!premier) return vide();
+	// Début de fenêtre au format de `ran_at`, pour comparer en SQL sans conversion.
+	const debut = isHourly ? `${premier}:00:00` : `${premier} 00:00:00`;
+	const marques = projets.map(() => "?").join(",");
+	const ids = projets.map((p) => p.id);
+
+	// 1. Les runs de la fenêtre, et eux seuls.
 	const rows = db
 		.query(`
     SELECT project_id, ran_at, counts, status
     FROM runs
-    WHERE project_id IN (${projectIds})
+    WHERE project_id IN (${marques}) AND ran_at >= ?
     ORDER BY ran_at ASC
   `)
-		.all() as HistoryRow[];
+		.all(...ids, debut) as HistoryRow[];
 
-	const latestCounts = new Map<number, RunCounts>();
-	const rowsByBucket = new Map<string, HistoryRow[]>();
+	// 2. L'état d'entrée : dernier run **non-erreur** de chaque projet avant la
+	//    fenêtre. `ROW_NUMBER` plutôt qu'un `MAX()` joint, pour trier sur
+	//    `ran_at` puis `id` — la même définition du « dernier run » que partout
+	//    ailleurs (§4, défaut N29).
+	const amorces = db
+		.query(`
+		SELECT * FROM (
+			SELECT r.project_id, r.counts, ROW_NUMBER() OVER (
+				PARTITION BY r.project_id ORDER BY r.ran_at DESC, r.id DESC
+			) AS rang
+			FROM runs r
+			WHERE r.project_id IN (${marques})
+			  AND r.ran_at < ?
+			  AND r.status != 'error'
+		)
+		WHERE rang = 1
+	`)
+		.all(...ids, debut) as { project_id: number; counts: string | RunCounts }[];
 
+	const etat = new Map<number, RunCounts>();
+	const lireCounts = (brut: string | RunCounts): RunCounts =>
+		typeof brut === "string" ? JSON.parse(brut) : brut;
+
+	for (const a of amorces) etat.set(a.project_id, lireCounts(a.counts));
+
+	// Runs de la fenêtre, rangés par bucket. La clé est **découpée dans la
+	// chaîne** : aucune conversion de date, donc aucun décalage de fuseau.
+	const parBucket = new Map<string, HistoryRow[]>();
 	for (const r of rows) {
-		const runDate = new Date(`${r.ran_at.replace(" ", "T")}Z`);
-		if (Number.isNaN(runDate.getTime())) continue;
-
-		const y = runDate.getFullYear();
-		const m = String(runDate.getMonth() + 1).padStart(2, "0");
-		const day = String(runDate.getDate()).padStart(2, "0");
-		const h = String(runDate.getHours()).padStart(2, "0");
-
-		const bucket = isHourly ? `${y}-${m}-${day} ${h}` : `${y}-${m}-${day}`;
-		if (!rowsByBucket.has(bucket)) rowsByBucket.set(bucket, []);
-		rowsByBucket.get(bucket)?.push(r);
+		const cle = r.ran_at.slice(0, tailleCle);
+		const liste = parBucket.get(cle);
+		if (liste) liste.push(r);
+		else parBucket.set(cle, [r]);
 	}
 
-	const firstBucketDateStr = isHourly
-		? `${buckets[0]}:00:00`
-		: `${buckets[0]} 00:00:00`;
-	const firstBucketDate = new Date(firstBucketDateStr.replace(" ", "T"));
-
-	for (const r of rows) {
-		const runDate = new Date(`${r.ran_at.replace(" ", "T")}Z`);
-		if (Number.isNaN(runDate.getTime())) continue;
-		if (runDate < firstBucketDate) {
-			if (r.status === "ok" || r.status === "vulnerable") {
-				latestCounts.set(
-					r.project_id,
-					typeof r.counts === "string" ? JSON.parse(r.counts) : r.counts,
-				);
-			}
-		}
-	}
-
-	const result = [];
+	const resultat: HistoryPoint[] = [];
 	for (const b of buckets) {
-		const bRows = rowsByBucket.get(b) || [];
-		for (const r of bRows) {
-			if (r.status === "ok" || r.status === "vulnerable") {
-				latestCounts.set(
-					r.project_id,
-					typeof r.counts === "string" ? JSON.parse(r.counts) : r.counts,
-				);
-			}
+		for (const r of parBucket.get(b) ?? []) {
+			// Un run en erreur est ignoré **sans écraser** l'état connu : une erreur
+			// ne doit pas faire disparaître les vulnérabilités déjà mesurées.
+			if (r.status === "error") continue;
+			etat.set(r.project_id, lireCounts(r.counts));
 		}
 
-		let critical = 0,
-			high = 0,
-			moderate = 0,
-			low = 0;
-		for (const counts of latestCounts.values()) {
-			critical += counts.critical || 0;
-			high += counts.high || 0;
-			moderate += counts.moderate || 0;
-			low += counts.low || 0;
+		const counts = countsVides();
+		for (const c of etat.values()) {
+			for (const sev of SEVERITES) counts[sev] += c[sev] || 0;
 		}
+		const total = SEVERITES.reduce((n, sev) => n + counts[sev], 0);
 
-		const label = isHourly
-			? `${b.split(" ")[1]}h`
-			: `${b.split("-")[2]}/${b.split("-")[1]}`;
-		result.push({ date: label, rawDate: b, critical, high, moderate, low });
+		resultat.push({ date: b, label: libelle(b), counts, total });
 	}
 
-	return result;
+	return resultat;
 }

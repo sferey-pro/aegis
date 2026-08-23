@@ -26,7 +26,7 @@ import React, {
 	useRef,
 	useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Project, ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
@@ -77,7 +77,31 @@ export const Projects = React.memo(function Projects() {
 		() => Object.fromEntries(availableTags.map((t) => [t.name, t.color])),
 		[availableTags],
 	);
-	const [filterTag, setFilterTag] = useState<string | null>(null);
+	const [searchParams, setSearchParams] = useSearchParams();
+
+	/**
+	 * Filtre par tag, porté par l'**URL** (`?tag=`).
+	 *
+	 * Il vivait dans l'état local de ce composant, auquel `App` n'a pas accès :
+	 * filtrer sur « Prod » pour n'auditer que trois projets en auditait quand même
+	 * quinze, alors que §2 fixe le périmètre de « Tout auditer » aux projets
+	 * **visibles** (défaut N8). Le porter par l'URL le rend lisible par
+	 * l'orchestrateur, partageable, et survivant à un rechargement — c'est aussi
+	 * un premier pas sur N24.
+	 *
+	 * `replace` : filtrer n'est pas une navigation, et empiler une entrée
+	 * d'historique par clic rendrait le bouton « retour » inutilisable.
+	 */
+	const filterTag = searchParams.get("tag");
+	const setFilterTag = useCallback(
+		(nom: string | null) => {
+			const params = new URLSearchParams(searchParams);
+			if (nom) params.set("tag", nom);
+			else params.delete("tag");
+			setSearchParams(params, { replace: true });
+		},
+		[searchParams, setSearchParams],
+	);
 
 	const [isAdding, setIsAdding] = useState(false);
 	/**

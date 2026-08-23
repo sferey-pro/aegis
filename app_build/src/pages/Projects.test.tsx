@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 
 import type { Tag } from "@/db/tags";
 import type { ProjectListItem } from "@/routes/projects";
@@ -47,12 +47,28 @@ const base = {
 	"GET /api/tags": tags,
 };
 
-function monte() {
+/**
+ * Rend la query string courante, pour vérifier que le filtre vit bien dans
+ * l'URL — c'est ce qui permet à `App` de connaître le périmètre d'audit (N8).
+ */
+function EspionUrl() {
+	return <span data-testid="url-espion">{useLocation().search}</span>;
+}
+
+function monte(route = "/projects") {
 	return render(
-		<MemoryRouter initialEntries={["/projects"]}>
+		<MemoryRouter initialEntries={[route]}>
 			<Projects />
+			<EspionUrl />
 		</MemoryRouter>,
 	);
+}
+
+/** Le `?tag=` courant, tel que l'URL le porte. */
+function tagDeLUrl(): string | null {
+	return new URLSearchParams(
+		screen.getByTestId("url-espion").textContent ?? "",
+	).get("tag");
 }
 
 const post = () => fetchCalls().filter((c) => c.method === "POST");
@@ -104,6 +120,51 @@ describe("Projects", () => {
 		});
 		monte();
 		expect(await screen.findByText("Aucun projet")).toBeInTheDocument();
+	});
+
+	test("le filtre par tag vit dans l'URL (N8)", async () => {
+		// Il vivait dans l'état local de ce composant, auquel `App` n'a pas accès :
+		// filtrer sur « prod » pour n'auditer que le projet concerné en auditait
+		// quand même tous, alors que §2 fixe le périmètre aux projets **visibles**.
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				projet({ id: 7, name: "Mon API", tags: ["prod"] }),
+				projet({ id: 8, name: "Front", tags: ["backend"] }),
+			],
+		});
+		monte();
+		await waitFor(() => expect(screen.getByText("Mon API")).toBeDefined());
+
+		fireEvent.click(screen.getByRole("button", { name: "prod" }));
+		await waitFor(() => expect(tagDeLUrl()).toBe("prod"));
+	});
+
+	test("un tag dans l'URL préfiltre au montage (N8)", async () => {
+		// Corollaire : le filtre survit à un rechargement et se partage par lien.
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				projet({ id: 7, name: "Mon API", tags: ["prod"] }),
+				projet({ id: 8, name: "Front", tags: ["backend"] }),
+			],
+		});
+		monte("/projects?tag=backend");
+
+		await waitFor(() => expect(screen.getByText("Front")).toBeDefined());
+		expect(screen.queryAllByText("Mon API")).toHaveLength(0);
+	});
+
+	test("« Tous » retire le paramètre de l'URL", async () => {
+		mockFetch({
+			...base,
+			"GET /api/projects": [projet({ id: 7, name: "Mon API", tags: ["prod"] })],
+		});
+		monte("/projects?tag=prod");
+		await waitFor(() => expect(screen.getByText("Mon API")).toBeDefined());
+
+		fireEvent.click(screen.getByRole("button", { name: "Tous" }));
+		await waitFor(() => expect(tagDeLUrl()).toBeNull());
 	});
 
 	test("le filtre par tag est mono-sélection, pas un OU", async () => {

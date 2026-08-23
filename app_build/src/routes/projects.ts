@@ -96,16 +96,26 @@ function pathGuard(path: string, auditPath: string | null): Response | null {
 }
 
 /**
- * Contrôle de chemin réutilisable, pour les appelants hors de ce module —
- * aujourd'hui `/api/config/import`, qui doit refuser un projet hors périmètre
- * plutôt que de l'enregistrer (N3).
+ * Le couple (racine git, cible d'audit) est-il dans le périmètre autorisé ?
+ *
+ * Prédicat réutilisable, pour les appelants hors de ce module. Deux usages :
+ * `/api/config/import`, qui doit refuser un projet hors périmètre plutôt que de
+ * l'enregistrer (N3), et `/api/audit/run`, qui doit l'écarter de son lot.
+ *
+ * **Toujours passer par ici, jamais recomposer le contrôle.** C'est la même
+ * exigence que pour `resolveAuditTarget` : les deux calculs avaient divergé une
+ * fois, et un `audit_path` absolu était validé comme relatif puis exécuté comme
+ * absolu.
  */
-export function isPathAllowedForImport(
+export function isProjectPathAllowed(
 	path: string,
 	auditPath?: string | null,
 ): boolean {
 	return pathGuard(path, auditPath ?? null) === null;
 }
+
+/** Ancien nom, conservé pour l'import de configuration. */
+export const isPathAllowedForImport = isProjectPathAllowed;
 
 /**
  * Doublon si un autre projet vise la même cible d'audit résolue (CONTEXT.md §1).
@@ -331,6 +341,17 @@ export const projectsRoutes = {
 				);
 				return Response.json({ success: true, ...res });
 			} catch (e: unknown) {
+				// N8 : un refus de concurrence est un **conflit**, pas une panne. Il
+				// tombait dans le `catch` générique et sortait en 500, ce qui le rendait
+				// indistinguable d'un plantage — alors que le client orchestrateur doit
+				// savoir qu'il peut réessayer.
+				const { AuditEnCoursError } = await import("../lib/audit/queue");
+				if (e instanceof AuditEnCoursError) {
+					return Response.json(
+						{ success: false, error: e.message },
+						{ status: 409 },
+					);
+				}
 				return Response.json(
 					{ success: false, error: errorMessage(e) },
 					{ status: 500 },

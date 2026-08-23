@@ -8,10 +8,7 @@ import { GlobalLoader } from "./GlobalLoader";
 function props(over: Partial<Parameters<typeof GlobalLoader>[0]> = {}) {
 	return {
 		loading: false,
-		auditing: false,
 		loadingMessage: "Connexion à la base de données...",
-		auditProgress: null,
-		auditMessageIndex: 0,
 		...over,
 	};
 }
@@ -29,64 +26,28 @@ describe("GlobalLoader", () => {
 		).toBeInTheDocument();
 	});
 
-	test("en audit sans progression, il annonce le démarrage", () => {
-		render(<GlobalLoader {...props({ auditing: true })} />);
-		expect(
-			screen.getByText("Démarrage de l'audit global..."),
-		).toBeInTheDocument();
+	test("il ne couvre plus l'écran pendant un audit (N8)", () => {
+		// Le voile couvrait aussi « Tout auditer » : pendant plusieurs minutes,
+		// l'application entière était floutée et non cliquable — console live
+		// comprise, alors que c'est le seul endroit où l'on voit les commandes
+		// d'audit tourner et échouer. L'audit a désormais sa barre non modale.
+		const { container } = render(<GlobalLoader {...props()} />);
+		expect(container.firstElementChild).toBeNull();
+		expect(document.querySelector(".fixed.inset-0")).toBeNull();
 	});
 
-	test("en audit avec progression, il affiche le projet et l'avancement", () => {
-		render(
-			<GlobalLoader
-				{...props({
-					auditing: true,
-					auditProgress: { current: 3, total: 12, name: "Mon API" },
-				})}
-			/>,
-		);
-		expect(screen.getByText(/Mon API/)).toBeInTheDocument();
-		expect(screen.getByText(/3\/12/)).toBeInTheDocument();
-	});
-
-	test("le message d'audit tourne selon l'index", () => {
-		const messages = [
-			"Scan des dépendances",
-			"Recherche GHSA",
-			"Calcul de la criticité",
-			"Génération des patchs",
-		];
-		for (const [i, attendu] of messages.entries()) {
-			const { unmount } = render(
-				<GlobalLoader
-					{...props({
-						auditing: true,
-						auditMessageIndex: i,
-						auditProgress: { current: 1, total: 1, name: "P" },
-					})}
-				/>,
-			);
-			expect(screen.getByText(new RegExp(attendu))).toBeInTheDocument();
-			unmount();
+	test("il n'annonce plus d'étapes imaginaires (N8)", () => {
+		// Un tableau de messages tournait toutes les 800 ms — « Recherche GHSA »,
+		// « Calcul de la criticité » — alors que §2 interdit tout appel GitHub
+		// pendant un audit : aucun de ces libellés ne décrivait un travail réel.
+		render(<GlobalLoader {...props({ loading: true })} />);
+		for (const imaginaire of [
+			/Recherche GHSA/,
+			/Calcul de la criticité/,
+			/Génération des patchs/,
+		]) {
+			expect(screen.queryAllByText(imaginaire)).toHaveLength(0);
 		}
-	});
-
-	test("le chargement a priorité sur l'audit", () => {
-		// Les deux drapeaux peuvent être vrais au premier rendu : le message de
-		// chargement doit gagner, sinon l'écran annoncerait un audit inexistant.
-		render(
-			<GlobalLoader
-				{...props({
-					loading: true,
-					auditing: true,
-					auditProgress: { current: 1, total: 5, name: "Mon API" },
-				})}
-			/>,
-		);
-		expect(
-			screen.getByText("Connexion à la base de données..."),
-		).toBeInTheDocument();
-		expect(screen.queryAllByText(/Mon API/)).toHaveLength(0);
 	});
 
 	test("il couvre l'écran, hors de l'arbre de la page", () => {

@@ -24,9 +24,23 @@ Un **429**, ou un **403 avec `x-ratelimit-remaining: 0`**. Un 403 avec du quota 
 |------|--------|-------|
 | `resolveFixedVersionFromCache` | **non** | chemin d'audit (§2) et agrégation (§7) |
 | `syncAdvisory(cve, link)` | oui | rafraîchissement manuel d'**une** CVE |
-| `syncAllAdvisories()` | oui | passe d'enrichissement sur tout le parc |
+| `syncAllAdvisories()` | oui | passe sur tout le parc — bouton de l'écran Triage **ou planificateur périodique** |
 
 **Interdit** : appeler le réseau depuis le chemin d'audit.
+
+## Rafraîchissement périodique
+
+Une passe automatique toutes les `ADVISORY_SYNC_INTERVAL_MIN` minutes (défaut **360**, soit six heures ; `0` désactive). La première est différée d'une minute après le démarrage — la lancer immédiatement ferait partir une passe réseau à chaque rechargement à chaud en développement.
+
+**Pourquoi elle existe.** Le cache ne se remplissait que sur action humaine. Or pour un projet dont le lockfile ne bouge plus — un projet en fin de vie — **la nouvelle faille arrive par un nouvel avis, pas par un commit**. Un audit quotidien sur un dépôt figé réenregistrait donc chaque jour la connaissance de la veille, avec l'apparence d'une surveillance active. C'était l'angle mort du produit.
+
+**Une seule passe à la fois**, quelle que soit la porte d'entrée : le verrou vit avec la fonction, pas dans la route. Un clic pendant une passe planifiée doublerait sinon les appels sur la ressource la plus rare du connecteur. Le refus est un `SyncEnCoursError`, traduit en **409**.
+
+Le bilan de la dernière passe (`ADVISORY_SYNC_LAST_AT`, `ADVISORY_SYNC_LAST_FETCHED`) est **persisté** dans la base d'avis et lisible par `GET /api/settings` : sans trace visible, une tâche de fond est indistinguable d'une tâche absente. Ces deux clés sont en **lecture seule** — les reposter réécrirait l'horodatage par la valeur affichée.
+
+Un réglage illisible retombe sur le défaut, **jamais sur zéro** : un `ADVISORY_SYNC_INTERVAL_MIN` mal orthographié ne doit pas couper la surveillance en silence.
+
+Voir aussi l'amendement de l'invariant correspondant dans [§15](15-securite.md).
 
 `syncAdvisory` **ne supprime pas** la ligne avant de la redemander : hors ligne, en quota dépassé ou sur un 5xx, l'avis déjà connu serait définitivement perdu. L'écriture passe par un `ON CONFLICT` qui remplace.
 

@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, test } from "bun:test";
-
+import { getGithubConfig } from "@/db/advisories";
 import { createProject } from "@/db/projects";
 import { addRun, type CreateRunInput } from "@/db/runs";
 import type { Vulnerability } from "@/lib/parsers/types";
 import { useTempDb } from "@/test/db";
-import { collectAdvisoryKeys, syncAllAdvisories } from "./advisory-sync";
+import {
+	collectAdvisoryKeys,
+	getDernierePasse,
+	resetSyncHistory,
+	SyncEnCoursError,
+	syncAllAdvisories,
+	syncEnCours,
+} from "./advisory-sync";
 import { getAllCachedAdvisories, putCachedAdvisory } from "./github";
 
 /**
@@ -19,12 +26,15 @@ const natif = globalThis.fetch;
 /** Répond selon l'URL demandée. `null` en valeur = 404. */
 function stubFetch(
 	reponses: Record<string, unknown | null>,
-	options: { rateLimitApres?: number } = {},
+	options: { rateLimitApres?: number; delaiMs?: number } = {},
 ) {
 	appels.length = 0;
-	globalThis.fetch = ((entree: string | URL | Request) => {
+	globalThis.fetch = (async (entree: string | URL | Request) => {
 		const url = String(entree instanceof Request ? entree.url : entree);
 		appels.push(url);
+		if (options.delaiMs) {
+			await new Promise((r) => setTimeout(r, options.delaiMs));
+		}
 
 		if (
 			options.rateLimitApres !== undefined &&
@@ -325,6 +335,64 @@ describe("syncAllAdvisories", () => {
 			[1, 2],
 			[2, 2],
 		]);
+	});
+
+	test("le bilan de la dernière passe est retenu et persisté", async () => {
+		// Un exploitant doit pouvoir vérifier, après un redémarrage, que le
+		// rafraîchissement automatique tourne réellement. Un état seulement en
+		// mémoire ne le permettrait pas.
+		const p = projet("app");
+		run(p.id, [vuln({ cve: null, link: "GHSA-aaaa-bbbb-cccc" })]);
+		stubFetch({ "GHSA-AAAA-BBBB-CCCC": avis("GHSA-aaaa-bbbb-cccc") });
+
+		await syncAllAdvisories();
+
+		expect(getDernierePasse()?.fetched).toBe(1);
+		expect(Number.isNaN(Date.parse(getDernierePasse()?.finishedAt ?? ""))).toBe(
+			false,
+		);
+		expect(getGithubConfig("ADVISORY_SYNC_LAST_FETCHED")).toBe("1");
+		expect(getGithubConfig("ADVISORY_SYNC_LAST_AT")).not.toBe("");
+	});
+
+	test("une seule passe à la fois, quelle que soit la porte d'entrée", async () => {
+		// Le verrou vivait dans la route ; le planificateur ne le voyait donc pas, et
+		// un clic pendant une passe planifiée aurait doublé les appels réseau sur la
+		// ressource la plus rare du connecteur — le quota.
+		const p = projet("app");
+		run(p.id, [vuln({ cve: null, link: "GHSA-aaaa-bbbb-cccc" })]);
+		stubFetch(
+			{ "GHSA-AAAA-BBBB-CCCC": avis("GHSA-aaaa-bbbb-cccc") },
+			{ delaiMs: 60 },
+		);
+
+		const premiere = syncAllAdvisories();
+		expect(syncEnCours()).toBe(true);
+		await expect(syncAllAdvisories()).rejects.toBeInstanceOf(SyncEnCoursError);
+
+		await premiere;
+		expect(syncEnCours()).toBe(false);
+	});
+
+	test("le verrou est relâché même si la passe lève", async () => {
+		const p = projet("app");
+		run(p.id, [vuln({ cve: null, link: "GHSA-aaaa-bbbb-cccc" })]);
+		globalThis.fetch = (() => {
+			throw new Error("panne franche");
+		}) as unknown as typeof fetch;
+
+		await syncAllAdvisories().catch(() => null);
+		expect(syncEnCours()).toBe(false);
+	});
+
+	test("resetSyncHistory oublie le bilan", async () => {
+		const p = projet("app");
+		run(p.id, [vuln({ cve: null, link: "GHSA-aaaa-bbbb-cccc" })]);
+		stubFetch({ "GHSA-AAAA-BBBB-CCCC": avis("GHSA-aaaa-bbbb-cccc") });
+		await syncAllAdvisories();
+
+		resetSyncHistory();
+		expect(getDernierePasse()).toBeNull();
 	});
 
 	test("le total compte les clés distinctes, pas les occurrences", async () => {

@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 434 tests composants — happy-dom actif
-bun run test:api    # 913 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 437 tests composants — happy-dom actif
+bun run test:api    # 930 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1347 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1367 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -87,6 +87,12 @@ Cette route n'est appelée par **aucun écran**, et c'est normal : elle existe p
 **Console live** (`src/lib/console.ts`) : diffusion SSE vers des abonnés en mémoire, volatile — jamais persistée. Les wrappers de sous-processus encadrent chaque commande avec `emitConsoleStart`/`emitConsoleEnd` ; un `AsyncLocalStorage` (`projectContext`) étiquette les événements avec le nom du projet sans le faire passer par les signatures d'appel. Toute sortie au-delà de 3000 caractères est tronquée. Ctrl+Shift+D bascule vers la page `/debug` qui affiche le flux.
 
 ⚠️ **Le succès d'une étape se déclare par le champ `ok`, pas par `exitCode`.** `exitCode` porte un vrai code de sortie pour `git` et les outils d'audit, mais un **statut HTTP** pour les appels à l'API GitHub : la convention shell « zéro vaut succès » affichait donc une croix rouge sur un 200, et une coche verte sur une coupure réseau qui émettait `exitCode: 0`. Un producteur qui connaît son résultat pose `ok` ; les autres gardent la sémantique du code de sortie.
+
+**Rafraîchissement périodique des avis** (`src/lib/advisory-scheduler.ts`) : une passe `syncAllAdvisories` toutes les `ADVISORY_SYNC_INTERVAL_MIN` minutes (défaut 360, `0` désactive), la première différée d'une minute — la lancer au démarrage ferait partir une passe réseau à chaque rechargement de `bun --hot`. Handle retenu, `unref()`, arrêté par `arretPropre` : même parade que le keepalive de la console contre l'accumulation d'intervalles (N26). Non démarré sous test.
+
+⚠️ **Cette tâche de fond amende un invariant** : §15 interdisait tout appel GitHub hors demande explicite. L'amendement est écrit dans le document, avec les quatre propriétés qui préservent l'intention — indépendante d'un audit, bornée par le quota, visible, désactivable. **Ne réintroduisez pas d'appel réseau sur le chemin d'audit** : cet invariant-là est intact.
+
+Le verrou de la passe vit dans `lib/advisory-sync` (`syncEnCours`, `SyncEnCoursError` → 409), **pas dans la route** : le planificateur et le bouton doivent partager le même, sinon un clic pendant une passe double les appels sur le quota.
 
 **Deux bases, et c'est structurant.** `DB_PATH` porte la configuration du parc ; `<base>-advisories.sqlite` (`src/db/advisories.ts`, chemin dérivé, surchargeable par `ADVISORY_DB_PATH`) porte tout ce qui relève du dialogue avec GitHub : le cache d'avis, la clé GHSA et l'état du quota.
 

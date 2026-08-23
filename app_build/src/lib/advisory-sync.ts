@@ -1,3 +1,4 @@
+import { setGithubConfig } from "../db/advisories";
 import { listProjects } from "../db/projects";
 import { getLatestRun } from "../db/runs";
 import {
@@ -69,6 +70,38 @@ export function collectAdvisoryKeys(): AdvisoryKey[] {
 	return [...parId.values()];
 }
 
+/**
+ * Une passe à la fois, quelle que soit la porte d'entrée.
+ *
+ * Le verrou vivait dans la route ; le planificateur ne le voyait donc pas, et un
+ * clic pendant une passe planifiée aurait doublé les appels réseau sur la
+ * ressource la plus rare du connecteur — le quota. Il vit ici, avec la fonction
+ * qu'il protège.
+ */
+let passeEnCours = false;
+
+/** Une passe est-elle en cours ? Lu par les routes pour répondre 409. */
+export function syncEnCours(): boolean {
+	return passeEnCours;
+}
+
+/** Bilan de la dernière passe terminée, `null` avant la première. */
+export interface DernierePasse extends BulkSyncResult {
+	/** Fin de la passe, en ISO. */
+	finishedAt: string;
+}
+
+let dernierePasse: DernierePasse | null = null;
+
+export function getDernierePasse(): DernierePasse | null {
+	return dernierePasse;
+}
+
+/** Oublie le bilan. Appelé par la remise à zéro de la configuration. */
+export function resetSyncHistory(): void {
+	dernierePasse = null;
+}
+
 export async function syncAllAdvisories(
 	options: {
 		force?: boolean;
@@ -76,6 +109,29 @@ export async function syncAllAdvisories(
 		onProgress?: (done: number, total: number, id: string) => void;
 	} = {},
 ): Promise<BulkSyncResult> {
+	if (passeEnCours) {
+		throw new SyncEnCoursError("Un enrichissement GHSA est déjà en cours.");
+	}
+	passeEnCours = true;
+	try {
+		return await passe(options);
+	} finally {
+		passeEnCours = false;
+	}
+}
+
+/** Refus de concurrence, typé pour que les routes répondent 409 sans deviner. */
+export class SyncEnCoursError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "SyncEnCoursError";
+	}
+}
+
+async function passe(options: {
+	force?: boolean;
+	onProgress?: (done: number, total: number, id: string) => void;
+}): Promise<BulkSyncResult> {
 	const cles = collectAdvisoryKeys();
 	const cache = options.force ? new Map() : getAllCachedAdvisories();
 
@@ -117,6 +173,14 @@ export async function syncAllAdvisories(
 
 		options.onProgress?.(i + 1, aTraiter.length, cle.id);
 	}
+
+	const finishedAt = new Date().toISOString();
+	dernierePasse = { ...resultat, finishedAt };
+
+	// Persisté dans la base d'avis : un exploitant doit pouvoir vérifier, après un
+	// redémarrage, que le rafraîchissement automatique tourne bien.
+	setGithubConfig("ADVISORY_SYNC_LAST_AT", finishedAt);
+	setGithubConfig("ADVISORY_SYNC_LAST_FETCHED", String(resultat.fetched));
 
 	return resultat;
 }

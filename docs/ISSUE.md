@@ -4,7 +4,7 @@ Défauts relevés sur l'existant — les nouvelles fonctionnalités sont listée
 
 **Liste unique, groupée par priorité.** Ce fichier fusionne les trois sources qui coexistaient : la vague 1 (juillet 2026, `C1`…`C12` / `T1`…`T4`), la vague 2 (août 2026, `N1`…`N31`) et les écarts relevés par la suite de tests (`N32`…`N45`, auparavant numérotés 1–22 dans une seconde liste au sein de [TESTS.md](TESTS.md)). Cette seconde numérotation est supprimée : `TESTS.md` renvoie désormais aux identifiants ci-dessous.
 
-**Tout a été revérifié dans le code le 21/08/2026**, entrée par entrée. Plusieurs défauts ont été fermés depuis la rédaction de la vague 2 ; ils restent listés avec leur constat de vérification, car savoir *ce qui a été refermé et comment* est ce qui empêche de le re-casser.
+**Tout a été revérifié dans le code le 21/08/2026**, puis à nouveau le **23/08/2026** pour les entrées restées ouvertes. Les défauts fermés restent listés avec leur constat de vérification : savoir *ce qui a été refermé et comment* est ce qui empêche de le re-casser.
 
 ### Légende
 
@@ -22,9 +22,11 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 
 ## 📊 Table de bord
 
-**17 entrées ouvertes (13 🔴) ou partielles (4 🟡) · 47 fermées · aucune épinglée par un test.**
+**61 entrées distinctes · 44 fermées · 16 ouvertes — 9 🔴, 6 🟡, plus [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) en arbitrage · 1 ⚫ ([N40](#n40-la-casse-des-noms-de-tags), question produit et non défaut) · aucune épinglée par un test.**
 
-> **Plus aucun `test.failing` dans le dépôt.** Chaque défaut restant est ouvert *sans* verrou : la régression n'y est plus bloquée, contrairement à ce qui prévalait depuis le 21/08/2026. Les prochaines entrées corrigées devront réécrire leur propre contrat.
+> **Les compteurs sont dédoublonnés.** Les versions précédentes additionnaient le tableau « Fermé en bloc » et les entrées détaillées, qui se recoupent — `N28` y figurait même deux fois. D'où une dérive sur *tous* les chiffres : le 23/08/2026 le tableau de bord annonçait « 17 ouvertes (13 🔴) · 47 fermées » là où le décompte réel donnait 16 ouvertes (9 🔴) et 44 fermées. Le chiffre juste est l'union des identifiants, pas la somme des lignes.
+
+> **Plus aucun `test.failing` dans le dépôt.** Chaque défaut restant est ouvert *sans* verrou : la régression n'y est plus bloquée, contrairement à ce qui prévalait depuis le 21/08/2026. Les prochaines entrées corrigées devront écrire leur propre contrat — et se souvenir que trois contrats épinglés se sont révélés **faux** ([N40](#n40-la-casse-des-noms-de-tags), [N41](#n41-content_hash-nest-pas-unique-en-base), [N45](#n45-la-porte-ci-dun-projet-ignoré-est-toujours-verte)).
 
 ### Priorité 1 — Sécurité
 
@@ -55,7 +57,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation) | L'état serveur n'est jamais invalidé après une mutation | 🔴 | — |
 | [N21](#n21-n1-systématiques-et-double-désérialisation-des-blobs) | N+1 systématiques, double désérialisation des blobs | 🟡 | — |
 | [N22](#n22-race-condition-sur-le-graphique-dhistorique) | Race condition sur le graphique d'historique | 🔴 | — |
-| [N26](#n26-setinterval-jamais-nettoyé-état-de-module-perdu-sous-bun---hot) | `setInterval` jamais nettoyé, état de module perdu sous `bun --hot` | 🔴 | — |
+| [N26](#n26-setinterval-jamais-nettoyé-état-de-module-perdu-sous-bun---hot) | `setInterval` jamais nettoyé, état de module perdu sous `bun --hot` | 🟡 | — |
 | [N29](#n29-deux-définitions-du--dernier-run--coexistent) | Deux définitions du « dernier run » coexistent | 🟢 | ✅ |
 | [N30](#n30-le-contexte-projet-nenveloppe-pas-les-commandes-git-du-listing) | Le contexte projet n'enveloppe pas les commandes git du listing | 🔴 | — |
 | [N39](#n39-la-progression-du-lot-daudit-nest-pas-observable-après-coup) | La progression du lot d'audit n'est pas observable après coup | 🟢 | ✅ |
@@ -70,7 +72,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 | [N14](#n14-sévérité-illisible--palette-sans-couleur-de-texte-et-préfixes-dark-amputés) | Sévérité illisible, préfixes `dark:` amputés | 🟢 | ✅ |
 | [N15](#n15-aucune-navigation-clavier) | Navigation clavier | 🟡 | — |
 | [N23](#n23-les-aides-à-la-décision-de-8-sont-absentes-alors-que-la-donnée-existe) | Les aides à la décision de §8 sont absentes | 🔴 | — |
-| [N24](#n24-filtres-et-pagination-hors-de-lurl) | Filtres et pagination hors de l'URL | 🔴 | — |
+| [N24](#n24-filtres-et-pagination-hors-de-lurl) | Filtres et pagination hors de l'URL | 🟡 | — |
 | [N25](#n25-ticketmodal--les-notes-fuient-dun-ticket-à-lautre) | `TicketModal` : les notes fuient d'un ticket à l'autre | 🔴 | — |
 | [N27](#n27-design-system-contourné) | Design system contourné | 🟡 | — |
 
@@ -80,7 +82,7 @@ Un défaut 🧪 n'est pas un défaut corrigé — c'est un défaut qui ne peut p
 |---|---|:-:|:-:|
 | [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher) | `CONTEXT.md` n'est plus la spécification du produit | 🟡 | partiel |
 | [N40](#n40-les-noms-de-tags-sont-sensibles-à-la-casse) | Casse des noms de tags — **conforme au contrat**, question produit | ⚫ | — |
-| [C11](#c11-composants-monolithiques) | Composants monolithiques (1057 lignes pour `Projects.tsx`) | 🔴 | — |
+| [C11](#c11-composants-monolithiques) | Composants monolithiques (**1125** lignes pour `Projects.tsx`) | 🔴 | — |
 
 ### 🟢 Fermé, vérifié le 21/08/2026
 
@@ -461,7 +463,9 @@ C3 est donc **corrigé sans être verrouillé** — exactement l'état dans lequ
 > Les tests portent donc sur l'**invariant** que la garde protégeait — compteurs finis, somme égale au total — et non sur la garde elle-même. C'est plus solide : un test de la garde resterait vert si le défaut entrait par une autre porte, alors que l'invariant se casse quelle que soit la porte. C'est aussi la leçon générale de cet exercice : un verrou qu'on n'a pas vu échouer ne verrouille rien de démontré.
 
 ### C4. `/api/config/import` ne restaure que trois sections sur cinq
-🟡 **Inchangé — vérifié le 21/08/2026.** Toujours trois sections (`settings`, `projects`, `annotations`), aucune transaction, aucun compteur en réponse. Les tests couvrent le comportement actuel — dont le fait qu'un import est rejouable par `slug` — sans affirmer la conformité à §12.
+🟡 **Résiduel réduit — revérifié le 23/08/2026.** La transaction unique et les compteurs de réponse ont été livrés avec [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours), et le relink des annotations passe désormais par `path` comme §12 l'exige.
+
+**Deux écarts subsistent :** la fusion des projets se fait toujours par `slug` au lieu de la **cible d'audit résolue** de §12.2 — deux instances au même chemin sous un nom différent produisent des doublons — et **trois des cinq sections manquent** : `tags`, `prompts` et `tickets`. Un export/import perd donc le catalogue de tags, toute la bibliothèque de prompts et tous les liens de tickets.
 
 🟡 *Partiellement traité — entrée conservée depuis la vague 1* — `src/routes/settings.ts:33-84`
 
@@ -508,7 +512,9 @@ Le voile annonçait par ailleurs des étapes tirées d'un tableau tournant toute
 
 
 ### N16. Le `React.memo` de `ProjectCard` est neutralisé par construction
-🟡 **Amélioré, non résolu — vérifié le 21/08/2026.** `src/pages/Projects.tsx` compte désormais 3 `useCallback` (contre 0). Les autres handlers et le passage de la **map complète** `auditState` restent inchangés : la comparaison superficielle échoue toujours.
+🟡 **Inchangé en substance — revérifié le 23/08/2026.** `src/pages/Projects.tsx` compte 4 `useCallback` (contre 0 à l'origine), mais les autres handlers et le passage de la **map complète** `auditState` sont intacts : la comparaison superficielle de `memo` échoue toujours à chaque événement SSE.
+
+> La prop `tagColors` ajoutée avec [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) est mémoïsée (`useMemo` sur `availableTags`) : elle n'aggrave pas le défaut. C'était le risque, et il a été écarté.
 
 **⊕1** — `src/pages/Projects.tsx:783-801`, `src/components/organisms/ProjectCard.tsx:42`
 
@@ -547,7 +553,9 @@ Détail annexe : les tests `event.data === ": ping"` / `": connected"` (`Console
 **Correctif :** exposer une fonction d'invalidation (contexte, ou clé de cache partagée) appelée après toute mutation d'annotation, de projet ou de run.
 
 ### N21. N+1 systématiques et double désérialisation des blobs
-🟡 **Partiellement corrigé — vérifié le 21/08/2026.** Un index a été ajouté : `idx_runs_project_ran_at ON runs(project_id, ran_at DESC)`. Les index `annotations(project_id)` et `tickets(content_hash)` manquent toujours, `/api/stats` appelle encore `getLatestRun` en plus de `buildCveGroups` (2 occurrences), et `broadcast()` lit toujours `DISABLE_CONSOLE` en base à chaque événement.
+🟡 **Résiduel réduit — revérifié le 23/08/2026.** Deux points fermés depuis : l'index `tickets(content_hash)` a été ajouté avec [N41](#n41-content_hash-nest-pas-unique-en-base), et le N+1 sur le cache d'avis a disparu — `buildCveGroups` charge tous les avis en **une** requête (`getAllCachedAdvisories`) au lieu d'une lecture par vulnérabilité, sur le chemin le plus chaud de l'application.
+
+**Résiduel :** l'index `annotations(project_id)` manque toujours ; `buildCveGroups` appelle `getLatestRun` et `getAnnotationsForProject` **par projet** (deux N+1, alors que `getLatestRunsByProjectIds` existe et est corrigé) ; `/api/stats` refait un `getLatestRun` par projet en plus de `buildCveGroups` ; et `broadcast()` lit `DISABLE_CONSOLE` en base à chaque événement.
 
 **⊕1** — `src/lib/aggregator/index.ts:57,60` · `src/routes/stats.ts:9,31` · `src/lib/audit/index.ts:361-362` · index dans `src/db/index.ts:103-126` · `src/lib/console.ts:67`
 
@@ -573,7 +581,7 @@ Passer la période de 7 → 90 → 1 jour rapidement : la requête « 90 jours �
 **Correctif :** flag `cancelled` ou `AbortController` dans le cleanup, en ignorant toute réponse dont la clé ne correspond plus à l'état courant.
 
 ### N26. `setInterval` jamais nettoyé, état de module perdu sous `bun --hot`
-🟡 **Partiellement corrigé le 22/08/2026.** Le keepalive est désormais retenu dans un handle, annulé par `closeConsoleClients()` et marqué `unref()` — il ne maintient plus le process en vie à lui seul. Les flux SSE sont fermés proprement sur `SIGINT`/`SIGTERM`, ce qui supprime l'`ERR_INCOMPLETE_CHUNKED_ENCODING` que le navigateur journalisait à chaque redémarrage.
+🟡 **Partiellement corrigé le 22/08/2026, revérifié le 23/08/2026.** Le keepalive est retenu dans un handle, annulé par `closeConsoleClients()` et marqué `unref()` — il ne maintient plus le process en vie à lui seul. Les flux SSE sont fermés proprement sur `SIGINT`/`SIGTERM`, ce qui supprime l'`ERR_INCOMPLETE_CHUNKED_ENCODING` que le navigateur journalisait à chaque redémarrage. L'intervalle de messages de chargement de `App.tsx` a bien son `clearInterval` de nettoyage — l'affirmation « aucun `clearInterval` dans `src/` » de la vague 2 n'est plus vraie.
 
 **Résiduel :** sous `bun --hot`, un rechargement à chaud ré-évalue le module sans passer par les gestionnaires de signaux. Un nouvel intervalle s'ajoute donc aux précédents à chaque sauvegarde de fichier, et l'erreur de chunk réapparaît côté navigateur — l'`EventSource` se reconnecte, mais le bruit revient. La partie « état de la file d'audit perdu sous `bun --hot` » reste entière : `isRunning` est réinitialisé alors qu'un lot fire-and-forget continue de tourner sur l'ancienne copie du module.
 
@@ -792,7 +800,9 @@ Défaut connexe : la version cible d'en-tête retient la version la **plus élev
 **Correctifs :** calculer le badge de dérive par différence avec la baseline déjà stockée ; dériver et afficher l'atteignabilité depuis le statut de triage, avec le filtre correspondant à côté de Zero-Inbox ; aligner le markdown sur §8, ou acter formellement le nouveau format dans le contrat (cf. [N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)).
 
 ### N24. Filtres et pagination hors de l'URL
-🔴 **Ouvert — vérifié le 21/08/2026.** `useSearchParams` n'est utilisé que par `Triage.tsx`, pour `project` et `cve` seulement.
+🟡 **Partiellement corrigé — revérifié le 23/08/2026.** Le filtre par tag de la page Projets est passé dans l'URL (`?tag=`) avec [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire) : c'était la condition pour que l'orchestrateur connaisse le périmètre d'audit (§2 le fixe aux projets *visibles*). Il survit donc à un rechargement et se partage par lien.
+
+**Résiduel :** la **pagination** du triage reste hors de l'URL, et le filtre par tag est **mono-sélection** alors que §9 décrit un ensemble avec logique OU — choisir « backend » remplace « prod » au lieu de cumuler.
 
 **⊕3** — `src/pages/Projects.tsx:47,58,780,817`, `src/pages/Triage.tsx:37-38,58`
 
@@ -858,62 +868,81 @@ Aggravé par [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-défini
 ## ⚫ Priorité 5 — Écart de contrat à arbitrer
 
 ### C11. Composants monolithiques
-🔴 **Aggravé — mesuré le 21/08/2026** — entrée conservée depuis la vague 1
+🔴 **Aggravé — remesuré le 23/08/2026** — entrée conservée depuis la vague 1
 
-| Fichier | Lignes |
-|---|---:|
-| `src/pages/Projects.tsx` | **1168** |
-| `src/pages/Reports.tsx` | 662 |
-| `src/pages/Settings.tsx` | 653 |
-| `src/pages/Triage.tsx` | 403 |
+| Fichier | Lignes (21/08) | Lignes (23/08) |
+|---|---:|---:|
+| `src/pages/Projects.tsx` | 1168 | **1125** |
+| `src/pages/Settings.tsx` | 653 | **890** |
+| `src/pages/Reports.tsx` | 662 | **632** |
+| `src/pages/Triage.tsx` | 403 | **588** |
 
-`Projects.tsx` a franchi le millier de lignes depuis la vague 1. Le refactor Atomic Design a extrait les atomes et les organismes, mais les pages ont continué de grossir : elles portent l'état, les appels réseau, l'orchestration et le markup. C'est ce qui rend [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction) (handlers non mémoïsés), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation) (état serveur local) et [N24](#n24-filtres-et-pagination-hors-de-lurl) (filtres non partagés) difficiles à corriger séparément : les trois ont la même racine.
+**Le bilan de la session du 23/08 est mitigé, et il faut le dire :** `Projects.tsx` a perdu 43 lignes (extraction de `TagBadge`, `FullScreenOverlay`), `Reports.tsx` 30 (extraction de `VulnDiffRow`), mais `Settings.tsx` a pris **237 lignes** avec le sélecteur d'instantanés de [N2](#n2-la-restauration-de-snapshot-ne-restaure-rien) et `Triage.tsx` **185** avec l'enrichissement GHSA et les dates. Le total des quatre pages est passé de 2886 à 3235 lignes.
 
-À traiter de façon opportuniste, à l'occasion des correctifs ci-dessus, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie est que les 356 tests de composants couvrent désormais ces pages : un découpage est vérifiable.
+Ce qui a été extrait l'a été correctement — `useGlobalAudit` a sorti l'orchestration de `App.tsx`, qui perd 60 lignes — mais chaque fonctionnalité ajoutée atterrit encore dans la page. Les pages portent l'état, les appels réseau, l'orchestration et le markup : c'est la racine commune de [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction) (handlers non mémoïsés), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation) (état serveur local) et [N24](#n24-filtres-et-pagination-hors-de-lurl) (filtres non partagés).
+
+À traiter de façon opportuniste, à l'occasion de ces correctifs, plutôt qu'en refactor dédié — la valeur utilisateur est nulle et le risque de régression réel. La contrepartie tient : les 434 tests de composants couvrent ces pages, donc un découpage est vérifiable.
 
 ### N31. Écarts au contrat CONTEXT.md — arbitrage à trancher
-**⊕2**
+🟡 **Arbitré le 23/08/2026 sur le principe ; l'application reste à finir.**
 
-`CONTEXT.md` n'est plus la spécification de cette application. Le **noyau technique est fidèle**, et cela a été vérifié ligne à ligne : les quatre parseurs, `normSeverity`/`dedupe`/`SEV_ORDER`/`emptyCounts`, le pipeline dédup→tri→comptage, les six conditions de déduplication d'audit et la sémantique d'`isFresh`, le format multi-ligne des erreurs, le calcul de `newCves`, la séquence git en six commandes avec son env, `keyFrom` et la détection de rate-limit, `buildCveGroups` (source, clé, `worst`, dédup, tri, override `fixed_in`), le modèle d'événement de la console et le fait qu'un résultat servi depuis le cache n'émette rien, la connexion SQLite paresseuse, l'absence de shell. Ce socle est solide.
+## La décision rendue
 
-C'est la couche produit qui a divergé, **dans les deux sens**.
+**`CONTEXT.md` était obsolète et a été supprimé.** C'était un prompt de reconstruction, écrit *avant* l'application pour la faire naître ; le produit a dépassé son niveau de détail. Un nouveau document le remplace, découpé en quinze fichiers (`docs/context/NN-*.md`) décrivant le produit **tel qu'il est construit**. L'ancienne version reste dans l'historique git (`git show 92ffb14:docs/CONTEXT.md`).
 
-**Spécifié, absent :**
+Le sens de la marche était le point à décider, et il est tranché : **on réaligne le document sur le produit**, pas l'inverse. Ramener le produit au contrat aurait coûté la suppression de l'intégration Jira, de l'ingestion CI et des SLA — indéfendable.
 
-| Route / fonctionnalité spécifiée | État | Conséquence |
+La numérotation `§1`–`§12` est conservée, les 124 renvois du code restent donc valides. `§13`–`§15` couvrent ce qui existait sans être décrit : ingestion CI, comptes-rendus d'audit, invariants de sécurité.
+
+## Ce que la réécriture a réglé
+
+Les quatorze fonctionnalités « implémentées, non spécifiées » sont désormais **décrites** : Jira réel, ingestion CI, comptes-rendus, `cve_occurrences` et les deux compteurs d'âge, CVSS, base d'avis séparée, remise à zéro, enrichissement GHSA en masse, instantanés, `AEGIS_ALLOWED_ROOTS`/`AEGIS_INGEST_TOKEN`/`HOST`, colonnes `slug`/`is_remote`, `?days=` borné, `?tag=`, champs de statut du lot. Elles ne sont plus des écarts.
+
+Les dix écarts « spécifié, absent ou divergent » sont conservés **en tant que défauts nommés** dans le nouveau document, avec un ⚠️ à l'endroit concerné plutôt qu'en liste séparée — un lecteur qui ouvre `context/01-projets.md` voit sur place que la détection d'outil ne teste pas `bun.lock`.
+
+## Ce qui reste à faire
+
+**Trois manques du contrat, à implémenter — le document a raison, le code est en retard :**
+
+| Manquant | Ce que ça coûte | Où |
 |---|---|---|
-| `GET /api/projects/:id/history` (30 derniers runs) | **absent** — `getRunsForProject` existe (`src/db/runs.ts:82`), appelée par son seul test | Impossible de consulter l'historique d'un projet, donc de voir des erreurs répétées |
-| `DELETE /api/runs/:id` | **absent** — `deleteRun` existe (`:132`), appelée par son seul test | Un run pollué reste l'état courant jusqu'au prochain audit |
-| `POST /api/annotations/fetch-fix` | **absent** — remplacé par `POST /api/advisories/sync`, qui ne persiste **aucune** annotation et ne renvoie jamais 429 | La « seule porte manuelle » de §6 n'existe pas ; `setAnnotationFix` n'est appelé que par son test |
-| `GET /api/snapshots` (liste + compteurs) | **absent** | L'utilisateur ne voit jamais quels snapshots existent |
-| `POST /api/detect` (algorithme complet) | **divergent** — `/api/projects/detect` renvoie `{tool}` au lieu d'`entries[]` : pas de scan de profondeur 1, pas de `dir`, pas de dédup par outil ; **`bun.lock` n'est jamais testé**, `bun` prime sur `yarn`/`npm`, et `composer.json`/`package.json` (hors catalogue) servent de repli | Un monorepo dont le lockfile est dans `app/` n'est pas détecté ; un projet Yarn avec un `bun.lockb` résiduel est classé `bun` ; un projet sans lockfile est proposé en `npm`, ce qui garantit un run `error` |
-| `POST /api/projects/:id/ignore` | **absent** — fait via `PUT` avec `{ignored}` | Le `PUT` réécrit `name`/`path`/`audit_path`/`type`/`tool`/`tags` à chaque bascule, sans validation ni contrôle d'existence — cf. [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin) |
-| §12 niveau 1 — sauvegarde config JSON | **non implémenté** — aucune occurrence de `buildConfig`, `writeBackup`, `scheduleBackup`, `startPeriodicBackup`, `BACKUP_DIR`, `BACKUP_KEEP`, `BACKUP_DB_KEEP`, `BACKUP_INTERVAL_MIN` dans `src/` | Aucune sauvegarde automatique, aucun historique daté, aucune rotation. Les mentions « + sauvegarde » de §1, §7, §8, §9 et §10 sont **toutes inopérantes** |
-| §9 cascade tags | **absent** | Voir [N12](#n12-la-suppression-dun-tag-laisse-des-tags-fantômes-définitifs) |
-| §1 validations + 409 doublon de cible | **absent** — aucune des cinq chaînes de validation n'existe dans `src/` ; `createProject(body)` insère tel quel, `input.path` vide devenant la chaîne `"remote"` | `~/app`, `/home/user/app` et `/home/user/app/` créent trois projets distincts : les CVE du même dépôt sont comptées 3× partout. `POST /api/projects {}` → 500 au lieu de 400 |
-| §7/§10/§12 validations d'annotation, de prompt, de réglage | **absent** | `status:"banana"` est persisté et casse l'affichage de triage et les compteurs de `/api/stats` ; un prompt sans titre est créable et devient invisible ; une durée `-99` est acceptée et rend la dédup par commit inopérante |
-| §10 tri des prompts | **divergent** — `ORDER BY title ASC` (`src/db/prompts.ts:14`) au lieu de création décroissante | Bibliothèque triée alphabétiquement, pas par nouveauté |
-| §12 variables d'environnement | **divergent** — seul `DB_PATH` est conforme. `PORT` n'est pas lu (c'est `AEGIS_PORT`, défaut **3001** et non 3000) ; `AUDIT_MAX_AGE_HOURS` n'est lu que dans la table `settings`, jamais dans l'environnement ; les quatre `BACKUP_*` sont absents | Un déploiement configuré selon le contrat démarre sur le mauvais port et ignore la fenêtre de fraîcheur par défaut |
+| `GET /api/projects/:id/history` | impossible de voir l'historique d'un projet, donc de repérer des erreurs répétées. `getRunsForProject` existe et est testée | [§4](context/04-historique.md) |
+| `DELETE /api/runs/:id` | un run pollué reste l'état courant jusqu'au prochain audit. `deleteRun` existe et est testée | [§4](context/04-historique.md) |
+| §12 niveau 1 — sauvegarde config JSON automatique | aucune sauvegarde périodique, aucun historique daté. C'était le mensonge le plus large de l'ancien contrat : les « + sauvegarde » de cinq sections étaient inopérants | [§12](context/12-sauvegarde.md) |
 
-**Implémenté, non spécifié** — c'est là qu'est passé l'essentiel de l'effort :
+**Deux remplacements par moins bien, à corriger :**
 
-1. **Intégration Jira complète** (`src/routes/tickets.ts:85-277`) : création réelle d'issues via l'API v3, document ADF, anti-doublon par hash SHA-256 (`src/db/tickets.ts:41-51`), test de connexion. §8 se limite à « préparer » un markdown copiable et stocker une URL.
-2. **Ingestion CI** (`POST /api/ingest/:slug`) authentifiée par token en comparaison à temps constant.
-3. **Batch d'audit côté serveur** (`/api/audit/run`, `/api/audit/status`) alors que §2 stipule « aucun endpoint batch » — et ce batch n'est appelé par aucun écran (cf. [N8](#n8--tout-auditer---séquentiel-périmètre-faux-non-annulable-et-verrou-serveur-contradictoire)).
-4. **Table `reports`** et page associée : persistance des comptes-rendus de « Tout auditer ».
-5. **Table `cve_occurrences`** avec `is_baseline`/`exposure_start`/`resolved_at` et calcul d'ancienneté — socle des SLA d'[UPGRADE.md §1](UPGRADE.md).
-6. **Enrichissement CVSS** (`src/lib/cvss.ts`, colonnes `cvss_vector`/`html_url`/`published_at`).
-7. ~~**Annotations globales** via `project_id = -1`~~ — ✅ **arbitré le 23/08/2026 en faveur du contrat** : la notion est retirée du code, §7 reste la référence et l'unité de triage demeure le couple CVE/projet. Voir [N7](#n7-les-annotations-globales-sont-impossibles-et-limport-de-config-meurt-à-mi-parcours).
-8. **Colonnes `slug` et `is_remote`** sur `projects`, absentes du modèle de §1.
-9. **`AEGIS_ALLOWED_ROOTS`, `AEGIS_INGEST_TOKEN`, `HOST`** — durcissements utiles, issus de la vague 1, non spécifiés.
+1. **`/api/advisories/sync` ne persiste aucune annotation**, là où `/api/annotations/fetch-fix` le prévoyait. `setAnnotationFix` n'est appelée que par son test. Perte fonctionnelle réelle, pas un renommage.
+2. **Basculer `ignored` passe par le `PUT`**, qui réécrit nom, chemin, type, outil et tags à chaque fois. Un endpoint dédié serait plus sûr.
 
-**Correctif — décision produit, à prendre avant tout correctif de conformité :** trancher si `CONTEXT.md` est réaligné sur le produit réel (Jira, ingestion CI, reports, SLA deviennent contractuels ; les endpoints jamais implémentés sont retirés ou déplacés vers [UPGRADE.md](UPGRADE.md)), ou si le produit revient au contrat. Corriger ces écarts un par un sans cet arbitrage produira des allers-retours : plusieurs entrées de cette liste sont des fonctionnalités délibérément remplacées, pas des oublis.
+**Trois divergences de détail, dont une bloque un déploiement :**
+
+- `AEGIS_PORT` défaut **3001** là où l'ancien contrat annonçait `PORT` défaut 3000 : un déploiement suivant la doc démarrait sur le mauvais port. **Le nouveau document dit `AEGIS_PORT`** — écart fermé par la réécriture.
+- `AUDIT_MAX_AGE_HOURS` n'est **jamais lu depuis l'environnement**, uniquement dans la table `settings`. Documenté comme tel, à décider s'il faut l'ajouter.
+- Les prompts sont triés par `title ASC` et non par création décroissante. Documenté comme tel.
+
+**Un endpoint dont l'usage est établi, et une migration à instruire :**
+
+> `POST /api/audit/run` est appelé par un **cron sur la machine Aegis**, qui audite périodiquement tous les projets présents en local. Aucun écran ne l'appelle — le bouton « Lancer l'audit global » orchestre côté client, conformément à [§2](context/02-audits.md) — mais l'endpoint a bien un appelant, et il est **conservé et documenté** comme mode de déclenchement sans navigateur.
+>
+> La question ouverte est ailleurs : **faut-il le remplacer par un cron d'ingestion par projet** ([§13](context/13-ingestion-ci.md)) ? Le gain serait réel — plus aucun code à garder en local sur la machine Aegis, plus aucun outil d'audit à y installer, et le lockfile audité devient celui du build. Trois choses se perdraient en revanche : la **déduplication par commit**, l'**état git** (`ahead`/`behind`, `dirty`, bannière de retard), et la configuration en un seul endroit.
+>
+> ⚠️ **Prérequis à cette migration : doter l'ingestion d'une déduplication.** Son absence est délibérée et convient à une CI — un push, un build, un run qui a du sens — mais un cron horaire produirait vingt-quatre runs identiques par jour et par projet. L'historique et la série globale en seraient noyés. C'est le seul point bloquant, et il est petit : la barrière de §2 existe déjà, il s'agit de l'appliquer au chemin d'ingestion quand un `?sha=` est fourni.
+
+## Leçon consignée
+
+**Deux arbitrages avaient déjà été rendus en chemin, tous deux en faveur du contrat** quand il était explicite : les annotations globales (retirées, §7 fixe l'unité au couple CVE/projet) et la casse des noms de tags (rétablie après avoir été « corrigée » à tort, avec une migration destructive à la clé — §9 la spécifie).
+
+Le précédent tient : **quand le document est explicite, il gagne.** Les écarts qui ont demandé un arbitrage étaient ceux où il était **muet** — et c'est exactement ce que la réécriture supprime, en décrivant ce qui existe au lieu de ce qui était imaginé.
+
 
 ---
 
 ## 🎯 Ordre de traitement recommandé
 
-Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points : la surface d'attaque s'est réduite (la brèche `PUT` de N3 est fermée), et un défaut de perte de données non trié est apparu en tête.
+Révisé le **23/08/2026**. Les dix premiers points sont faits ; ce qui reste tient en un arbitrage et trois familles.
+
+**Ce qui a été appris en les traitant, et qui vaut pour la suite :** sept correctifs sur dix ont débordé de leur périmètre annoncé, et à chaque fois pour la même raison — l'entrée décrivait le symptôme, pas la cause. N14 devait toucher une palette et a révélé onze classes amputées plus l'absence de tokens sombres ; N2 devait corriger un chemin et a révélé quatre fuites d'instructions préparées qui empêchaient la base de se fermer ; N8 devait paralléliser une boucle et a révélé un point d'entrée sans garde de chemin. Prévoir un correctif « bon marché » sur cette liste est un pari perdant.
 
 1. ~~**N32**~~ — ✅ **fait le 21/08/2026.** Le seul défaut de cette liste qui détruisait du travail humain à chaque clic.
 2. **[N5](#n5-get-apisettings-expose-les-secrets-en-clair), [N4](#n4-ssrf-authentifié-via-apiticketstest-connection), résiduel de [N3](#n3-put-apiprojectsid--aucune-validation-aucune-garde-de-chemin)** — surface d'attaque. Le résiduel de N3 se limite désormais à trois points : `pathGuard` sur `git-fetch`/`git-pull`, garde sur `/api/config/import`, et `isPathAllowed` en défaut **fermé**.
@@ -925,7 +954,12 @@ Révisé le 21/08/2026 après vérification. L'ordre a changé sur deux points :
 8. ~~**N9** et **N14**~~ — ✅ **faits le 23/08/2026.** Les deux défauts qui rendaient l'écran de triage inutilisable en pratique. N14 a dépassé son périmètre : le `grep` sur les préfixes amputés a aussi révélé des valeurs arbitraires tronquées et quatre voiles morts, et l'absence de tokens sombres rendait l'application à moitié illisible sur un système en thème sombre.
 9. ~~**Le lot des petits épinglés**~~ — ✅ **fait le 23/08/2026** : N12, N29, N39, N41, N44, N45. Trois d'entre eux ont débordé de leur périmètre annoncé — N29 emportait une concaténation SQL, N41 un index manquant, N45 deux écarts de sémantique et de forme sur `newCves`. Deux contrats épinglés ont dû être **réécrits plutôt que satisfaits** : celui de N41 exigeait une contrainte `UNIQUE` dangereuse en migration, celui de N45 supposait une porte CI sensible au triage que §2 ne prévoit pas.
 10. ~~**N8**~~ — ✅ **fait le 23/08/2026.** Sept écarts à §2 dans une seule fonctionnalité. A débordé sur un huitième point d'entrée sans garde de chemin (`POST /api/audit/run`), et sur le résiduel d'annulation que [N6](#n6-les-erreurs-http-sont-consommées-comme-des-succès) avait laissé ouvert.
-11. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — arbitrage du contrat. À trancher avant d'engager le reste : plusieurs entrées sont des fonctionnalités délibérément remplacées, pas des oublis.
+11. ~~**N13** et **N18**~~ — ✅ **faits le 23/08/2026.** Les deux derniers défauts épinglés. Plus aucun `test.failing` dans le dépôt.
+12. **[N31](#n31-écarts-au-contrat-contextmd--arbitrage-à-trancher)** — **arbitrage du contrat, désormais le point bloquant.** Quatorze fonctionnalités implémentées hors contrat, dix spécifiées et absentes ou divergentes. Deux points ont été tranchés en faveur du contrat quand il était explicite ; les autres attendent une décision produit. Chaque correctif suivant ajoutera de la surface non spécifiée, donc l'arbitrage se paie de plus en plus cher.
+13. **[N20](#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile)** — dernier 🔴 de priorité 2, et le seul défaut restant qui produise un message trompeur : un dossier renommé donne « Erreur système: … » là où §2 exige « Chemin introuvable: … ». Indépendant de l'arbitrage.
+14. **Le nœud du frontend : [C11](#c11-composants-monolithiques) → [N16](#n16-le-reactmemo-de-projectcard-est-neutralisé-par-construction), [N19](#n19-létat-serveur-nest-jamais-invalidé-après-une-mutation), [N24](#n24-filtres-et-pagination-hors-de-lurl), [N17](#n17-double-flux-sse-et-console-perdue-au-passage-sur-debug).** Les quatre ont la même racine — les pages portent l'état serveur, les appels réseau et l'orchestration — et se corrigent mieux ensemble que séparément. N19 est le plus visible pour l'utilisateur : le badge du header reste à 40 CVE après en avoir traité 25.
+15. **Performance : [N21](#n21-n1-systématiques-et-double-désérialisation-des-blobs), [N22](#n22-race-condition-sur-le-graphique-dhistorique), [N26](#n26-setinterval-jamais-nettoyé-état-de-module-perdu-sous-bun---hot).** Trois résiduels partiels, sans urgence tant que le parc reste petit. `getLatestRunsByProjectIds` existe et est corrigé : le N+1 de l'agrégateur est à portée de main.
+16. **Accessibilité et UX : [N15](#n15-navigation-clavier), [N23](#n23-les-aides-à-la-décision-de-8-sont-absentes), [N25](#n25-ticketmodal--les-notes-fuient-dun-ticket-à-lautre), [N27](#n27-design-system-contourné).** [N25](#n25-ticketmodal--les-notes-fuient-dun-ticket-à-lautre) mérite d'être sorti du lot : une note rédigée pour un paquet part dans le ticket Jira d'un autre. C'est un correctif d'une ligne.
 
 ### Comment corriger un défaut épinglé
 

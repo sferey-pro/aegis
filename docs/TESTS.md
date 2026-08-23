@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1347 tests · 0 échec · 100 fichiers
-├── 434 composants (52 fichiers) — DOM, React, fetch simulé
-└── 913 fonctionnels (48 fichiers) — vrai serveur, vraie base, vrai git
+1367 tests · 0 échec · 101 fichiers
+├── 437 composants (52 fichiers) — DOM, React, fetch simulé
+└── 930 fonctionnels (49 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -21,7 +21,7 @@ Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
 
 ---
 
-## 1. Frontend — 434 tests
+## 1. Frontend — 437 tests
 
 Colocation intégrale : chaque `.tsx` a son `.test.tsx` à côté, suivant
 l'Atomic Design.
@@ -85,7 +85,8 @@ clés étrangères et les migrations sont réels.
 | `lib/audit/index.ts` | 43 | `resolveAuditTarget`, déduplication §12, run en erreur, `ingestAudit` |
 | `lib/github/index.ts` | 39 | cache d'avis, quota, choix du correctif par branche majeure |
 | `lib/aggregator/index.ts` | 38 | regroupement par CVE, clé de repli, âge baseline vs SLA, **superposition des avis** |
-| `lib/advisory-sync.ts` | 15 | clés distinctes des derniers runs, arrêt sur quota, reprise |
+| `lib/advisory-sync.ts` | 19 | clés distinctes des derniers runs, arrêt sur quota, reprise, **verrou partagé** |
+| `lib/advisory-scheduler.ts` | 12 | intervalle et ses replis, idempotence du démarrage, première passe différée |
 | `lib/triage-constants.tsx` | 14 | palette contrastée, six formes distinctes, six libellés |
 | `lib/tailwind-classes.ts` | 4 | garde-fou sur tout `src/` : variante amputée, valeur tronquée, opacité orpheline |
 | `lib/git/index.ts` | 26 | dépôts jetables réels, `ahead`/`behind`, `pull --ff-only` |

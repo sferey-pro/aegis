@@ -2,6 +2,10 @@ import { serve } from "bun";
 import { closeDb, getDb } from "./db";
 import { closeAdvisoryDb } from "./db/advisories";
 import index from "./index.html";
+import {
+	startAdvisoryScheduler,
+	stopAdvisoryScheduler,
+} from "./lib/advisory-scheduler";
 import { closeConsoleClients } from "./lib/console";
 import { annotationsRoutes } from "./routes/annotations";
 import { auditRoutes } from "./routes/audit";
@@ -80,6 +84,20 @@ export const server = serve({
 console.log(`🚀 Server running at ${server.url}`);
 
 /**
+ * Rafraîchissement périodique des avis GHSA.
+ *
+ * Démarré après `serve()` : le serveur doit répondre avant qu'une tâche de fond
+ * ne commence. La première passe est différée d'une minute, ce qui évite qu'un
+ * rechargement à chaud n'en déclenche une à chaque sauvegarde de fichier.
+ *
+ * ⚠️ Non démarré sous test : la suite ne doit émettre aucun appel réseau, et
+ * `bun test` partage un process — un minuteur survivrait d'un fichier à l'autre.
+ */
+if (process.env.NODE_ENV !== "test" && !process.env.AEGIS_TEST_NO_DOM) {
+	startAdvisoryScheduler();
+}
+
+/**
  * Arrêt propre.
  *
  * L'ordre compte : fermer d'abord les flux SSE, ensuite les bases. Quitter sans
@@ -88,6 +106,7 @@ console.log(`🚀 Server running at ${server.url}`);
  */
 function arretPropre(signal: string): void {
 	console.log(`Shutting down... (${signal})`);
+	stopAdvisoryScheduler();
 	closeConsoleClients();
 	closeAdvisoryDb();
 	closeDb();

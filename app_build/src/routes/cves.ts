@@ -3,17 +3,6 @@ import { buildCveGroups } from "../lib/aggregator";
 import { advisorySyncBodySchema } from "../lib/schemas";
 import { parseBody } from "../lib/validate";
 
-/**
- * Une passe d'enrichissement à la fois.
- *
- * La passe est longue — un appel réseau par avis manquant — et l'écran n'a qu'un
- * bouton : deux clics rapides lanceraient deux boucles qui se disputeraient le
- * quota GitHub et écriraient les mêmes lignes. Un drapeau de module suffit :
- * l'état ne survit pas au process, et il n'y a rien à reprendre après un
- * redémarrage.
- */
-let enrichissementEnCours = false;
-
 export const cvesRoutes = {
 	"/api/cves": {
 		async GET() {
@@ -43,28 +32,27 @@ export const cvesRoutes = {
 
 	"/api/advisories/sync-all": {
 		async POST() {
-			if (enrichissementEnCours) {
-				return Response.json(
-					{
-						success: false,
-						error: "Un enrichissement GHSA est déjà en cours.",
-					},
-					{ status: 409 },
-				);
-			}
-
-			enrichissementEnCours = true;
+			// Le verrou vit avec la fonction qu'il protège (`lib/advisory-sync`), pas
+			// ici : le planificateur périodique doit partager le même, sinon un clic
+			// pendant une passe planifiée doublerait les appels réseau sur la
+			// ressource la plus rare du connecteur — le quota.
+			const { syncAllAdvisories, SyncEnCoursError } = await import(
+				"../lib/advisory-sync"
+			);
 			try {
-				const { syncAllAdvisories } = await import("../lib/advisory-sync");
 				const result = await syncAllAdvisories();
 				return Response.json({ success: true, ...result });
 			} catch (e: unknown) {
+				if (e instanceof SyncEnCoursError) {
+					return Response.json(
+						{ success: false, error: e.message },
+						{ status: 409 },
+					);
+				}
 				return Response.json(
 					{ success: false, error: errorMessage(e) },
 					{ status: 500 },
 				);
-			} finally {
-				enrichissementEnCours = false;
 			}
 		},
 	},

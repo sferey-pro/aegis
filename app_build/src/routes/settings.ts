@@ -247,6 +247,9 @@ export const settingsRoutes = {
 			// l'écran l'afficherait comme s'il venait d'avoir lieu sur le parc actuel.
 			const { resetAuditHistory } = await import("../lib/audit/queue");
 			resetAuditHistory();
+			// Le bilan du dernier rafraîchissement décrit un parc qui n'existe plus.
+			const { resetSyncHistory } = await import("../lib/advisory-sync");
+			resetSyncHistory();
 
 			const { resetConfiguration } = await import("../db/reset");
 			const { GITHUB_CONFIG_KEYS } = await import("../db/advisories");

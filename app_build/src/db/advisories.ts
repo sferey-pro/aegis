@@ -79,6 +79,12 @@ export const GITHUB_CONFIG_KEYS = [
 	"GITHUB_RL_LIMIT",
 	"GITHUB_RL_REMAINING",
 	"GITHUB_RL_RESET",
+	// Bilan du dernier rafraîchissement automatique. Persisté ici, avec l'état du
+	// quota, parce qu'il relève du même dialogue avec GitHub — et parce qu'un
+	// exploitant doit pouvoir vérifier après un redémarrage que la tâche de fond
+	// tourne réellement. Un état seulement en mémoire ne le permettrait pas.
+	"ADVISORY_SYNC_LAST_AT",
+	"ADVISORY_SYNC_LAST_FETCHED",
 ] as const;
 
 export function getGithubConfig(key: string, defaultValue = ""): string {

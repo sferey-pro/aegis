@@ -37,6 +37,10 @@ export function Settings() {
 		GITHUB_RL_REMAINING: "",
 		GITHUB_RL_RESET: "",
 		DISABLE_CONSOLE: "false",
+		// Bilan du rafraîchissement automatique des avis : **lecture seule**. Vient
+		// de la base d'avis, jamais reposté par le formulaire.
+		ADVISORY_SYNC_LAST_AT: "",
+		ADVISORY_SYNC_LAST_FETCHED: "",
 	});
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
@@ -114,6 +118,8 @@ export function Settings() {
 					GITHUB_RL_REMAINING: data.GITHUB_RL_REMAINING || "",
 					GITHUB_RL_RESET: data.GITHUB_RL_RESET || "",
 					DISABLE_CONSOLE: data.DISABLE_CONSOLE || "false",
+					ADVISORY_SYNC_LAST_AT: data.ADVISORY_SYNC_LAST_AT || "",
+					ADVISORY_SYNC_LAST_FETCHED: data.ADVISORY_SYNC_LAST_FETCHED || "",
 				});
 				setLoading(false);
 			})
@@ -151,7 +157,15 @@ export function Settings() {
 		setSaving(true);
 		setSaveSuccess(false);
 		try {
-			await fetchVoid("/api/settings", jsonInit("PUT", settings));
+			// Les deux clés de bilan sont en lecture seule : les reposter réécrirait
+			// l'horodatage du dernier rafraîchissement par la valeur affichée, donc
+			// mentirait sur la date à chaque enregistrement du formulaire.
+			const {
+				ADVISORY_SYNC_LAST_AT: _at,
+				ADVISORY_SYNC_LAST_FETCHED: _fetched,
+				...aEnvoyer
+			} = settings;
+			await fetchVoid("/api/settings", jsonInit("PUT", aEnvoyer));
 			setSaveSuccess(true);
 			setSaveError(null);
 			setTimeout(() => setSaveSuccess(false), 2000);
@@ -385,6 +399,30 @@ export function Settings() {
 									)}
 								</div>
 							)}
+
+							{/* Bilan du rafraîchissement automatique. Sans trace visible, une
+							    tâche de fond est indistinguable d'une tâche absente — et pour
+							    un projet en fin de vie, c'est elle qui apporte la nouvelle
+							    faille, pas un commit. */}
+							<div className="mt-2 text-xs text-muted-foreground p-2.5 rounded-lg border w-fit">
+								{settings.ADVISORY_SYNC_LAST_AT ? (
+									<span>
+										Dernier rafraîchissement automatique des avis :{" "}
+										<strong className="text-foreground/90">
+											{new Date(settings.ADVISORY_SYNC_LAST_AT).toLocaleString(
+												"fr-FR",
+											)}
+										</strong>{" "}
+										— {settings.ADVISORY_SYNC_LAST_FETCHED || 0} avis récupérés
+									</span>
+								) : (
+									<span>
+										Aucun rafraîchissement automatique encore effectué. La
+										première passe a lieu une minute après le démarrage, puis
+										selon <code>ADVISORY_SYNC_INTERVAL_MIN</code>.
+									</span>
+								)}
+							</div>
 
 							<div className="mt-4 flex items-center justify-between  p-4 rounded-xl border">
 								<div>

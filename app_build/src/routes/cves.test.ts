@@ -255,6 +255,22 @@ describe("POST /api/advisories/sync-all", () => {
 		expect(data).toMatchObject({ fetched: 0, alreadyCached: 1 });
 	});
 
+	test("le bilan de la passe est lisible dans les réglages", async () => {
+		// C'est ce qui permet de vérifier que le rafraîchissement automatique
+		// tourne : sans trace persistée, une tâche de fond est indistinguable d'une
+		// tâche absente.
+		const p = projet("a");
+		run(p.id, [vuln()]);
+		stubAvis("high");
+		await srv.json("/api/advisories/sync-all", { method: "POST" });
+
+		const { data } = await srv.json<Record<string, string>>("/api/settings");
+		expect(data.ADVISORY_SYNC_LAST_FETCHED).toBe("1");
+		expect(Number.isNaN(Date.parse(data.ADVISORY_SYNC_LAST_AT ?? ""))).toBe(
+			false,
+		);
+	});
+
 	test("une passe déjà en cours répond 409", async () => {
 		const p = projet("a");
 		run(p.id, [vuln()]);

@@ -56,6 +56,55 @@ describe("Settings", () => {
 		);
 	});
 
+	test("le bilan du rafraîchissement automatique est affiché", async () => {
+		// Sans trace visible, une tâche de fond est indistinguable d'une tâche
+		// absente — et pour un projet en fin de vie, c'est elle qui apporte la
+		// nouvelle faille, pas un commit.
+		mockFetch({
+			"GET /api/settings": {
+				...reglages,
+				ADVISORY_SYNC_LAST_AT: "2026-08-23T14:02:00.000Z",
+				ADVISORY_SYNC_LAST_FETCHED: "12",
+			},
+		});
+		render(<Settings />);
+		await screen.findByLabelText(/Jeton GitHub/);
+
+		expect(screen.getByText(/12 avis récupérés/)).toBeInTheDocument();
+	});
+
+	test("sans passe effectuée, l'écran le dit au lieu de rester muet", async () => {
+		mockFetch({ "GET /api/settings": reglages });
+		render(<Settings />);
+		await screen.findByLabelText(/Jeton GitHub/);
+
+		expect(
+			screen.getByText(/Aucun rafraîchissement automatique encore effectué/),
+		).toBeInTheDocument();
+	});
+
+	test("le bilan n'est jamais reposté par le formulaire", async () => {
+		// Le reposter réécrirait l'horodatage par la valeur affichée : le formulaire
+		// mentirait sur la date à chaque enregistrement.
+		mockFetch({
+			"GET /api/settings": {
+				...reglages,
+				ADVISORY_SYNC_LAST_AT: "2026-08-23T14:02:00.000Z",
+				ADVISORY_SYNC_LAST_FETCHED: "12",
+			},
+			"PUT /api/settings": { status: 204 },
+		});
+		render(<Settings />);
+		await screen.findByLabelText(/Jeton GitHub/);
+
+		fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
+
+		await waitFor(() => expect(put()).toHaveLength(1));
+		const corps = put()[0]?.body as Record<string, unknown>;
+		expect(corps).not.toHaveProperty("ADVISORY_SYNC_LAST_AT");
+		expect(corps).not.toHaveProperty("ADVISORY_SYNC_LAST_FETCHED");
+	});
+
 	test("un secret configuré laisse le champ vide et le dit dans l'invite", async () => {
 		// Le client ne détient jamais la valeur : il ne peut donc pas la réafficher.
 		// L'invite porte l'information, ce qui évite de laisser croire que le champ

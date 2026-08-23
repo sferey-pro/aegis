@@ -27,9 +27,15 @@ Liste blanche en lecture (§12), booléen `<CLÉ>_CONFIGURED` à la place de la 
 
 En https à l'écriture, **et re-validée au point d'utilisation**. Cette valeur est appelée par le serveur avec un en-tête `Authorization: Basic` : une valeur libre en ferait un proxy sortant authentifié. C'est aussi pourquoi `/api/tickets/test-connection` ignore son corps de requête.
 
-## Aucun appel réseau caché
+## Aucun appel réseau pendant un audit
 
-Pendant un audit de lockfile, aucun appel sortant hormis la consultation du cache local. GitHub est interrogé à la demande, jamais en tâche de fond.
+Pendant un audit de lockfile, **aucun** appel sortant : le chemin d'audit lit le cache local et n'émet rien. C'est ce qui rend un run déterministe, indépendant du réseau et du quota d'un tiers.
+
+> **Amendé le 23/08/2026.** Cette règle disait auparavant « GitHub est interrogé à la demande, **jamais en tâche de fond** ». Un rafraîchissement périodique des avis existe désormais ([§6](06-advisories.md)) : pour un projet dont le lockfile ne bouge plus, la nouvelle faille arrive par un nouvel avis et non par un commit, et attendre un clic humain laissait un angle mort.
+>
+> L'intention d'origine est préservée par quatre propriétés : la passe est **indépendante** de tout audit et ne peut pas le retarder ; elle est **bornée par le quota** — elle saute ce qui est en cache et s'arrête au premier 429 ; elle est **visible**, par les événements de console et par un bilan persisté que l'API expose ; et elle est **désactivable** par `ADVISORY_SYNC_INTERVAL_MIN=0`.
+>
+> Ce que l'ancienne formulation interdisait vraiment, c'est une tâche de fond **cachée**. Celle-ci ne l'est pas.
 
 ---
 

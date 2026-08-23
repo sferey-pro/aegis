@@ -4,8 +4,8 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1367 tests · 0 échec · 101 fichiers
-├── 437 composants (52 fichiers) — DOM, React, fetch simulé
+1370 tests · 0 échec · 101 fichiers
+├── 440 composants (52 fichiers) — DOM, React, fetch simulé
 └── 930 fonctionnels (49 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
@@ -21,7 +21,7 @@ Couverture de lignes, mesurée étage par étage (`bun run coverage`) :
 
 ---
 
-## 1. Frontend — 437 tests
+## 1. Frontend — 440 tests
 
 Colocation intégrale : chaque `.tsx` a son `.test.tsx` à côté, suivant
 l'Atomic Design.
@@ -126,6 +126,12 @@ Points qui méritaient d'être épinglés :
 - **L'enrichissement en masse s'arrête au premier 429** et annonce ce qui reste.
   Ce qui a été récupéré avant l'arrêt est conservé : un second appel reprend là où
   le premier s'était arrêté.
+- **Un nom de test n'est pas une assertion.** Celui de N25 s'appelait « les notes
+  ne fuient pas d'un ticket au suivant » et affirmait l'inverse — il épinglait la
+  fuite. Il passait encore après le correctif, parce qu'il n'exerçait que le cas
+  non atteignable. Chaque test de non-régression écrit depuis est **confronté au
+  défaut d'origine** : on le réintroduit, on vérifie que le test rougit, on le
+  retire.
 - **Le test de fuseau tourne sous plusieurs `TZ`.** Un test qui ne s'exécute
   qu'en UTC ne prouve rien sur un défaut de fuseau : celui de la série globale a
   été confronté à l'ancien calcul, qui échoue sous `TZ=Asia/Tokyo` et passe sous

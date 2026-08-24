@@ -145,6 +145,105 @@ export interface ResolveResult {
 	published_at?: string | null;
 }
 
+/** État du quota GitHub, tel que l'API le rapporte. */
+export interface RateLimitState {
+	limit: number;
+	remaining: number;
+	reset: number;
+}
+
+/**
+ * Lit le quota **sans le consommer**.
+ *
+ * `GET /rate_limit` est le seul point de l'API GitHub qui ne compte pas dans le
+ * quota — c'est ce qui rend l'appel acceptable là où l'invariant §15 interdit le
+ * réseau gratuit. Tout le reste de l'application ne connaissait le quota que par
+ * les en-têtes `x-ratelimit-*` d'un appel d'avis : une valeur « dernière vue »,
+ * qui ne bougeait pas d'un poil quand la fenêtre horaire de GitHub se
+ * réinitialisait, et qui sautait donc brutalement au premier appel suivant.
+ *
+ * Les trois clés persistées sont les mêmes que celles alimentées par les
+ * en-têtes : un seul état du quota en base, quelle que soit sa provenance.
+ * Renvoie `null` sur échec — réseau coupé, 5xx GitHub — **sans rien écrire** :
+ * mieux vaut afficher un état daté qu'un zéro inventé.
+ */
+export async function fetchRateLimit(): Promise<RateLimitState | null> {
+	const url = "https://api.github.com/rate_limit";
+	const headers: Record<string, string> = {
+		accept: "application/vnd.github+json",
+		"user-agent": "audit-aggregator",
+		"x-github-api-version": "2022-11-28",
+	};
+	const token = getGithubConfig("GITHUB_TOKEN", process.env.GITHUB_TOKEN ?? "");
+	if (token) headers.authorization = `Bearer ${token}`;
+
+	const startTime = Date.now();
+	const eventId = emitConsoleStart({
+		cmd: "GET rate_limit",
+		cwd: url,
+		label: "github",
+	});
+
+	try {
+		const res = await fetch(url, { headers });
+		if (!res.ok) {
+			// `ok: false` explicite : `exitCode` porte ici un statut HTTP, et la
+			// convention shell « zéro vaut succès » afficherait une croix sur un 200.
+			emitConsoleEnd(eventId, {
+				exitCode: res.status,
+				ok: false,
+				ms: Date.now() - startTime,
+			});
+			return null;
+		}
+
+		const data = (await res.json()) as {
+			resources?: { core?: Partial<RateLimitState> };
+			rate?: Partial<RateLimitState>;
+		};
+		// `resources.core` est la ressource qui porte les appels d'avis ; `rate` est
+		// son alias historique, gardé en repli pour ne pas dépendre d'une seule
+		// forme de réponse.
+		const core = data.resources?.core ?? data.rate;
+		if (
+			!core ||
+			typeof core.limit !== "number" ||
+			typeof core.remaining !== "number"
+		) {
+			emitConsoleEnd(eventId, {
+				exitCode: res.status,
+				ok: false,
+				ms: Date.now() - startTime,
+			});
+			return null;
+		}
+
+		const state: RateLimitState = {
+			limit: core.limit,
+			remaining: core.remaining,
+			reset: typeof core.reset === "number" ? core.reset : 0,
+		};
+		setGithubConfig("GITHUB_RL_LIMIT", String(state.limit));
+		setGithubConfig("GITHUB_RL_REMAINING", String(state.remaining));
+		setGithubConfig("GITHUB_RL_RESET", String(state.reset));
+
+		emitConsoleEnd(eventId, {
+			exitCode: res.status,
+			ok: true,
+			ms: Date.now() - startTime,
+		});
+		return state;
+	} catch (e: unknown) {
+		emitConsoleEnd(eventId, {
+			exitCode: 0,
+			ok: false,
+			ms: Date.now() - startTime,
+			errorText: errorMessage(e),
+		});
+		return null;
+	}
+}
+
 /**
  * Un appel réseau, un avis. Exporté pour l'enrichissement en masse, qui a besoin
  * de distinguer « aucun avis chez GitHub » de « quota épuisé » : la première

@@ -92,6 +92,12 @@ export function Settings() {
 		JIRA_API_KEY: false,
 	});
 
+	/**
+	 * Le quota affiché vient-il d'être relu, ou est-ce la valeur persistée ?
+	 * `null` tant que la question n'est pas tranchée.
+	 */
+	const [quotaFrais, setQuotaFrais] = useState<boolean | null>(null);
+
 	useEffect(() => {
 		fetchJson<Record<string, string>>("/api/settings")
 			.then((data) => {
@@ -122,6 +128,38 @@ export function Settings() {
 					ADVISORY_SYNC_LAST_FETCHED: data.ADVISORY_SYNC_LAST_FETCHED || "",
 				});
 				setLoading(false);
+				// Quota relu à la source, une fois l'écran peuplé.
+				//
+				// `GET /rate_limit` ne consomme pas de quota, contrairement à tout le
+				// reste de l'API GitHub : c'est ce qui rend l'appel acceptable ici.
+				// Sans lui, l'écran n'affichait pas « le quota » mais « le dernier
+				// quota vu au passage d'un appel d'avis » — une valeur qui ne bouge pas
+				// quand la fenêtre horaire de GitHub se réinitialise, et qui saute donc
+				// d'un coup au prochain appel.
+				//
+				// Enchaîné **après** le chargement des réglages, jamais en parallèle :
+				// la réponse de `/api/settings` porte les mêmes trois clés, et si elle
+				// arrivait en second elle réécrirait la valeur fraîche par celle de la
+				// base.
+				return (
+					fetchJson<{
+						limit: number;
+						remaining: number;
+						reset: number;
+					}>("/api/github/rate-limit")
+						.then((quota) => {
+							setSettings((prev) => ({
+								...prev,
+								GITHUB_RL_LIMIT: String(quota.limit),
+								GITHUB_RL_REMAINING: String(quota.remaining),
+								GITHUB_RL_RESET: String(quota.reset),
+							}));
+							setQuotaFrais(true);
+						})
+						// GitHub injoignable : on garde la valeur persistée et on le dit.
+						// Un quota inventé serait pire qu'un quota daté.
+						.catch(() => setQuotaFrais(false))
+				);
 			})
 			// N6 : la chaîne n'avait aucun `.catch`, et `setLoading(false)` était
 			// **dans** le `then`. Un serveur indisponible produisait donc un rejet non
@@ -397,6 +435,16 @@ export function Settings() {
 											).toLocaleString("fr-FR")}
 										</span>
 									)}
+									{/* D'où vient le chiffre. Un quota sans provenance ni date se
+									    lit comme un état courant, alors qu'il pouvait dater de la
+									    fenêtre horaire précédente. */}
+									<span>
+										{quotaFrais === true
+											? "Relu à l'instant"
+											: quotaFrais === false
+												? "Dernière valeur connue — GitHub injoignable"
+												: "Lecture du quota…"}
+									</span>
 								</div>
 							)}
 

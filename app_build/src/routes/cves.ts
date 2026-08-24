@@ -57,6 +57,31 @@ export const cvesRoutes = {
 		},
 	},
 
+	"/api/github/rate-limit": {
+		/**
+		 * État du quota GitHub, relu à la source.
+		 *
+		 * Appelée par l'écran Réglages à son affichage, et par lui seul :
+		 * `GET /rate_limit` ne consomme pas de quota, mais il consomme du réseau, et
+		 * l'invariant §15 veut que ce réseau soit demandé par un humain. Ni le
+		 * planificateur ni le chemin d'audit ne passent ici.
+		 *
+		 * Sur échec, **502 et rien d'écrit** : l'écran garde la valeur persistée,
+		 * datée, plutôt que d'afficher un quota inventé.
+		 */
+		async GET() {
+			const { fetchRateLimit } = await import("../lib/github");
+			const state = await fetchRateLimit();
+			if (!state) {
+				return Response.json(
+					{ error: "Quota GitHub indisponible" },
+					{ status: 502 },
+				);
+			}
+			return Response.json(state);
+		},
+	},
+
 	"/api/advisories/cache": {
 		async DELETE() {
 			try {

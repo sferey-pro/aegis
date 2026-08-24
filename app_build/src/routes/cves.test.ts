@@ -9,7 +9,11 @@ import {
 } from "bun:test";
 
 import { getDb } from "@/db";
-import { getAdvisoryDb } from "@/db/advisories";
+import {
+	getAdvisoryDb,
+	getGithubConfig,
+	setGithubConfig,
+} from "@/db/advisories";
 import { upsertAnnotation } from "@/db/annotations";
 import { createProject, type Project } from "@/db/projects";
 import { addRun } from "@/db/runs";
@@ -313,6 +317,62 @@ describe("POST /api/advisories/sync-all", () => {
 			method: "POST",
 		});
 		expect(status).toBe(200);
+	});
+});
+
+describe("GET /api/github/rate-limit", () => {
+	/** Réponse de `GET /rate_limit`, forme documentée par GitHub. */
+	function quota(core: Record<string, number>) {
+		globalThis.fetch = ((_url: string) =>
+			Promise.resolve(
+				new Response(JSON.stringify({ resources: { core } }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				}),
+			)) as typeof fetch;
+	}
+
+	test("rend le quota lu chez GitHub", async () => {
+		quota({ limit: 5000, remaining: 4321, reset: 1787577633 });
+		const { status, data } = await srv.json<{
+			limit: number;
+			remaining: number;
+			reset: number;
+		}>("/api/github/rate-limit");
+
+		expect(status).toBe(200);
+		expect(data).toEqual({ limit: 5000, remaining: 4321, reset: 1787577633 });
+	});
+
+	test("le quota lu est persisté, donc visible par les réglages", async () => {
+		// C'est ce qui rend la valeur utile après un redémarrage : l'écran la relit
+		// à l'affichage, mais la base garde le dernier état connu entre-temps.
+		quota({ limit: 5000, remaining: 4200, reset: 99 });
+		await srv.json("/api/github/rate-limit");
+
+		expect(getGithubConfig("GITHUB_RL_REMAINING")).toBe("4200");
+		expect(getGithubConfig("GITHUB_RL_LIMIT")).toBe("5000");
+		expect(getGithubConfig("GITHUB_RL_RESET")).toBe("99");
+	});
+
+	test("GitHub injoignable donne 502, et n'écrase rien", async () => {
+		setGithubConfig("GITHUB_RL_REMAINING", "4997");
+		globalThis.fetch = ((_url: string) =>
+			Promise.reject(new Error("ENOTFOUND"))) as typeof fetch;
+
+		const { status, data } = await srv.json<{ error: string }>(
+			"/api/github/rate-limit",
+		);
+		expect(status).toBe(502);
+		expect(data.error).toBe("Quota GitHub indisponible");
+		expect(getGithubConfig("GITHUB_RL_REMAINING")).toBe("4997");
+	});
+
+	test("une erreur HTTP de GitHub donne aussi 502", async () => {
+		globalThis.fetch = ((_url: string) =>
+			Promise.resolve(new Response("nope", { status: 503 }))) as typeof fetch;
+
+		expect((await srv.json("/api/github/rate-limit")).status).toBe(502);
 	});
 });
 

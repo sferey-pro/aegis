@@ -86,6 +86,7 @@ Chaque fichier est autonome : ce que la fonctionnalité fait, ses règles, ses c
 | POST | `/api/advisories/sync` | rafraîchir l'avis d'**une** CVE | [6](context/06-advisories.md) |
 | POST | `/api/advisories/sync-all` | enrichir tous les avis manquants ; s'arrête au quota | [6](context/06-advisories.md) |
 | DELETE | `/api/advisories/cache` | purger le cache d'avis | [6](context/06-advisories.md) |
+| GET | `/api/github/rate-limit` | état du quota, relu chez GitHub sans le consommer ; 502 si injoignable | [6](context/06-advisories.md) |
 | GET | `/api/tickets/list` | lister les liens de tickets | [8](context/08-jira.md) |
 | POST | `/api/tickets/create` | créer l'issue Jira (API v3, ADF) ; 409 sur doublon | [8](context/08-jira.md) |
 | POST | `/api/tickets/link` · `/unlink` | attacher / détacher un lien manuel | [8](context/08-jira.md) |

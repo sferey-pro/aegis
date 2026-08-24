@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1412 tests · 0 échec · 102 fichiers
-├── 440 composants (52 fichiers) — DOM, React, fetch simulé
-└── 972 fonctionnels (50 fichiers) — vrai serveur, vraie base, vrai git
+1431 tests · 0 échec · 102 fichiers
+├── 444 composants (52 fichiers) — DOM, React, fetch simulé
+└── 987 fonctionnels (50 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -77,14 +77,14 @@ clés étrangères et les migrations sont réels.
 
 ---
 
-## 3. Logique métier — 423 tests
+## 3. Logique métier — 434 tests
 
 | Module | Tests | Contrats notables |
 |---|---:|---|
 | `lib/schemas.ts` | 45 | **messages identiques à `CONTEXT.md`**, mot pour mot |
 | `lib/audit/index.ts` | 59 | `resolveAuditTarget`, déduplication §12, contrôles préalables, run en erreur, `ingestAudit` |
 | `lib/audit/preflight.ts` | 19 | catalogue des commandes, chemin et lockfile manquants, messages **mot pour mot** |
-| `lib/github/index.ts` | 39 | cache d'avis, quota, choix du correctif par branche majeure |
+| `lib/github/index.ts` | 50 | cache d'avis, quota (en-têtes **et** `/rate_limit`), choix du correctif par branche majeure |
 | `lib/aggregator/index.ts` | 38 | regroupement par CVE, clé de repli, âge baseline vs SLA, **superposition des avis** |
 | `lib/advisory-sync.ts` | 19 | clés distinctes des derniers runs, arrêt sur quota, reprise, **verrou partagé** |
 | `lib/advisory-scheduler.ts` | 12 | intervalle et ses replis, idempotence du démarrage, première passe différée |

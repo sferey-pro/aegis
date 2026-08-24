@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 440 tests composants — happy-dom actif
-bun run test:api    # 972 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 444 tests composants — happy-dom actif
+bun run test:api    # 987 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1412 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1431 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -139,6 +139,7 @@ Ce sont des garde-fous du projet, pas des conseils génériques — en casser un
 - **Les secrets ne sortent jamais de l'API.** `GET /api/settings` applique une **liste blanche** (`PUBLIC_SETTING_KEYS`) et remplace chaque secret par un booléen `<CLÉ>_CONFIGURED`. Liste blanche et non liste noire : c'était le défaut du correctif C2, où toute clé secrète ajoutée ensuite fuyait par défaut. En écriture, un secret dont la valeur est vide est **ignoré**, sinon le formulaire — qui ne connaît pas la valeur — l'effacerait à chaque enregistrement.
 - **`JIRA_BASE_URL` est validée en https à l'écriture, et re-validée au point d'utilisation.** Cette valeur est appelée par le serveur avec un en-tête `Authorization: Basic` : une valeur libre en ferait un proxy sortant authentifié. `/api/tickets/test-connection` lit la configuration **enregistrée** et ignore son corps de requête, pour la même raison.
 - Aucun appel réseau pendant un audit de lockfile, hormis la consultation d'advisory dans `enhanceVulnerabilities` ; GitHub est interrogé à la demande, jamais en tâche de fond cachée.
+- **Le quota GitHub se lit par `GET /api/github/rate-limit`**, appelé par l'écran Réglages à son affichage et par personne d'autre. `GET /rate_limit` est le seul point de l'API GitHub qui ne consomme pas de quota, ce qui rend l'appel compatible avec l'invariant ci-dessus. Il est **enchaîné après** `GET /api/settings` — les deux réponses portent `GITHUB_RL_LIMIT`/`REMAINING`/`RESET`, et en parallèle celle de la base pouvait réécrire la valeur fraîche. Sur échec : **502, et rien d'écrit** ; l'écran garde la valeur persistée en la nommant « dernière valeur connue ». Les en-têtes `x-ratelimit-*` continuent d'alimenter les mêmes clés au passage des appels d'avis : un seul état du quota en base, deux sources.
 
 ## Pièges connus
 

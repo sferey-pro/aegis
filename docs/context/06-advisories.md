@@ -33,7 +33,7 @@ Sans la seconde, l'écran n'affichait pas « le quota » mais « le dernier quot
 
 1. **déclenché par un humain** — l'affichage de l'écran Réglages. Ni le planificateur (§6), ni le chemin d'audit (§2), ni aucune tâche de fond ne passe ici ;
 2. **enchaîné après `GET /api/settings`, jamais en parallèle** — les deux réponses portent les mêmes trois clés, et celle de la base réécrirait la valeur fraîche si elle arrivait en second ;
-3. **échec sans dégât** — réseau coupé, 5xx, corps de forme inattendue : **502** et **rien d'écrit** en base. L'écran garde la valeur persistée en la nommant « dernière valeur connue ». Mieux vaut un quota daté qu'un quota inventé, et `NaN / NaN` serait pire que les deux.
+3. **échec sans dégât** — réseau coupé, 5xx, corps de forme inattendue : **502** et **rien d'écrit** en base. L'écran garde la valeur persistée et le **signale** — « dernière valeur connue ». Seul ce cas dégradé porte une mention : en marche normale, le chiffre est celui de GitHub, le dire n'apprendrait rien. Mieux vaut un quota daté qu'un quota inventé, et `NaN / NaN` serait pire que les deux.
 
 La lecture s'inscrit dans les mêmes clés que les en-têtes : un seul état du quota en base, quelle que soit sa provenance.
 

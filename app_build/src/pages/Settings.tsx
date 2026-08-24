@@ -435,16 +435,12 @@ export function Settings() {
 											).toLocaleString("fr-FR")}
 										</span>
 									)}
-									{/* D'où vient le chiffre. Un quota sans provenance ni date se
-									    lit comme un état courant, alors qu'il pouvait dater de la
-									    fenêtre horaire précédente. */}
-									<span>
-										{quotaFrais === true
-											? "Relu à l'instant"
-											: quotaFrais === false
-												? "Dernière valeur connue — GitHub injoignable"
-												: "Lecture du quota…"}
-									</span>
+									{/* Seul le cas dégradé mérite un mot : le chiffre affiché
+									    n'est alors pas celui de GitHub mais le dernier connu. Dire
+									    « relu à l'instant » dans le cas normal n'apprend rien. */}
+									{quotaFrais === false && (
+										<span>Dernière valeur connue — GitHub injoignable</span>
+									)}
 								</div>
 							)}
 

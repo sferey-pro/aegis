@@ -90,7 +90,6 @@ describe("Settings", () => {
 		render(<Settings />);
 
 		expect(await screen.findByText("4321 / 5000")).toBeInTheDocument();
-		expect(screen.getByText(/Relu à l'instant/)).toBeInTheDocument();
 	});
 
 	test("le quota est relu après les réglages, jamais avant", async () => {
@@ -98,7 +97,7 @@ describe("Settings", () => {
 		// `/api/settings` pouvait arriver en second et réécrire la valeur fraîche.
 		mockFetch({ ...quotaRoute, "GET /api/settings": reglages });
 		render(<Settings />);
-		await screen.findByText(/Relu à l'instant/);
+		await screen.findByText("4321 / 5000");
 
 		const urls = fetchCalls()
 			.filter((c) => c.method === "GET")

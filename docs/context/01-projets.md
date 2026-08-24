@@ -57,9 +57,11 @@ Autres règles : `audit_path` trimé, chaîne vide → `null`. `tags` accepté s
 - **Lister** : tous les projets, `created_at` décroissant, enrichis de leur **dernier run** (§4). L'**état git** n'est **pas** calculé — `git: null`, qui signifie « non chargé » et non « pas un dépôt ». `?git=1` le demande explicitement, et il est alors calculé en parallèle avec une concurrence bornée. Le lire coûte cinq sous-processus par projet ; c'est une action volontaire, décrite en [§5](05-git.md).
 - **Créer / Modifier** : valident, contrôlent le chemin, refusent le doublon. Le `PUT` réécrit **tous** les champs éditables : basculer `ignored` par cette route réécrit aussi nom, chemin, type, outil et tags.
 - **Supprimer** : cascade sur runs, annotations, tickets. Idempotent — un id inexistant ne lève pas.
-- **Détecter l'outil** (`POST /api/projects/detect`) : cherche dans le dossier, **dans cet ordre**, `composer.lock`, `bun.lockb`, `yarn.lock`, `package-lock.json`, puis en repli `composer.json` et `package.json`. Renvoie `{tool}` ou rien.
+- **Détecter l'outil** (`POST /api/projects/detect`) : cherche dans le dossier, **dans cet ordre**, `composer.lock`, `bun.lock` **ou** `bun.lockb`, `yarn.lock`, `package-lock.json`, puis en repli `composer.json` et `package.json`. Renvoie `{tool}` ou rien. Les noms de lockfiles viennent d'`AUDIT_TOOLS` ([§2](02-audits.md)), **source de vérité unique** : la liste était recopiée ici et avait divergé.
 
-  ⚠️ Trois limites connues : `bun.lock` (format texte récent) n'est **pas** testé, seul `bun.lockb` l'est ; l'ordre fait primer `bun` sur `yarn` et `npm`, donc un projet Yarn portant un `bun.lockb` résiduel est classé `bun` ; et le repli sur les manifestes propose un outil pour un projet **sans lockfile**, ce qui garantit un run en erreur. La détection ne parcourt pas les sous-dossiers : le lockfile d'un monorepo doit être déclaré à la main via `audit_path`.
+  ⚠️ Deux limites connues : l'ordre fait primer `bun` sur `yarn` et `npm`, donc un projet Yarn portant un lockfile bun résiduel est classé `bun` ; et le repli sur les manifestes propose un outil pour un projet **sans lockfile**, ce qui garantit un run en erreur — l'erreur nomme alors le fichier attendu ([§2](02-audits.md)). La détection ne parcourt pas les sous-dossiers : le lockfile d'un monorepo doit être déclaré à la main via `audit_path`.
+
+  ⚠️ **Un seul outil par projet.** Un dépôt à double pile — `composer.lock` *et* `yarn.lock` — n'est donc audité que d'un côté, et la détection choisit composer. Le second lockfile n'est jamais vu, et rien ne le signale.
 
 ---
 

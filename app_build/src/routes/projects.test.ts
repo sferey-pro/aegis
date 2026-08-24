@@ -483,6 +483,34 @@ describe("POST /api/projects/detect", () => {
 		expect((await detecter(d)).data.tool).toBe("bun");
 	});
 
+	test("bun.lock donne bun, comme bun.lockb", async () => {
+		// Le format texte de Bun manquait au catalogue de la détection, qui recopiait
+		// la liste au lieu de lire `AUDIT_TOOLS` : un projet n'ayant que `bun.lock`
+		// tombait sur le repli `package.json`, était classé `npm`, et son audit
+		// échouait ensuite sur « Lockfile manquant: package-lock.json ». Observé sur
+		// un projet réel.
+		const d = dossier("bun-lock-texte");
+		writeFileSync(join(d, "bun.lock"), "");
+		expect((await detecter(d)).data.tool).toBe("bun");
+	});
+
+	test("bun.lock l'emporte sur le repli package.json", async () => {
+		// C'est la combinaison exacte du projet en écart : un lockfile bun et un
+		// manifeste npm dans le même dossier.
+		const d = dossier("bun-lock-et-manifeste");
+		writeFileSync(join(d, "bun.lock"), "");
+		writeFileSync(join(d, "package.json"), "{}");
+		expect((await detecter(d)).data.tool).toBe("bun");
+	});
+
+	test("un lockfile npm l'emporte sur un manifeste, sans lockfile bun", async () => {
+		// Contre-épreuve : la priorité de bun ne doit pas avaler le cas normal.
+		const d = dossier("npm-lock-et-manifeste");
+		writeFileSync(join(d, "package-lock.json"), "{}");
+		writeFileSync(join(d, "package.json"), "{}");
+		expect((await detecter(d)).data.tool).toBe("npm");
+	});
+
 	test("yarn.lock donne yarn", async () => {
 		const d = dossier("yarn-lock");
 		writeFileSync(join(d, "yarn.lock"), "");

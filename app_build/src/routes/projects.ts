@@ -7,6 +7,7 @@ import {
 	getProjectById,
 	listProjects,
 	type Project,
+	type ProjectTool,
 	updateProject,
 } from "../db/projects";
 import { getLatestRun, getRunsForProject, type Run } from "../db/runs";
@@ -149,20 +150,40 @@ export const projectsRoutes = {
 			const fs = await import("node:fs");
 			const fullPath = resolveAuditTarget(data.path, data.audit_path);
 
-			let tool = null;
+			// Lockfiles lus dans `AUDIT_TOOLS` (§2), **source de vérité unique** : la
+			// liste était recopiée ici, et elle avait divergé — `bun.lock`, le format
+			// texte de Bun, n'y figurait pas. Un projet qui n'a que ce fichier était
+			// donc classé `npm` par le repli sur `package.json`, et son audit
+			// échouait ensuite sur « Lockfile manquant: package-lock.json ».
+			const { AUDIT_TOOLS } = await import("../lib/audit/preflight");
+
+			// Ordre documenté en §1 : composer d'abord, puis bun, yarn, npm. Il fait
+			// primer `bun` sur `yarn` et `npm` — un projet Yarn portant un lockfile
+			// bun résiduel est donc classé `bun`.
+			const ORDRE_DETECTION: ProjectTool[] = ["composer", "bun", "yarn", "npm"];
+
+			let tool: ProjectTool | null = null;
 			try {
-				if (fs.existsSync(nodePath.join(fullPath, "composer.lock")))
-					tool = "composer";
-				else if (fs.existsSync(nodePath.join(fullPath, "bun.lockb")))
-					tool = "bun";
-				else if (fs.existsSync(nodePath.join(fullPath, "yarn.lock")))
-					tool = "yarn";
-				else if (fs.existsSync(nodePath.join(fullPath, "package-lock.json")))
-					tool = "npm";
-				else if (fs.existsSync(nodePath.join(fullPath, "composer.json")))
-					tool = "composer";
-				else if (fs.existsSync(nodePath.join(fullPath, "package.json")))
-					tool = "npm";
+				for (const candidat of ORDRE_DETECTION) {
+					const trouve = AUDIT_TOOLS[candidat].lockfiles.some((nom) =>
+						fs.existsSync(nodePath.join(fullPath, nom)),
+					);
+					if (trouve) {
+						tool = candidat;
+						break;
+					}
+				}
+
+				// Repli sur les manifestes : propose un outil pour un projet **sans
+				// lockfile**, ce qui garantit un run en erreur (§2). C'est délibéré —
+				// l'erreur nomme le fichier attendu — mais ça reste un repli, donc en
+				// dernier.
+				if (!tool) {
+					if (fs.existsSync(nodePath.join(fullPath, "composer.json")))
+						tool = "composer";
+					else if (fs.existsSync(nodePath.join(fullPath, "package.json")))
+						tool = "npm";
+				}
 			} catch (_e) {}
 
 			return Response.json({ tool });

@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1431 tests · 0 échec · 102 fichiers
-├── 444 composants (52 fichiers) — DOM, React, fetch simulé
-└── 987 fonctionnels (50 fichiers) — vrai serveur, vraie base, vrai git
+1460 tests · 0 échec · 104 fichiers
+├── 450 composants (52 fichiers) — DOM, React, fetch simulé
+└── 1010 fonctionnels (52 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -77,7 +77,7 @@ clés étrangères et les migrations sont réels.
 
 ---
 
-## 3. Logique métier — 434 tests
+## 3. Logique métier — 455 tests
 
 | Module | Tests | Contrats notables |
 |---|---:|---|
@@ -97,6 +97,8 @@ clés étrangères et les migrations sont réels.
 | `lib/utils.ts` | 14 | `cn` (conflits Tailwind), `errorMessage` |
 | `lib/validate.ts` | 14 | échec **retourné**, jamais levé ; toujours `{ error }` + 400 |
 | `lib/audit/queue.ts` | 14 | mutex **global**, libéré dans un `finally` |
+| `lib/batch.ts` | 14 | pool partagé : borne **mesurée**, file partagée, annulés au compte-rendu, progression monotone |
+| `lib/useGlobalGitSync.ts` | 7 | tri du compte-rendu : échecs d'abord, puis `behind` décroissant |
 
 Points qui méritaient d'être épinglés :
 

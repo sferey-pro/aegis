@@ -406,14 +406,197 @@ describe("Projects", () => {
 		expect(del()).toHaveLength(0);
 	});
 
-	test("« Vérifier les mises à jour Git » est séquentiel", async () => {
-		// Défaut UX10/FE9 : le contrat (CONTEXT.md §5) impose un parallélisme
-		// borné à 4. L'implémentation enchaîne les fetch un par un.
+	/** Réponse de `git-fetch`, telle que la route la construit depuis §5. */
+	function reponseFetch(behind = 0, ok = true, log = "= [up to date]") {
+		return {
+			body: {
+				ok,
+				log,
+				git: {
+					isRepo: true,
+					branch: "main",
+					sha: "a",
+					upstream: "origin/main",
+					ahead: 0,
+					behind,
+					dirty: false,
+				},
+			},
+		};
+	}
+
+	test("« Vérifier les mises à jour Git » lance les dépôts en parallèle", async () => {
+		// Contrat : même pool que « Tout auditer » (§2), borné à 4. La boucle
+		// précédente enchaînait les fetch un par un — quinze dépôts de réseau à la
+		// file. Mesuré par le nombre d'appels **partis** avant la première réponse,
+		// et non par leur ordre : celui-ci est le même dans les deux cas.
 		mockFetch({
 			...base,
 			"GET /api/projects": [
 				projet({
 					id: 7,
+					name: "Mon API",
+					git: {
+						isRepo: true,
+						branch: "main",
+						sha: "m",
+						upstream: "origin/main",
+						ahead: 0,
+						behind: 0,
+						dirty: false,
+					},
+				}),
+				projet({
+					id: 8,
+					name: "Front",
+					git: {
+						isRepo: true,
+						branch: "main",
+						sha: "f",
+						upstream: "origin/main",
+						ahead: 0,
+						behind: 0,
+						dirty: false,
+					},
+				}),
+				projet({
+					id: 9,
+					name: "Batch",
+					git: {
+						isRepo: true,
+						branch: "main",
+						sha: "b",
+						upstream: "origin/main",
+						ahead: 0,
+						behind: 0,
+						dirty: false,
+					},
+				}),
+			],
+			"POST /api/projects/7/git-fetch": { ...reponseFetch(), delayMs: 60 },
+			"POST /api/projects/8/git-fetch": { ...reponseFetch(), delayMs: 60 },
+			"POST /api/projects/9/git-fetch": { ...reponseFetch(), delayMs: 60 },
+		});
+		monte();
+		await waitFor(() => {
+			expect(screen.getByText("Mon API")).toBeInTheDocument();
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+		);
+
+		// À 20 ms, aucune réponse n'est encore arrivée : en séquentiel un seul
+		// appel serait parti.
+		await new Promise((r) => setTimeout(r, 20));
+		expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(3);
+	});
+
+	test("la progression est affichée, non modale, et annulable", async () => {
+		// Le voile plein écran masquait la console live — seul endroit où l'on voit
+		// `git fetch` tourner et échouer (même défaut que N8 côté audit).
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				projet({
+					id: 7,
+					name: "Mon API",
+					git: {
+						isRepo: true,
+						branch: "main",
+						sha: "m",
+						upstream: "origin/main",
+						ahead: 0,
+						behind: 0,
+						dirty: false,
+					},
+				}),
+			],
+			"POST /api/projects/7/git-fetch": { ...reponseFetch(), delayMs: 80 },
+		});
+		monte();
+		await waitFor(() => {
+			expect(screen.getByText("Mon API")).toBeInTheDocument();
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+		);
+
+		expect(
+			await screen.findByText(/Mise à jour Git — \d+ \/ 1 projets/),
+		).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Annuler/ })).toBeInTheDocument();
+	});
+
+	test("un dépôt injoignable est nommé à l'écran", async () => {
+		// L'échec partait dans `console.error` : la carte affichait le même « à
+		// jour » que pour un succès.
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				projet({
+					id: 7,
+					name: "Mon API",
+					git: {
+						isRepo: true,
+						branch: "main",
+						sha: "m",
+						upstream: "origin/main",
+						ahead: 0,
+						behind: 0,
+						dirty: false,
+					},
+				}),
+				projet({
+					id: 8,
+					name: "Front",
+					git: {
+						isRepo: true,
+						branch: "main",
+						sha: "f",
+						upstream: "origin/main",
+						ahead: 0,
+						behind: 0,
+						dirty: false,
+					},
+				}),
+			],
+			"POST /api/projects/7/git-fetch": reponseFetch(),
+			"POST /api/projects/8/git-fetch": reponseFetch(
+				0,
+				false,
+				"Permission denied (publickey)",
+			),
+		});
+		monte();
+		await waitFor(() => {
+			expect(screen.getByText("Mon API")).toBeInTheDocument();
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+		);
+
+		expect(
+			await screen.findByText(/1 dépôt\(s\) non synchronisé\(s\)/),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText(/Permission denied \(publickey\)/),
+		).toBeInTheDocument();
+	});
+
+	test("le filtre par tag borne le périmètre de la synchronisation", async () => {
+		// §2 fixe le périmètre d'un lot aux projets **visibles**. Le handler
+		// refiltrait de son côté et ignorait le filtre par tag : filtrer sur
+		// « prod » puis synchroniser touchait quand même tous les dépôts.
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				projet({
+					id: 7,
+					name: "Mon API",
+					tags: ["prod"],
 					git: {
 						isRepo: true,
 						branch: "main",
@@ -430,7 +613,7 @@ describe("Projects", () => {
 					git: {
 						isRepo: true,
 						branch: "main",
-						sha: "b",
+						sha: "f",
 						upstream: "origin/main",
 						ahead: 0,
 						behind: 0,
@@ -438,10 +621,9 @@ describe("Projects", () => {
 					},
 				}),
 			],
-			"POST /api/projects/7/git-fetch": { body: { ok: true, log: "" } },
-			"POST /api/projects/8/git-fetch": { body: { ok: true, log: "" } },
+			"POST /api/projects/7/git-fetch": reponseFetch(),
 		});
-		monte();
+		monte("/projects?tag=prod");
 		await waitFor(() => {
 			expect(screen.getByText("Mon API")).toBeInTheDocument();
 		});
@@ -451,12 +633,9 @@ describe("Projects", () => {
 		);
 
 		await waitFor(() => {
-			expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(2);
+			expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(1);
 		});
-		// L'ordre d'enregistrement reflète l'exécution séquentielle.
-		const gitFetch = post().filter((c) => c.url.includes("git-fetch"));
-		expect(gitFetch[0]?.url).toBe("/api/projects/7/git-fetch");
-		expect(gitFetch[1]?.url).toBe("/api/projects/8/git-fetch");
+		expect(post()[0]?.url).toBe("/api/projects/7/git-fetch");
 	});
 
 	test("les projets ignorés sont exclus de la vérification Git", async () => {

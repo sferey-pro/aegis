@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 444 tests composants — happy-dom actif
-bun run test:api    # 987 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 450 tests composants — happy-dom actif
+bun run test:api    # 1010 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1431 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1460 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -76,6 +76,8 @@ Un refus lève un **`AuditEnCoursError`**, que les deux routes traduisent en **4
 ⚠️ **`POST /api/audit/run` applique `pathGuard`** et **écarte** du lot les projets hors périmètre, en rendant leur nombre dans `skipped`. C'était le huitième point d'entrée touchant un chemin, et le seul à ne pas le faire.
 
 Cette route n'est appelée par **aucun écran**, et c'est normal : elle existe pour un **cron sur la machine Aegis** qui audite périodiquement tous les projets locaux. Ne la traitez pas comme du code mort. Une migration vers un cron d'ingestion par projet est envisagée ; elle demanderait d'abord de doter `/api/ingest/:slug` d'une déduplication par commit, sans quoi un cron horaire produirait vingt-quatre runs identiques par jour et par projet.
+
+**Les deux lots sont orchestrés côté client, par un pool partagé** (`src/lib/batch.ts`) : parallèle borné à 4, `AbortController`, et un compte-rendu où les projets annulés figurent — un projet absent se lirait comme un projet sain. `useGlobalAudit` (audit, §2) et `useGlobalGitSync` (synchro Git, §5) n'y ajoutent que l'appel, le tri et l'intitulé de la barre. Le pool vivait dans `useGlobalAudit`, si bien que la synchro Git est restée séquentielle, non annulable et muette sur ses échecs longtemps après le correctif N8 : ne le redupliquez pas. Le périmètre est **fourni par l'appelant** — les projets visibles — jamais recalculé dans le hook. `AuditProgressBar` sert les deux, par ses props `label` et `offset`.
 
 **« Tout auditer » est orchestré côté client** (§2 : aucun endpoint batch), par `useGlobalAudit` (`src/lib/useGlobalAudit.ts`) : pool de 4, `AbortController` exposé, résultats triés **erreurs d'abord puis plus de nouvelles CVE**. Le périmètre est fourni par l'appelant — jamais recalculé dans le hook — et vient du filtre `?tag=` porté par l'URL, sans quoi `App` ne peut pas connaître les projets *visibles*. La progression passe par `AuditProgressBar`, **non modale** : le voile plein écran couvrait la console live, seul endroit où l'on voit les commandes tourner.
 

@@ -310,9 +310,14 @@ export const projectsRoutes = {
 			if (denied) return denied;
 
 			const { projectContext } = await import("../lib/console");
-			const res = await projectContext.run({ project: project.name }, () =>
-				gitFetch(project.path),
-			);
+			// `git` recalculé après l'action, comme §5 le décrit : sans lui la réponse
+			// ne dit pas ce que l'action a changé, et l'appelant devait recharger
+			// toute la liste des projets pour l'apprendre. C'est cette information que
+			// la synchronisation groupée trie (« combien de commits de retard »).
+			const res = await projectContext.run({ project: project.name }, async () => {
+				const action = await gitFetch(project.path);
+				return { ...action, git: await getGitInfo(project.path) };
+			});
 
 			return Response.json(res);
 		},
@@ -333,9 +338,14 @@ export const projectsRoutes = {
 			if (denied) return denied;
 
 			const { projectContext } = await import("../lib/console");
-			const res = await projectContext.run({ project: project.name }, () =>
-				gitPull(project.path),
-			);
+			// `git` recalculé après l'action, comme §5 le décrit : sans lui la réponse
+			// ne dit pas ce que l'action a changé, et l'appelant devait recharger
+			// toute la liste des projets pour l'apprendre. C'est cette information que
+			// la synchronisation groupée trie (« combien de commits de retard »).
+			const res = await projectContext.run({ project: project.name }, async () => {
+				const action = await gitPull(project.path);
+				return { ...action, git: await getGitInfo(project.path) };
+			});
 
 			return Response.json(res);
 		},

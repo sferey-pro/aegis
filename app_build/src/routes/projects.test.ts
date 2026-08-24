@@ -536,6 +536,33 @@ describe("actions git et audit sur un projet", () => {
 		expect(data.log).toBe("Aucun dépôt distant configuré : rien à récupérer.");
 	});
 
+	test("git-fetch rend l'état git recalculé", async () => {
+		// §5 : « Puis recalcul de GitInfo ». La réponse ne portait que `{ok, log}`,
+		// si bien que l'appelant devait recharger toute la liste des projets pour
+		// savoir ce que l'action avait changé. C'est cet état que la
+		// synchronisation groupée trie (« combien de commits de retard »).
+		const { data: cree } = await creer({ path: depot("fetch-git") });
+		const { status, data } = await srv.json<{
+			ok: boolean;
+			log: string;
+			git: { isRepo: boolean; branch: string | null; behind: number };
+		}>(`/api/projects/${cree.id}/git-fetch`, { method: "POST" });
+
+		expect(status).toBe(200);
+		expect(data.git.isRepo).toBe(true);
+		expect(data.git.branch).toBe("main");
+		expect(data.git.behind).toBe(0);
+	});
+
+	test("git-pull rend aussi l'état git recalculé", async () => {
+		const { data: cree } = await creer({ path: depot("pull-git") });
+		const { data } = await srv.json<{ git: { isRepo: boolean } }>(
+			`/api/projects/${cree.id}/git-pull`,
+			{ method: "POST" },
+		);
+		expect(data.git.isRepo).toBe(true);
+	});
+
 	test("git-pull sur un dépôt sans amont échoue proprement", async () => {
 		const { data: cree } = await creer({ path: depot("pull") });
 		const { status, data } = await srv.json<{ ok: boolean; log: string }>(

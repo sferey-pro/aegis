@@ -489,6 +489,8 @@ Côté export, `/api/config/export` inclut les `settings` (interdits par §12), 
 ## 🟡 Priorité 3 — Robustesse & performance
 
 ### N8. « Tout auditer » : séquentiel, périmètre faux, non annulable, et verrou serveur contradictoire
+
+> **Étendu le 24/08/2026 à la fonctionnalité voisine.** La synchronisation Git groupée portait les **mêmes** défauts, restés en place parce que le pool vivait dans `useGlobalAudit` : boucle séquentielle sur quinze dépôts de réseau, aucune annulation, voile plein écran masquant la console live, échecs envoyés dans `console.error`, et périmètre recalculé ignorant le filtre par tag. Le pool, l'annulation et la forme du compte-rendu sont désormais dans `lib/batch`, partagés par les deux lots — un seul mécanisme, donc plus de divergence possible. Voir [§5](context/05-git.md).
 🟢 **Corrigé le 23/08/2026.** ✅ Verrouillé par `src/lib/audit/queue.test.ts` (23 tests), `src/routes/audit.test.ts`, `src/lib/useGlobalAudit.test.ts`, `src/components/molecules/AuditProgressBar.test.tsx` et cinq tests d'orchestration dans `src/App.test.tsx`.
 
 **⊕4** *(le défaut le plus largement relevé)* — `src/App.tsx`, `src/lib/audit/queue.ts`, `src/routes/audit.ts`, `src/routes/projects.ts`

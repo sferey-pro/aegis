@@ -28,7 +28,24 @@ Environnement imposé : `GIT_OPTIONAL_LOCKS=0` (aucune écriture de lock parasit
 - **`git fetch --verbose`** : réseau. La progression sort sur stderr, donc le journal capture stderr **puis** stdout. Aucune sortie et succès → « Déjà à jour. ». Puis recalcul de `GitInfo`. Ne modifie ni l'arbre ni la branche ; `behind` peut passer de 0 à N.
 - **`git pull --ff-only`** : refuse une divergence et ne crée **aucun** commit de fusion.
 
-Les deux renvoient `{ git, log, ok }`, `ok` valant `exit == 0`. Chemin inexistant → non-repo, `ok: false`, log « chemin introuvable ».
+Les deux renvoient `{ git, log, ok }`, `ok` valant `exit == 0`. Chemin inexistant → non-repo, `ok: false`, log « chemin introuvable ». Le `git` est **recalculé après** l'action : sans lui, l'appelant devait recharger toute la liste des projets pour savoir ce qui avait changé.
+
+## Synchronisation groupée
+
+Bouton « Vérifier les mises à jour Git ». **`git fetch` uniquement** : les deux actions restent explicites, et un `pull --ff-only` en masse modifierait toutes les copies de travail d'un clic. Le `pull` reste par projet.
+
+**Orchestré côté client, par le même pool que « Tout auditer »** ([§2](02-audits.md)) — `lib/batch`, parallèle borné à **4**, annulable :
+
+| | Comportement |
+|---|---|
+| Périmètre | les projets **visibles** au sens de §2 — non ignorés, filtrés par le tag porté par l'URL — **et** qui sont des dépôts |
+| Parallélisme | 4 au plus, file partagée : un dépôt lent n'immobilise pas un créneau |
+| Annulation | `AbortController`. Les dépôts déjà lancés voient leur requête avortée, les suivants ne partent pas, et ils figurent au compte-rendu comme **annulés** |
+| Progression | barre **non modale**, comme pour l'audit : le voile plein écran masquait la console live ([§11](11-console.md)), seul endroit où l'on voit `git fetch` tourner |
+| Compte-rendu | trié **échecs d'abord**, puis par nombre décroissant de commits de retard, départage stable par nom |
+| Échecs | **affichés**, dépôt par dépôt, avec le journal de git : un dépôt sans amont, une authentification refusée ou un hôte injoignable ne doivent pas se lire comme un succès |
+
+`behind` est ici ce que `newCves` est à l'audit : ce qui demande une action. Un `git fetch` peut sortir non nul sur une réponse HTTP 200 — c'est `ok` qui tranche, jamais le statut.
 
 ---
 

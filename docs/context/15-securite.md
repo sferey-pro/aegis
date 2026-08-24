@@ -37,6 +37,8 @@ Pendant un audit de lockfile, **aucun** appel sortant : le chemin d'audit lit le
 >
 > Ce que l'ancienne formulation interdisait vraiment, c'est une tâche de fond **cachée**. Celle-ci ne l'est pas.
 
+> **Complété le 24/08/2026.** L'affichage de l'écran Réglages émet un `GET /rate_limit` ([§6](06-advisories.md)) pour lire l'état du quota. C'est un appel réseau déclenché par un humain — au même titre qu'un clic sur « rafraîchir les avis » — et c'est le **seul** point de l'API GitHub qui ne consomme pas de quota. Il ne touche ni au chemin d'audit, ni à une tâche de fond, et son échec n'écrit rien.
+
 ---
 
 > [Index](../CONTEXT.md) · [← §14 — Comptes-rendus d'audit](14-rapports.md) · [Index →](../CONTEXT.md)

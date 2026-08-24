@@ -55,11 +55,13 @@ export function ReportModal({
 			 * Gabarit repris de la modale de projet, qui tient sur tous les
 			 * écrans. Trois corrections par rapport à la version précédente :
 			 *
-			 *  - `sm:max-w-2xl` et non `max-w-xl` : sans le préfixe `sm:`, la
+			 *  - `sm:max-w-3xl` et non `max-w-xl` : sans le préfixe `sm:`, la
 			 *    classe ne remplaçait pas le `sm:max-w-lg` de l'atome — les deux
 			 *    survivaient à `cn()`, appartenant à des groupes différents, et
 			 *    c'est la règle sous media query qui gagnait. La largeur
-			 *    demandée n'était donc jamais appliquée au-delà de `sm`.
+			 *    demandée n'était donc jamais appliquée au-delà de `sm`. Passée de
+			 *    `2xl` à `3xl` : les descriptions de CVE sont de la prose, et à
+			 *    672 px elles se coupaient tous les six ou sept mots.
 			 *  - `gap-0` : l'atome pose `gap-4`, qui restait actif malgré `p-0`
 			 *    et insérait un espace entre en-tête, corps et pied — chacun
 			 *    portant déjà son propre `p-6`.
@@ -67,7 +69,7 @@ export function ReportModal({
 			 *    à largeur maximale n'apportait rien et gênait les petits
 			 *    écrans.
 			 */}
-			<DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+			<DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
 				<div className="absolute top-0 right-0 p-32 blur-[80px] rounded-full pointer-events-none"></div>
 
 				<DialogHeader className="text-center sm:text-center p-6 pb-4 border-b shrink-0">

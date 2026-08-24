@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { getGithubConfig } from "@/db/advisories";
+import { getGithubConfig, setGithubConfig } from "@/db/advisories";
 import { useTempDb } from "@/test/db";
 import {
+	fetchRateLimit,
 	getCachedAdvisory,
 	keyFrom,
 	putCachedAdvisory,
@@ -528,5 +529,166 @@ describe("lib/github — syncAdvisory", () => {
 
 		await syncAdvisory("CVE-2020-8203");
 		expect(getCachedAdvisory("CVE-2020-8203")?.severity).toBe("high");
+	});
+});
+
+describe("lib/github — fetchRateLimit", () => {
+	useTempDb("github-quota");
+
+	/** Réponse de `GET /rate_limit`, forme documentée par GitHub. */
+	function quota(core: Record<string, number>) {
+		return { resources: { core }, rate: { limit: 1, remaining: 1, reset: 1 } };
+	}
+
+	test("interroge /rate_limit, et lui seul", async () => {
+		// C'est le seul point de l'API qui ne consomme pas de quota : viser
+		// autre chose reviendrait à payer pour connaître son solde.
+		stubFetch({
+			body: quota({ limit: 5000, remaining: 4321, reset: 1787577633 }),
+		});
+		await fetchRateLimit();
+
+		expect(appels).toEqual(["https://api.github.com/rate_limit"]);
+	});
+
+	test("rend l'état de la ressource core", async () => {
+		stubFetch({
+			body: quota({ limit: 5000, remaining: 4321, reset: 1787577633 }),
+		});
+
+		expect(await fetchRateLimit()).toEqual({
+			limit: 5000,
+			remaining: 4321,
+			reset: 1787577633,
+		});
+	});
+
+	test("persiste les trois clés du quota", async () => {
+		// Mêmes clés que celles alimentées par les en-têtes `x-ratelimit-*` : un
+		// seul état du quota en base, quelle que soit sa provenance.
+		stubFetch({
+			body: quota({ limit: 5000, remaining: 4321, reset: 1787577633 }),
+		});
+		await fetchRateLimit();
+
+		expect(getGithubConfig("GITHUB_RL_LIMIT")).toBe("5000");
+		expect(getGithubConfig("GITHUB_RL_REMAINING")).toBe("4321");
+		expect(getGithubConfig("GITHUB_RL_RESET")).toBe("1787577633");
+	});
+
+	test("un `remaining` à zéro est persisté tel quel", async () => {
+		// Le piège du `|| "0"` inversé : zéro est une valeur, pas une absence.
+		stubFetch({ body: quota({ limit: 60, remaining: 0, reset: 42 }) });
+
+		expect(await fetchRateLimit()).toEqual({
+			limit: 60,
+			remaining: 0,
+			reset: 42,
+		});
+		expect(getGithubConfig("GITHUB_RL_REMAINING")).toBe("0");
+	});
+
+	test("repli sur `rate` si `resources.core` manque", async () => {
+		// Alias historique de la même valeur : dépendre d'une seule forme de
+		// réponse ferait perdre le quota sur un changement d'API mineur.
+		stubFetch({ body: { rate: { limit: 5000, remaining: 12, reset: 7 } } });
+
+		expect(await fetchRateLimit()).toEqual({
+			limit: 5000,
+			remaining: 12,
+			reset: 7,
+		});
+	});
+
+	test("le jeton enregistré est envoyé", async () => {
+		setGithubConfig("GITHUB_TOKEN", "ghp_secret");
+		let entetes: Record<string, string> = {};
+		globalThis.fetch = ((_url: string, init?: RequestInit) => {
+			entetes = (init?.headers ?? {}) as Record<string, string>;
+			return Promise.resolve(
+				new Response(
+					JSON.stringify(quota({ limit: 5000, remaining: 1, reset: 1 })),
+					{
+						status: 200,
+						headers: { "content-type": "application/json" },
+					},
+				),
+			);
+		}) as typeof fetch;
+
+		await fetchRateLimit();
+		expect(entetes.authorization).toBe("Bearer ghp_secret");
+	});
+
+	test("sans jeton, aucun en-tête d'autorisation", async () => {
+		// Le quota anonyme est de 60 : l'appel doit rester possible, pas échouer.
+		//
+		// `GITHUB_TOKEN` de l'environnement sert de repli quand la base n'en porte
+		// pas : sans cette neutralisation, le test lisait le vrai jeton de la
+		// machine — donc il ne testait rien, et l'affichait dans sa sortie.
+		const jetonEnv = process.env.GITHUB_TOKEN;
+		process.env.GITHUB_TOKEN = "";
+		let entetes: Record<string, string> = {};
+		globalThis.fetch = ((_url: string, init?: RequestInit) => {
+			entetes = (init?.headers ?? {}) as Record<string, string>;
+			return Promise.resolve(
+				new Response(
+					JSON.stringify(quota({ limit: 60, remaining: 60, reset: 1 })),
+					{
+						status: 200,
+						headers: { "content-type": "application/json" },
+					},
+				),
+			);
+		}) as typeof fetch;
+
+		try {
+			expect(await fetchRateLimit()).toEqual({
+				limit: 60,
+				remaining: 60,
+				reset: 1,
+			});
+			expect(entetes.authorization).toBeUndefined();
+		} finally {
+			process.env.GITHUB_TOKEN = jetonEnv;
+		}
+	});
+
+	test("une erreur HTTP ne touche pas à l'état persisté", async () => {
+		// Mieux vaut afficher un quota daté qu'un quota inventé.
+		setGithubConfig("GITHUB_RL_REMAINING", "4997");
+		stubFetch({ status: 500 });
+
+		expect(await fetchRateLimit()).toBeNull();
+		expect(getGithubConfig("GITHUB_RL_REMAINING")).toBe("4997");
+	});
+
+	test("une coupure réseau ne lève pas", async () => {
+		setGithubConfig("GITHUB_RL_REMAINING", "4997");
+		stubFetch({ throws: true });
+
+		expect(await fetchRateLimit()).toBeNull();
+		expect(getGithubConfig("GITHUB_RL_REMAINING")).toBe("4997");
+	});
+
+	test("une réponse sans compteur est refusée", async () => {
+		// Un 200 dont le corps n'a pas la forme attendue ne doit pas produire
+		// `NaN / NaN` à l'écran.
+		stubFetch({ body: { resources: {} } });
+
+		expect(await fetchRateLimit()).toBeNull();
+		expect(getGithubConfig("GITHUB_RL_LIMIT")).toBe("");
+	});
+
+	test("un `reset` absent retombe à zéro, sans casser le reste", async () => {
+		stubFetch({
+			body: { resources: { core: { limit: 5000, remaining: 10 } } },
+		});
+
+		expect(await fetchRateLimit()).toEqual({
+			limit: 5000,
+			remaining: 10,
+			reset: 0,
+		});
 	});
 });

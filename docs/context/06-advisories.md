@@ -18,6 +18,25 @@ Table `advisory_cache`, dans la **base d'avis séparée**. Un parc de vingt proj
 
 Un **429**, ou un **403 avec `x-ratelimit-remaining: 0`**. Un 403 avec du quota restant est un refus d'accès, pas un quota — les confondre ferait abandonner l'enrichissement à tort.
 
+## Lecture du quota (`GET /api/github/rate-limit`)
+
+Les trois clés sont alimentées de **deux** sources, et une seule d'entre elles est fiable dans le temps :
+
+| Source | Quand | Ce qu'elle vaut |
+|---|---|---|
+| en-têtes `x-ratelimit-*` | à chaque appel d'avis | gratuit, mais c'est une valeur *vue au passage* |
+| `GET /rate_limit` | à l'affichage de l'écran Réglages, et **là seulement** | l'état réel, et cet appel **ne consomme pas de quota** |
+
+Sans la seconde, l'écran n'affichait pas « le quota » mais « le dernier quota vu ». Le quota GitHub étant une **fenêtre glissante d'une heure**, cette valeur ne bougeait pas quand la fenêtre se réinitialisait : elle restait figée puis sautait d'un coup au premier appel d'avis suivant — ce qui, en pratique, se lisait comme « le quota repart à 5000 à chaque redémarrage ».
+
+`GET /rate_limit` est le seul point de l'API GitHub exempté du décompte ; c'est ce qui rend l'appel acceptable au regard de §15. Trois propriétés à préserver :
+
+1. **déclenché par un humain** — l'affichage de l'écran Réglages. Ni le planificateur (§6), ni le chemin d'audit (§2), ni aucune tâche de fond ne passe ici ;
+2. **enchaîné après `GET /api/settings`, jamais en parallèle** — les deux réponses portent les mêmes trois clés, et celle de la base réécrirait la valeur fraîche si elle arrivait en second ;
+3. **échec sans dégât** — réseau coupé, 5xx, corps de forme inattendue : **502** et **rien d'écrit** en base. L'écran garde la valeur persistée et le **signale** — « dernière valeur connue ». Seul ce cas dégradé porte une mention : en marche normale, le chiffre est celui de GitHub, le dire n'apprendrait rien. Mieux vaut un quota daté qu'un quota inventé, et `NaN / NaN` serait pire que les deux.
+
+La lecture s'inscrit dans les mêmes clés que les en-têtes : un seul état du quota en base, quelle que soit sa provenance.
+
 ## Trois modes d'interrogation, et un seul interdit
 
 | Mode | Réseau | Quand |

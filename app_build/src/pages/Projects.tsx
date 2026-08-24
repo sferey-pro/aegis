@@ -491,20 +491,29 @@ export const Projects = React.memo(function Projects() {
 		setGitSyncFailures([]);
 		const resultats = await startGitSync(
 			cibles.map((p) => ({ id: p.id, name: p.name })),
+			// Chaque carte se met à jour dès que **sa** réponse arrive : l'état git
+			// vient de la réponse, pas d'un rechargement de la liste — celle-ci ne le
+			// calcule plus, et la recharger effacerait ce que le lot vient
+			// d'apprendre. Attendre la fin du lot laissait l'écran figé une vingtaine
+			// de secondes sur dix-sept dépôts, alors que la première réponse était
+			// déjà connue au bout d'une seconde.
+			(sortie) => {
+				const git = sortie.value?.git;
+				if (!git) return;
+				setProjects((prev) =>
+					prev.map((p) =>
+						p.id === sortie.project.id
+							? { ...p, git: { ...git, checkedAt: new Date().toISOString() } }
+							: p,
+					),
+				);
+			},
 		);
 
 		setGitSyncFailures(
 			resultats
 				.filter((r) => r.error)
 				.map((r) => ({ name: r.project.name, message: r.error ?? "" })),
-		);
-		// L'état git vient des réponses, pas d'un rechargement de la liste : celle-ci
-		// ne le calcule plus, et la recharger effacerait ce que le lot a appris.
-		setProjects((prev) =>
-			prev.map((p) => {
-				const git = resultats.find((r) => r.project.id === p.id)?.value?.git;
-				return git ? { ...p, git } : p;
-			}),
 		);
 	};
 
@@ -1015,7 +1024,11 @@ export const Projects = React.memo(function Projects() {
 								return (
 									<TableRow
 										key={p.id}
-										className={`group cursor-pointer ${p.ignored ? "opacity-50 grayscale" : ""}`}
+										// La vue liste n'avait aucun indicateur d'activité : pendant
+										// un lot, rien ne distinguait la ligne au travail des autres.
+										// Grisée plutôt que voilée — un voile en position absolue se
+										// place mal dans une cellule de tableau.
+										className={`group cursor-pointer ${p.ignored ? "opacity-50 grayscale" : ""} ${auditState[p.id] ? "opacity-60 bg-muted/40" : ""}`}
 										onClick={() => navigate(`/triage?project=${p.id}`)}
 									>
 										<TableCell>

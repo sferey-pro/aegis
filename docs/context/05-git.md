@@ -44,6 +44,8 @@ Bouton « Vérifier les mises à jour Git ». **`git fetch` uniquement** : les d
 | Progression | barre **non modale**, comme pour l'audit : le voile plein écran masquait la console live ([§11](11-console.md)), seul endroit où l'on voit `git fetch` tourner |
 | Compte-rendu | trié **échecs d'abord**, puis par nombre décroissant de commits de retard, départage stable par nom |
 | Échecs | **affichés**, dépôt par dépôt, avec le journal de git : un dépôt sans amont, une authentification refusée ou un hôte injoignable ne doivent pas se lire comme un succès |
+| Rafraîchissement | **au fil de l'eau** : chaque carte se met à jour dès que *sa* réponse arrive, sans attendre la fin du lot. Sur dix-sept dépôts en séquentiel, attendre la fin laissait l'écran figé une vingtaine de secondes alors que la première réponse était connue au bout d'une seconde |
+| Projet occupé | la carte est **voilée** (`bg-card/85`) et porte le libellé de l'opération en cours ; en vue liste, la ligne est grisée |
 
 `behind` est ici ce que `newCves` est à l'audit : ce qui demande une action. Un `git fetch` peut sortir non nul sur une réponse HTTP 200 — c'est `ok` qui tranche, jamais le statut.
 

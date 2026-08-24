@@ -95,10 +95,20 @@ export const ProjectCard = React.memo(function ProjectCard({
 				}
 			}}
 		>
+			{/* Carte occupée : voile opaque **sur la carte seule**.
+			    L'overlay n'avait aucun fond, si bien que le libellé
+			    (« Opération Git… », « Audit npm… ») se superposait au contenu et que
+			    rien ne distinguait une carte au travail d'une carte au repos —
+			    précisément l'information utile pendant un lot. `bg-card/85` laisse
+			    devenir la forme de la carte sans rendre le texte illisible, et les
+			    deux teintes sont posées puisqu'un token n'existe pas pour ce voile. */}
 			{auditState[p.id] && (
-				<div className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl">
+				<div
+					className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl bg-card/85 backdrop-blur-[2px]"
+					aria-live="polite"
+				>
 					<Loader2 className="w-6 h-6 text-primary animate-spin" />
-					<span className="text-xs font-semibold ">{auditState[p.id]}</span>
+					<span className="text-xs font-semibold">{auditState[p.id]}</span>
 				</div>
 			)}
 

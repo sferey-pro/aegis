@@ -57,6 +57,15 @@ export interface BatchOptions<T> {
 	 * compte-rendu ; rendre `null` le laisse en succès.
 	 */
 	failureOf?: (value: T) => string | null;
+	/**
+	 * Appelé dès qu'**un** projet est réglé, avant la fin du lot.
+	 *
+	 * Sans lui, l'appelant ne voit rien avant le dernier projet : le lot rendait
+	 * son tableau complet, et l'écran se mettait à jour d'un coup. Sur dix-sept
+	 * dépôts en séquentiel, cela veut dire une vingtaine de secondes pendant
+	 * lesquelles la première réponse — déjà connue — reste invisible.
+	 */
+	onSettled?: (outcome: BatchOutcome<T>) => void;
 	concurrency?: number;
 }
 
@@ -76,7 +85,7 @@ export async function runBatch<T>(
 	call: (target: BatchTarget, signal: AbortSignal) => Promise<T>,
 	options: BatchOptions<T>,
 ): Promise<BatchOutcome<T>[]> {
-	const { signal, onProgress, describeError, failureOf } = options;
+	const { signal, onProgress, describeError, failureOf, onSettled } = options;
 	const concurrency = options.concurrency ?? BATCH_CONCURRENCY;
 
 	const total = targets.length;
@@ -97,12 +106,14 @@ export async function runBatch<T>(
 			// figurent au compte-rendu comme annulés — un projet absent se lirait
 			// comme un projet sain.
 			if (signal.aborted) {
-				outcomes.push({
+				const annule: BatchOutcome<T> = {
 					project: target,
 					value: null,
 					error: null,
 					cancelled: true,
-				});
+				};
+				outcomes.push(annule);
+				onSettled?.(annule);
 				done++;
 				publish();
 				continue;
@@ -112,21 +123,25 @@ export async function runBatch<T>(
 			publish();
 			try {
 				const value = await call(target, signal);
-				outcomes.push({
+				const sortie: BatchOutcome<T> = {
 					project: target,
 					value,
 					error: failureOf?.(value) ?? null,
 					cancelled: false,
-				});
+				};
+				outcomes.push(sortie);
+				onSettled?.(sortie);
 			} catch (err) {
 				const aborted =
 					signal.aborted || (err instanceof Error && err.name === "AbortError");
-				outcomes.push({
+				const sortie: BatchOutcome<T> = {
 					project: target,
 					value: null,
 					error: aborted ? null : describeError(err),
 					cancelled: aborted,
-				});
+				};
+				outcomes.push(sortie);
+				onSettled?.(sortie);
 			} finally {
 				running.delete(target.name);
 				done++;

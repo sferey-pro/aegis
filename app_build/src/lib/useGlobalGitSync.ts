@@ -76,8 +76,16 @@ export function useGlobalGitSync() {
 		controller.current?.abort();
 	}, []);
 
+	/**
+	 * `onSettled` est appelé projet par projet, sans attendre la fin du lot :
+	 * c'est ce qui permet à une carte de se mettre à jour dès que *son* `git
+	 * fetch` répond, au lieu de voir tout l'écran changer d'un coup à la fin.
+	 */
 	const start = useCallback(
-		async (targets: GitSyncTarget[]): Promise<GitSyncOutcome[]> => {
+		async (
+			targets: GitSyncTarget[],
+			onSettled?: (outcome: GitSyncOutcome) => void,
+		): Promise<GitSyncOutcome[]> => {
 			const ctrl = new AbortController();
 			controller.current = ctrl;
 			setRunning(true);
@@ -94,6 +102,7 @@ export function useGlobalGitSync() {
 						signal: ctrl.signal,
 						onProgress: (p: BatchProgress) => setProgress(p),
 						describeError: apiErrorMessage,
+						onSettled,
 						// **Un dépôt à la fois.** Le pool de 4 vaut pour l'audit, où
 						// chaque projet lit son propre lockfile ; ici les quatre `git
 						// fetch` sortent par le même lien réseau et la même

@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 452 tests composants — happy-dom actif
-bun run test:api    # 1040 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 456 tests composants — happy-dom actif
+bun run test:api    # 1045 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1492 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1501 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -79,7 +79,7 @@ Un refus lève un **`AuditEnCoursError`**, que les deux routes traduisent en **4
 
 Cette route n'est appelée par **aucun écran**, et c'est normal : elle existe pour un **cron sur la machine Aegis** qui audite périodiquement tous les projets locaux. Ne la traitez pas comme du code mort. Une migration vers un cron d'ingestion par projet est envisagée ; elle demanderait d'abord de doter `/api/ingest/:slug` d'une déduplication par commit, sans quoi un cron horaire produirait vingt-quatre runs identiques par jour et par projet.
 
-**Les deux lots sont orchestrés côté client, par un pool partagé** (`src/lib/batch.ts`) : parallélisme borné — **4** pour l'audit, **1** pour la synchro Git, où les `git fetch` sortent tous par le même lien réseau et où quatre dépôts écrivant ensemble rendent la console illisible —, `AbortController`, et un compte-rendu où les projets annulés figurent — un projet absent se lirait comme un projet sain. `useGlobalAudit` (audit, §2) et `useGlobalGitSync` (synchro Git, §5) n'y ajoutent que l'appel, le tri et l'intitulé de la barre. Le pool vivait dans `useGlobalAudit`, si bien que la synchro Git est restée séquentielle, non annulable et muette sur ses échecs longtemps après le correctif N8 : ne le redupliquez pas. Le périmètre est **fourni par l'appelant** — les projets visibles — jamais recalculé dans le hook. `AuditProgressBar` sert les deux, par ses props `label` et `offset`.
+**Les deux lots sont orchestrés côté client, par un pool partagé** (`src/lib/batch.ts`) : parallélisme borné — **4** pour l'audit, **1** pour la synchro Git, où les `git fetch` sortent tous par le même lien réseau et où quatre dépôts écrivant ensemble rendent la console illisible —, `AbortController`, et un compte-rendu où les projets annulés figurent — un projet absent se lirait comme un projet sain. `useGlobalAudit` (audit, §2) et `useGlobalGitSync` (synchro Git, §5) n'y ajoutent que l'appel, le tri et l'intitulé de la barre. Le pool vivait dans `useGlobalAudit`, si bien que la synchro Git est restée séquentielle, non annulable et muette sur ses échecs longtemps après le correctif N8 : ne le redupliquez pas. Le périmètre est **fourni par l'appelant** — les projets visibles — jamais recalculé dans le hook. `AuditProgressBar` sert les deux, par ses props `label` et `offset`. Le pool publie **chaque projet dès qu'il est réglé** (`onSettled`) : l'écran se met à jour au fil de l'eau, il n'attend pas le tableau final — sur un lot séquentiel, attendre figeait l'écran une vingtaine de secondes.
 
 ⚠️ **`GET /api/projects` ne calcule pas l'état git** — cinq sous-processus par projet, 85 sur un parc de dix-sept, pour une valeur qui ne bouge qu'au `fetch` ou au commit local. Il rend le **dernier état connu**, lu dans `git_states` (`src/db/git-state.ts`) ; `?git=1` force le recalcul. **Tout point qui calcule un `GitInfo` l'enregistre** — `?git=1`, `GET /api/projects/:id`, `git-fetch`, `git-pull` : sans cela une vérification ne laisse aucune trace et le parc repasse à « non chargé » au rechargement. C'est un **cache daté** : `checkedAt` sort avec l'état et l'interface en affiche l'âge, parce que `dirty` change à chaque fichier modifié. Dans la liste, `git: null` veut dire **« jamais lu »**, jamais « pas un dépôt » : les deux états sont distincts à l'écran.
 

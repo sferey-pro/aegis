@@ -244,6 +244,31 @@ Chacun a coûté du temps ; ils sont consignés pour ne pas le payer deux fois.
 | `bun test` sort en 1 sans aucune erreur | zéro test collecté | vérifier le glob de `test:ui` / `test:api` |
 | `toBeInTheDocument` refusé par `tsc` | matchers non déclarés | `src/matchers.d.ts` |
 
+## Un lot asynchrone doit être drainé avant la fin du test
+
+`bun test` ne cloisonne ni les timers ni les promesses entre les tests d'un même
+fichier. Un test qui lance un lot séquentiel, mesure ce qu'il veut à 20 ms puis
+se termine laisse le lot **continuer** : ses appels suivants partent après que le
+test voisin a réinitialisé `fetchCalls()`, et sont donc comptés chez lui.
+
+Symptôme observé : un test « les projets ignorés sont exclus de la vérification
+Git » échouant sur `Received length: 1`, avec un appel vers `/api/projects/9/…`
+— un identifiant qui n'existait pas dans ses données. Le test fautif était trois
+tests plus haut.
+
+La parade est d'attendre la fin du lot avant de sortir, après l'assertion qui
+portait sur son état intermédiaire :
+
+```ts
+await new Promise((r) => setTimeout(r, 20));
+expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(1);
+
+// Drainer : sinon les appels suivants sont comptés dans le test voisin.
+await waitFor(() => {
+  expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(3);
+});
+```
+
 ## 🚦 CI
 
 `.github/workflows/ci.yml`, sur `push` et `pull_request` vers `main`, depuis

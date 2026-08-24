@@ -140,6 +140,89 @@ describe("lib/batch — compte-rendu", () => {
 	});
 });
 
+describe("lib/batch — publication au fil de l'eau", () => {
+	test("chaque projet est publié dès qu'il est réglé", async () => {
+		// Sans cela l'appelant n'a rien avant le dernier projet : sur dix-sept
+		// dépôts en séquentiel, l'écran restait figé une vingtaine de secondes
+		// alors que la première réponse était connue au bout d'une seconde.
+		const vus: string[] = [];
+		await runBatch(
+			targets(3),
+			async (cible) => cible.name,
+			options<string>({
+				concurrency: 1,
+				onSettled: (s) => vus.push(s.project.name),
+			}),
+		);
+		expect(vus).toEqual(["p1", "p2", "p3"]);
+	});
+
+	test("la publication précède la fin du lot", async () => {
+		// La preuve que ce n'est pas un simple parcours du tableau final.
+		let premier: string | null = null as string | null;
+		const promesse = runBatch(
+			targets(3),
+			async (cible) => {
+				await attendre(cible.name === "p1" ? 5 : 80);
+				return cible.name;
+			},
+			options<string>({
+				concurrency: 1,
+				onSettled: (s) => {
+					premier ??= s.project.name;
+				},
+			}),
+		);
+
+		await attendre(30);
+		expect(premier).toBe("p1");
+		await promesse;
+	});
+
+	test("un échec est publié comme les succès", async () => {
+		const vus: (string | null)[] = [];
+		await runBatch(
+			targets(2),
+			async (cible) => {
+				if (cible.name === "p2") throw new Error("boom");
+				return "ok";
+			},
+			options<string>({ onSettled: (s) => vus.push(s.error) }),
+		);
+		expect(vus.filter(Boolean)).toEqual(["boom"]);
+	});
+
+	test("les projets annulés sont publiés aussi", async () => {
+		// L'écran doit pouvoir les marquer, pas les laisser en attente indéfinie.
+		const ctrl = new AbortController();
+		const annules: string[] = [];
+		await runBatch(
+			targets(4),
+			async (cible) => {
+				if (cible.name === "p1") ctrl.abort();
+				return "ok";
+			},
+			options<string>({
+				signal: ctrl.signal,
+				concurrency: 1,
+				onSettled: (s) => {
+					if (s.cancelled) annules.push(s.project.name);
+				},
+			}),
+		);
+		expect(annules).toEqual(["p2", "p3", "p4"]);
+	});
+
+	test("le tableau final reste complet malgré la publication", async () => {
+		const sorties = await runBatch(
+			targets(3),
+			async (cible) => cible.name,
+			options<string>({ onSettled: () => {} }),
+		);
+		expect(sorties).toHaveLength(3);
+	});
+});
+
 describe("lib/batch — annulation", () => {
 	test("les projets non partis figurent au compte-rendu comme annulés", async () => {
 		// Un projet absent du compte-rendu se lirait comme un projet sain.

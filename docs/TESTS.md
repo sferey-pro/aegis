@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1492 tests · 0 échec · 105 fichiers
-├── 452 composants (52 fichiers) — DOM, React, fetch simulé
-└── 1040 fonctionnels (53 fichiers) — vrai serveur, vraie base, vrai git
+1501 tests · 0 échec · 105 fichiers
+├── 456 composants (52 fichiers) — DOM, React, fetch simulé
+└── 1045 fonctionnels (53 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -97,7 +97,7 @@ clés étrangères et les migrations sont réels.
 | `lib/utils.ts` | 20 | `cn` (conflits Tailwind), `errorMessage`, `relativeAge` (UTC de SQLite) |
 | `lib/validate.ts` | 14 | échec **retourné**, jamais levé ; toujours `{ error }` + 400 |
 | `lib/audit/queue.ts` | 14 | mutex **global**, libéré dans un `finally` |
-| `lib/batch.ts` | 14 | pool partagé : borne **mesurée**, file partagée, annulés au compte-rendu, progression monotone |
+| `lib/batch.ts` | 19 | pool partagé : borne **mesurée**, file partagée, annulés au compte-rendu, progression monotone, publication au fil de l'eau |
 | `lib/useGlobalGitSync.ts` | 7 | tri du compte-rendu : échecs d'abord, puis `behind` décroissant ; lot **séquentiel** |
 
 Points qui méritaient d'être épinglés :

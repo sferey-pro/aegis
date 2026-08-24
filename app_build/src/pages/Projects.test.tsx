@@ -489,6 +489,44 @@ describe("Projects", () => {
 
 		await new Promise((r) => setTimeout(r, 20));
 		expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(1);
+
+		// ⚠️ Le lot doit être **drainé** avant la fin du test : il est séquentiel, et
+		// ses appels suivants partaient après que le test suivant ait réinitialisé
+		// `fetchCalls` — donc comptés chez le voisin, qui échouait pour une raison
+		// qui ne le concernait pas. Un `bun test` ne cloisonne pas les timers entre
+		// tests d'un même fichier.
+		await waitFor(() => {
+			expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(3);
+		});
+	});
+
+	test("une carte se met à jour dès que sa propre réponse arrive", async () => {
+		// Le lot rendait son tableau complet et l'écran changeait d'un coup : sur
+		// dix-sept dépôts en séquentiel, une vingtaine de secondes pendant
+		// lesquelles la première réponse — déjà connue — restait invisible.
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				projet({ id: 7, name: "Mon API", git: null }),
+				projet({ id: 8, name: "Front", git: null }),
+			],
+			"POST /api/projects/7/git-fetch": reponseFetch(4),
+			// La seconde réponse tarde : la première doit être visible avant.
+			"POST /api/projects/8/git-fetch": { ...reponseFetch(1), delayMs: 200 },
+		});
+		monte();
+		await waitFor(() => {
+			expect(screen.getByText("Mon API")).toBeInTheDocument();
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+		);
+
+		// « 4 commits de retard » vient du premier dépôt, alors que le lot tourne
+		// encore sur le second.
+		expect(await screen.findByTitle(/4 commits de retard/)).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Annuler/ })).toBeInTheDocument();
 	});
 
 	test("un état git non chargé n'empêche pas la synchronisation", async () => {

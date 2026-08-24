@@ -1,3 +1,4 @@
+import { refFromLink } from "../vuln-identity";
 import type { ParseResult, Vulnerability } from "./types";
 import { buildParseResult, normSeverity } from "./utils";
 
@@ -86,10 +87,10 @@ export function parseNpm(output: string): ParseResult {
 		} else {
 			// Cas B : Au moins une advisory présente dans `via`
 			for (const a of advisories) {
-				let cve: string | null = null;
-				if (Array.isArray(a.cwe) && a.cwe.length > 0) {
-					cve = a.cwe.join(", ");
-				}
+				// Même confusion que dans le parseur bun : `cwe` est une classe de
+				// faiblesse, pas un identifiant de vulnérabilité. L'identifiant est le
+				// GHSA de l'URL de l'avis.
+				const cve = refFromLink(a.url);
 
 				rawVulns.push({
 					package: v.name || pkgName,

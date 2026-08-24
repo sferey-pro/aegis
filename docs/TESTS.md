@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1468 tests · 0 échec · 104 fichiers
+1473 tests · 0 échec · 104 fichiers
 ├── 452 composants (52 fichiers) — DOM, React, fetch simulé
-└── 1016 fonctionnels (52 fichiers) — vrai serveur, vraie base, vrai git
+└── 1021 fonctionnels (52 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -91,7 +91,7 @@ clés étrangères et les migrations sont réels.
 | `lib/triage-constants.tsx` | 14 | palette contrastée, six formes distinctes, six libellés |
 | `lib/tailwind-classes.ts` | 4 | garde-fou sur tout `src/` : variante amputée, valeur tronquée, opacité orpheline |
 | `lib/git/index.ts` | 26 | dépôts jetables réels, `ahead`/`behind`, `pull --ff-only` |
-| `lib/parsers/` (6) | 62 | npm, bun, yarn, composer + utils, tolérance aux formes partielles |
+| `lib/parsers/` (6) | 67 | npm, bun, yarn, composer + utils, tolérance aux formes partielles, **identifiant lu dans l'URL et non dans les CWE** |
 | `lib/console.ts` | 18 | cadrage SSE, troncature à 3000, purge d'un client fermé |
 | `lib/cvss.ts` | 14 | vecteurs 3.1 et 4.0, regroupement, infobulle |
 | `lib/utils.ts` | 14 | `cn` (conflits Tailwind), `errorMessage` |

@@ -8,9 +8,7 @@ import { emitConsoleEnd, emitConsoleStart } from "../console";
 import type { Severity } from "../parsers/types";
 import { normSeverity } from "../parsers/utils";
 import { errorMessage } from "../utils";
-
-const GHSA_REGEX = /(GHSA-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4})/i;
-const CVE_REGEX = /(CVE-\d{4}-\d{4,})/i;
+import { CVE_REGEX, GHSA_REGEX } from "../vuln-identity";
 
 export interface AdvisoryKey {
 	kind: "ghsa" | "cve";

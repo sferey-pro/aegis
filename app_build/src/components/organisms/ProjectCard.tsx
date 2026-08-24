@@ -24,6 +24,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import React from "react";
+import { relativeAge } from "@/lib/utils";
 import type { ProjectListItem } from "@/routes/projects";
 import { TagBadge } from "../molecules/TagBadge";
 import { Badge } from "../ui/badge";
@@ -210,8 +211,20 @@ export const ProjectCard = React.memo(function ProjectCard({
 			{p.git?.isRepo ? (
 				<div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
 					<div className="flex flex-col gap-1">
-						<span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+						<span
+							className="text-[10px] text-muted-foreground uppercase tracking-wider"
+							title={
+								p.git.checkedAt
+									? `État git lu ${relativeAge(p.git.checkedAt)}`
+									: undefined
+							}
+						>
+							{/* L'âge de la mesure, parce qu'elle est persistée et non live :
+							    `dirty` change à chaque fichier modifié, `behind` à chaque
+							    fetch. Sans date, une mesure de la semaine dernière se lirait
+							    comme la situation actuelle. */}
 							Branche
+							{p.git.checkedAt ? ` · ${relativeAge(p.git.checkedAt)}` : ""}
 						</span>
 						<div className="flex items-center gap-1 font-mono">
 							<GitBranch className="w-3 h-3" />

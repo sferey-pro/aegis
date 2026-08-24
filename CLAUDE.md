@@ -17,7 +17,7 @@ cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
 bun run test:ui     # 452 tests composants — happy-dom actif
-bun run test:api    # 1021 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:api    # 1040 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1473 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1492 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -81,7 +81,7 @@ Cette route n'est appelée par **aucun écran**, et c'est normal : elle existe p
 
 **Les deux lots sont orchestrés côté client, par un pool partagé** (`src/lib/batch.ts`) : parallélisme borné — **4** pour l'audit, **1** pour la synchro Git, où les `git fetch` sortent tous par le même lien réseau et où quatre dépôts écrivant ensemble rendent la console illisible —, `AbortController`, et un compte-rendu où les projets annulés figurent — un projet absent se lirait comme un projet sain. `useGlobalAudit` (audit, §2) et `useGlobalGitSync` (synchro Git, §5) n'y ajoutent que l'appel, le tri et l'intitulé de la barre. Le pool vivait dans `useGlobalAudit`, si bien que la synchro Git est restée séquentielle, non annulable et muette sur ses échecs longtemps après le correctif N8 : ne le redupliquez pas. Le périmètre est **fourni par l'appelant** — les projets visibles — jamais recalculé dans le hook. `AuditProgressBar` sert les deux, par ses props `label` et `offset`.
 
-⚠️ **`GET /api/projects` ne calcule pas l'état git** — cinq sous-processus par projet, 85 sur un parc de dix-sept, pour une information que l'écran n'a pas demandée. `?git=1` le demande. Dans la liste, `git: null` veut dire **« non chargé »**, jamais « pas un dépôt » : les deux états sont distincts à l'écran, et les confondre afficherait « Dépôt non-git » sur tout le parc au chargement. Après une action git, l'état vient de **la réponse** (`git-fetch` et `git-pull` le renvoient recalculé, §5), jamais d'un rechargement de la liste — qui le remettrait à `null`.
+⚠️ **`GET /api/projects` ne calcule pas l'état git** — cinq sous-processus par projet, 85 sur un parc de dix-sept, pour une valeur qui ne bouge qu'au `fetch` ou au commit local. Il rend le **dernier état connu**, lu dans `git_states` (`src/db/git-state.ts`) ; `?git=1` force le recalcul. **Tout point qui calcule un `GitInfo` l'enregistre** — `?git=1`, `GET /api/projects/:id`, `git-fetch`, `git-pull` : sans cela une vérification ne laisse aucune trace et le parc repasse à « non chargé » au rechargement. C'est un **cache daté** : `checkedAt` sort avec l'état et l'interface en affiche l'âge, parce que `dirty` change à chaque fichier modifié. Dans la liste, `git: null` veut dire **« jamais lu »**, jamais « pas un dépôt » : les deux états sont distincts à l'écran.
 
 **« Tout auditer » est orchestré côté client** (§2 : aucun endpoint batch), par `useGlobalAudit` (`src/lib/useGlobalAudit.ts`) : pool de 4, `AbortController` exposé, résultats triés **erreurs d'abord puis plus de nouvelles CVE**. Le périmètre est fourni par l'appelant — jamais recalculé dans le hook — et vient du filtre `?tag=` porté par l'URL, sans quoi `App` ne peut pas connaître les projets *visibles*. La progression passe par `AuditProgressBar`, **non modale** : le voile plein écran couvrait la console live, seul endroit où l'on voit les commandes tourner.
 

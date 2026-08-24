@@ -49,19 +49,24 @@ Bouton « Vérifier les mises à jour Git ». **`git fetch` uniquement** : les d
 
 Compter en secondes : chaque `git fetch` ouvre une connexion et s'authentifie auprès du serveur distant, soit de l'ordre d'une seconde par dépôt. Un parc de dix-sept demande donc une vingtaine de secondes, et c'est du réseau, pas du calcul. La barre de progression est là pour ça.
 
-## L'état git ne se lit pas au chargement
+## L'état git est calculé sur demande, et persisté
 
-`GET /api/projects` **ne calcule pas** l'état git : cinq sous-processus par projet — 85 pour un parc de dix-sept — pour une information que l'écran n'a pas demandée. Trois façons de l'obtenir, toutes **volontaires** :
+`GET /api/projects` **ne calcule pas** l'état git : cinq sous-processus par projet — 85 pour un parc de dix-sept — pour une valeur qui ne bouge qu'au `fetch` ou au commit local. Il rend le **dernier état connu**, lu dans la table `git_states`.
 
-| Portée | Comment | Réseau |
-|---|---|---|
-| tout le parc visible | bouton « Vérifier les mises à jour Git » — chaque réponse porte son `git` recalculé | oui (`git fetch`) |
-| un projet | bouton « Lire » / « Détecter » de la carte → `GET /api/projects/:id` | non |
-| tout le parc | `GET /api/projects?git=1` | non |
+| Portée | Comment | Réseau | Écrit le cache |
+|---|---|---|---|
+| tout le parc visible | bouton « Vérifier les mises à jour Git » | oui (`git fetch`) | ✅ |
+| un projet | bouton « Lire » de la carte → `GET /api/projects/:id` | non | ✅ |
+| tout le parc | `GET /api/projects?git=1` | non | ✅ |
+| affichage courant | `GET /api/projects` | non | — lecture seule |
 
-`git: null` signifie **« non chargé »**, et jamais « pas un dépôt » — les deux états sont distincts à l'écran (« État Git non chargé » contre « Dépôt Non-Git »). Les confondre afficherait « non-git » sur tout le parc à chaque ouverture de la page, et rendrait le bouton de synchronisation inopérant faute de cible.
+**Tout point qui calcule un `GitInfo` l'enregistre**, les deux actions comprises : une vérification qui ne laisse pas de trace oblige à tout relancer au prochain affichage, et c'est ce qui faisait repasser le parc entier à « non chargé » à chaque rechargement.
 
-Corollaire : après une action git, l'état vient de **la réponse**, jamais d'un rechargement de la liste — celle-ci le remettrait à `null`.
+⚠️ **C'est un cache daté, pas un état live**, et `checked_at` sort avec lui (`git.checkedAt`). L'interface affiche l'âge de la mesure, parce que `dirty` change à chaque fichier modifié et `behind` à chaque `fetch` : sans date, une mesure de la semaine dernière se lit comme la situation actuelle.
+
+`git: null` signifie **« jamais lu »**, et jamais « pas un dépôt » — les deux états sont distincts à l'écran (« État Git non chargé » contre « Dépôt Non-Git »). Les confondre afficherait « non-git » sur tout le parc, et rendrait le bouton de synchronisation inopérant faute de cible.
+
+Table `git_states` : une ligne par projet, `state` en JSON, cascade à la suppression. Donnée **dérivée** — reconstructible d'un clic — donc séparée de `projects`, qui porte la configuration du parc.
 
 ---
 

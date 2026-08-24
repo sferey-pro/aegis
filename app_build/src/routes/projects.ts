@@ -1,6 +1,7 @@
 import nodePath from "node:path";
 import type { BunRequest } from "bun";
 import { errorMessage } from "@/lib/utils";
+import { getGitStates, saveGitState } from "../db/git-state";
 import {
 	createProject,
 	deleteProject,
@@ -38,7 +39,12 @@ export type ProjectGitState = GitInfo | { isRepo: false };
  * demande.
  */
 export type ProjectListItem = Project & {
-	git: ProjectGitState | null;
+	/**
+	 * Dernier état git connu, `null` s'il n'a **jamais** été lu. `checkedAt` dit
+	 * quand la mesure a été prise : sans cette date, un `dirty` vieux de trois
+	 * jours se lirait comme la situation actuelle.
+	 */
+	git: (ProjectGitState & { checkedAt?: string }) | null;
 	lastRun: Run | null;
 };
 
@@ -192,16 +198,15 @@ export const projectsRoutes = {
 
 	"/api/projects": {
 		/**
-		 * Liste des projets. **Sans état git par défaut.**
+		 * Liste des projets. **Aucun calcul git par défaut.**
 		 *
-		 * L'enrichissement git coûte cinq sous-processus par projet — 85 pour un
-		 * parc de dix-sept — pour une information que l'écran n'a pas demandée. Le
-		 * lire est une action **volontaire** : le bouton « Vérifier les mises à jour
-		 * Git » (§5), ou `?git=1` pour l'obtenir en une fois.
+		 * Calculer l'état git coûte cinq sous-processus par projet — 85 pour un parc
+		 * de dix-sept — pour une valeur qui ne bouge qu'au `fetch` ou au commit
+		 * local. La route rend donc le **dernier état connu**, lu en base et daté ;
+		 * `?git=1` force le recalcul et met le cache à jour.
 		 *
-		 * `git: null` et non `{isRepo: false}` : « non chargé » n'est pas « pas un
-		 * dépôt », et confondre les deux ferait afficher « Dépôt non-git » sur tout
-		 * le parc au chargement.
+		 * `git: null` signifie **jamais lu**, et non « pas un dépôt » : confondre
+		 * les deux ferait afficher « Dépôt non-git » sur tout le parc.
 		 */
 		async GET(req: Request) {
 			const projects = listProjects();
@@ -209,12 +214,21 @@ export const projectsRoutes = {
 			const latestRuns = getLatestRunsByProjectIds(projects.map((p) => p.id));
 
 			if (new URL(req.url).searchParams.get("git") !== "1") {
-				const sansGit: ProjectListItem[] = projects.map((p) => ({
-					...p,
-					git: null,
-					lastRun: latestRuns[p.id] || null,
-				}));
-				return Response.json(sansGit);
+				// Dernier état **connu**, sans relancer un seul sous-processus. Il n'est
+				// pas live, et c'est pour cela qu'il porte sa date : l'interface montre
+				// la mesure et son âge, au lieu de repartir de rien à chaque
+				// rechargement.
+				const etats = getGitStates(projects.map((p) => p.id));
+
+				const depuisCache: ProjectListItem[] = projects.map((p) => {
+					const connu = etats[p.id];
+					return {
+						...p,
+						git: connu ? { ...connu.git, checkedAt: connu.checkedAt } : null,
+						lastRun: latestRuns[p.id] || null,
+					};
+				});
+				return Response.json(depuisCache);
 			}
 
 			const enriched: ProjectListItem[] = new Array(projects.length);
@@ -232,6 +246,9 @@ export const projectsRoutes = {
 					} catch (e) {
 						console.error(`Git error on ${p.path}:`, e);
 					}
+					// Persisté : c'est ce qui évite de tout recalculer au prochain
+					// affichage, et qui fait qu'une vérification laisse une trace.
+					saveGitState(p.id, git);
 					enriched[index] = { ...p, git, lastRun: latestRuns[p.id] || null };
 				}
 			};
@@ -275,6 +292,7 @@ export const projectsRoutes = {
 			} catch (e) {
 				console.error(`Git error on ${p.path}:`, e);
 			}
+			saveGitState(p.id, git);
 			const run = getLatestRun(p.id);
 			return Response.json({ ...p, git, lastRun: run });
 		},
@@ -365,7 +383,9 @@ export const projectsRoutes = {
 				{ project: project.name },
 				async () => {
 					const action = await gitFetch(project.path);
-					return { ...action, git: await getGitInfo(project.path) };
+					const git = await getGitInfo(project.path);
+					saveGitState(project.id, git);
+					return { ...action, git };
 				},
 			);
 
@@ -396,7 +416,9 @@ export const projectsRoutes = {
 				{ project: project.name },
 				async () => {
 					const action = await gitPull(project.path);
-					return { ...action, git: await getGitInfo(project.path) };
+					const git = await getGitInfo(project.path);
+					saveGitState(project.id, git);
+					return { ...action, git };
 				},
 			);
 

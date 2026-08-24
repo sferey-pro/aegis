@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { cn, errorMessage } from "./utils";
+import { cn, errorMessage, relativeAge } from "./utils";
 
 describe("lib/utils — cn", () => {
 	test("concatène les classes", () => {
@@ -78,5 +78,38 @@ describe("lib/utils — errorMessage", () => {
 		// Une Error est reconnue comme telle : son message, même vide, est la
 		// vérité. Retomber sur le repli masquerait une erreur mal construite.
 		expect(errorMessage(new Error(""))).toBe("");
+	});
+});
+
+describe("relativeAge", () => {
+	const T = Date.parse("2026-08-24T12:00:00Z");
+
+	test("une mesure de la minute est « à l'instant »", () => {
+		expect(relativeAge("2026-08-24 11:59:30", T)).toBe("à l'instant");
+	});
+
+	test("les minutes, puis les heures, puis les jours", () => {
+		expect(relativeAge("2026-08-24 11:20:00", T)).toBe("il y a 40 min");
+		expect(relativeAge("2026-08-24 09:00:00", T)).toBe("il y a 3 h");
+		expect(relativeAge("2026-08-22 12:00:00", T)).toBe("il y a 2 j");
+	});
+
+	test("un horodatage SQLite est lu en UTC, pas en heure locale", () => {
+		// `CURRENT_TIMESTAMP` n'a pas de fuseau : sans le `Z` ajouté, le navigateur
+		// l'interprète en local et une mesure fraîche s'affiche « il y a 2 h ».
+		expect(relativeAge("2026-08-24 12:00:00", T)).toBe("à l'instant");
+	});
+
+	test("une date ISO complète est acceptée telle quelle", () => {
+		expect(relativeAge("2026-08-24T09:00:00Z", T)).toBe("il y a 3 h");
+	});
+
+	test("un futur proche ne produit pas d'âge négatif", () => {
+		// Une horloge décalée ferait douter de la donnée plutôt que de l'horloge.
+		expect(relativeAge("2026-08-24 12:05:00", T)).toBe("à l'instant");
+	});
+
+	test("une date illisible le dit", () => {
+		expect(relativeAge("pas une date", T)).toBe("date inconnue");
 	});
 });

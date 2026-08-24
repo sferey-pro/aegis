@@ -271,6 +271,39 @@ describe("GET /api/projects", () => {
 		expect(data).toEqual([]);
 	});
 
+	test("l'état git lu par `?git=1` est conservé pour l'affichage suivant", async () => {
+		// C'est le manque signalé à l'usage : la vérification ne laissait aucune
+		// trace, et tout le parc repassait à « non chargé » au rechargement.
+		const { data: cree } = await creer({ path: depot("persiste") });
+		await srv.json("/api/projects?git=1");
+
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		const p = data.find((x) => x.id === cree.id);
+		expect(p?.git?.isRepo).toBe(true);
+		expect(p?.git?.checkedAt).toBeTruthy();
+	});
+
+	test("l'état persisté porte sa date, parce qu'il n'est pas live", async () => {
+		// `dirty` change à chaque fichier modifié, `behind` à chaque fetch : sans la
+		// date, une mesure de la semaine dernière se lirait comme l'état actuel.
+		await creer({ path: depot("date") });
+		await srv.json("/api/projects?git=1");
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		expect(data[0]?.git?.checkedAt).toMatch(
+			/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/,
+		);
+	});
+
+	test("git-fetch met le cache à jour", async () => {
+		// Le lot de synchronisation passe par cette route : c'est là que l'état
+		// doit être enregistré, sinon le lot n'apprend rien à l'affichage.
+		const { data: cree } = await creer({ path: depot("fetch-cache") });
+		await srv.json(`/api/projects/${cree.id}/git-fetch`, { method: "POST" });
+
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		expect(data[0]?.git?.isRepo).toBe(true);
+	});
+
 	test("la liste ne calcule pas l'état git", async () => {
 		// Cinq sous-processus par projet — 85 pour un parc de dix-sept — pour une
 		// information que l'écran n'a pas demandée. Le lire est volontaire : bouton
@@ -280,6 +313,7 @@ describe("GET /api/projects", () => {
 
 		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
 		expect(data).toHaveLength(1);
+		// Jamais lu : `null`, et non un état inventé.
 		expect(data[0]?.git).toBeNull();
 		expect(data[0]?.lastRun).toBeNull();
 	});

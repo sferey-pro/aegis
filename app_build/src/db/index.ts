@@ -203,6 +203,16 @@ function initDb(database: Database) {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
+    -- Dernier état git connu, par projet. Donnée **dérivée** et datée : elle
+    -- évite de relancer cinq sous-processus par projet à chaque affichage, pour
+    -- une valeur qui ne bouge qu'au fetch ou au commit local (§5).
+    CREATE TABLE IF NOT EXISTS git_states (
+      project_id INTEGER PRIMARY KEY,
+      state      JSON NOT NULL,
+      checked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS tickets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       project_id INTEGER NOT NULL,

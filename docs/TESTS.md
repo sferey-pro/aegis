@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1473 tests · 0 échec · 104 fichiers
+1492 tests · 0 échec · 105 fichiers
 ├── 452 composants (52 fichiers) — DOM, React, fetch simulé
-└── 1021 fonctionnels (52 fichiers) — vrai serveur, vraie base, vrai git
+└── 1040 fonctionnels (53 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -94,7 +94,7 @@ clés étrangères et les migrations sont réels.
 | `lib/parsers/` (6) | 67 | npm, bun, yarn, composer + utils, tolérance aux formes partielles, **identifiant lu dans l'URL et non dans les CWE** |
 | `lib/console.ts` | 18 | cadrage SSE, troncature à 3000, purge d'un client fermé |
 | `lib/cvss.ts` | 14 | vecteurs 3.1 et 4.0, regroupement, infobulle |
-| `lib/utils.ts` | 14 | `cn` (conflits Tailwind), `errorMessage` |
+| `lib/utils.ts` | 20 | `cn` (conflits Tailwind), `errorMessage`, `relativeAge` (UTC de SQLite) |
 | `lib/validate.ts` | 14 | échec **retourné**, jamais levé ; toujours `{ error }` + 400 |
 | `lib/audit/queue.ts` | 14 | mutex **global**, libéré dans un `finally` |
 | `lib/batch.ts` | 14 | pool partagé : borne **mesurée**, file partagée, annulés au compte-rendu, progression monotone |

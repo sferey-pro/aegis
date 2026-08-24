@@ -34,18 +34,34 @@ Les deux renvoient `{ git, log, ok }`, `ok` valant `exit == 0`. Chemin inexistan
 
 Bouton « Vérifier les mises à jour Git ». **`git fetch` uniquement** : les deux actions restent explicites, et un `pull --ff-only` en masse modifierait toutes les copies de travail d'un clic. Le `pull` reste par projet.
 
-**Orchestré côté client, par le même pool que « Tout auditer »** ([§2](02-audits.md)) — `lib/batch`, parallèle borné à **4**, annulable :
+**Orchestré côté client, par le même pool que « Tout auditer »** ([§2](02-audits.md)) — `lib/batch` — mais **un dépôt à la fois** :
 
 | | Comportement |
 |---|---|
-| Périmètre | les projets **visibles** au sens de §2 — non ignorés, filtrés par le tag porté par l'URL — **et** qui sont des dépôts |
-| Parallélisme | 4 au plus, file partagée : un dépôt lent n'immobilise pas un créneau |
+| Périmètre | les projets **visibles** au sens de §2 — non ignorés, filtrés par le tag porté par l'URL — hors projets distants, et dont l'état git n'est pas déjà connu comme « pas un dépôt » |
+| Parallélisme | **aucun, volontairement** : `concurrency: 1`. Les `git fetch` sortent tous par le même lien réseau et la même authentification, et la console ([§11](11-console.md)) — seul endroit où l'on suit l'opération — devient illisible quand quatre dépôts y écrivent ensemble. La borne de 4 vaut pour l'audit, où chaque projet lit son propre lockfile |
 | Annulation | `AbortController`. Les dépôts déjà lancés voient leur requête avortée, les suivants ne partent pas, et ils figurent au compte-rendu comme **annulés** |
 | Progression | barre **non modale**, comme pour l'audit : le voile plein écran masquait la console live ([§11](11-console.md)), seul endroit où l'on voit `git fetch` tourner |
 | Compte-rendu | trié **échecs d'abord**, puis par nombre décroissant de commits de retard, départage stable par nom |
 | Échecs | **affichés**, dépôt par dépôt, avec le journal de git : un dépôt sans amont, une authentification refusée ou un hôte injoignable ne doivent pas se lire comme un succès |
 
 `behind` est ici ce que `newCves` est à l'audit : ce qui demande une action. Un `git fetch` peut sortir non nul sur une réponse HTTP 200 — c'est `ok` qui tranche, jamais le statut.
+
+Compter en secondes : chaque `git fetch` ouvre une connexion et s'authentifie auprès du serveur distant, soit de l'ordre d'une seconde par dépôt. Un parc de dix-sept demande donc une vingtaine de secondes, et c'est du réseau, pas du calcul. La barre de progression est là pour ça.
+
+## L'état git ne se lit pas au chargement
+
+`GET /api/projects` **ne calcule pas** l'état git : cinq sous-processus par projet — 85 pour un parc de dix-sept — pour une information que l'écran n'a pas demandée. Trois façons de l'obtenir, toutes **volontaires** :
+
+| Portée | Comment | Réseau |
+|---|---|---|
+| tout le parc visible | bouton « Vérifier les mises à jour Git » — chaque réponse porte son `git` recalculé | oui (`git fetch`) |
+| un projet | bouton « Lire » / « Détecter » de la carte → `GET /api/projects/:id` | non |
+| tout le parc | `GET /api/projects?git=1` | non |
+
+`git: null` signifie **« non chargé »**, et jamais « pas un dépôt » — les deux états sont distincts à l'écran (« État Git non chargé » contre « Dépôt Non-Git »). Les confondre afficherait « non-git » sur tout le parc à chaque ouverture de la page, et rendrait le bouton de synchronisation inopérant faute de cible.
+
+Corollaire : après une action git, l'état vient de **la réponse**, jamais d'un rechargement de la liste — celle-ci le remettrait à `null`.
 
 ---
 

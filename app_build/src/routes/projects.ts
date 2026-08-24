@@ -27,12 +27,17 @@ export type ProjectGitState = GitInfo | { isRepo: false };
 
 /**
  * Forme renvoyée par `GET /api/projects` et `GET /api/projects/:id` : l'entité
- * stockée, enrichie de l'état git live et du dernier run. Déclarée ici, dans la
- * route qui produit cet enrichissement — le handler ci-dessous la satisfait, donc
- * un changement de forme casse la compilation au lieu de dériver en silence.
+ * stockée, enrichie du dernier run et — **si on l'a demandé** — de l'état git
+ * live. Déclarée ici, dans la route qui produit cet enrichissement — le handler
+ * ci-dessous la satisfait, donc un changement de forme casse la compilation au
+ * lieu de dériver en silence.
+ *
+ * `git: null` signifie « non chargé », et jamais « pas un dépôt » : la liste ne
+ * lit plus l'état git au chargement (cinq sous-processus par projet), il se
+ * demande.
  */
 export type ProjectListItem = Project & {
-	git: ProjectGitState;
+	git: ProjectGitState | null;
 	lastRun: Run | null;
 };
 
@@ -165,10 +170,31 @@ export const projectsRoutes = {
 	},
 
 	"/api/projects": {
-		async GET() {
+		/**
+		 * Liste des projets. **Sans état git par défaut.**
+		 *
+		 * L'enrichissement git coûte cinq sous-processus par projet — 85 pour un
+		 * parc de dix-sept — pour une information que l'écran n'a pas demandée. Le
+		 * lire est une action **volontaire** : le bouton « Vérifier les mises à jour
+		 * Git » (§5), ou `?git=1` pour l'obtenir en une fois.
+		 *
+		 * `git: null` et non `{isRepo: false}` : « non chargé » n'est pas « pas un
+		 * dépôt », et confondre les deux ferait afficher « Dépôt non-git » sur tout
+		 * le parc au chargement.
+		 */
+		async GET(req: Request) {
 			const projects = listProjects();
 			const { getLatestRunsByProjectIds } = await import("../db/runs");
 			const latestRuns = getLatestRunsByProjectIds(projects.map((p) => p.id));
+
+			if (new URL(req.url).searchParams.get("git") !== "1") {
+				const sansGit: ProjectListItem[] = projects.map((p) => ({
+					...p,
+					git: null,
+					lastRun: latestRuns[p.id] || null,
+				}));
+				return Response.json(sansGit);
+			}
 
 			const enriched: ProjectListItem[] = new Array(projects.length);
 			let i = 0;
@@ -314,10 +340,13 @@ export const projectsRoutes = {
 			// ne dit pas ce que l'action a changé, et l'appelant devait recharger
 			// toute la liste des projets pour l'apprendre. C'est cette information que
 			// la synchronisation groupée trie (« combien de commits de retard »).
-			const res = await projectContext.run({ project: project.name }, async () => {
-				const action = await gitFetch(project.path);
-				return { ...action, git: await getGitInfo(project.path) };
-			});
+			const res = await projectContext.run(
+				{ project: project.name },
+				async () => {
+					const action = await gitFetch(project.path);
+					return { ...action, git: await getGitInfo(project.path) };
+				},
+			);
 
 			return Response.json(res);
 		},
@@ -342,10 +371,13 @@ export const projectsRoutes = {
 			// ne dit pas ce que l'action a changé, et l'appelant devait recharger
 			// toute la liste des projets pour l'apprendre. C'est cette information que
 			// la synchronisation groupée trie (« combien de commits de retard »).
-			const res = await projectContext.run({ project: project.name }, async () => {
-				const action = await gitPull(project.path);
-				return { ...action, git: await getGitInfo(project.path) };
-			});
+			const res = await projectContext.run(
+				{ project: project.name },
+				async () => {
+					const action = await gitPull(project.path);
+					return { ...action, git: await getGitInfo(project.path) };
+				},
+			);
 
 			return Response.json(res);
 		},

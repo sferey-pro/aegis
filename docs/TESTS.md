@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1460 tests · 0 échec · 104 fichiers
-├── 450 composants (52 fichiers) — DOM, React, fetch simulé
-└── 1010 fonctionnels (52 fichiers) — vrai serveur, vraie base, vrai git
+1465 tests · 0 échec · 104 fichiers
+├── 452 composants (52 fichiers) — DOM, React, fetch simulé
+└── 1013 fonctionnels (52 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -98,7 +98,7 @@ clés étrangères et les migrations sont réels.
 | `lib/validate.ts` | 14 | échec **retourné**, jamais levé ; toujours `{ error }` + 400 |
 | `lib/audit/queue.ts` | 14 | mutex **global**, libéré dans un `finally` |
 | `lib/batch.ts` | 14 | pool partagé : borne **mesurée**, file partagée, annulés au compte-rendu, progression monotone |
-| `lib/useGlobalGitSync.ts` | 7 | tri du compte-rendu : échecs d'abord, puis `behind` décroissant |
+| `lib/useGlobalGitSync.ts` | 7 | tri du compte-rendu : échecs d'abord, puis `behind` décroissant ; lot **séquentiel** |
 
 Points qui méritaient d'être épinglés :
 

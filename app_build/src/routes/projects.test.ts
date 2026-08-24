@@ -271,20 +271,52 @@ describe("GET /api/projects", () => {
 		expect(data).toEqual([]);
 	});
 
-	test("chaque projet est enrichi de son état git et de son dernier run", async () => {
+	test("la liste ne calcule pas l'état git", async () => {
+		// Cinq sous-processus par projet — 85 pour un parc de dix-sept — pour une
+		// information que l'écran n'a pas demandée. Le lire est volontaire : bouton
+		// « Vérifier les mises à jour Git », ou `?git=1`.
 		const repo = depot("liste");
 		await creer({ path: repo });
 
 		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
 		expect(data).toHaveLength(1);
-		expect(data[0]?.git.isRepo).toBe(true);
+		expect(data[0]?.git).toBeNull();
 		expect(data[0]?.lastRun).toBeNull();
+	});
+
+	test("`git: null` dit « non chargé », et non « pas un dépôt »", async () => {
+		// Confondre les deux ferait afficher « Dépôt non-git » sur tout le parc au
+		// chargement, y compris sur des dépôts parfaitement valides.
+		await creer({ path: depot("vrai-depot") });
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		expect(data[0]?.git).toBeNull();
+
+		const { data: avecGit } = await srv.json<ProjectListItem[]>(
+			"/api/projects?git=1",
+		);
+		expect(avecGit[0]?.git?.isRepo).toBe(true);
+	});
+
+	test("`?git=1` enrichit chaque projet de son état git", async () => {
+		await creer({ path: depot("liste-git") });
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects?git=1");
+		expect(data[0]?.git?.isRepo).toBe(true);
 	});
 
 	test("un projet hors dépôt est renvoyé avec isRepo faux, sans erreur", async () => {
 		await creer({ path: dossier("hors-git") });
-		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
-		expect(data[0]?.git.isRepo).toBe(false);
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects?git=1");
+		expect(data[0]?.git?.isRepo).toBe(false);
+	});
+
+	test("toute autre valeur de `git` laisse la liste allégée", async () => {
+		// Seul `1` active l'enrichissement : `?git=0` ou `?git=true` ne doivent pas
+		// réintroduire 85 sous-processus par accident.
+		await creer({ path: depot("git-zero") });
+		for (const q of ["?git=0", "?git=true", "?git="]) {
+			const { data } = await srv.json<ProjectListItem[]>(`/api/projects${q}`);
+			expect(data[0]?.git).toBeNull();
+		}
 	});
 
 	test("un chemin inexistant n'empêche pas de lister le parc", async () => {
@@ -301,7 +333,7 @@ describe("GET /api/projects", () => {
 		// doit rester vide.
 		for (let i = 0; i < 9; i++)
 			await creer({ name: `p${i}`, path: `/srv/p${i}` });
-		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects?git=1");
 		expect(data).toHaveLength(9);
 		expect(data.every((p) => p && typeof p.git === "object")).toBe(true);
 	});
@@ -315,7 +347,7 @@ describe("GET /api/projects/:id", () => {
 		);
 		expect(status).toBe(200);
 		expect(data.id).toBe(cree.id);
-		expect(data.git.isRepo).toBe(true);
+		expect(data.git?.isRepo).toBe(true);
 		expect(data.lastRun).toBeNull();
 	});
 
@@ -549,7 +581,7 @@ describe("actions git et audit sur un projet", () => {
 		}>(`/api/projects/${cree.id}/git-fetch`, { method: "POST" });
 
 		expect(status).toBe(200);
-		expect(data.git.isRepo).toBe(true);
+		expect(data.git?.isRepo).toBe(true);
 		expect(data.git.branch).toBe("main");
 		expect(data.git.behind).toBe(0);
 	});
@@ -560,7 +592,7 @@ describe("actions git et audit sur un projet", () => {
 			`/api/projects/${cree.id}/git-pull`,
 			{ method: "POST" },
 		);
-		expect(data.git.isRepo).toBe(true);
+		expect(data.git?.isRepo).toBe(true);
 	});
 
 	test("git-pull sur un dépôt sans amont échoue proprement", async () => {

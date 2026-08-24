@@ -11,8 +11,8 @@ import type { GitInfo } from "@/lib/git";
 /**
  * Orchestration de « Vérifier les mises à jour Git », côté client.
  *
- * Même mécanisme que « Tout auditer » (§2) : pool de 4, annulable, compte-rendu
- * portant les projets annulés. La boucle précédente était `for (const p of …)
+ * Même mécanisme que « Tout auditer » (§2) : même pool, annulable, compte-rendu
+ * portant les projets annulés — mais **un dépôt à la fois** (§5). La boucle précédente était `for (const p of …)
  * { await fetch(…) }` avec un `catch` qui journalisait dans la console du
  * navigateur — donc séquentielle sur quinze dépôts de réseau, non annulable, et
  * muette sur ses échecs. Exactement les défauts que N8 avait corrigés côté
@@ -94,6 +94,13 @@ export function useGlobalGitSync() {
 						signal: ctrl.signal,
 						onProgress: (p: BatchProgress) => setProgress(p),
 						describeError: apiErrorMessage,
+						// **Un dépôt à la fois.** Le pool de 4 vaut pour l'audit, où
+						// chaque projet lit son propre lockfile ; ici les quatre `git
+						// fetch` sortent par le même lien réseau et la même
+						// authentification, et rien ne prouve que les paralléliser
+						// raccourcisse le lot — alors que la sortie de la console, elle,
+						// devient illisible : quatre dépôts y écrivent en même temps.
+						concurrency: 1,
 						// `git fetch` peut sortir non nul sur un 200 : dépôt sans amont,
 						// authentification refusée, hôte injoignable. Le journal porte la
 						// cause, et c'est lui qu'il faut montrer — l'ancienne boucle le

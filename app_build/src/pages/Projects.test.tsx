@@ -425,11 +425,12 @@ describe("Projects", () => {
 		};
 	}
 
-	test("« Vérifier les mises à jour Git » lance les dépôts en parallèle", async () => {
-		// Contrat : même pool que « Tout auditer » (§2), borné à 4. La boucle
-		// précédente enchaînait les fetch un par un — quinze dépôts de réseau à la
-		// file. Mesuré par le nombre d'appels **partis** avant la première réponse,
-		// et non par leur ordre : celui-ci est le même dans les deux cas.
+	test("« Vérifier les mises à jour Git » traite un dépôt à la fois", async () => {
+		// Contrat : séquentiel (§5). Les quatre `git fetch` d'un pool sortent par le
+		// même lien réseau et la même authentification, et la console — seul endroit
+		// où l'on suit l'opération — devient illisible quand quatre dépôts y
+		// écrivent ensemble. Mesuré par le nombre d'appels **partis** avant la
+		// première réponse : leur ordre serait le même dans les deux cas.
 		mockFetch({
 			...base,
 			"GET /api/projects": [
@@ -439,7 +440,7 @@ describe("Projects", () => {
 					git: {
 						isRepo: true,
 						branch: "main",
-						sha: "m",
+						sha: "a",
 						upstream: "origin/main",
 						ahead: 0,
 						behind: 0,
@@ -452,7 +453,7 @@ describe("Projects", () => {
 					git: {
 						isRepo: true,
 						branch: "main",
-						sha: "f",
+						sha: "b",
 						upstream: "origin/main",
 						ahead: 0,
 						behind: 0,
@@ -465,7 +466,7 @@ describe("Projects", () => {
 					git: {
 						isRepo: true,
 						branch: "main",
-						sha: "b",
+						sha: "c",
 						upstream: "origin/main",
 						ahead: 0,
 						behind: 0,
@@ -486,10 +487,57 @@ describe("Projects", () => {
 			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
 		);
 
-		// À 20 ms, aucune réponse n'est encore arrivée : en séquentiel un seul
-		// appel serait parti.
 		await new Promise((r) => setTimeout(r, 20));
-		expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(3);
+		expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(1);
+	});
+
+	test("un état git non chargé n'empêche pas la synchronisation", async () => {
+		// La liste ne calcule plus l'état git : au premier affichage `git` vaut
+		// `null`. Le prendre pour « pas un dépôt » aurait rendu le bouton inopérant
+		// sur un parc fraîchement chargé.
+		mockFetch({
+			...base,
+			"GET /api/projects": [projet({ id: 7, name: "Mon API", git: null })],
+			"POST /api/projects/7/git-fetch": reponseFetch(3),
+		});
+		monte();
+		await waitFor(() => {
+			expect(screen.getByText("Mon API")).toBeInTheDocument();
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+		);
+
+		await waitFor(() => {
+			expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(1);
+		});
+		// L'état git vient de la réponse, sans rechargement de la liste.
+		expect(await screen.findByText("main")).toBeInTheDocument();
+		expect(fetchCalls().filter((c) => c.url === "/api/projects")).toHaveLength(
+			1,
+		);
+	});
+
+	test("un dossier connu comme non-git est écarté du lot", async () => {
+		mockFetch({
+			...base,
+			"GET /api/projects": [
+				projet({ id: 7, name: "Mon API", git: { isRepo: false } }),
+			],
+		});
+		monte();
+		await waitFor(() => {
+			expect(screen.getByText("Mon API")).toBeInTheDocument();
+		});
+
+		fireEvent.click(
+			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+		);
+		await waitFor(() => {
+			expect(fetchCalls().length).toBeGreaterThanOrEqual(2);
+		});
+		expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(0);
 	});
 
 	test("la progression est affichée, non modale, et annulable", async () => {

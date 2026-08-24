@@ -268,18 +268,32 @@ export const ProjectCard = React.memo(function ProjectCard({
 				</div>
 			) : (
 				<div className="flex items-center justify-between mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
-					<span className="text-muted-foreground italic">Dépôt Non-Git</span>
+					{/* Trois états, pas deux. `git === null` = **non chargé** : la liste
+					    ne lit plus l'état git au chargement (cinq sous-processus par
+					    projet). Afficher « Dépôt non-git » dans ce cas mentirait sur tout
+					    le parc à chaque ouverture de la page. */}
+					<span className="text-muted-foreground italic">
+						{p.git === null ? "État Git non chargé" : "Dépôt Non-Git"}
+					</span>
 					<button
 						type="button"
 						onClick={(e) => handleDetectGit(p.id, e)}
 						disabled={detectingId === p.id}
 						className="p-1 text-muted-foreground rounded flex items-center gap-1 disabled:opacity-50 hover:bg-muted"
-						title="Re-détecter le dépôt Git"
+						title={
+							p.git === null
+								? "Lire l'état Git de ce projet"
+								: "Re-détecter le dépôt Git"
+						}
 					>
 						<RefreshCw
 							className={`w-3 h-3 ${detectingId === p.id ? "animate-spin text-primary" : ""}`}
 						/>
-						{detectingId === p.id ? "Détection..." : "Détecter"}
+						{detectingId === p.id
+							? "Lecture..."
+							: p.git === null
+								? "Lire"
+								: "Détecter"}
 					</button>
 				</div>
 			)}

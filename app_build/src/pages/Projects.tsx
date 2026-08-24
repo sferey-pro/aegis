@@ -31,7 +31,7 @@ import type { Project, ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
 import { useGlobalGitSync } from "@/lib/useGlobalGitSync";
-import type { ProjectListItem } from "@/routes/projects";
+import type { ProjectGitState, ProjectListItem } from "@/routes/projects";
 import { AuditProgressBar } from "../components/molecules/AuditProgressBar";
 import { ShieldLoader } from "../components/molecules/ShieldLoader";
 import { TagBadge } from "../components/molecules/TagBadge";
@@ -397,11 +397,25 @@ export const Projects = React.memo(function Projects() {
 		}
 	};
 
+	/**
+	 * Fusionne l'état git rendu par une action, sans recharger la liste.
+	 *
+	 * La liste ne porte plus l'état git (elle ne le calcule plus au chargement) :
+	 * la recharger après un `fetch` effacerait donc ce que l'action vient
+	 * d'apprendre. Or chaque action le renvoie déjà (§5).
+	 */
+	const mergeGit = useCallback((id: number, git: ProjectGitState) => {
+		setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, git } : p)));
+	}, []);
+
 	const handleFetch = async (id: number, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		try {
-			await fetchVoid(`/api/projects/${id}/git-fetch`, { method: "POST" });
-			fetchProjects();
+			const res = await fetchJson<{ git: ProjectGitState }>(
+				`/api/projects/${id}/git-fetch`,
+				{ method: "POST" },
+			);
+			mergeGit(id, res.git);
 		} catch (err) {
 			console.error(err);
 		}
@@ -410,16 +424,19 @@ export const Projects = React.memo(function Projects() {
 	const handlePull = async (id: number, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		try {
-			await fetchVoid(`/api/projects/${id}/git-pull`, { method: "POST" });
-			fetchProjects();
+			const res = await fetchJson<{ git: ProjectGitState }>(
+				`/api/projects/${id}/git-pull`,
+				{ method: "POST" },
+			);
+			mergeGit(id, res.git);
 		} catch (err) {
 			console.error(err);
 		}
 	};
 
 	/**
-	 * Synchronisation Git groupée, orchestrée par le même pool que « Tout
-	 * auditer » : parallèle borné à 4, annulable, échecs rendus visibles.
+	 * Synchronisation Git groupée : même pool que « Tout auditer », mais **un
+	 * dépôt à la fois** (§5), annulable, échecs rendus visibles.
 	 */
 	const {
 		running: isFetchingAll,
@@ -464,19 +481,31 @@ export const Projects = React.memo(function Projects() {
 		// dépôt. Le handler ignorait le filtre par tag et synchronisait quinze
 		// dépôts quand l'écran n'en montrait trois : la même erreur de périmètre
 		// que N8 côté audit.
-		const cibles = visibleProjects.filter((p) => !p.ignored && p.git?.isRepo);
+		// `git === null` = état non chargé, pas « pas un dépôt » : au premier
+		// affichage on ne sait pas encore lesquels sont des dépôts, donc on tente.
+		// La réponse porte l'état git, si bien qu'un dossier non-git est écarté des
+		// lots suivants sans avoir rien coûté de plus.
+		const cibles = visibleProjects.filter(
+			(p) => !p.ignored && !p.is_remote && p.git?.isRepo !== false,
+		);
 		setGitSyncFailures([]);
 		const resultats = await startGitSync(
 			cibles.map((p) => ({ id: p.id, name: p.name })),
 		);
+
 		setGitSyncFailures(
 			resultats
 				.filter((r) => r.error)
 				.map((r) => ({ name: r.project.name, message: r.error ?? "" })),
 		);
-		// Rechargé une seule fois, après le lot : la réponse de chaque `git fetch`
-		// porte déjà son `git` recalculé, mais les cartes lisent la liste.
-		await fetchProjects();
+		// L'état git vient des réponses, pas d'un rechargement de la liste : celle-ci
+		// ne le calcule plus, et la recharger effacerait ce que le lot a appris.
+		setProjects((prev) =>
+			prev.map((p) => {
+				const git = resultats.find((r) => r.project.id === p.id)?.value?.git;
+				return git ? { ...p, git } : p;
+			}),
+		);
 	};
 
 	const handleDetectTool = async () => {
@@ -1059,15 +1088,20 @@ export const Projects = React.memo(function Projects() {
 												</div>
 											) : (
 												<div className="flex items-center gap-2">
+													{/* `null` = non chargé, `{isRepo:false}` = pas un dépôt. */}
 													<span className="text-xs text-muted-foreground italic">
-														Non-Git
+														{p.git === null ? "Git non chargé" : "Non-Git"}
 													</span>
 													<button
 														type="button"
 														onClick={(e) => handleDetectGit(p.id, e)}
 														disabled={detectingId === p.id}
 														className="p-1 text-muted-foreground rounded disabled:opacity-50"
-														title="Re-détecter le dépôt Git"
+														title={
+															p.git === null
+																? "Lire l'état Git de ce projet"
+																: "Re-détecter le dépôt Git"
+														}
 													>
 														<RefreshCw
 															className={`w-3 h-3 ${detectingId === p.id ? "animate-spin text-primary" : ""}`}

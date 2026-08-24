@@ -26,6 +26,14 @@ conséquences pratiques :
 Les deux modes cohabitent : rien n'empêche d'auditer certains projets localement et
 d'en faire ingérer d'autres par leur CI.
 
+> **Projet sans lockfile ?** C'est le cas où l'ingestion n'est pas seulement plus
+> pratique, mais plus juste : l'audit local n'a rien à mesurer — il rend « Lockfile
+> manquant: … » — alors que le build, lui, en a un, puisqu'il installe. Fabriquer un
+> lockfile côté Aegis à partir du seul `package.json` répondrait à une autre
+> question (« que donnerait une installation aujourd'hui ? ») et mettrait du réseau
+> sur le chemin d'audit. L'arbitrage est consigné dans
+> [UPGRADE.md §9](UPGRADE.md#-9-projets-sans-lockfile).
+
 ## Vue d'ensemble
 
 ```

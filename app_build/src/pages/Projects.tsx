@@ -614,7 +614,7 @@ export const Projects = React.memo(function Projects() {
 					if (!open) resetForm();
 				}}
 			>
-				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+				<DialogContent className="sm:max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
 					<form
 						ref={formRef}
 						onSubmit={handleSubmit}

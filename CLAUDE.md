@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 456 tests composants — happy-dom actif
-bun run test:api    # 1046 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 464 tests composants — happy-dom actif
+bun run test:api    # 1048 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1502 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1512 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -115,7 +115,9 @@ Conséquences à connaître :
 
 **Frontend** en Atomic Design, imposé par l'arborescence : `components/ui/` (atomes Shadcn/Radix) → `molecules/` → `organisms/` → `templates/` (gabarits de route) → `pages/` (racines de route). Navigation avec `react-router-dom` v7 et `BrowserRouter` dans `frontend.tsx` ; `App.tsx` porte les stats globales et les modales, l'orchestration d'audit vivant dans `useGlobalAudit`. ⚠️ Les pages restent monolithiques (`Projects.tsx` 1125 lignes, `Settings.tsx` 890) et portent encore l'état serveur, les appels réseau et le markup : c'est la racine commune des défauts N16, N19 et N24. Toute fonctionnalité nouvelle doit sortir dans un hook ou un composant, pas grossir la page. Les constantes métier et le style des sévérités vivent dans `src/lib/triage-constants.tsx`. Fusionnez toujours les classes Tailwind via `cn()` de `src/lib/utils.ts`.
 
-**Thème clair et sombre, tous les deux.** `styles/globals.css` déclare le jeu de tokens clair sur `:root`, puis le sombre **deux fois** : sous `@media (prefers-color-scheme: dark)` pour suivre le système, et sous `.dark` pour forcer — ce dernier étant le sélecteur qu'attend `ui/chart.tsx`. La duplication est délibérée ; CSS ne sait pas partager un bloc de déclarations entre deux sélecteurs sans une indirection qui coûte plus en lisibilité qu'elle ne gagne en lignes. En Tailwind v4 la variante `dark:` est adossée par défaut à `prefers-color-scheme` : tant que les tokens manquaient, les utilitaires basculaient sans les variables, d'où un fond clair avec du texte clair par-dessus (défaut N14). **Toute couleur codée en dur doit porter ses deux teintes** — `text-red-600 dark:text-red-400`, jamais `text-red-400` seul. `src/lib/tailwind-classes.test.ts` balaie l'arbre pour trois motifs qu'aucun outil ne signale : préfixe de variante amputé (` :bg-input/50`), valeur arbitraire tronquée (`(var(--primary),0.2)]`) et modificateur d'opacité orphelin (`inset-0 /5`).
+**Thème clair et sombre, tous les deux.** `styles/globals.css` déclare le jeu de tokens clair sur `:root`, puis le sombre **deux fois** : sous `@media (prefers-color-scheme: dark)` pour suivre le système, et sous `.dark` pour forcer — ce dernier étant le sélecteur qu'attend `ui/chart.tsx`. La duplication est délibérée ; CSS ne sait pas partager un bloc de déclarations entre deux sélecteurs sans une indirection qui coûte plus en lisibilité qu'elle ne gagne en lignes. En Tailwind v4 la variante `dark:` est adossée par défaut à `prefers-color-scheme` : tant que les tokens manquaient, les utilitaires basculaient sans les variables, d'où un fond clair avec du texte clair par-dessus (défaut N14). **Toute couleur codée en dur doit porter ses deux teintes** — `text-red-600 dark:text-red-400`, jamais `text-red-400` seul. `src/lib/tailwind-classes.test.ts` balaie l'arbre pour quatre motifs qu'aucun outil ne signale : préfixe de variante amputé (` :bg-input/50`), valeur arbitraire tronquée (`(var(--primary),0.2)]`), modificateur d'opacité orphelin (`inset-0 /5`) et **largeur de modale sans préfixe `sm:`**.
+
+⚠️ **Une largeur de `DialogContent` s'écrit `sm:max-w-*`, toujours.** L'atome pose `sm:max-w-lg` ; un `max-w-2xl` nu ne le remplace pas — les deux classes appartiennent à des groupes différents, `cn()` les garde toutes les deux, et c'est la règle sous media query qui gagne. La modale reste donc à 512 px au-delà de `sm`, **quelle que soit la valeur écrite**. Le piège avait mordu six modales, dans les deux sens : trop étroites comme trop larges.
 
 ## Conventions
 

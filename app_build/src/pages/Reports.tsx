@@ -494,7 +494,17 @@ export const Reports = memo(function Reports({
 					if (!open) setSelectedReportIndex(null);
 				}}
 			>
-				<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+				{/*
+				 * `sm:max-w-4xl`, avec le préfixe : l'atome pose `sm:max-w-lg`, et
+				 * `max-w-2xl` seul ne le remplaçait pas — les deux classes
+				 * appartiennent à des groupes différents, `cn()` les garde toutes
+				 * deux, et c'est la règle sous media query qui gagne. La modale était
+				 * donc bornée à 512 px au-delà de `sm`, quelle que soit la valeur
+				 * écrite ici. Le contenu est un tableau comparatif de CVE : à cette
+				 * largeur, chaque description se coupait tous les quatre ou cinq mots.
+				 * `w-[95vw]` garde la modale utilisable sur un écran étroit.
+				 */}
+				<DialogContent className="sm:max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
 					<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
 						<div>
 							<DialogTitle className="text-2xl font-bold font-heading">

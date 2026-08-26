@@ -4,9 +4,9 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1502 tests · 0 échec · 105 fichiers
-├── 456 composants (52 fichiers) — DOM, React, fetch simulé
-└── 1046 fonctionnels (53 fichiers) — vrai serveur, vraie base, vrai git
+1512 tests · 0 échec · 105 fichiers
+├── 464 composants (52 fichiers) — DOM, React, fetch simulé
+└── 1048 fonctionnels (53 fichiers) — vrai serveur, vraie base, vrai git
 ```
 
 Les défauts que cette suite a mis au jour ne sont pas listés ici : ils sont inscrits
@@ -89,7 +89,7 @@ clés étrangères et les migrations sont réels.
 | `lib/advisory-sync.ts` | 19 | clés distinctes des derniers runs, arrêt sur quota, reprise, **verrou partagé** |
 | `lib/advisory-scheduler.ts` | 12 | intervalle et ses replis, idempotence du démarrage, première passe différée |
 | `lib/triage-constants.tsx` | 14 | palette contrastée, six formes distinctes, six libellés |
-| `lib/tailwind-classes.ts` | 4 | garde-fou sur tout `src/` : variante amputée, valeur tronquée, opacité orpheline |
+| `lib/tailwind-classes.ts` | 6 | garde-fou sur tout `src/` : variante amputée, valeur tronquée, opacité orpheline, largeur de modale sans `sm:` |
 | `lib/git/index.ts` | 26 | dépôts jetables réels, `ahead`/`behind`, `pull --ff-only` |
 | `lib/parsers/` (6) | 67 | npm, bun, yarn, composer + utils, tolérance aux formes partielles, **identifiant lu dans l'URL et non dans les CWE** |
 | `lib/console.ts` | 18 | cadrage SSE, troncature à 3000, purge d'un client fermé |

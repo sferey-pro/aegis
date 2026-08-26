@@ -246,12 +246,16 @@ export function TriageTable({
 										</Select>
 									</div>
 									<div className="flex items-center gap-2">
+										{/* Nom accessible : ces deux boutons n'étaient que des
+										    icônes, donc sans intitulé pour un lecteur d'écran — ni
+										    pour un test qui veut les désigner. */}
 										<Button
 											variant="outline"
 											size="icon"
 											onClick={() => setPage((p) => Math.max(1, p - 1))}
 											disabled={page === 1}
 											className="h-8 w-8"
+											aria-label="Page précédente"
 										>
 											<ChevronLeft className="w-4 h-4" />
 										</Button>
@@ -266,6 +270,7 @@ export function TriageTable({
 											}
 											disabled={page === totalPages}
 											className="h-8 w-8"
+											aria-label="Page suivante"
 										>
 											<ChevronRight className="w-4 h-4" />
 										</Button>

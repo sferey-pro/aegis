@@ -35,7 +35,7 @@ export function ConfirmDialog({
 				if (!open) onCancel();
 			}}
 		>
-			<DialogContent className="max-w-md p-0 overflow-hidden flex flex-col">
+			<DialogContent className="sm:max-w-md p-0 overflow-hidden flex flex-col">
 				<DialogHeader className="p-6 pb-4 border-b shrink-0">
 					<DialogTitle className="flex items-center gap-3">
 						<AlertTriangle className="w-6 h-6" />
@@ -88,7 +88,7 @@ export function AlertDialog({
 				if (!open) onClose();
 			}}
 		>
-			<DialogContent className="max-w-md p-0 overflow-hidden flex flex-col">
+			<DialogContent className="sm:max-w-md p-0 overflow-hidden flex flex-col">
 				<DialogHeader className="p-6 pb-4 border-b shrink-0">
 					<DialogTitle>{title}</DialogTitle>
 				</DialogHeader>

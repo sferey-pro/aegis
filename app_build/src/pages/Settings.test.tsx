@@ -109,6 +109,58 @@ describe("Settings", () => {
 			);
 		});
 
+		test("le champ Cloud ID n'apparaît que pour la passerelle", async () => {
+			// Requis uniquement sur `api.atlassian.com`, qui sert tous les tenants.
+			// L'afficher toujours ferait croire à une configuration obligatoire pour
+			// tout le monde.
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+			await screen.findByLabelText(/Base URL Jira/);
+
+			expect(screen.queryAllByLabelText(/Cloud ID/)).toHaveLength(0);
+		});
+
+		test("saisir l'URL de la passerelle fait apparaître le Cloud ID", async () => {
+			// Conditionné à ce qui est **saisi**, pas à ce qui est enregistré : sans
+			// cela il faudrait enregistrer une configuration incomplète pour voir le
+			// champ qui la complète.
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+			const url = await screen.findByLabelText(/Base URL Jira/);
+
+			fireEvent.change(url, {
+				target: { value: "https://api.atlassian.com" },
+			});
+
+			expect(await screen.findByLabelText(/Cloud ID/)).toBeInTheDocument();
+			// Le message dit où trouver la valeur : sans cela l'utilisateur cherche.
+			expect(screen.getByText(/_edge\/tenant_info/)).toBeInTheDocument();
+		});
+
+		test("le Cloud ID part avec la section Jira", async () => {
+			mockFetch({
+				...routesDeBase,
+				"GET /api/settings": jiraEnregistre,
+				"PUT /api/settings": { body: { success: true } },
+			});
+			render(<Settings />);
+			const url = await screen.findByLabelText(/Base URL Jira/);
+
+			fireEvent.change(url, { target: { value: "https://api.atlassian.com" } });
+			fireEvent.change(await screen.findByLabelText(/Cloud ID/), {
+				target: { value: "11111111-2222-3333-4444-555555555555" },
+			});
+			fireEvent.click(screen.getByLabelText("Enregistrer l'intégration Jira"));
+
+			await waitFor(() => {
+				expect(put()).toHaveLength(1);
+			});
+			expect(put()[0]?.body).toMatchObject({
+				JIRA_BASE_URL: "https://api.atlassian.com",
+				JIRA_CLOUD_ID: "11111111-2222-3333-4444-555555555555",
+			});
+		});
+
 		test("sans configuration enregistrée, le test est indisponible", async () => {
 			const { JIRA_BASE_URL: _url, JIRA_USER: _user, ...neuf } = reglages;
 			mockFetch({ ...routesDeBase, "GET /api/settings": neuf });

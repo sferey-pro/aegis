@@ -12,6 +12,11 @@ import {
 	tableRow,
 	text,
 } from "@atlaskit/adf-utils/builders";
+import type {
+	JiraCreatedIssue,
+	JiraCurrentUser,
+	JiraIssueCreate,
+} from "@/lib/jira/types";
 import { errorMessage } from "@/lib/utils";
 import { buildCveGroups } from "../lib/aggregator";
 
@@ -211,18 +216,7 @@ export const ticketsRoutes = {
 			 * réellement envoyés sont décrits ; `parent` et `components` sont
 			 * ajoutés plus bas quand la configuration les fournit.
 			 */
-			interface JiraIssuePayload {
-				fields: {
-					project: { key: string };
-					summary: string;
-					description: unknown;
-					issuetype: { name: string };
-					parent?: { key: string };
-					components?: { id: string }[];
-				};
-			}
-
-			const issueData: JiraIssuePayload = {
+			const issueData: JiraIssueCreate = {
 				fields: {
 					project: { key: project },
 					summary: `[Aegis] Remédiation ${packageName}`,
@@ -328,7 +322,26 @@ export const ticketsRoutes = {
 				);
 			}
 
-			const data = await response.json();
+			const data = (await response.json()) as JiraCreatedIssue;
+
+			// `key` est **optionnel** dans le schéma `CreatedIssue`, et c'est la seule
+			// valeur qu'Aegis conserve : sans elle, il n'y a rien à enregistrer ni à
+			// afficher. Le typage a révélé que la valeur partait telle quelle dans
+			// `saveTicket`, qui l'aurait écrite en base sous la forme « undefined » —
+			// un lien de ticket qui ne mène nulle part, indistinguable d'un vrai.
+			if (!data.key) {
+				emitConsoleEnd(eventId, {
+					exitCode: response.status,
+					ok: false,
+					ms: Date.now() - debut,
+					errorText: "réponse Jira sans clé d'issue",
+				});
+				return Response.json(
+					{ error: "Jira a répondu sans clé d'issue : ticket non enregistré." },
+					{ status: 502 },
+				);
+			}
+
 			emitConsoleEnd(eventId, {
 				exitCode: response.status,
 				ok: true,
@@ -420,7 +433,7 @@ export const ticketsRoutes = {
 					);
 				}
 
-				const data = await response.json();
+				const data = (await response.json()) as JiraCurrentUser;
 				emitConsoleEnd(eventId, {
 					exitCode: response.status,
 					ok: true,

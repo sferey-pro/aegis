@@ -634,6 +634,32 @@ describe("traçabilité dans la console (§11)", () => {
 		expect(fin?.errorText).toContain("Forbidden");
 	});
 
+	test("une réponse Jira sans clé d'issue n'enregistre rien", async () => {
+		// `key` est optionnel dans le schéma `CreatedIssue` — c'est le typage généré
+		// depuis le swagger qui l'a révélé. La valeur partait telle quelle dans
+		// `saveTicket`, donc en base sous la forme « undefined » : un lien de ticket
+		// qui ne mène nulle part, indistinguable d'un vrai.
+		run([vuln()]);
+		configurerJira();
+		stubJira({
+			body: { id: "10042", self: "https://jira/rest/api/3/issue/10042" },
+		});
+
+		const { status, data } = await srv.json<{ error: string }>(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2020-8203"],
+			}),
+		);
+
+		expect(status).toBe(502);
+		expect(data.error).toContain("sans clé d'issue");
+		// Rien en base : un ticket sans référence ne se retrouve pas.
+		expect(getTickets()).toHaveLength(0);
+	});
+
 	test("une coupure réseau donne 502, et non 500", async () => {
 		// Le `fetch` de la création n'était pas gardé : l'exception remontait au
 		// gestionnaire global de Bun.serve, qui répond « Internal Server Error »

@@ -455,8 +455,12 @@ export const Triage = React.memo(function Triage() {
 
 	return (
 		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10">
-			<div className="flex items-center justify-between mb-8">
-				<div>
+			{/* Deux lignes tant qu'il n'y a pas la place, une seule à partir de `lg`.
+			    En `flex items-center justify-between` sans repli, les trois contrôles
+			    débordaient et retombaient en escalier, non alignés — le titre et la
+			    barre se disputaient la même ligne. */}
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-8">
+				<div className="min-w-0">
 					<h2 className="text-3xl font-bold font-heading flex items-center gap-3">
 						CVEs
 						{projectId && (
@@ -493,11 +497,14 @@ export const Triage = React.memo(function Triage() {
 						Jira.
 					</p>
 				</div>
-				<div className="flex items-center gap-2 flex-wrap">
+				{/* `justify-end` : quand les contrôles reviennent à la ligne, ils
+				    restent alignés à droite au lieu de flotter au milieu. `shrink-0`
+				    empêche les libellés des boutons d'être compressés. */}
+				<div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0">
 					{/* Recherche libre. Purement locale : les CVE affichées sont déjà
 					    toutes chargées, une requête serveur par frappe n'apporterait
 					    rien et rendrait la saisie dépendante du réseau. */}
-					<div className="relative">
+					<div className="relative w-full sm:w-72">
 						<Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
 						<Input
 							type="search"
@@ -505,7 +512,7 @@ export const Triage = React.memo(function Triage() {
 							onChange={(e) => setQuery(e.target.value)}
 							placeholder="Chercher une CVE, un paquet…"
 							aria-label="Chercher une CVE, un paquet ou un titre"
-							className="pl-9 w-full sm:w-72"
+							className="pl-9 w-full"
 						/>
 					</div>
 					<Button
@@ -513,7 +520,7 @@ export const Triage = React.memo(function Triage() {
 						onClick={handleEnrichAll}
 						disabled={enriching || cves.length === 0}
 						title="Interroge GitHub pour les avis manquants de toutes les CVE affichées"
-						className="flex items-center gap-2"
+						className="flex items-center gap-2 whitespace-nowrap"
 					>
 						{enriching ? (
 							<RefreshCw className="w-4 h-4 animate-spin" />
@@ -525,7 +532,7 @@ export const Triage = React.memo(function Triage() {
 					<Button
 						variant={hideProcessed ? "secondary" : "outline"}
 						onClick={() => setHideProcessed(!hideProcessed)}
-						className={`flex items-center gap-2 ${hideProcessed ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
+						className={`flex items-center gap-2 whitespace-nowrap ${hideProcessed ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
 					>
 						<CheckCircle2 className="w-4 h-4" /> Zero-Inbox (Masquer traitées)
 					</Button>

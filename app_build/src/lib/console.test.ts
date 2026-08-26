@@ -9,6 +9,7 @@ import {
 	consoleClientCount,
 	emitConsoleEnd,
 	emitConsoleStart,
+	labelsStdout,
 	projectContext,
 	removeConsoleClient,
 } from "./console";
@@ -405,6 +406,86 @@ describe("lib/console — sortie serveur", () => {
 			),
 		);
 		expect(lignes[0]).toContain("(mon-api)");
+	});
+
+	test("par défaut, seul `jira` est journalisé", () => {
+		// Mesuré : un seul `getGitInfo` produit 17 lignes, 289 pour dix-sept
+		// projets. Tout journaliser noyait ce qu'on venait chercher — l'appel
+		// sortant — et posait une écriture synchrone sur le chemin de tous les
+		// sous-processus.
+		//
+		// La résolution est testée sur la fonction, pas par effet de bord : muter
+		// `NODE_ENV` le temps d'un test le rend visible par tout le reste du run.
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		delete process.env.AEGIS_CONSOLE_STDOUT;
+		try {
+			// Sous test, la sortie est muette : c'est ce que voit ce fichier.
+			expect([...labelsStdout()]).toEqual([]);
+		} finally {
+			if (initial !== undefined) process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+	});
+
+	test("un label explicite l'emporte sur le silence de test", () => {
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "jira";
+		try {
+			expect([...labelsStdout()]).toEqual(["jira"]);
+		} finally {
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+	});
+
+	test("`all` couvre toutes les familles", () => {
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "all";
+		try {
+			expect(labelsStdout().has("*")).toBe(true);
+		} finally {
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+	});
+
+	test("une liste de labels est respectée", () => {
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "git, audit";
+		const { lignes, arret } = capturerStdout();
+		try {
+			emitConsoleStart({ cmd: "a", cwd: "/", label: "git" });
+			emitConsoleStart({ cmd: "b", cwd: "/", label: "audit" });
+			emitConsoleStart({ cmd: "c", cwd: "/", label: "jira" });
+		} finally {
+			arret();
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+
+		expect(lignes).toHaveLength(2);
+		expect(lignes.join(" ")).not.toContain("[jira]");
+	});
+
+	test("hors `jira`, seules les erreurs sont détaillées", () => {
+		// `lib/git` passe la sortie complète de **chaque** commande dans `outText` :
+		// la réimprimer noyait le terminal.
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "all";
+		const { lignes, arret } = capturerStdout();
+		try {
+			const git = emitConsoleStart({ cmd: "a", cwd: "/", label: "git" });
+			emitConsoleEnd(git, { exitCode: 0, outText: "sortie git volumineuse" });
+			const jira = emitConsoleStart({ cmd: "b", cwd: "/", label: "jira" });
+			emitConsoleEnd(jira, { exitCode: 201, ok: true, outText: "la charge" });
+		} finally {
+			arret();
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+
+		const tout = lignes.join("\n");
+		expect(tout).not.toContain("sortie git volumineuse");
+		expect(tout).toContain("la charge");
 	});
 
 	test("`AEGIS_CONSOLE_STDOUT=0` rend le serveur muet", () => {

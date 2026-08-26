@@ -40,9 +40,22 @@ Chaque événement est aussi écrit sur la sortie standard, une ligne par étape
     npm ERR! code ENOTFOUND
 ```
 
+**Filtré par label**, et non « tout » :
+
+| `AEGIS_CONSOLE_STDOUT` | Effet |
+|---|---|
+| absent | `jira` hors production, rien sous test |
+| `jira,audit` | liste explicite |
+| `all` ou `1` | toutes les familles |
+| `0` | muet |
+
+Mesuré avant de choisir : un seul `getGitInfo` produit **17 lignes**, une lecture d'état sur dix-sept projets en produit **289**, et une passe d'avis autant. Tout journaliser noyait l'appel sortant qu'on venait relire, et posait une écriture **synchrone** sur le chemin de tous les sous-processus, audit compris.
+
+Seul `jira` détaille sa charge complète — c'est son objet : relire ce qui part avant de le croire. Les autres familles ne détaillent que `errorText`, `lib/git` passant la sortie entière de **chaque** commande dans `outText`.
+
 Quatre points de contrat :
 
-1. **Actif hors production, muet sous test.** `AEGIS_CONSOLE_STDOUT=0` coupe, `=1` force. Un test qui écrit sur stdout noie sa propre sortie.
+1. **Actif hors production, muet sous test.** Un test qui écrit sur stdout noie sa propre sortie.
 2. **Indépendant de `DISABLE_CONSOLE`**, qui coupe la diffusion SSE vers le navigateur : rendre le terminal muet n'est pas son objet.
 3. **Le label de la ligne de fin est retrouvé par `id`.** L'événement de fin ne porte ni `cmd`, ni `cwd`, ni `label` — sans table de correspondance, une ligne sur deux affichait `[undefined]`.
 4. **Le succès se lit dans `ok`**, jamais dans `exitCode` : pour un appel HTTP, 200 est un succès, et la convention shell y afficherait une croix.

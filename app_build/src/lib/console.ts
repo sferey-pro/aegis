@@ -90,14 +90,48 @@ function tronque(texte: string | undefined): string | undefined {
  * Actif par défaut hors production, jamais sous test — un test qui écrit sur
  * stdout noie sa propre sortie. `AEGIS_CONSOLE_STDOUT=0` coupe, `=1` force.
  */
-function ecritSurStdout(): boolean {
-	const reglage = process.env.AEGIS_CONSOLE_STDOUT;
-	if (reglage === "1") return true;
-	if (reglage === "0") return false;
-	if (process.env.NODE_ENV === "test" || process.env.AEGIS_TEST_NO_DOM) {
-		return false;
+/** Familles écrites sur stdout par défaut, hors production. */
+const LABELS_STDOUT_DEFAUT = "jira";
+
+/**
+ * Quelles familles d'étapes écrire sur la sortie standard ?
+ *
+ * **Filtré, et pas « tout ».** Un seul `getGitInfo` produit 17 lignes, mesurées :
+ * une lecture d'état sur dix-sept projets en produit 289, et une passe d'avis
+ * autant. Tout journaliser noyait précisément ce qu'on venait chercher — l'appel
+ * sortant vers Jira — et posait une écriture **synchrone** sur le chemin de tous
+ * les sous-processus, y compris l'audit.
+ *
+ * | Valeur | Effet |
+ * |---|---|
+ * | absent | `jira` hors production, rien sous test |
+ * | `jira,audit` | liste explicite |
+ * | `all` ou `1` | toutes les familles |
+ * | `0` | muet |
+ */
+export function labelsStdout(): Set<string> {
+	const reglage = process.env.AEGIS_CONSOLE_STDOUT?.trim();
+	if (reglage === "0") return new Set();
+	if (reglage === "all" || reglage === "1") return new Set(["*"]);
+	if (reglage) {
+		return new Set(
+			reglage
+				.split(",")
+				.map((l) => l.trim())
+				.filter(Boolean),
+		);
 	}
-	return process.env.NODE_ENV !== "production";
+	// Un test qui écrit sur stdout noie sa propre sortie.
+	if (process.env.NODE_ENV === "test" || process.env.AEGIS_TEST_NO_DOM) {
+		return new Set();
+	}
+	if (process.env.NODE_ENV === "production") return new Set();
+	return new Set([LABELS_STDOUT_DEFAUT]);
+}
+
+function ecritSurStdout(label: string): boolean {
+	const labels = labelsStdout();
+	return labels.has("*") || labels.has(label);
 }
 
 /**
@@ -129,26 +163,49 @@ function ligneStdout(e: ConsoleEvent, label: string): string {
  */
 const labelsEnCours = new Map<number, string>();
 
+/**
+ * Plafond de la table de labels.
+ *
+ * L'entrée est retirée à l'événement de fin, mais un producteur qui lève entre
+ * les deux n'en émet jamais : sans plafond, la table croît indéfiniment sur un
+ * serveur qui tourne des semaines — le motif exact de N26. On oublie alors les
+ * plus anciennes, qui ne servent plus à personne.
+ */
+const MAX_LABELS_EN_COURS = 512;
+
+function memoriseLabel(id: number, label: string): void {
+	if (labelsEnCours.size >= MAX_LABELS_EN_COURS) {
+		const plusAncien = labelsEnCours.keys().next();
+		if (!plusAncien.done) labelsEnCours.delete(plusAncien.value);
+	}
+	labelsEnCours.set(id, label);
+}
+
 function journaliseStdout(e: ConsoleEvent): void {
 	const label = e.label ?? labelsEnCours.get(e.id) ?? "?";
-	if (e.phase === "start") labelsEnCours.set(e.id, label);
+	if (e.phase === "start") memoriseLabel(e.id, label);
 	else labelsEnCours.delete(e.id);
+
+	if (!ecritSurStdout(label)) return;
 
 	// `console.log` et non `process.stdout.write` : la sortie reste groupée avec
 	// celle du reste du serveur, et un rechargement `--hot` ne la tronque pas.
 	console.log(ligneStdout(e, label));
-	const details = e.outText || e.errorText;
-	if (details) {
-		for (const ligne of details.trimEnd().split("\n"))
-			console.log(`    ${ligne}`);
-	}
+
+	// Le détail intégral n'a de sens que pour ce qu'on vient relire — la charge
+	// envoyée à un tiers — ou pour un échec. `lib/git` passe la sortie complète de
+	// **chaque** commande dans `outText` : la réimprimer noyait le terminal.
+	const details = label === "jira" ? e.outText || e.errorText : e.errorText;
+	if (!details) return;
+	for (const ligne of details.trimEnd().split("\n"))
+		console.log(`    ${ligne}`);
 }
 
 function broadcast(brut: ConsoleEvent) {
 	// La sortie serveur passe **avant** la garde : `DISABLE_CONSOLE` coupe la
 	// diffusion SSE vers le navigateur — c'est son objet — et n'a pas de raison de
 	// rendre le terminal muet là où l'on développe.
-	if (ecritSurStdout()) journaliseStdout(brut);
+	journaliseStdout(brut);
 
 	if (getSetting("DISABLE_CONSOLE", "false") === "true") {
 		return;

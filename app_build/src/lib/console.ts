@@ -6,7 +6,14 @@ export interface ConsoleEvent {
 	phase: "start" | "end";
 	cmd: string;
 	cwd: string;
-	label: "git" | "audit" | "github";
+	/**
+	 * Famille de l'étape. `jira` a été ajouté parce que les appels sortants vers
+	 * Jira — test de connexion et création de ticket — n'apparaissaient **nulle
+	 * part** : la console montrait git, les audits et GitHub, mais pas le seul
+	 * point où l'outil écrit chez un tiers. On ne pouvait donc pas relire ce qui
+	 * partait.
+	 */
+	label: "git" | "audit" | "github" | "jira";
 	project?: string;
 	exitCode?: number;
 	/**
@@ -61,21 +68,30 @@ export function emitConsoleEnd(
 		project: ctx?.project,
 	} as ConsoleEvent;
 
-	// Truncate large outputs to prevent massive JSON stringify overhead and UI slowdowns
-	if (fullEvent.outText && fullEvent.outText.length > 3000) {
-		fullEvent.outText = `${fullEvent.outText.substring(0, 3000)}\n... [TRUNCATED]`;
-	}
-	if (fullEvent.errorText && fullEvent.errorText.length > 3000) {
-		fullEvent.errorText = `${fullEvent.errorText.substring(0, 3000)}\n... [TRUNCATED]`;
-	}
-
 	broadcast(fullEvent);
 }
 
-function broadcast(event: ConsoleEvent) {
+/** Limite de §11 : au-delà, la sortie est coupée. */
+const MAX_TEXTE = 3000;
+
+function tronque(texte: string | undefined): string | undefined {
+	if (!texte || texte.length <= MAX_TEXTE) return texte;
+	return `${texte.substring(0, MAX_TEXTE)}\n... [TRUNCATED]`;
+}
+
+function broadcast(brut: ConsoleEvent) {
 	if (getSetting("DISABLE_CONSOLE", "false") === "true") {
 		return;
 	}
+	// Troncature ici, et non dans `emitConsoleEnd` : elle n'était appliquée qu'à
+	// la phase de fin, si bien qu'un événement de départ portant une charge — la
+	// charge JSON envoyée à Jira, par exemple — partait entière dans le flux SSE.
+	// §11 parle de « toute sortie », pas de la sortie finale.
+	const event: ConsoleEvent = {
+		...brut,
+		outText: tronque(brut.outText),
+		errorText: tronque(brut.errorText),
+	};
 	const payload = `data: ${JSON.stringify(event)}\n\n`;
 	for (const client of clients) {
 		try {

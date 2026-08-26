@@ -79,7 +79,77 @@ function tronque(texte: string | undefined): string | undefined {
 	return `${texte.substring(0, MAX_TEXTE)}\n... [TRUNCATED]`;
 }
 
+/**
+ * La console doit-elle aussi écrire sur la sortie standard du serveur ?
+ *
+ * Le flux SSE ne va qu'au navigateur : en développement, le terminal de
+ * `make dev` ne montrait **rien** des appels sortants — ni Jira, ni GitHub, ni
+ * les sous-processus. Or c'est là qu'on travaille, et c'est là qu'on relit une
+ * charge avant de la croire.
+ *
+ * Actif par défaut hors production, jamais sous test — un test qui écrit sur
+ * stdout noie sa propre sortie. `AEGIS_CONSOLE_STDOUT=0` coupe, `=1` force.
+ */
+function ecritSurStdout(): boolean {
+	const reglage = process.env.AEGIS_CONSOLE_STDOUT;
+	if (reglage === "1") return true;
+	if (reglage === "0") return false;
+	if (process.env.NODE_ENV === "test" || process.env.AEGIS_TEST_NO_DOM) {
+		return false;
+	}
+	return process.env.NODE_ENV !== "production";
+}
+
+/**
+ * Une ligne par événement, lisible d'un coup d'œil.
+ *
+ * Le départ porte la commande et sa cible ; la fin porte l'issue, la durée et ce
+ * que l'étape a produit. Le succès se lit dans `ok` quand il est fourni — pour un
+ * appel HTTP, `exitCode` est un **statut**, et la convention shell « zéro vaut
+ * succès » afficherait une croix sur un 200.
+ */
+function ligneStdout(e: ConsoleEvent, label: string): string {
+	const projet = e.project ? ` (${e.project})` : "";
+	if (e.phase === "start") {
+		return `[${label}]${projet} → ${e.cmd}  ${e.cwd}`;
+	}
+	const reussi = e.ok ?? e.exitCode === 0;
+	const duree = e.ms === undefined ? "" : ` ${e.ms}ms`;
+	const code = e.exitCode === undefined ? "" : ` ${e.exitCode}`;
+	return `[${label}]${projet} ${reussi ? "✓" : "✗"}${code}${duree}`;
+}
+
+/**
+ * Label de chaque étape en cours, pour l'écrire aussi sur la ligne de fin.
+ *
+ * L'événement de fin ne porte ni `cmd`, ni `cwd`, ni `label` : il se corrèle au
+ * départ par son `id` (c'est le contrat de §11, et le client le respecte). Sans
+ * cette table, la sortie serveur affichait `[undefined]` une ligne sur deux.
+ * L'entrée est retirée à la fin, la table ne retient donc que ce qui tourne.
+ */
+const labelsEnCours = new Map<number, string>();
+
+function journaliseStdout(e: ConsoleEvent): void {
+	const label = e.label ?? labelsEnCours.get(e.id) ?? "?";
+	if (e.phase === "start") labelsEnCours.set(e.id, label);
+	else labelsEnCours.delete(e.id);
+
+	// `console.log` et non `process.stdout.write` : la sortie reste groupée avec
+	// celle du reste du serveur, et un rechargement `--hot` ne la tronque pas.
+	console.log(ligneStdout(e, label));
+	const details = e.outText || e.errorText;
+	if (details) {
+		for (const ligne of details.trimEnd().split("\n"))
+			console.log(`    ${ligne}`);
+	}
+}
+
 function broadcast(brut: ConsoleEvent) {
+	// La sortie serveur passe **avant** la garde : `DISABLE_CONSOLE` coupe la
+	// diffusion SSE vers le navigateur — c'est son objet — et n'a pas de raison de
+	// rendre le terminal muet là où l'on développe.
+	if (ecritSurStdout()) journaliseStdout(brut);
+
 	if (getSetting("DISABLE_CONSOLE", "false") === "true") {
 		return;
 	}

@@ -30,8 +30,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Project, ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
-import type { ProjectListItem } from "@/routes/projects";
-import { FullScreenOverlay } from "../components/layout/FullScreenOverlay";
+import { useGlobalGitSync } from "@/lib/useGlobalGitSync";
+import type { ProjectGitState, ProjectListItem } from "@/routes/projects";
+import { AuditProgressBar } from "../components/molecules/AuditProgressBar";
 import { ShieldLoader } from "../components/molecules/ShieldLoader";
 import { TagBadge } from "../components/molecules/TagBadge";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
@@ -101,6 +102,22 @@ export const Projects = React.memo(function Projects() {
 			setSearchParams(params, { replace: true });
 		},
 		[searchParams, setSearchParams],
+	);
+
+	/**
+	 * Ce que l'écran montre : les projets, filtrés par le tag courant.
+	 *
+	 * Une seule définition, lue par les deux vues **et** par la synchronisation
+	 * groupée. Le filtre était recalculé en trois endroits, et le lot Git en avait
+	 * un quatrième, différent — d'où un bouton qui agissait sur autre chose que ce
+	 * qui était affiché.
+	 */
+	const visibleProjects = useMemo(
+		() =>
+			filterTag
+				? projects.filter((p) => p.tags?.includes(filterTag))
+				: projects,
+		[projects, filterTag],
 	);
 
 	const [isAdding, setIsAdding] = useState(false);
@@ -380,11 +397,25 @@ export const Projects = React.memo(function Projects() {
 		}
 	};
 
+	/**
+	 * Fusionne l'état git rendu par une action, sans recharger la liste.
+	 *
+	 * La liste ne porte plus l'état git (elle ne le calcule plus au chargement) :
+	 * la recharger après un `fetch` effacerait donc ce que l'action vient
+	 * d'apprendre. Or chaque action le renvoie déjà (§5).
+	 */
+	const mergeGit = useCallback((id: number, git: ProjectGitState) => {
+		setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, git } : p)));
+	}, []);
+
 	const handleFetch = async (id: number, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		try {
-			await fetchVoid(`/api/projects/${id}/git-fetch`, { method: "POST" });
-			fetchProjects();
+			const res = await fetchJson<{ git: ProjectGitState }>(
+				`/api/projects/${id}/git-fetch`,
+				{ method: "POST" },
+			);
+			mergeGit(id, res.git);
 		} catch (err) {
 			console.error(err);
 		}
@@ -393,19 +424,37 @@ export const Projects = React.memo(function Projects() {
 	const handlePull = async (id: number, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		try {
-			await fetchVoid(`/api/projects/${id}/git-pull`, { method: "POST" });
-			fetchProjects();
+			const res = await fetchJson<{ git: ProjectGitState }>(
+				`/api/projects/${id}/git-pull`,
+				{ method: "POST" },
+			);
+			mergeGit(id, res.git);
 		} catch (err) {
 			console.error(err);
 		}
 	};
 
-	const [isFetchingAll, setIsFetchingAll] = useState(false);
-	const [fetchProgress, setFetchProgress] = useState<{
-		name: string;
-		current: number;
-		total: number;
-	} | null>(null);
+	/**
+	 * Synchronisation Git groupée : même pool que « Tout auditer », mais **un
+	 * dépôt à la fois** (§5), annulable, échecs rendus visibles.
+	 */
+	const {
+		running: isFetchingAll,
+		progress: fetchProgress,
+		start: startGitSync,
+		cancel: cancelGitSync,
+	} = useGlobalGitSync();
+
+	/**
+	 * Dépôts que la dernière synchronisation n'a pas pu joindre.
+	 *
+	 * L'ancienne boucle envoyait ses échecs dans `console.error` : un dépôt sans
+	 * amont, une authentification refusée ou un hôte injoignable passaient
+	 * inaperçus, et l'écran affichait le même « à jour » que pour un succès.
+	 */
+	const [gitSyncFailures, setGitSyncFailures] = useState<
+		{ name: string; message: string }[]
+	>([]);
 
 	const handleForceAudit = async (id: number, e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -427,28 +476,45 @@ export const Projects = React.memo(function Projects() {
 	};
 
 	const handleFetchAll = async () => {
-		setIsFetchingAll(true);
-		try {
-			const activeProjects = projects.filter(
-				(p) => !p.ignored && p.git?.isRepo,
-			);
-			let current = 1;
-			for (const p of activeProjects) {
-				setFetchProgress({
-					name: p.name,
-					current,
-					total: activeProjects.length,
-				});
-				await fetchVoid(`/api/projects/${p.id}/git-fetch`, { method: "POST" });
-				current++;
-			}
-			await fetchProjects();
-		} catch (err) {
-			console.error(err);
-		} finally {
-			setIsFetchingAll(false);
-			setFetchProgress(null);
-		}
+		// Périmètre = les projets **visibles** au sens de §2, comme pour l'audit :
+		// non ignorés, filtrés par le tag porté par l'URL, et — propre à git — un
+		// dépôt. Le handler ignorait le filtre par tag et synchronisait quinze
+		// dépôts quand l'écran n'en montrait trois : la même erreur de périmètre
+		// que N8 côté audit.
+		// `git === null` = état non chargé, pas « pas un dépôt » : au premier
+		// affichage on ne sait pas encore lesquels sont des dépôts, donc on tente.
+		// La réponse porte l'état git, si bien qu'un dossier non-git est écarté des
+		// lots suivants sans avoir rien coûté de plus.
+		const cibles = visibleProjects.filter(
+			(p) => !p.ignored && !p.is_remote && p.git?.isRepo !== false,
+		);
+		setGitSyncFailures([]);
+		const resultats = await startGitSync(
+			cibles.map((p) => ({ id: p.id, name: p.name })),
+			// Chaque carte se met à jour dès que **sa** réponse arrive : l'état git
+			// vient de la réponse, pas d'un rechargement de la liste — celle-ci ne le
+			// calcule plus, et la recharger effacerait ce que le lot vient
+			// d'apprendre. Attendre la fin du lot laissait l'écran figé une vingtaine
+			// de secondes sur dix-sept dépôts, alors que la première réponse était
+			// déjà connue au bout d'une seconde.
+			(sortie) => {
+				const git = sortie.value?.git;
+				if (!git) return;
+				setProjects((prev) =>
+					prev.map((p) =>
+						p.id === sortie.project.id
+							? { ...p, git: { ...git, checkedAt: new Date().toISOString() } }
+							: p,
+					),
+				);
+			},
+		);
+
+		setGitSyncFailures(
+			resultats
+				.filter((r) => r.error)
+				.map((r) => ({ name: r.project.name, message: r.error ?? "" })),
+		);
 	};
 
 	const handleDetectTool = async () => {
@@ -867,6 +933,36 @@ export const Projects = React.memo(function Projects() {
 				</div>
 			)}
 
+			{/* Échecs de la dernière synchronisation groupée. Ils partaient dans
+			    `console.error` : un dépôt sans amont ou une authentification refusée
+			    laissait la carte afficher le même « à jour » qu'un succès. */}
+			{gitSyncFailures.length > 0 && (
+				<div className="rounded-xl border border-red-500/50 bg-red-500/10 p-4 flex flex-col gap-2">
+					<div className="flex items-center justify-between gap-4">
+						<p className="text-sm font-semibold flex items-center gap-2">
+							<AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+							{gitSyncFailures.length} dépôt(s) non synchronisé(s)
+						</p>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							onClick={() => setGitSyncFailures([])}
+						>
+							Masquer
+						</Button>
+					</div>
+					<ul className="flex flex-col gap-1 text-xs text-muted-foreground font-mono">
+						{gitSyncFailures.map((e) => (
+							<li key={e.name} className="truncate">
+								<span className="font-semibold text-foreground">{e.name}</span>{" "}
+								— {e.message}
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+
 			{loading ? (
 				<ShieldLoader
 					className="p-12"
@@ -884,10 +980,7 @@ export const Projects = React.memo(function Projects() {
 				</div>
 			) : viewMode === "grid" ? (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-					{(filterTag
-						? projects.filter((p) => p.tags?.includes(filterTag))
-						: projects
-					).map((p, index) => (
+					{visibleProjects.map((p, index) => (
 						<ProjectCard
 							key={p.id}
 							p={p}
@@ -922,10 +1015,7 @@ export const Projects = React.memo(function Projects() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{(filterTag
-								? projects.filter((p) => p.tags?.includes(filterTag))
-								: projects
-							).map((p) => {
+							{visibleProjects.map((p) => {
 								const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 								const hasNoCves =
 									p.lastRun &&
@@ -934,7 +1024,11 @@ export const Projects = React.memo(function Projects() {
 								return (
 									<TableRow
 										key={p.id}
-										className={`group cursor-pointer ${p.ignored ? "opacity-50 grayscale" : ""}`}
+										// La vue liste n'avait aucun indicateur d'activité : pendant
+										// un lot, rien ne distinguait la ligne au travail des autres.
+										// Grisée plutôt que voilée — un voile en position absolue se
+										// place mal dans une cellule de tableau.
+										className={`group cursor-pointer ${p.ignored ? "opacity-50 grayscale" : ""} ${auditState[p.id] ? "opacity-60 bg-muted/40" : ""}`}
 										onClick={() => navigate(`/triage?project=${p.id}`)}
 									>
 										<TableCell>
@@ -1007,15 +1101,20 @@ export const Projects = React.memo(function Projects() {
 												</div>
 											) : (
 												<div className="flex items-center gap-2">
+													{/* `null` = non chargé, `{isRepo:false}` = pas un dépôt. */}
 													<span className="text-xs text-muted-foreground italic">
-														Non-Git
+														{p.git === null ? "Git non chargé" : "Non-Git"}
 													</span>
 													<button
 														type="button"
 														onClick={(e) => handleDetectGit(p.id, e)}
 														disabled={detectingId === p.id}
 														className="p-1 text-muted-foreground rounded disabled:opacity-50"
-														title="Re-détecter le dépôt Git"
+														title={
+															p.git === null
+																? "Lire l'état Git de ce projet"
+																: "Re-détecter le dépôt Git"
+														}
 													>
 														<RefreshCw
 															className={`w-3 h-3 ${detectingId === p.id ? "animate-spin text-primary" : ""}`}
@@ -1089,28 +1188,24 @@ export const Projects = React.memo(function Projects() {
 				</div>
 			)}
 
-			{isFetchingAll && (
-				<FullScreenOverlay>
-					<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] blur-[100px] rounded-full pointer-events-none"></div>
-
-					<div className="relative flex items-center justify-center w-28 h-28 rounded-full neon-glow z-10">
-						<div className="absolute inset-0 border-[4px] border-t-cyan-400 rounded-full"></div>
-						<CloudDownload className="w-12 h-12" />
-					</div>
-
-					<div className="z-10 flex flex-col items-center gap-2">
-						<h1 className="text-3xl font-bold font-heading text-gradient">
-							Mise à jour Git
-						</h1>
-						<div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
-							<Loader2 className="w-4 h-4 text-secondary" />
-							{fetchProgress
-								? `Synchronisation du projet ${fetchProgress.name} .... ${fetchProgress.current}/${fetchProgress.total}`
-								: "Démarrage de la vérification globale..."}
-						</div>
-					</div>
-				</FullScreenOverlay>
-			)}
+			{/* Barre **non modale**, comme pour l'audit (N8) : le voile plein écran
+			    masquait la console live, seul endroit où l'on voit `git fetch`
+			    tourner et échouer. Décalée, pour ne pas se superposer à celle de
+			    l'audit global si les deux lots tournent. */}
+			<AuditProgressBar
+				progression={
+					fetchProgress
+						? {
+								faits: fetchProgress.done,
+								total: fetchProgress.total,
+								enCours: fetchProgress.running,
+							}
+						: null
+				}
+				onCancel={cancelGitSync}
+				label="Mise à jour Git"
+				offset
+			/>
 
 			<ConfirmDialog
 				isOpen={projectToDelete !== null}

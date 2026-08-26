@@ -218,4 +218,29 @@ describe("ProjectCard", () => {
 		expect(vus[0]?.id).toBe(7);
 		expect(vus[0]?.name).toBe("Mon API");
 	});
+
+	test("une carte occupée est voilée, et le dit", () => {
+		// L'overlay n'avait aucun fond : le libellé se superposait au contenu et
+		// rien ne distinguait une carte au travail d'une carte au repos —
+		// précisément l'information utile pendant un lot.
+		const { container } = render(
+			<ProjectCard {...props({ auditState: { 7: "Opération Git..." } })} />,
+		);
+		expect(screen.getByText("Opération Git...")).toBeInTheDocument();
+
+		const voile = container.querySelector(".absolute.inset-0");
+		expect(voile?.className).toContain("bg-card/85");
+	});
+
+	test("une carte au repos n'a pas de voile", () => {
+		const { container } = render(<ProjectCard {...props()} />);
+		expect(container.querySelectorAll(".absolute.inset-0")).toHaveLength(0);
+	});
+
+	test("le libellé d'activité est annoncé aux lecteurs d'écran", () => {
+		render(<ProjectCard {...props({ auditState: { 7: "Audit npm..." } })} />);
+		expect(
+			screen.getByText("Audit npm...").closest("[aria-live]"),
+		).toBeTruthy();
+	});
 });

@@ -24,6 +24,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import React from "react";
+import { relativeAge } from "@/lib/utils";
 import type { ProjectListItem } from "@/routes/projects";
 import { TagBadge } from "../molecules/TagBadge";
 import { Badge } from "../ui/badge";
@@ -94,10 +95,20 @@ export const ProjectCard = React.memo(function ProjectCard({
 				}
 			}}
 		>
+			{/* Carte occupée : voile opaque **sur la carte seule**.
+			    L'overlay n'avait aucun fond, si bien que le libellé
+			    (« Opération Git… », « Audit npm… ») se superposait au contenu et que
+			    rien ne distinguait une carte au travail d'une carte au repos —
+			    précisément l'information utile pendant un lot. `bg-card/85` laisse
+			    devenir la forme de la carte sans rendre le texte illisible, et les
+			    deux teintes sont posées puisqu'un token n'existe pas pour ce voile. */}
 			{auditState[p.id] && (
-				<div className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl">
+				<div
+					className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl bg-card/85 backdrop-blur-[2px]"
+					aria-live="polite"
+				>
 					<Loader2 className="w-6 h-6 text-primary animate-spin" />
-					<span className="text-xs font-semibold ">{auditState[p.id]}</span>
+					<span className="text-xs font-semibold">{auditState[p.id]}</span>
 				</div>
 			)}
 
@@ -210,8 +221,20 @@ export const ProjectCard = React.memo(function ProjectCard({
 			{p.git?.isRepo ? (
 				<div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
 					<div className="flex flex-col gap-1">
-						<span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+						<span
+							className="text-[10px] text-muted-foreground uppercase tracking-wider"
+							title={
+								p.git.checkedAt
+									? `État git lu ${relativeAge(p.git.checkedAt)}`
+									: undefined
+							}
+						>
+							{/* L'âge de la mesure, parce qu'elle est persistée et non live :
+							    `dirty` change à chaque fichier modifié, `behind` à chaque
+							    fetch. Sans date, une mesure de la semaine dernière se lirait
+							    comme la situation actuelle. */}
 							Branche
+							{p.git.checkedAt ? ` · ${relativeAge(p.git.checkedAt)}` : ""}
 						</span>
 						<div className="flex items-center gap-1 font-mono">
 							<GitBranch className="w-3 h-3" />
@@ -268,18 +291,32 @@ export const ProjectCard = React.memo(function ProjectCard({
 				</div>
 			) : (
 				<div className="flex items-center justify-between mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
-					<span className="text-muted-foreground italic">Dépôt Non-Git</span>
+					{/* Trois états, pas deux. `git === null` = **non chargé** : la liste
+					    ne lit plus l'état git au chargement (cinq sous-processus par
+					    projet). Afficher « Dépôt non-git » dans ce cas mentirait sur tout
+					    le parc à chaque ouverture de la page. */}
+					<span className="text-muted-foreground italic">
+						{p.git === null ? "État Git non chargé" : "Dépôt Non-Git"}
+					</span>
 					<button
 						type="button"
 						onClick={(e) => handleDetectGit(p.id, e)}
 						disabled={detectingId === p.id}
 						className="p-1 text-muted-foreground rounded flex items-center gap-1 disabled:opacity-50 hover:bg-muted"
-						title="Re-détecter le dépôt Git"
+						title={
+							p.git === null
+								? "Lire l'état Git de ce projet"
+								: "Re-détecter le dépôt Git"
+						}
 					>
 						<RefreshCw
 							className={`w-3 h-3 ${detectingId === p.id ? "animate-spin text-primary" : ""}`}
 						/>
-						{detectingId === p.id ? "Détection..." : "Détecter"}
+						{detectingId === p.id
+							? "Lecture..."
+							: p.git === null
+								? "Lire"
+								: "Détecter"}
 					</button>
 				</div>
 			)}

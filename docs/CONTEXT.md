@@ -68,7 +68,7 @@ Chaque fichier est autonome : ce que la fonctionnalité fait, ses règles, ses c
 
 | Méthode | Route | Rôle | § |
 |---------|-------|------|---|
-| GET / POST | `/api/projects` | lister (avec dernier run + état git) / créer (409 si doublon de cible) | [1](context/01-projets.md) |
+| GET / POST | `/api/projects` | lister (dernier run ; état git **seulement** si `?git=1`) / créer (409 si doublon de cible) | [1](context/01-projets.md) |
 | GET / PUT / DELETE | `/api/projects/:id` | lire / modifier / supprimer (cascade) | [1](context/01-projets.md) |
 | POST | `/api/projects/detect` | détection d'outil `{path, auditPath?}` → `{tool}` | [1](context/01-projets.md) |
 | POST | `/api/projects/:id/audit` | auditer (dédup ; `?force=1`) → run + `newCves` + `deduped` ; 409 si occupé | [2](context/02-audits.md) |

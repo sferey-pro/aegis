@@ -271,20 +271,86 @@ describe("GET /api/projects", () => {
 		expect(data).toEqual([]);
 	});
 
-	test("chaque projet est enrichi de son état git et de son dernier run", async () => {
+	test("l'état git lu par `?git=1` est conservé pour l'affichage suivant", async () => {
+		// C'est le manque signalé à l'usage : la vérification ne laissait aucune
+		// trace, et tout le parc repassait à « non chargé » au rechargement.
+		const { data: cree } = await creer({ path: depot("persiste") });
+		await srv.json("/api/projects?git=1");
+
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		const p = data.find((x) => x.id === cree.id);
+		expect(p?.git?.isRepo).toBe(true);
+		expect(p?.git?.checkedAt).toBeTruthy();
+	});
+
+	test("l'état persisté porte sa date, parce qu'il n'est pas live", async () => {
+		// `dirty` change à chaque fichier modifié, `behind` à chaque fetch : sans la
+		// date, une mesure de la semaine dernière se lirait comme l'état actuel.
+		await creer({ path: depot("date") });
+		await srv.json("/api/projects?git=1");
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		expect(data[0]?.git?.checkedAt).toMatch(
+			/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/,
+		);
+	});
+
+	test("git-fetch met le cache à jour", async () => {
+		// Le lot de synchronisation passe par cette route : c'est là que l'état
+		// doit être enregistré, sinon le lot n'apprend rien à l'affichage.
+		const { data: cree } = await creer({ path: depot("fetch-cache") });
+		await srv.json(`/api/projects/${cree.id}/git-fetch`, { method: "POST" });
+
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		expect(data[0]?.git?.isRepo).toBe(true);
+	});
+
+	test("la liste ne calcule pas l'état git", async () => {
+		// Cinq sous-processus par projet — 85 pour un parc de dix-sept — pour une
+		// information que l'écran n'a pas demandée. Le lire est volontaire : bouton
+		// « Vérifier les mises à jour Git », ou `?git=1`.
 		const repo = depot("liste");
 		await creer({ path: repo });
 
 		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
 		expect(data).toHaveLength(1);
-		expect(data[0]?.git.isRepo).toBe(true);
+		// Jamais lu : `null`, et non un état inventé.
+		expect(data[0]?.git).toBeNull();
 		expect(data[0]?.lastRun).toBeNull();
+	});
+
+	test("`git: null` dit « non chargé », et non « pas un dépôt »", async () => {
+		// Confondre les deux ferait afficher « Dépôt non-git » sur tout le parc au
+		// chargement, y compris sur des dépôts parfaitement valides.
+		await creer({ path: depot("vrai-depot") });
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		expect(data[0]?.git).toBeNull();
+
+		const { data: avecGit } = await srv.json<ProjectListItem[]>(
+			"/api/projects?git=1",
+		);
+		expect(avecGit[0]?.git?.isRepo).toBe(true);
+	});
+
+	test("`?git=1` enrichit chaque projet de son état git", async () => {
+		await creer({ path: depot("liste-git") });
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects?git=1");
+		expect(data[0]?.git?.isRepo).toBe(true);
 	});
 
 	test("un projet hors dépôt est renvoyé avec isRepo faux, sans erreur", async () => {
 		await creer({ path: dossier("hors-git") });
-		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
-		expect(data[0]?.git.isRepo).toBe(false);
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects?git=1");
+		expect(data[0]?.git?.isRepo).toBe(false);
+	});
+
+	test("toute autre valeur de `git` laisse la liste allégée", async () => {
+		// Seul `1` active l'enrichissement : `?git=0` ou `?git=true` ne doivent pas
+		// réintroduire 85 sous-processus par accident.
+		await creer({ path: depot("git-zero") });
+		for (const q of ["?git=0", "?git=true", "?git="]) {
+			const { data } = await srv.json<ProjectListItem[]>(`/api/projects${q}`);
+			expect(data[0]?.git).toBeNull();
+		}
 	});
 
 	test("un chemin inexistant n'empêche pas de lister le parc", async () => {
@@ -301,7 +367,7 @@ describe("GET /api/projects", () => {
 		// doit rester vide.
 		for (let i = 0; i < 9; i++)
 			await creer({ name: `p${i}`, path: `/srv/p${i}` });
-		const { data } = await srv.json<ProjectListItem[]>("/api/projects");
+		const { data } = await srv.json<ProjectListItem[]>("/api/projects?git=1");
 		expect(data).toHaveLength(9);
 		expect(data.every((p) => p && typeof p.git === "object")).toBe(true);
 	});
@@ -315,7 +381,7 @@ describe("GET /api/projects/:id", () => {
 		);
 		expect(status).toBe(200);
 		expect(data.id).toBe(cree.id);
-		expect(data.git.isRepo).toBe(true);
+		expect(data.git?.isRepo).toBe(true);
 		expect(data.lastRun).toBeNull();
 	});
 
@@ -451,6 +517,34 @@ describe("POST /api/projects/detect", () => {
 		expect((await detecter(d)).data.tool).toBe("bun");
 	});
 
+	test("bun.lock donne bun, comme bun.lockb", async () => {
+		// Le format texte de Bun manquait au catalogue de la détection, qui recopiait
+		// la liste au lieu de lire `AUDIT_TOOLS` : un projet n'ayant que `bun.lock`
+		// tombait sur le repli `package.json`, était classé `npm`, et son audit
+		// échouait ensuite sur « Lockfile manquant: package-lock.json ». Observé sur
+		// un projet réel.
+		const d = dossier("bun-lock-texte");
+		writeFileSync(join(d, "bun.lock"), "");
+		expect((await detecter(d)).data.tool).toBe("bun");
+	});
+
+	test("bun.lock l'emporte sur le repli package.json", async () => {
+		// C'est la combinaison exacte du projet en écart : un lockfile bun et un
+		// manifeste npm dans le même dossier.
+		const d = dossier("bun-lock-et-manifeste");
+		writeFileSync(join(d, "bun.lock"), "");
+		writeFileSync(join(d, "package.json"), "{}");
+		expect((await detecter(d)).data.tool).toBe("bun");
+	});
+
+	test("un lockfile npm l'emporte sur un manifeste, sans lockfile bun", async () => {
+		// Contre-épreuve : la priorité de bun ne doit pas avaler le cas normal.
+		const d = dossier("npm-lock-et-manifeste");
+		writeFileSync(join(d, "package-lock.json"), "{}");
+		writeFileSync(join(d, "package.json"), "{}");
+		expect((await detecter(d)).data.tool).toBe("npm");
+	});
+
 	test("yarn.lock donne yarn", async () => {
 		const d = dossier("yarn-lock");
 		writeFileSync(join(d, "yarn.lock"), "");
@@ -534,6 +628,33 @@ describe("actions git et audit sur un projet", () => {
 		expect(status).toBe(200);
 		expect(data.ok).toBe(true);
 		expect(data.log).toBe("Aucun dépôt distant configuré : rien à récupérer.");
+	});
+
+	test("git-fetch rend l'état git recalculé", async () => {
+		// §5 : « Puis recalcul de GitInfo ». La réponse ne portait que `{ok, log}`,
+		// si bien que l'appelant devait recharger toute la liste des projets pour
+		// savoir ce que l'action avait changé. C'est cet état que la
+		// synchronisation groupée trie (« combien de commits de retard »).
+		const { data: cree } = await creer({ path: depot("fetch-git") });
+		const { status, data } = await srv.json<{
+			ok: boolean;
+			log: string;
+			git: { isRepo: boolean; branch: string | null; behind: number };
+		}>(`/api/projects/${cree.id}/git-fetch`, { method: "POST" });
+
+		expect(status).toBe(200);
+		expect(data.git?.isRepo).toBe(true);
+		expect(data.git.branch).toBe("main");
+		expect(data.git.behind).toBe(0);
+	});
+
+	test("git-pull rend aussi l'état git recalculé", async () => {
+		const { data: cree } = await creer({ path: depot("pull-git") });
+		const { data } = await srv.json<{ git: { isRepo: boolean } }>(
+			`/api/projects/${cree.id}/git-pull`,
+			{ method: "POST" },
+		);
+		expect(data.git?.isRepo).toBe(true);
 	});
 
 	test("git-pull sur un dépôt sans amont échoue proprement", async () => {

@@ -97,6 +97,8 @@ Un refus de concurrence est un **conflit** : `AuditEnCoursError` → **409** sur
 
 Résultats agrégés dans un compte-rendu (§14), **triés erreurs d'abord, puis par nombre décroissant de nouvelles CVE**, avec départage stable par nom pour que deux lots identiques rendent le même ordre.
 
+Le pool, l'annulation et la forme du compte-rendu vivent dans `lib/batch` et sont **partagés** avec la synchronisation Git groupée ([§5](05-git.md)) : deux lots orchestrés côté client, un seul mécanisme. Ils avaient divergé, et c'est ce qui a laissé la synchro Git séquentielle et muette sur ses échecs alors que l'audit était corrigé.
+
 ## Lot serveur (`POST /api/audit/run`)
 
 Endpoint de déclenchement **sans navigateur**. C'est sa raison d'être : il est appelé par un **cron sur la machine Aegis**, qui audite périodiquement tous les projets présents en local. Aucun écran ne l'appelle, et c'est normal — l'interface orchestre côté client (voir « Mode Tout auditer » ci-dessus).

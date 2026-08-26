@@ -1,12 +1,14 @@
 import nodePath from "node:path";
 import type { BunRequest } from "bun";
 import { errorMessage } from "@/lib/utils";
+import { getGitStates, saveGitState } from "../db/git-state";
 import {
 	createProject,
 	deleteProject,
 	getProjectById,
 	listProjects,
 	type Project,
+	type ProjectTool,
 	updateProject,
 } from "../db/projects";
 import { getLatestRun, getRunsForProject, type Run } from "../db/runs";
@@ -27,12 +29,22 @@ export type ProjectGitState = GitInfo | { isRepo: false };
 
 /**
  * Forme renvoyée par `GET /api/projects` et `GET /api/projects/:id` : l'entité
- * stockée, enrichie de l'état git live et du dernier run. Déclarée ici, dans la
- * route qui produit cet enrichissement — le handler ci-dessous la satisfait, donc
- * un changement de forme casse la compilation au lieu de dériver en silence.
+ * stockée, enrichie du dernier run et — **si on l'a demandé** — de l'état git
+ * live. Déclarée ici, dans la route qui produit cet enrichissement — le handler
+ * ci-dessous la satisfait, donc un changement de forme casse la compilation au
+ * lieu de dériver en silence.
+ *
+ * `git: null` signifie « non chargé », et jamais « pas un dépôt » : la liste ne
+ * lit plus l'état git au chargement (cinq sous-processus par projet), il se
+ * demande.
  */
 export type ProjectListItem = Project & {
-	git: ProjectGitState;
+	/**
+	 * Dernier état git connu, `null` s'il n'a **jamais** été lu. `checkedAt` dit
+	 * quand la mesure a été prise : sans cette date, un `dirty` vieux de trois
+	 * jours se lirait comme la situation actuelle.
+	 */
+	git: (ProjectGitState & { checkedAt?: string }) | null;
 	lastRun: Run | null;
 };
 
@@ -144,20 +156,40 @@ export const projectsRoutes = {
 			const fs = await import("node:fs");
 			const fullPath = resolveAuditTarget(data.path, data.audit_path);
 
-			let tool = null;
+			// Lockfiles lus dans `AUDIT_TOOLS` (§2), **source de vérité unique** : la
+			// liste était recopiée ici, et elle avait divergé — `bun.lock`, le format
+			// texte de Bun, n'y figurait pas. Un projet qui n'a que ce fichier était
+			// donc classé `npm` par le repli sur `package.json`, et son audit
+			// échouait ensuite sur « Lockfile manquant: package-lock.json ».
+			const { AUDIT_TOOLS } = await import("../lib/audit/preflight");
+
+			// Ordre documenté en §1 : composer d'abord, puis bun, yarn, npm. Il fait
+			// primer `bun` sur `yarn` et `npm` — un projet Yarn portant un lockfile
+			// bun résiduel est donc classé `bun`.
+			const ORDRE_DETECTION: ProjectTool[] = ["composer", "bun", "yarn", "npm"];
+
+			let tool: ProjectTool | null = null;
 			try {
-				if (fs.existsSync(nodePath.join(fullPath, "composer.lock")))
-					tool = "composer";
-				else if (fs.existsSync(nodePath.join(fullPath, "bun.lockb")))
-					tool = "bun";
-				else if (fs.existsSync(nodePath.join(fullPath, "yarn.lock")))
-					tool = "yarn";
-				else if (fs.existsSync(nodePath.join(fullPath, "package-lock.json")))
-					tool = "npm";
-				else if (fs.existsSync(nodePath.join(fullPath, "composer.json")))
-					tool = "composer";
-				else if (fs.existsSync(nodePath.join(fullPath, "package.json")))
-					tool = "npm";
+				for (const candidat of ORDRE_DETECTION) {
+					const trouve = AUDIT_TOOLS[candidat].lockfiles.some((nom) =>
+						fs.existsSync(nodePath.join(fullPath, nom)),
+					);
+					if (trouve) {
+						tool = candidat;
+						break;
+					}
+				}
+
+				// Repli sur les manifestes : propose un outil pour un projet **sans
+				// lockfile**, ce qui garantit un run en erreur (§2). C'est délibéré —
+				// l'erreur nomme le fichier attendu — mais ça reste un repli, donc en
+				// dernier.
+				if (!tool) {
+					if (fs.existsSync(nodePath.join(fullPath, "composer.json")))
+						tool = "composer";
+					else if (fs.existsSync(nodePath.join(fullPath, "package.json")))
+						tool = "npm";
+				}
 			} catch (_e) {}
 
 			return Response.json({ tool });
@@ -165,10 +197,39 @@ export const projectsRoutes = {
 	},
 
 	"/api/projects": {
-		async GET() {
+		/**
+		 * Liste des projets. **Aucun calcul git par défaut.**
+		 *
+		 * Calculer l'état git coûte cinq sous-processus par projet — 85 pour un parc
+		 * de dix-sept — pour une valeur qui ne bouge qu'au `fetch` ou au commit
+		 * local. La route rend donc le **dernier état connu**, lu en base et daté ;
+		 * `?git=1` force le recalcul et met le cache à jour.
+		 *
+		 * `git: null` signifie **jamais lu**, et non « pas un dépôt » : confondre
+		 * les deux ferait afficher « Dépôt non-git » sur tout le parc.
+		 */
+		async GET(req: Request) {
 			const projects = listProjects();
 			const { getLatestRunsByProjectIds } = await import("../db/runs");
 			const latestRuns = getLatestRunsByProjectIds(projects.map((p) => p.id));
+
+			if (new URL(req.url).searchParams.get("git") !== "1") {
+				// Dernier état **connu**, sans relancer un seul sous-processus. Il n'est
+				// pas live, et c'est pour cela qu'il porte sa date : l'interface montre
+				// la mesure et son âge, au lieu de repartir de rien à chaque
+				// rechargement.
+				const etats = getGitStates(projects.map((p) => p.id));
+
+				const depuisCache: ProjectListItem[] = projects.map((p) => {
+					const connu = etats[p.id];
+					return {
+						...p,
+						git: connu ? { ...connu.git, checkedAt: connu.checkedAt } : null,
+						lastRun: latestRuns[p.id] || null,
+					};
+				});
+				return Response.json(depuisCache);
+			}
 
 			const enriched: ProjectListItem[] = new Array(projects.length);
 			let i = 0;
@@ -185,6 +246,9 @@ export const projectsRoutes = {
 					} catch (e) {
 						console.error(`Git error on ${p.path}:`, e);
 					}
+					// Persisté : c'est ce qui évite de tout recalculer au prochain
+					// affichage, et qui fait qu'une vérification laisse une trace.
+					saveGitState(p.id, git);
 					enriched[index] = { ...p, git, lastRun: latestRuns[p.id] || null };
 				}
 			};
@@ -228,6 +292,7 @@ export const projectsRoutes = {
 			} catch (e) {
 				console.error(`Git error on ${p.path}:`, e);
 			}
+			saveGitState(p.id, git);
 			const run = getLatestRun(p.id);
 			return Response.json({ ...p, git, lastRun: run });
 		},
@@ -310,8 +375,18 @@ export const projectsRoutes = {
 			if (denied) return denied;
 
 			const { projectContext } = await import("../lib/console");
-			const res = await projectContext.run({ project: project.name }, () =>
-				gitFetch(project.path),
+			// `git` recalculé après l'action, comme §5 le décrit : sans lui la réponse
+			// ne dit pas ce que l'action a changé, et l'appelant devait recharger
+			// toute la liste des projets pour l'apprendre. C'est cette information que
+			// la synchronisation groupée trie (« combien de commits de retard »).
+			const res = await projectContext.run(
+				{ project: project.name },
+				async () => {
+					const action = await gitFetch(project.path);
+					const git = await getGitInfo(project.path);
+					saveGitState(project.id, git);
+					return { ...action, git };
+				},
 			);
 
 			return Response.json(res);
@@ -333,8 +408,18 @@ export const projectsRoutes = {
 			if (denied) return denied;
 
 			const { projectContext } = await import("../lib/console");
-			const res = await projectContext.run({ project: project.name }, () =>
-				gitPull(project.path),
+			// `git` recalculé après l'action, comme §5 le décrit : sans lui la réponse
+			// ne dit pas ce que l'action a changé, et l'appelant devait recharger
+			// toute la liste des projets pour l'apprendre. C'est cette information que
+			// la synchronisation groupée trie (« combien de commits de retard »).
+			const res = await projectContext.run(
+				{ project: project.name },
+				async () => {
+					const action = await gitPull(project.path);
+					const git = await getGitInfo(project.path);
+					saveGitState(project.id, git);
+					return { ...action, git };
+				},
 			);
 
 			return Response.json(res);

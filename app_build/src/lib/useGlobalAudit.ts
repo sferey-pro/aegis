@@ -2,6 +2,12 @@ import { useCallback, useRef, useState } from "react";
 import type { Run } from "@/db/runs";
 import { apiErrorMessage, fetchJson } from "@/lib/api";
 import type { NewCve } from "@/lib/audit";
+import {
+	BATCH_CONCURRENCY,
+	type BatchProgress,
+	type BatchTarget,
+	runBatch,
+} from "@/lib/batch";
 
 /**
  * Orchestration de « Tout auditer », côté client.
@@ -27,8 +33,13 @@ import type { NewCve } from "@/lib/audit";
  * n'en montrait trois.
  */
 
-/** Concurrence maximale, fixée par CONTEXT.md §2. */
-export const CONCURRENCE_MAX = 4;
+/**
+ * Concurrence maximale, fixée par CONTEXT.md §2.
+ *
+ * Réexportée depuis `lib/batch`, qui la partage avec la synchronisation Git
+ * groupée (§5) : deux lots orchestrés côté client, une seule borne.
+ */
+export const CONCURRENCE_MAX = BATCH_CONCURRENCY;
 
 /** Réponse de `POST /api/projects/:id/audit`, telle que la route la construit. */
 export interface AuditRunResponse {
@@ -40,10 +51,7 @@ export interface AuditRunResponse {
 }
 
 /** Projet minimal nécessaire à l'orchestration. */
-export interface CibleAudit {
-	id: number;
-	name: string;
-}
+export type CibleAudit = BatchTarget;
 
 /** Ce qu'un projet a produit. Exactement une des trois formes. */
 export interface ResultatAudit {
@@ -62,6 +70,11 @@ export interface ProgressionAudit {
 	total: number;
 	/** Noms des projets en cours, au plus `CONCURRENCE_MAX`. */
 	enCours: string[];
+}
+
+/** Le pool parle anglais, l'écran d'audit parle son vocabulaire d'origine. */
+function toProgressionAudit(p: BatchProgress): ProgressionAudit {
+	return { faits: p.done, total: p.total, enCours: p.running };
 }
 
 /**
@@ -116,79 +129,35 @@ export function useGlobalAudit() {
 			controleur.current = ctrl;
 			setEnMarche(true);
 
-			const total = projets.length;
-			const restants = [...projets];
-			const enCours = new Set<string>();
-			const resultats: ResultatAudit[] = [];
-			let faits = 0;
-
-			const publier = () =>
-				setProgression({ faits, total, enCours: [...enCours] });
-			publier();
-
-			const travailleur = async () => {
-				for (;;) {
-					const p = restants.shift();
-					if (!p) return;
-
-					// Annulé pendant l'attente : les projets restants ne partent pas, mais
-					// ils figurent au compte-rendu comme annulés — un projet absent se
-					// lirait comme un projet sain.
-					if (ctrl.signal.aborted) {
-						resultats.push({
-							project: p,
-							reponse: null,
-							erreur: null,
-							annule: true,
-						});
-						faits++;
-						publier();
-						continue;
-					}
-
-					enCours.add(p.name);
-					publier();
-					try {
-						const reponse = await fetchJson<AuditRunResponse>(
-							`/api/projects/${p.id}/audit`,
-							{ method: "POST", signal: ctrl.signal },
-						);
-						resultats.push({
-							project: p,
-							reponse,
-							// Un run persisté en erreur a des compteurs à zéro : c'est un
-							// échec, pas un projet sain.
-							erreur:
-								reponse.run?.status === "error"
-									? (reponse.run.error ?? "audit en erreur")
-									: null,
-							annule: false,
-						});
-					} catch (err) {
-						const avorte =
-							ctrl.signal.aborted ||
-							(err instanceof Error && err.name === "AbortError");
-						resultats.push({
-							project: p,
-							reponse: null,
-							erreur: avorte ? null : apiErrorMessage(err),
-							annule: avorte,
-						});
-					} finally {
-						enCours.delete(p.name);
-						faits++;
-						publier();
-					}
-				}
-			};
-
 			try {
-				await Promise.all(
-					Array.from({ length: Math.min(CONCURRENCE_MAX, total) }).map(() =>
-						travailleur(),
-					),
+				const sorties = await runBatch<AuditRunResponse>(
+					projets,
+					(projet, signal) =>
+						fetchJson<AuditRunResponse>(`/api/projects/${projet.id}/audit`, {
+							method: "POST",
+							signal,
+						}),
+					{
+						signal: ctrl.signal,
+						onProgress: (p) => setProgression(toProgressionAudit(p)),
+						describeError: apiErrorMessage,
+						// Un run persisté en erreur a des compteurs à zéro : c'est un
+						// échec, pas un projet sain.
+						failureOf: (reponse) =>
+							reponse.run?.status === "error"
+								? (reponse.run.error ?? "audit en erreur")
+								: null,
+					},
 				);
-				return trierResultats(resultats);
+
+				return trierResultats(
+					sorties.map((s) => ({
+						project: s.project,
+						reponse: s.value,
+						erreur: s.error,
+						annule: s.cancelled,
+					})),
+				);
 			} finally {
 				setEnMarche(false);
 				setProgression(null);

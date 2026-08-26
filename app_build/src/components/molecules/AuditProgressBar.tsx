@@ -26,9 +26,23 @@ import { Button } from "../ui/button";
 export function AuditProgressBar({
 	progression,
 	onCancel,
+	label = "Audit global",
+	offset = false,
 }: {
 	progression: ProgressionAudit | null;
 	onCancel: () => void;
+	/**
+	 * Nom du lot. Les deux lots orchestrés côté client — audit (§2) et
+	 * synchronisation Git (§5) — partagent le même pool et la même barre : seul
+	 * l'intitulé change.
+	 */
+	label?: string;
+	/**
+	 * Décale la barre d'une hauteur de carte. Les deux lots peuvent tourner en
+	 * même temps — l'audit est lancé depuis l'en-tête, la synchro depuis la page
+	 * Projets — et deux barres ancrées en bas se superposeraient.
+	 */
+	offset?: boolean;
 }) {
 	if (!progression) return null;
 
@@ -38,7 +52,7 @@ export function AuditProgressBar({
 
 	return (
 		<div
-			className="fixed bottom-0 left-0 right-0 z-40 p-4 flex justify-center pointer-events-none"
+			className={`fixed left-0 right-0 z-40 p-4 flex justify-center pointer-events-none ${offset ? "bottom-24" : "bottom-0"}`}
 			role="status"
 			aria-live="polite"
 		>
@@ -46,7 +60,7 @@ export function AuditProgressBar({
 				<div className="flex items-center justify-between gap-4">
 					<span className="flex items-center gap-2 font-semibold text-sm">
 						<Loader2 className="w-4 h-4 text-primary animate-spin" />
-						Audit global — {faits} / {total} projets
+						{label} — {faits} / {total} projets
 					</span>
 					<Button
 						type="button"

@@ -67,3 +67,42 @@ export function occurrenceKey(v: {
 }): string {
 	return `${v.package}::${occurrenceRef(v)}`;
 }
+
+/**
+ * Motifs des deux référentiels de vulnérabilités reconnus.
+ *
+ * Ils vivent ici, avec les clés d'identité, parce que c'est le seul module pur du
+ * lot : `lib/github` ouvre la base d'avis, un parseur ne doit donc pas en
+ * dépendre. `keyFrom` les réutilise, si bien qu'un identifiant reconnu par un
+ * parseur est reconnu par la consultation d'avis, et réciproquement.
+ */
+export const GHSA_REGEX =
+	/(GHSA-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4})/i;
+export const CVE_REGEX = /(CVE-\d{4}-\d{4,})/i;
+
+/**
+ * Identifiant de vulnérabilité lu dans une URL d'avis, ou `null`.
+ *
+ * `npm audit` et `bun audit` ne rendent **aucun** champ d'identifiant : la seule
+ * référence stable qu'ils donnent est le GHSA porté par l'URL de l'avis
+ * (`https://github.com/advisories/GHSA-…`). Les deux parseurs remplissaient donc
+ * `cve` avec la liste des **CWE**, ce qui est une confusion de nature :
+ *
+ * - une **CWE** est une *classe de faiblesse* (« injection », « traversée de
+ *   chemin ») partagée par des milliers de vulnérabilités ;
+ * - une **CVE** ou un **GHSA** désigne *une* vulnérabilité précise.
+ *
+ * Or `cve` est la clé de regroupement du triage entre projets (§7) et la clé du
+ * diff `newCves` (§2). Conséquence mesurée : deux failles distinctes, sur deux
+ * paquets différents, partageant `CWE-200`, se regroupaient en **une seule ligne
+ * de triage** — et l'annotation portant sur le couple (cve, projet), en annoter
+ * une annotait l'autre.
+ */
+export function refFromLink(link?: string | null): string | null {
+	if (!link) return null;
+	const ghsa = link.match(GHSA_REGEX);
+	if (ghsa?.[1]) return ghsa[1].toUpperCase();
+	const cve = link.match(CVE_REGEX);
+	if (cve?.[1]) return cve[1].toUpperCase();
+	return null;
+}

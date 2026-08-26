@@ -16,8 +16,8 @@ make coverage       # bun run coverage → couverture, étage par étage
 cd app_build
 bun run typecheck   # tsc --noEmit
 bun run check       # typecheck + les deux étages (le garde-fou avant commit)
-bun run test:ui     # 444 tests composants — happy-dom actif
-bun run test:api    # 987 tests fonctionnels — AEGIS_TEST_NO_DOM=1
+bun run test:ui     # 456 tests composants — happy-dom actif
+bun run test:api    # 1046 tests fonctionnels — AEGIS_TEST_NO_DOM=1
 bun run coverage    # couverture, étage par étage (96,3 % backend / 94,1 % frontend)
 bun test src/lib/parsers/npm.test.ts          # un seul fichier
 bun test --test-name-pattern "dedup"          # un seul test, par nom
@@ -31,7 +31,7 @@ La CI (`.github/workflows/ci.yml`) exécute, depuis `app_build/` : `bun install`
 
 ### Environnement de test
 
-**1431 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
+**1502 tests, colocalisés** : chaque fichier de code porte son test à côté de lui, nommé `*.test.ts(x)`. Référence complète dans `docs/TESTING.md` (comment on teste) et `docs/TESTS.md` (ce qui est couvert).
 
 **Deux étages, séparés par nécessité technique.** happy-dom remplace la classe globale `Response`, or les handlers de `Bun.serve` construisent leurs réponses avec elle : un serveur réel démarré sous DOM échoue avec « Expected a Response object ». L'étage fonctionnel désactive donc le DOM via `AEGIS_TEST_NO_DOM=1`. Ne réunissez pas les deux globs.
 
@@ -63,6 +63,8 @@ Un seul process Bun sert à la fois l'API et la SPA React. SQLite est le seul st
 7. Chaque issue persiste un run — les échecs deviennent des lignes `status: "error"` avec un champ `error` multi-ligne (raison, `cwd:`, `exit:`, stderr brut, stdout brut). Ne jamais avaler un échec d'audit.
 8. `newCves` diffe le nouveau run contre le précédent non-erreur sur la clé `package::cve` (repli sur `package::title`). Calculé à chaque réponse, **jamais persisté**.
 
+⚠️ **`cve` porte un *identifiant* — `CVE-…` ou `GHSA-…` — jamais une CWE.** Une CWE est une classe de faiblesse partagée par des milliers de vulnérabilités ; `cve` est la clé de regroupement du triage entre projets (§7) et celle du diff `newCves` (§2). Les parseurs npm et bun y mettaient la liste des `cwe`, si bien que deux failles distinctes partageant `CWE-200` fusionnaient en une ligne de triage et qu'annoter l'une annotait l'autre. Ces deux outils ne rendent aucun champ d'identifiant : il se lit dans l'URL de l'avis via `refFromLink` (`src/lib/vuln-identity.ts`), qui partage ses motifs avec `keyFrom` de `src/lib/github`.
+
 **Identité d'une vulnérabilité** (`src/lib/vuln-identity.ts`) : `CONTEXT.md` définit **trois** clés distinctes, et c'est délibéré — `dedupe` (§3) emploie `` `${package}|${title}|${cve ?? ""}` ``, le diff `newCves` (§2) emploie `package::cve` avec repli `package::title`, et le regroupement du triage (§7) emploie `cve` avec repli `` `${package}: ${title}` ``. Elles servent des granularités différentes ; **ne les unifiez pas**. La table `cve_occurrences` en avait une quatrième, non spécifiée (`cve || package`), seule à laisser tomber le titre — d'où deux avis sans CVE d'un même paquet partageant leur `first_seen_at` (défaut N10, corrigé). Elle emploie désormais `occurrenceRef`, la clé de §2.
 
 **Agrégation** (`src/lib/aggregator/index.ts`) : `buildCveGroups()` ne lit que le *dernier* run de chaque projet non ignoré, déduplique à l'intérieur d'un projet en gardant la pire sévérité, puis regroupe entre projets par référence CVE — ou par `"${package}: ${title}"` en l'absence de CVE. Les annotations de triage sont fusionnées ici, et le `fixed_in` d'une annotation écrase la valeur du scanner. Cette clé de regroupement est structurante : `/api/cves`, le triage et les stats la lisent tous.
@@ -76,6 +78,10 @@ Un refus lève un **`AuditEnCoursError`**, que les deux routes traduisent en **4
 ⚠️ **`POST /api/audit/run` applique `pathGuard`** et **écarte** du lot les projets hors périmètre, en rendant leur nombre dans `skipped`. C'était le huitième point d'entrée touchant un chemin, et le seul à ne pas le faire.
 
 Cette route n'est appelée par **aucun écran**, et c'est normal : elle existe pour un **cron sur la machine Aegis** qui audite périodiquement tous les projets locaux. Ne la traitez pas comme du code mort. Une migration vers un cron d'ingestion par projet est envisagée ; elle demanderait d'abord de doter `/api/ingest/:slug` d'une déduplication par commit, sans quoi un cron horaire produirait vingt-quatre runs identiques par jour et par projet.
+
+**Les deux lots sont orchestrés côté client, par un pool partagé** (`src/lib/batch.ts`) : parallélisme borné — **4** pour l'audit, **1** pour la synchro Git, où les `git fetch` sortent tous par le même lien réseau et où quatre dépôts écrivant ensemble rendent la console illisible —, `AbortController`, et un compte-rendu où les projets annulés figurent — un projet absent se lirait comme un projet sain. `useGlobalAudit` (audit, §2) et `useGlobalGitSync` (synchro Git, §5) n'y ajoutent que l'appel, le tri et l'intitulé de la barre. Le pool vivait dans `useGlobalAudit`, si bien que la synchro Git est restée séquentielle, non annulable et muette sur ses échecs longtemps après le correctif N8 : ne le redupliquez pas. Le périmètre est **fourni par l'appelant** — les projets visibles — jamais recalculé dans le hook. `AuditProgressBar` sert les deux, par ses props `label` et `offset`. Le pool publie **chaque projet dès qu'il est réglé** (`onSettled`) : l'écran se met à jour au fil de l'eau, il n'attend pas le tableau final — sur un lot séquentiel, attendre figeait l'écran une vingtaine de secondes.
+
+⚠️ **`GET /api/projects` ne calcule pas l'état git** — cinq sous-processus par projet, 85 sur un parc de dix-sept, pour une valeur qui ne bouge qu'au `fetch` ou au commit local. Il rend le **dernier état connu**, lu dans `git_states` (`src/db/git-state.ts`) ; `?git=1` force le recalcul. **Tout point qui calcule un `GitInfo` l'enregistre** — `?git=1`, `GET /api/projects/:id`, `git-fetch`, `git-pull` : sans cela une vérification ne laisse aucune trace et le parc repasse à « non chargé » au rechargement. C'est un **cache daté** : `checkedAt` sort avec l'état et l'interface en affiche l'âge, parce que `dirty` change à chaque fichier modifié. Dans la liste, `git: null` veut dire **« jamais lu »**, jamais « pas un dépôt » : les deux états sont distincts à l'écran.
 
 **« Tout auditer » est orchestré côté client** (§2 : aucun endpoint batch), par `useGlobalAudit` (`src/lib/useGlobalAudit.ts`) : pool de 4, `AbortController` exposé, résultats triés **erreurs d'abord puis plus de nouvelles CVE**. Le périmètre est fourni par l'appelant — jamais recalculé dans le hook — et vient du filtre `?tag=` porté par l'URL, sans quoi `App` ne peut pas connaître les projets *visibles*. La progression passe par `AuditProgressBar`, **non modale** : le voile plein écran couvrait la console live, seul endroit où l'on voit les commandes tourner.
 

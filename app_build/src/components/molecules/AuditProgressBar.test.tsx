@@ -85,6 +85,50 @@ describe("AuditProgressBar", () => {
 		expect(screen.getByText("Finalisation…")).toBeInTheDocument();
 	});
 
+	test("l'intitulé par défaut est celui de l'audit", () => {
+		render(
+			<AuditProgressBar
+				progression={{ faits: 1, total: 4, enCours: ["a"] }}
+				onCancel={() => {}}
+			/>,
+		);
+		expect(
+			screen.getByText(/Audit global — 1 \/ 4 projets/),
+		).toBeInTheDocument();
+	});
+
+	test("l'intitulé est celui du lot qui tourne", () => {
+		// La même barre sert les deux lots orchestrés côté client : audit (§2) et
+		// synchronisation Git (§5). Sans intitulé, la synchro s'annonçait « Audit
+		// global ».
+		render(
+			<AuditProgressBar
+				progression={{ faits: 2, total: 3, enCours: ["a"] }}
+				onCancel={() => {}}
+				label="Mise à jour Git"
+			/>,
+		);
+		expect(
+			screen.getByText(/Mise à jour Git — 2 \/ 3 projets/),
+		).toBeInTheDocument();
+	});
+
+	test("décalée, elle ne se superpose pas à l'autre barre", () => {
+		// Les deux lots peuvent tourner en même temps — l'audit depuis l'en-tête, la
+		// synchro depuis la page Projets — et deux barres ancrées en bas se
+		// recouvriraient.
+		const { container } = render(
+			<AuditProgressBar
+				progression={{ faits: 1, total: 2, enCours: ["a"] }}
+				onCancel={() => {}}
+				offset
+			/>,
+		);
+		const ancre = container.firstElementChild;
+		expect(ancre?.className).toContain("bottom-24");
+		expect(ancre?.className).not.toContain("bottom-0");
+	});
+
 	test("elle est annoncée aux lecteurs d'écran", () => {
 		render(
 			<AuditProgressBar

@@ -52,7 +52,7 @@ describe("parseNpm (CONTEXT.md §3)", () => {
 		);
 	});
 
-	test("cas B : une entrée par advisory, CWE utilisé comme cve", () => {
+	test("cas B : une entrée par advisory, GHSA de l'URL en identifiant", () => {
 		const r = parseNpm(
 			sortie({
 				lodash: {
@@ -62,7 +62,7 @@ describe("parseNpm (CONTEXT.md §3)", () => {
 					via: [
 						{
 							title: "Prototype pollution",
-							url: "https://gh/advisories/GHSA-x",
+							url: "https://github.com/advisories/GHSA-jf85-cpcp-j695",
 							severity: "critical",
 							range: ">=4.0.0 <4.17.21",
 							cwe: ["CWE-1321", "CWE-915"],
@@ -74,8 +74,11 @@ describe("parseNpm (CONTEXT.md §3)", () => {
 		);
 		expect(r.total).toBe(2);
 		const critique = r.vulnerabilities.find((v) => v.severity === "critical");
-		expect(critique?.cve).toBe("CWE-1321, CWE-915");
-		expect(critique?.link).toBe("https://gh/advisories/GHSA-x");
+		// `cwe` est une classe de faiblesse, pas un identifiant de vulnérabilité.
+		expect(critique?.cve).toBe("GHSA-JF85-CPCP-J695");
+		expect(critique?.link).toBe(
+			"https://github.com/advisories/GHSA-jf85-cpcp-j695",
+		);
 		// La plage de l'advisory prime sur celle du package.
 		expect(critique?.versionRange).toBe(">=4.0.0 <4.17.21");
 		// Sans cwe, `cve` reste null.

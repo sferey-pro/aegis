@@ -8,7 +8,13 @@ import {
 	test,
 } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import {
+	chmodSync,
+	existsSync,
+	mkdirSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -21,6 +27,60 @@ import { enqueueGlobalAudit, getAuditStatus } from "@/lib/audit/queue";
 import { jsonBody, startTestServer, type TestServer } from "@/test/server";
 
 let srv: TestServer;
+
+/**
+ * Exécute `fn` pendant qu'un audit occupe **réellement** la file.
+ *
+ * Ces deux gardes étaient testées en lançant un lot d'audits voués à l'échec puis
+ * en envoyant la requête : une course. Elle a été perdue le jour où le contrôle
+ * préalable de N20 a supprimé le `spawn` — un lot de quatre audits est passé
+ * d'une centaine de millisecondes à **23 ms**, et la route de restauration, qui
+ * valide son corps avant de lire la garde, arrivait après la fin du lot. Le test
+ * échouait sur un 200 qui ne disait rien du défaut visé.
+ *
+ * La parade ne simule rien : elle rend l'audit **long pour de vrai**. Un faux
+ * `npm` qui dort est placé en tête du `PATH`, et la cible porte un lockfile pour
+ * franchir les contrôles préalables. L'audit prend alors ~400 ms, soit deux
+ * ordres de grandeur de plus qu'un aller-retour HTTP local.
+ *
+ * `getGitInfo` n'est pas affecté : les commandes git figent leur environnement à
+ * l'import du module (`GIT_ENV`), alors que l'audit compose le sien à l'appel.
+ * C'est ce qui permet de ne remplacer que `npm`.
+ */
+async function avecAuditEnCours(fn: () => Promise<void>) {
+	const bin = join(tmpdir(), `aegis-faux-bin-${randomUUID()}`);
+	const cible = join(tmpdir(), `aegis-cible-lente-${randomUUID()}`);
+	mkdirSync(bin, { recursive: true });
+	mkdirSync(cible, { recursive: true });
+	// Lockfile présent : sans lui le contrôle préalable refuse avant tout
+	// lancement, et l'audit redevient instantané (N20).
+	writeFileSync(join(cible, "package-lock.json"), "{}");
+	writeFileSync(
+		join(bin, "npm"),
+		"#!/bin/sh\nsleep 0.4\necho '{\"vulnerabilities\":{}}'\n",
+	);
+	chmodSync(join(bin, "npm"), 0o755);
+
+	const pathInitial = process.env.PATH;
+	process.env.PATH = `${bin}:${pathInitial}`;
+	try {
+		const p = createProject({
+			name: `occupe-${randomUUID().slice(0, 8)}`,
+			path: cible,
+			type: "node",
+			tool: "npm",
+		});
+		enqueueGlobalAudit([p.id]);
+		expect(getAuditStatus().isRunning).toBe(true);
+
+		await fn();
+	} finally {
+		await attendreFinAudit();
+		process.env.PATH = pathInitial;
+		rmSync(bin, { recursive: true, force: true });
+		rmSync(cible, { recursive: true, force: true });
+	}
+}
 
 /** La file est un mutex de portée processus : ne rien laisser tourner derrière. */
 async function attendreFinAudit(limiteMs = 8000) {
@@ -596,34 +656,24 @@ describe("instantanés", () => {
 			{ method: "POST" },
 		);
 
-		// Même montage que la garde du reset : un dossier réel dont la cible
-		// d'audit est absente. L'audit échoue vite, sans rien tenter sur le réseau,
-		// mais occupe la file le temps de l'aller-retour HTTP. Quatre identifiants,
-		// sinon le lot se termine avant que la requête n'arrive.
-		const racine = join(tmpdir(), `aegis-restore-guard-${randomUUID()}`);
-		mkdirSync(racine, { recursive: true });
-		try {
-			const p = createProject({
-				name: "occupe",
-				path: racine,
-				audit_path: "cible-absente",
-				type: "node",
-				tool: "npm",
-			});
-			enqueueGlobalAudit([p.id, p.id, p.id, p.id]);
-			expect(getAuditStatus().isRunning).toBe(true);
-
+		await avecAuditEnCours(async () => {
 			const { status, data } = await srv.json<{ error: string }>(
 				"/api/snapshots/restore",
 				jsonBody({ file: cree.file }),
 			);
-			await attendreFinAudit();
-
 			expect(status).toBe(409);
 			expect(data.error).toContain("audit est en cours");
-		} finally {
-			rmSync(racine, { recursive: true, force: true });
-		}
+		});
+	});
+
+	test("la garde de restauration passe après la validation du corps", async () => {
+		// L'ordre est délibéré — un corps invalide donne 400, pas 409 — et c'est
+		// aussi ce qui rendait la version précédente de ce test fragile : deux
+		// `await` séparaient le lancement du lot de la lecture de la garde.
+		await avecAuditEnCours(async () => {
+			const { status } = await srv.json("/api/snapshots/restore", jsonBody({}));
+			expect(status).toBe(400);
+		});
 	});
 });
 
@@ -725,21 +775,8 @@ describe("POST /api/config/reset", () => {
 		// Un audit en cours écrit dans la base : la supprimer sous ses pieds le
 		// ferait échouer sur un fichier disparu, et le run resterait à moitié
 		// enregistré.
-		const racine = join(tmpdir(), `aegis-reset-guard-${randomUUID()}`);
-		mkdirSync(racine, { recursive: true });
-		try {
-			const p = createProject({
-				name: "occupe",
-				path: racine,
-				audit_path: "cible-absente",
-				type: "node",
-				tool: "npm",
-			});
-			// L'enrichissement ne doit rien tenter : l'audit échoue vite sur un
-			// dossier inexistant, ce qui suffit à occuper la file.
-			enqueueGlobalAudit([p.id, p.id, p.id, p.id]);
-			expect(getAuditStatus().isRunning).toBe(true);
-
+		await avecAuditEnCours(async () => {
+			const avant = listProjects().length;
 			const { status, data } = await srv.json<{ error: string }>(
 				"/api/config/reset",
 				{ method: "POST" },
@@ -747,12 +784,8 @@ describe("POST /api/config/reset", () => {
 			expect(status).toBe(409);
 			expect(data.error).toContain("Un audit est en cours");
 			// Rien n'a été supprimé.
-			expect(listProjects()).toHaveLength(1);
-
-			await attendreFinAudit();
-		} finally {
-			rmSync(racine, { recursive: true, force: true });
-		}
+			expect(listProjects()).toHaveLength(avant);
+		});
 	});
 
 	test("réussit une fois l'audit terminé", async () => {

@@ -13,6 +13,11 @@ import { createProject, type Project } from "@/db/projects";
 import { addRun } from "@/db/runs";
 import { setSetting } from "@/db/settings";
 import { getTickets } from "@/db/tickets";
+import {
+	addConsoleClient,
+	type ConsoleEvent,
+	removeConsoleClient,
+} from "@/lib/console";
 import type { Vulnerability } from "@/lib/parsers/types";
 import { jsonBody, startTestServer, type TestServer } from "@/test/server";
 
@@ -510,6 +515,170 @@ describe("POST /api/tickets/create — Jira", () => {
 	});
 });
 
+describe("traçabilité dans la console (§11)", () => {
+	/**
+	 * Les appels sortants vers Jira n'émettaient **aucun** événement : la console
+	 * montrait git, les audits et GitHub, mais pas le seul point où l'outil écrit
+	 * chez un tiers. On ne pouvait donc pas relire ce qui partait.
+	 */
+	function ecouterConsole() {
+		const vus: ConsoleEvent[] = [];
+		// La console diffuse du SSE vers des `ReadableStreamDefaultController` : on
+		// en simule un et on relit les charges `data: …`.
+		const client = {
+			enqueue(payload: string) {
+				for (const ligne of payload.split("\n")) {
+					if (ligne.startsWith("data: ")) vus.push(JSON.parse(ligne.slice(6)));
+				}
+			},
+		} as unknown as ReadableStreamDefaultController<string>;
+		addConsoleClient(client);
+		return { vus, arret: () => removeConsoleClient(client) };
+	}
+
+	test("le test de connexion s'annonce et se conclut", async () => {
+		configurerJira();
+		stubJira({ body: { displayName: "Bot Aegis" } });
+		const { vus, arret } = ecouterConsole();
+		try {
+			await srv.json("/api/tickets/test-connection", { method: "POST" });
+		} finally {
+			arret();
+		}
+
+		// L'événement de fin ne porte ni `cmd`, ni `cwd`, ni `label` : il se corrèle
+		// au départ par son `id`. C'est le contrat de §11, et le filtrer par label
+		// le ferait disparaître.
+		const depart = vus.find((e) => e.label === "jira" && e.phase === "start");
+		expect(depart?.cmd).toContain("/rest/api/3/myself");
+
+		const fin = vus.find((e) => e.phase === "end" && e.id === depart?.id);
+		// `ok` explicite : un 200 ne doit pas s'afficher avec une croix rouge.
+		expect(fin?.ok).toBe(true);
+		expect(fin?.exitCode).toBe(200);
+	});
+
+	test("la charge envoyée à Jira est visible avant l'appel", async () => {
+		// C'est la raison d'être de cette trace : relire ce qui part.
+		// La création exige une vulnérabilité réelle dans le dernier run : c'est ce
+		// qu'elle décrit dans le ticket.
+		run([vuln()]);
+		configurerJira();
+		stubJira({ body: { key: "SEC-7" } });
+		const { vus, arret } = ecouterConsole();
+		try {
+			await srv.json(
+				"/api/tickets/create",
+				jsonBody({
+					projectId: projet.id,
+					packageName: "lodash",
+					cves: ["CVE-2020-8203"],
+				}),
+			);
+		} finally {
+			arret();
+		}
+
+		const depart = vus.find((e) => e.label === "jira" && e.phase === "start");
+		expect(depart?.cmd).toContain("/rest/api/3/issue");
+		expect(depart?.outText).toContain("lodash");
+	});
+
+	test("le jeton ne figure jamais dans la console", async () => {
+		// Le flux SSE est diffusé à tout abonné : un secret qui y passe est un
+		// secret publié.
+		run([vuln()]);
+		configurerJira({ JIRA_API_KEY: "jeton-tres-secret" });
+		stubJira({ body: { key: "SEC-8" } });
+		const { vus, arret } = ecouterConsole();
+		try {
+			await srv.json(
+				"/api/tickets/create",
+				jsonBody({
+					projectId: projet.id,
+					packageName: "lodash",
+					cves: ["CVE-2020-8203"],
+				}),
+			);
+		} finally {
+			arret();
+		}
+
+		const tout = JSON.stringify(vus);
+		expect(tout).not.toContain("jeton-tres-secret");
+		expect(tout).not.toContain("Basic ");
+	});
+
+	test("un échec Jira est marqué en échec, avec son statut", async () => {
+		run([vuln()]);
+		configurerJira();
+		stubJira({ status: 403, text: "Forbidden" });
+		const { vus, arret } = ecouterConsole();
+		try {
+			await srv.json(
+				"/api/tickets/create",
+				jsonBody({
+					projectId: projet.id,
+					packageName: "lodash",
+					cves: ["CVE-2020-8203"],
+				}),
+			);
+		} finally {
+			arret();
+		}
+
+		const depart = vus.find((e) => e.label === "jira" && e.phase === "start");
+		const fin = vus.find((e) => e.phase === "end" && e.id === depart?.id);
+		expect(fin?.ok).toBe(false);
+		expect(fin?.exitCode).toBe(403);
+		expect(fin?.errorText).toContain("Forbidden");
+	});
+
+	test("une réponse Jira sans clé d'issue n'enregistre rien", async () => {
+		// `key` est optionnel dans le schéma `CreatedIssue` — c'est le typage généré
+		// depuis le swagger qui l'a révélé. La valeur partait telle quelle dans
+		// `saveTicket`, donc en base sous la forme « undefined » : un lien de ticket
+		// qui ne mène nulle part, indistinguable d'un vrai.
+		run([vuln()]);
+		configurerJira();
+		stubJira({
+			body: { id: "10042", self: "https://jira/rest/api/3/issue/10042" },
+		});
+
+		const { status, data } = await srv.json<{ error: string }>(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2020-8203"],
+			}),
+		);
+
+		expect(status).toBe(502);
+		expect(data.error).toContain("sans clé d'issue");
+		// Rien en base : un ticket sans référence ne se retrouve pas.
+		expect(getTickets()).toHaveLength(0);
+	});
+
+	test("une coupure réseau donne 502, et non 500", async () => {
+		// Le `fetch` de la création n'était pas gardé : l'exception remontait au
+		// gestionnaire global de Bun.serve, qui répond « Internal Server Error »
+		// pour une panne qui n'est pas celle du serveur.
+		run([vuln()]);
+		configurerJira();
+		stubJira({ throws: true });
+		const { status } = await srv.json<{ error: string }>(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2020-8203"],
+			}),
+		);
+		expect(status).toBe(502);
+	});
+});
+
 describe("POST /api/tickets/test-connection", () => {
 	/**
 	 * La route ne lit plus le corps de la requête : elle vérifie la configuration
@@ -588,6 +757,7 @@ describe("POST /api/tickets/test-connection", () => {
 
 	test("une panne réseau renvoie 400, pas 500", async () => {
 		// Le test de connexion sert à diagnostiquer : il doit toujours répondre.
+		run([vuln()]);
 		configurerJira();
 		stubJira({ throws: true });
 		const { status, data } = await tester();

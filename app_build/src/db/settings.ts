@@ -88,9 +88,26 @@ export const PUBLIC_SETTING_KEYS = [
 ] as const;
 
 /**
+ * Repli d'un secret sur l'environnement.
+ *
+ * Les deux secrets acceptent une valeur fournie par le déploiement plutôt que
+ * saisie dans l'interface — c'est le cas d'usage d'un jeton en CI ou en conteneur,
+ * où on ne veut pas écrire le secret en base. Le nom de la variable est celui de
+ * la clé, sans préfixe : `GITHUB_TOKEN`, `JIRA_API_KEY`.
+ */
+function secretDepuisEnv(cle: string): string {
+	return process.env[cle] ?? "";
+}
+
+/**
  * Réglages destinés au client : les clés de la liste blanche telles quelles,
  * plus un booléen `<CLÉ>_CONFIGURED` par secret — de quoi afficher « configuré »
  * dans le formulaire sans jamais transporter la valeur (CONTEXT.md §12, N5).
+ *
+ * ⚠️ `_CONFIGURED` répond « le secret est-il **utilisable** », et non « est-il en
+ * base ». Un jeton fourni par l'environnement faisait afficher « non configuré »
+ * à l'écran alors que les appels aboutissaient : l'exploitant cherchait une panne
+ * qui n'existait pas.
  */
 export function getPublicSettings(): Record<string, string> {
 	// La configuration GitHub vit dans la base d'avis, pour survivre à une remise
@@ -103,7 +120,8 @@ export function getPublicSettings(): Record<string, string> {
 		if (tout[cle] !== undefined) sortie[cle] = tout[cle];
 	}
 	for (const cle of SECRET_SETTING_KEYS) {
-		sortie[`${cle}_CONFIGURED`] = tout[cle] ? "true" : "false";
+		const utilisable = tout[cle] || secretDepuisEnv(cle);
+		sortie[`${cle}_CONFIGURED`] = utilisable ? "true" : "false";
 	}
 	return sortie;
 }

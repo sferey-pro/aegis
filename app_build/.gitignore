@@ -38,3 +38,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.db
 errors*.txt
 test_run.json
+
+# Types Jira générés depuis le swagger (`bun run jira:types`).
+# 64 369 lignes, 2,9 Mo, et +1 s sur chaque `tsc --noEmit` pour deux endpoints
+# sur 421 : on ne versionne que la surface réellement consommée
+# (`src/lib/jira/types.ts`), régénérable à la demande.
+src/lib/jira/schema.d.ts

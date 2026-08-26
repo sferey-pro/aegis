@@ -77,6 +77,28 @@ Validations : `AUDIT_MAX_AGE_HOURS` nombre fini **et ≥ -1**, sinon « Durée i
 
 ⚠️ `AUDIT_MAX_AGE_HOURS` n'est **jamais lu depuis l'environnement** — uniquement dans la table `settings`.
 
+## Écran Réglages : une section, un enregistrement
+
+L'écran était **une seule carte** — jeton GitHub, fenêtre d'audit, options globales, Jira, zone de danger — suivie d'un unique bouton placé après quatre cent soixante lignes de formulaire, **sous la zone de danger**. Conséquence observée à l'usage : l'utilisateur remplit Jira, ne voit pas le bouton, clique « Tester la connexion » et lit un refus qui lui reproche de ne pas avoir renseigné ce qu'il vient de saisir.
+
+Trois sections, chacune avec **son** bouton :
+
+| Section | Clés |
+|---|---|
+| jeton GitHub | `GITHUB_TOKEN` |
+| paramètres d'audit | `AUDIT_MAX_AGE_HOURS`, `CRITICAL_ONLY`, `DISABLE_CONSOLE` |
+| intégration Jira | les sept `JIRA_*` |
+
+`PUT /api/settings` accepte un objet partiel et `setAllSettings` n'écrit que ce qu'on lui donne : une section n'envoie donc **que ses clés**. Une URL Jira invalide ne fait plus échouer l'enregistrement de la fenêtre d'audit, et un secret n'est plus posté à vide par la section d'une autre — ce filtrage reposait sur le serveur, et un oubli y effaçait le jeton (N5).
+
+Trois propriétés à préserver :
+
+1. **le bouton est inactif tant que rien n'a bougé** — il devient l'indicateur « il n'y a rien à enregistrer ici ». La référence est l'**état initial du formulaire**, valeurs par défaut comprises : comparer aux valeurs brutes du serveur marquait une section comme modifiée dès qu'une clé manquait à la réponse ;
+2. **un secret est toujours « modifié » dès qu'il est saisi** — le formulaire ne connaît jamais sa valeur courante ;
+3. **le bouton porte un nom accessible propre à la section** (« Enregistrer les paramètres d'audit »). Avec trois boutons nommés « Enregistrer », ni un lecteur d'écran ni un test ne peut désigner le bon.
+
+Le test de connexion Jira, lui, porte sur la configuration **enregistrée** ([§15](15-securite.md)) : la section le dit explicitement quand le formulaire diverge.
+
 ---
 
 > [Index](../CONTEXT.md) · [← §11 — Console live](11-console.md) · [§13 — Ingestion CI →](13-ingestion-ci.md)

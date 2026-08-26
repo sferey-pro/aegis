@@ -6,7 +6,14 @@ export interface ConsoleEvent {
 	phase: "start" | "end";
 	cmd: string;
 	cwd: string;
-	label: "git" | "audit" | "github";
+	/**
+	 * Famille de l'étape. `jira` a été ajouté parce que les appels sortants vers
+	 * Jira — test de connexion et création de ticket — n'apparaissaient **nulle
+	 * part** : la console montrait git, les audits et GitHub, mais pas le seul
+	 * point où l'outil écrit chez un tiers. On ne pouvait donc pas relire ce qui
+	 * partait.
+	 */
+	label: "git" | "audit" | "github" | "jira";
 	project?: string;
 	exitCode?: number;
 	/**
@@ -61,21 +68,157 @@ export function emitConsoleEnd(
 		project: ctx?.project,
 	} as ConsoleEvent;
 
-	// Truncate large outputs to prevent massive JSON stringify overhead and UI slowdowns
-	if (fullEvent.outText && fullEvent.outText.length > 3000) {
-		fullEvent.outText = `${fullEvent.outText.substring(0, 3000)}\n... [TRUNCATED]`;
-	}
-	if (fullEvent.errorText && fullEvent.errorText.length > 3000) {
-		fullEvent.errorText = `${fullEvent.errorText.substring(0, 3000)}\n... [TRUNCATED]`;
-	}
-
 	broadcast(fullEvent);
 }
 
-function broadcast(event: ConsoleEvent) {
+/** Limite de §11 : au-delà, la sortie est coupée. */
+const MAX_TEXTE = 3000;
+
+function tronque(texte: string | undefined): string | undefined {
+	if (!texte || texte.length <= MAX_TEXTE) return texte;
+	return `${texte.substring(0, MAX_TEXTE)}\n... [TRUNCATED]`;
+}
+
+/**
+ * La console doit-elle aussi écrire sur la sortie standard du serveur ?
+ *
+ * Le flux SSE ne va qu'au navigateur : en développement, le terminal de
+ * `make dev` ne montrait **rien** des appels sortants — ni Jira, ni GitHub, ni
+ * les sous-processus. Or c'est là qu'on travaille, et c'est là qu'on relit une
+ * charge avant de la croire.
+ *
+ * Actif par défaut hors production, jamais sous test — un test qui écrit sur
+ * stdout noie sa propre sortie. `AEGIS_CONSOLE_STDOUT=0` coupe, `=1` force.
+ */
+/** Familles écrites sur stdout par défaut, hors production. */
+const LABELS_STDOUT_DEFAUT = "jira";
+
+/**
+ * Quelles familles d'étapes écrire sur la sortie standard ?
+ *
+ * **Filtré, et pas « tout ».** Un seul `getGitInfo` produit 17 lignes, mesurées :
+ * une lecture d'état sur dix-sept projets en produit 289, et une passe d'avis
+ * autant. Tout journaliser noyait précisément ce qu'on venait chercher — l'appel
+ * sortant vers Jira — et posait une écriture **synchrone** sur le chemin de tous
+ * les sous-processus, y compris l'audit.
+ *
+ * | Valeur | Effet |
+ * |---|---|
+ * | absent | `jira` hors production, rien sous test |
+ * | `jira,audit` | liste explicite |
+ * | `all` ou `1` | toutes les familles |
+ * | `0` | muet |
+ */
+export function labelsStdout(): Set<string> {
+	const reglage = process.env.AEGIS_CONSOLE_STDOUT?.trim();
+	if (reglage === "0") return new Set();
+	if (reglage === "all" || reglage === "1") return new Set(["*"]);
+	if (reglage) {
+		return new Set(
+			reglage
+				.split(",")
+				.map((l) => l.trim())
+				.filter(Boolean),
+		);
+	}
+	// Un test qui écrit sur stdout noie sa propre sortie.
+	if (process.env.NODE_ENV === "test" || process.env.AEGIS_TEST_NO_DOM) {
+		return new Set();
+	}
+	if (process.env.NODE_ENV === "production") return new Set();
+	return new Set([LABELS_STDOUT_DEFAUT]);
+}
+
+function ecritSurStdout(label: string): boolean {
+	const labels = labelsStdout();
+	return labels.has("*") || labels.has(label);
+}
+
+/**
+ * Une ligne par événement, lisible d'un coup d'œil.
+ *
+ * Le départ porte la commande et sa cible ; la fin porte l'issue, la durée et ce
+ * que l'étape a produit. Le succès se lit dans `ok` quand il est fourni — pour un
+ * appel HTTP, `exitCode` est un **statut**, et la convention shell « zéro vaut
+ * succès » afficherait une croix sur un 200.
+ */
+function ligneStdout(e: ConsoleEvent, label: string): string {
+	const projet = e.project ? ` (${e.project})` : "";
+	if (e.phase === "start") {
+		return `[${label}]${projet} → ${e.cmd}  ${e.cwd}`;
+	}
+	const reussi = e.ok ?? e.exitCode === 0;
+	const duree = e.ms === undefined ? "" : ` ${e.ms}ms`;
+	const code = e.exitCode === undefined ? "" : ` ${e.exitCode}`;
+	return `[${label}]${projet} ${reussi ? "✓" : "✗"}${code}${duree}`;
+}
+
+/**
+ * Label de chaque étape en cours, pour l'écrire aussi sur la ligne de fin.
+ *
+ * L'événement de fin ne porte ni `cmd`, ni `cwd`, ni `label` : il se corrèle au
+ * départ par son `id` (c'est le contrat de §11, et le client le respecte). Sans
+ * cette table, la sortie serveur affichait `[undefined]` une ligne sur deux.
+ * L'entrée est retirée à la fin, la table ne retient donc que ce qui tourne.
+ */
+const labelsEnCours = new Map<number, string>();
+
+/**
+ * Plafond de la table de labels.
+ *
+ * L'entrée est retirée à l'événement de fin, mais un producteur qui lève entre
+ * les deux n'en émet jamais : sans plafond, la table croît indéfiniment sur un
+ * serveur qui tourne des semaines — le motif exact de N26. On oublie alors les
+ * plus anciennes, qui ne servent plus à personne.
+ */
+const MAX_LABELS_EN_COURS = 512;
+
+function memoriseLabel(id: number, label: string): void {
+	if (labelsEnCours.size >= MAX_LABELS_EN_COURS) {
+		const plusAncien = labelsEnCours.keys().next();
+		if (!plusAncien.done) labelsEnCours.delete(plusAncien.value);
+	}
+	labelsEnCours.set(id, label);
+}
+
+function journaliseStdout(e: ConsoleEvent): void {
+	const label = e.label ?? labelsEnCours.get(e.id) ?? "?";
+	if (e.phase === "start") memoriseLabel(e.id, label);
+	else labelsEnCours.delete(e.id);
+
+	if (!ecritSurStdout(label)) return;
+
+	// `console.log` et non `process.stdout.write` : la sortie reste groupée avec
+	// celle du reste du serveur, et un rechargement `--hot` ne la tronque pas.
+	console.log(ligneStdout(e, label));
+
+	// Le détail intégral n'a de sens que pour ce qu'on vient relire — la charge
+	// envoyée à un tiers — ou pour un échec. `lib/git` passe la sortie complète de
+	// **chaque** commande dans `outText` : la réimprimer noyait le terminal.
+	const details = label === "jira" ? e.outText || e.errorText : e.errorText;
+	if (!details) return;
+	for (const ligne of details.trimEnd().split("\n"))
+		console.log(`    ${ligne}`);
+}
+
+function broadcast(brut: ConsoleEvent) {
+	// La sortie serveur passe **avant** la garde : `DISABLE_CONSOLE` coupe la
+	// diffusion SSE vers le navigateur — c'est son objet — et n'a pas de raison de
+	// rendre le terminal muet là où l'on développe.
+	journaliseStdout(brut);
+
 	if (getSetting("DISABLE_CONSOLE", "false") === "true") {
 		return;
 	}
+	// Troncature ici, et non dans `emitConsoleEnd` : elle n'était appliquée qu'à
+	// la phase de fin, si bien qu'un événement de départ portant une charge — la
+	// charge JSON envoyée à Jira, par exemple — partait entière dans le flux SSE.
+	// §11 parle de « toute sortie », pas de la sortie finale.
+	const event: ConsoleEvent = {
+		...brut,
+		outText: tronque(brut.outText),
+		errorText: tronque(brut.errorText),
+	};
 	const payload = `data: ${JSON.stringify(event)}\n\n`;
 	for (const client of clients) {
 		try {

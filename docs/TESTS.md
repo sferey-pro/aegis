@@ -92,7 +92,7 @@ clés étrangères et les migrations sont réels.
 | `lib/tailwind-classes.ts` | 6 | garde-fou sur tout `src/` : variante amputée, valeur tronquée, opacité orpheline, largeur de modale sans `sm:` |
 | `lib/git/index.ts` | 26 | dépôts jetables réels, `ahead`/`behind`, `pull --ff-only` |
 | `lib/parsers/` (6) | 67 | npm, bun, yarn, composer + utils, tolérance aux formes partielles, **identifiant lu dans l'URL et non dans les CWE** |
-| `lib/console.ts` | 18 | cadrage SSE, troncature à 3000, purge d'un client fermé |
+| `lib/console.ts` | 33 | cadrage SSE, troncature à 3000, purge d'un client fermé, **sortie serveur** |
 | `lib/cvss.ts` | 14 | vecteurs 3.1 et 4.0, regroupement, infobulle |
 | `lib/utils.ts` | 20 | `cn` (conflits Tailwind), `errorMessage`, `relativeAge` (UTC de SQLite) |
 | `lib/validate.ts` | 14 | échec **retourné**, jamais levé ; toujours `{ error }` + 400 |

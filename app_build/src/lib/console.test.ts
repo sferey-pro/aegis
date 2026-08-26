@@ -9,6 +9,7 @@ import {
 	consoleClientCount,
 	emitConsoleEnd,
 	emitConsoleStart,
+	labelsStdout,
 	projectContext,
 	removeConsoleClient,
 } from "./console";
@@ -318,5 +319,198 @@ describe("lib/console — arrêt propre", () => {
 
 		emitConsoleStart({ cmd: "après arrêt", cwd: "/srv", label: "audit" });
 		expect(recu).toHaveLength(0);
+	});
+});
+
+describe("lib/console — sortie serveur", () => {
+	/**
+	 * Le flux SSE ne va qu'au navigateur : en développement, le terminal du
+	 * serveur ne montrait rien des appels sortants. Or c'est là qu'on travaille.
+	 */
+	function capturerStdout() {
+		const lignes: string[] = [];
+		const natif = console.log;
+		console.log = (...args: unknown[]) => {
+			lignes.push(args.map(String).join(" "));
+		};
+		return {
+			lignes,
+			arret: () => {
+				console.log = natif;
+			},
+		};
+	}
+
+	function avecStdout<T>(fn: () => T): { lignes: string[]; valeur: T } {
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "1";
+		const { lignes, arret } = capturerStdout();
+		try {
+			return { lignes, valeur: fn() };
+		} finally {
+			arret();
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+	}
+
+	test("le départ porte le label, la commande et la cible", () => {
+		const { lignes } = avecStdout(() =>
+			emitConsoleStart({
+				cmd: "GET /rest/api/3/myself",
+				cwd: "https://jira.example/rest/api/3/myself",
+				label: "jira",
+			}),
+		);
+		expect(lignes[0]).toContain("[jira]");
+		expect(lignes[0]).toContain("GET /rest/api/3/myself");
+		expect(lignes[0]).toContain("https://jira.example");
+	});
+
+	test("la fin retrouve le label du départ", () => {
+		// L'événement de fin ne porte ni `cmd`, ni `cwd`, ni `label` : il se corrèle
+		// par son `id`. Sans table de correspondance, la sortie affichait
+		// `[undefined]` une ligne sur deux.
+		const { lignes } = avecStdout(() => {
+			const id = emitConsoleStart({ cmd: "x", cwd: "y", label: "github" });
+			emitConsoleEnd(id, { exitCode: 200, ok: true, ms: 12 });
+		});
+		expect(lignes[1]).toContain("[github]");
+		expect(lignes[1]).toContain("✓");
+		expect(lignes[1]).toContain("12ms");
+	});
+
+	test("le succès se lit dans `ok`, pas dans le code", () => {
+		// Un appel HTTP réussi rend 200 : la convention shell afficherait une croix.
+		const { lignes } = avecStdout(() => {
+			const id = emitConsoleStart({ cmd: "x", cwd: "y", label: "jira" });
+			emitConsoleEnd(id, { exitCode: 200, ok: true });
+		});
+		expect(lignes[1]).toContain("✓");
+		expect(lignes[1]).not.toContain("✗");
+	});
+
+	test("un échec est marqué, avec sa sortie d'erreur", () => {
+		const { lignes } = avecStdout(() => {
+			const id = emitConsoleStart({ cmd: "x", cwd: "y", label: "audit" });
+			emitConsoleEnd(id, { exitCode: 1, errorText: "npm ERR! ENOTFOUND" });
+		});
+		expect(lignes[1]).toContain("✗");
+		expect(lignes.join("\n")).toContain("npm ERR! ENOTFOUND");
+	});
+
+	test("le nom du projet accompagne la ligne", () => {
+		const { lignes } = avecStdout(() =>
+			projectContext.run({ project: "mon-api" }, () =>
+				emitConsoleStart({ cmd: "x", cwd: "y", label: "git" }),
+			),
+		);
+		expect(lignes[0]).toContain("(mon-api)");
+	});
+
+	test("par défaut, seul `jira` est journalisé", () => {
+		// Mesuré : un seul `getGitInfo` produit 17 lignes, 289 pour dix-sept
+		// projets. Tout journaliser noyait ce qu'on venait chercher — l'appel
+		// sortant — et posait une écriture synchrone sur le chemin de tous les
+		// sous-processus.
+		//
+		// La résolution est testée sur la fonction, pas par effet de bord : muter
+		// `NODE_ENV` le temps d'un test le rend visible par tout le reste du run.
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		delete process.env.AEGIS_CONSOLE_STDOUT;
+		try {
+			// Sous test, la sortie est muette : c'est ce que voit ce fichier.
+			expect([...labelsStdout()]).toEqual([]);
+		} finally {
+			if (initial !== undefined) process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+	});
+
+	test("un label explicite l'emporte sur le silence de test", () => {
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "jira";
+		try {
+			expect([...labelsStdout()]).toEqual(["jira"]);
+		} finally {
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+	});
+
+	test("`all` couvre toutes les familles", () => {
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "all";
+		try {
+			expect(labelsStdout().has("*")).toBe(true);
+		} finally {
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+	});
+
+	test("une liste de labels est respectée", () => {
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "git, audit";
+		const { lignes, arret } = capturerStdout();
+		try {
+			emitConsoleStart({ cmd: "a", cwd: "/", label: "git" });
+			emitConsoleStart({ cmd: "b", cwd: "/", label: "audit" });
+			emitConsoleStart({ cmd: "c", cwd: "/", label: "jira" });
+		} finally {
+			arret();
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+
+		expect(lignes).toHaveLength(2);
+		expect(lignes.join(" ")).not.toContain("[jira]");
+	});
+
+	test("hors `jira`, seules les erreurs sont détaillées", () => {
+		// `lib/git` passe la sortie complète de **chaque** commande dans `outText` :
+		// la réimprimer noyait le terminal.
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "all";
+		const { lignes, arret } = capturerStdout();
+		try {
+			const git = emitConsoleStart({ cmd: "a", cwd: "/", label: "git" });
+			emitConsoleEnd(git, { exitCode: 0, outText: "sortie git volumineuse" });
+			const jira = emitConsoleStart({ cmd: "b", cwd: "/", label: "jira" });
+			emitConsoleEnd(jira, { exitCode: 201, ok: true, outText: "la charge" });
+		} finally {
+			arret();
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+
+		const tout = lignes.join("\n");
+		expect(tout).not.toContain("sortie git volumineuse");
+		expect(tout).toContain("la charge");
+	});
+
+	test("`AEGIS_CONSOLE_STDOUT=0` rend le serveur muet", () => {
+		const initial = process.env.AEGIS_CONSOLE_STDOUT;
+		process.env.AEGIS_CONSOLE_STDOUT = "0";
+		const { lignes, arret } = capturerStdout();
+		try {
+			emitConsoleStart({ cmd: "x", cwd: "y", label: "git" });
+		} finally {
+			arret();
+			if (initial === undefined) delete process.env.AEGIS_CONSOLE_STDOUT;
+			else process.env.AEGIS_CONSOLE_STDOUT = initial;
+		}
+		expect(lignes).toHaveLength(0);
+	});
+
+	test("sous test, la sortie serveur est muette par défaut", () => {
+		// Un test qui écrit sur stdout noie sa propre sortie. `AEGIS_TEST_NO_DOM`
+		// est posé par l'étage fonctionnel, `NODE_ENV=test` par bun.
+		const { lignes, arret } = capturerStdout();
+		try {
+			emitConsoleStart({ cmd: "x", cwd: "y", label: "git" });
+		} finally {
+			arret();
+		}
+		expect(lignes).toHaveLength(0);
 	});
 });

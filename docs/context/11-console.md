@@ -24,6 +24,42 @@ Un battement de cœur toutes les 25 s empêche un intermédiaire de fermer une c
 
 ⚠️ **Défauts connus** : deux `EventSource` distincts sont ouverts simultanément par l'application, donc chaque commande est poussée deux fois pour un seul onglet. Et naviguer vers `/debug` démonte le composant console, ce qui ferme le flux et détruit la trace — définitivement, puisqu'il n'y a pas de rejeu.
 
+## Sortie serveur (développement)
+
+Le flux SSE ne va qu'au **navigateur**. En développement, le terminal du serveur ne montrait donc rien des appels sortants — ni Jira, ni GitHub, ni les sous-processus — alors que c'est là qu'on travaille.
+
+Chaque événement est aussi écrit sur la sortie standard, une ligne par étape :
+
+```
+[jira] (mon-api) → POST /rest/api/3/issue (SEC/Task)  https://…/rest/api/3/issue
+    {"fields":{"project":{"key":"SEC"},"summary":"[Aegis] lodash"}}
+[jira] (mon-api) ✓ 201 340ms
+    ticket SEC-7 créé
+[audit] (mon-api) → npm audit --json  /srv/api
+[audit] (mon-api) ✗ 1 1200ms
+    npm ERR! code ENOTFOUND
+```
+
+**Filtré par label**, et non « tout » :
+
+| `AEGIS_CONSOLE_STDOUT` | Effet |
+|---|---|
+| absent | `jira` hors production, rien sous test |
+| `jira,audit` | liste explicite |
+| `all` ou `1` | toutes les familles |
+| `0` | muet |
+
+Mesuré avant de choisir : un seul `getGitInfo` produit **17 lignes**, une lecture d'état sur dix-sept projets en produit **289**, et une passe d'avis autant. Tout journaliser noyait l'appel sortant qu'on venait relire, et posait une écriture **synchrone** sur le chemin de tous les sous-processus, audit compris.
+
+Seul `jira` détaille sa charge complète — c'est son objet : relire ce qui part avant de le croire. Les autres familles ne détaillent que `errorText`, `lib/git` passant la sortie entière de **chaque** commande dans `outText`.
+
+Quatre points de contrat :
+
+1. **Actif hors production, muet sous test.** Un test qui écrit sur stdout noie sa propre sortie.
+2. **Indépendant de `DISABLE_CONSOLE`**, qui coupe la diffusion SSE vers le navigateur : rendre le terminal muet n'est pas son objet.
+3. **Le label de la ligne de fin est retrouvé par `id`.** L'événement de fin ne porte ni `cmd`, ni `cwd`, ni `label` — sans table de correspondance, une ligne sur deux affichait `[undefined]`.
+4. **Le succès se lit dans `ok`**, jamais dans `exitCode` : pour un appel HTTP, 200 est un succès, et la convention shell y afficherait une croix.
+
 ---
 
 > [Index](../CONTEXT.md) · [← §10 — Bibliothèque de prompts](10-prompts.md) · [§12 — Sauvegarde, restauration & réglages →](12-sauvegarde.md)

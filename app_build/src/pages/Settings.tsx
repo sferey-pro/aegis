@@ -5,7 +5,6 @@ import {
 	Download,
 	Key,
 	RefreshCw,
-	Save,
 	Settings as SettingsIcon,
 	Upload,
 } from "lucide-react";
@@ -16,17 +15,42 @@ import type { ResetResult } from "@/db/reset";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
 import { errorMessage } from "@/lib/utils";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
+import { SettingsSection } from "../components/organisms/SettingsSection";
 import { TagsManager } from "../components/organisms/TagsManager";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Switch } from "../components/ui/switch";
+
+/** Les trois sections enregistrables, et les clés que chacune possède. */
+const SECTIONS = {
+	github: ["GITHUB_TOKEN"],
+	audit: ["AUDIT_MAX_AGE_HOURS", "CRITICAL_ONLY", "DISABLE_CONSOLE"],
+	jira: [
+		"JIRA_BASE_URL",
+		"JIRA_USER",
+		"JIRA_API_KEY",
+		"JIRA_PROJECT",
+		"JIRA_COMPONENT",
+		"JIRA_ISSUE_TYPE",
+		"JIRA_PARENT_EPIC",
+	],
+} as const;
+
+type SectionId = keyof typeof SECTIONS;
+
+/** Clés en écriture seule : le formulaire ne connaît jamais leur valeur. */
+const CLES_SECRETES = ["GITHUB_TOKEN", "JIRA_API_KEY"] as const;
 
 export function Settings() {
 	const [settings, setSettings] = useState({
 		GITHUB_TOKEN: "",
 		AUDIT_MAX_AGE_HOURS: "24",
 		CRITICAL_ONLY: "false",
-		JIRA_BASE_URL: "https://mon-entreprise.atlassian.net",
+		// Chaîne vide, jamais une URL d'exemple : le champ porte déjà un
+		// `placeholder`. Une valeur pré-remplie faisait paraître la configuration
+		// renseignée sur une installation neuve — c'est ce qui rendait le refus du
+		// test de connexion incompréhensible (« j'ai bien tout renseigné »).
+		JIRA_BASE_URL: "",
 		JIRA_USER: "",
 		JIRA_API_KEY: "",
 		JIRA_PROJECT: "",
@@ -43,8 +67,6 @@ export function Settings() {
 		ADVISORY_SYNC_LAST_FETCHED: "",
 	});
 	const [loading, setLoading] = useState(true);
-	const [saving, setSaving] = useState(false);
-	const [saveSuccess, setSaveSuccess] = useState(false);
 
 	const [testJiraLoading, setTestJiraLoading] = useState(false);
 	const [testJiraMessage, setTestJiraMessage] = useState<{
@@ -76,7 +98,23 @@ export function Settings() {
 	/** Échec du chargement des réglages : l'écran doit sortir du chargement. */
 	const [loadError, setLoadError] = useState<string | null>(null);
 	/** Échec du dernier enregistrement. */
-	const [saveError, setSaveError] = useState<string | null>(null);
+
+	/**
+	 * Configuration Jira telle qu'elle est **enregistrée**, distincte du
+	 * formulaire.
+	 *
+	 * `POST /api/tickets/test-connection` lit la base et ignore son corps de
+	 * requête — délibérément, sinon la route devient un proxy sortant authentifié
+	 * (§15). Le bouton de test doit donc dépendre de ce qui est enregistré, et de
+	 * rien d'autre. Il mélangeait deux sources : deux valeurs de formulaire et un
+	 * seul état enregistré, si bien qu'il paraissait actionnable sur une
+	 * configuration inexistante.
+	 */
+	const [jiraEnregistre, setJiraEnregistre] = useState({
+		baseUrl: "",
+		user: "",
+		cleConfiguree: false,
+	});
 	/** Remise à zéro : confirmation, exécution, compte rendu. */
 	const [resetOpen, setResetOpen] = useState(false);
 	const [resetLoading, setResetLoading] = useState(false);
@@ -108,12 +146,28 @@ export function Settings() {
 					GITHUB_TOKEN: data.GITHUB_TOKEN_CONFIGURED === "true",
 					JIRA_API_KEY: data.JIRA_API_KEY_CONFIGURED === "true",
 				});
-				setSettings({
+				// Référence de départ : ce que le serveur dit être enregistré. Les
+				// secrets n'en font pas partie, leur valeur ne sort jamais de l'API.
+				setEnregistre(
+					Object.fromEntries(
+						Object.values(SECTIONS)
+							.flat()
+							.filter(
+								(cle) => !(CLES_SECRETES as readonly string[]).includes(cle),
+							)
+							.map((cle) => [cle, data[cle] ?? ""]),
+					),
+				);
+				setJiraEnregistre({
+					baseUrl: data.JIRA_BASE_URL || "",
+					user: data.JIRA_USER || "",
+					cleConfiguree: data.JIRA_API_KEY_CONFIGURED === "true",
+				});
+				const formulaire = {
 					GITHUB_TOKEN: "",
 					AUDIT_MAX_AGE_HOURS: data.AUDIT_MAX_AGE_HOURS || "24",
 					CRITICAL_ONLY: data.CRITICAL_ONLY || "false",
-					JIRA_BASE_URL:
-						data.JIRA_BASE_URL || "https://mon-entreprise.atlassian.net",
+					JIRA_BASE_URL: data.JIRA_BASE_URL || "",
 					JIRA_USER: data.JIRA_USER || "",
 					JIRA_API_KEY: "",
 					JIRA_PROJECT: data.JIRA_PROJECT || "",
@@ -126,7 +180,23 @@ export function Settings() {
 					DISABLE_CONSOLE: data.DISABLE_CONSOLE || "false",
 					ADVISORY_SYNC_LAST_AT: data.ADVISORY_SYNC_LAST_AT || "",
 					ADVISORY_SYNC_LAST_FETCHED: data.ADVISORY_SYNC_LAST_FETCHED || "",
-				});
+				};
+				setSettings(formulaire);
+				// Référence de départ : l'état **initial du formulaire**, valeurs par
+				// défaut comprises. Comparer aux valeurs brutes du serveur marquait une
+				// section comme modifiée dès qu'une clé manquait à la réponse —
+				// `CRITICAL_ONLY` n'y est pas, le formulaire lui donne « false », et le
+				// bouton d'audit paraissait donc avoir quelque chose à enregistrer.
+				setEnregistre(
+					Object.fromEntries(
+						Object.values(SECTIONS)
+							.flat()
+							.filter(
+								(cle) => !(CLES_SECRETES as readonly string[]).includes(cle),
+							)
+							.map((cle) => [cle, formulaire[cle as keyof typeof formulaire]]),
+					),
+				);
 				setLoading(false);
 				// Quota relu à la source, une fois l'écran peuplé.
 				//
@@ -190,29 +260,92 @@ export function Settings() {
 		}
 	};
 
-	const handleSave = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setSaving(true);
-		setSaveSuccess(false);
+	/**
+	 * Instantané de ce qui est **enregistré**, pour savoir ce qui a bougé.
+	 *
+	 * Sans lui, chaque section ne saurait pas si elle a quelque chose à
+	 * enregistrer — et le bouton resterait actif en permanence, donc muet.
+	 */
+	const [enregistre, setEnregistre] = useState<Record<string, string>>({});
+
+	/** Section en cours d'enregistrement, et issue de la dernière tentative. */
+	const [sectionEnCours, setSectionEnCours] = useState<SectionId | null>(null);
+	const [sectionEnregistree, setSectionEnregistree] =
+		useState<SectionId | null>(null);
+	const [sectionErreur, setSectionErreur] = useState<{
+		section: SectionId;
+		message: string;
+	} | null>(null);
+
+	/**
+	 * Cette section diverge-t-elle de l'enregistré ?
+	 *
+	 * Un secret est en écriture seule : le formulaire ne connaît jamais sa valeur
+	 * courante, donc toute saisie non vide est forcément une modification.
+	 */
+	const sectionModifiee = (section: SectionId) =>
+		SECTIONS[section].some((cle) => {
+			const valeur = settings[cle as keyof typeof settings] ?? "";
+			if ((CLES_SECRETES as readonly string[]).includes(cle)) {
+				return valeur.trim() !== "";
+			}
+			return valeur !== (enregistre[cle] ?? "");
+		});
+
+	/**
+	 * Enregistre **les clés d'une seule section**.
+	 *
+	 * `PUT /api/settings` accepte un objet partiel et `setAllSettings` n'écrit que
+	 * ce qu'on lui donne : une URL Jira invalide ne fait donc plus échouer
+	 * l'enregistrement de la fenêtre d'audit, et réciproquement.
+	 */
+	const enregistrerSection = async (section: SectionId) => {
+		setSectionEnCours(section);
+		setSectionErreur(null);
+		setSectionEnregistree(null);
 		try {
-			// Les deux clés de bilan sont en lecture seule : les reposter réécrirait
-			// l'horodatage du dernier rafraîchissement par la valeur affichée, donc
-			// mentirait sur la date à chaque enregistrement du formulaire.
-			const {
-				ADVISORY_SYNC_LAST_AT: _at,
-				ADVISORY_SYNC_LAST_FETCHED: _fetched,
-				...aEnvoyer
-			} = settings;
-			await fetchVoid("/api/settings", jsonInit("PUT", aEnvoyer));
-			setSaveSuccess(true);
-			setSaveError(null);
-			setTimeout(() => setSaveSuccess(false), 2000);
+			const charge: Record<string, string> = {};
+			for (const cle of SECTIONS[section]) {
+				charge[cle] = settings[cle as keyof typeof settings] ?? "";
+			}
+			await fetchVoid("/api/settings", jsonInit("PUT", charge));
+
+			// Ce qui vient d'être écrit devient la nouvelle référence. Les secrets
+			// n'y entrent pas — leur valeur ne revient jamais de l'API — mais leur
+			// champ est vidé et l'état « configuré » passe à vrai.
+			setEnregistre((prev) => {
+				const suivant = { ...prev };
+				for (const cle of SECTIONS[section]) {
+					if (!(CLES_SECRETES as readonly string[]).includes(cle)) {
+						suivant[cle] = settings[cle as keyof typeof settings] ?? "";
+					}
+				}
+				return suivant;
+			});
+			for (const cle of SECTIONS[section]) {
+				if (!(CLES_SECRETES as readonly string[]).includes(cle)) continue;
+				const saisi = (settings[cle as keyof typeof settings] ?? "").trim();
+				if (saisi === "") continue;
+				setSecretsConfigures((prev) => ({ ...prev, [cle]: true }));
+				setSettings((prev) => ({ ...prev, [cle]: "" }));
+			}
+			if (section === "jira") {
+				setJiraEnregistre({
+					baseUrl: settings.JIRA_BASE_URL,
+					user: settings.JIRA_USER,
+					cleConfiguree:
+						secretsConfigures.JIRA_API_KEY ||
+						settings.JIRA_API_KEY.trim() !== "",
+				});
+			}
+			setSectionEnregistree(section);
+			setTimeout(() => setSectionEnregistree(null), 2500);
 		} catch (err) {
 			// Un enregistrement perdu en silence est pire qu'un échec visible :
 			// l'utilisateur repart en croyant sa configuration appliquée.
-			setSaveError(apiErrorMessage(err));
+			setSectionErreur({ section, message: apiErrorMessage(err) });
 		} finally {
-			setSaving(false);
+			setSectionEnCours(null);
 		}
 	};
 
@@ -384,8 +517,21 @@ export function Settings() {
 					</Button>
 				</div>
 			) : (
-				<form onSubmit={handleSave} className="space-y-6">
-					<div className="bg-card border-border p-6 rounded-2xl flex flex-col gap-6">
+				<div className="space-y-6">
+					<SettingsSection
+						titre="le jeton GitHub"
+						icone={<Key className="w-5 h-5 text-primary" />}
+						description="Interrogation de la base GitHub Advisory, et quota associé."
+						modifie={sectionModifiee("github")}
+						enregistrement={sectionEnCours === "github"}
+						succes={sectionEnregistree === "github"}
+						erreur={
+							sectionEnCours === null && sectionErreur?.section === "github"
+								? sectionErreur.message
+								: null
+						}
+						onSave={() => enregistrerSection("github")}
+					>
 						<div className="flex flex-col gap-2">
 							<div className="flex items-center gap-2">
 								<Key className="w-5 h-5" />
@@ -522,9 +668,22 @@ export function Settings() {
 								</div>
 							)}
 						</div>
+					</SettingsSection>
 
-						<hr className="border-border" />
-
+					<SettingsSection
+						titre="les paramètres d'audit"
+						icone={<SettingsIcon className="w-5 h-5 text-primary" />}
+						description="Fenêtre de fraîcheur et options globales du moteur."
+						modifie={sectionModifiee("audit")}
+						enregistrement={sectionEnCours === "audit"}
+						succes={sectionEnregistree === "audit"}
+						erreur={
+							sectionEnCours === null && sectionErreur?.section === "audit"
+								? sectionErreur.message
+								: null
+						}
+						onSave={() => enregistrerSection("audit")}
+					>
 						<div className="flex flex-col gap-2">
 							<label htmlFor="audit-max-age" className="text-lg font-bold">
 								Cache d'Audit (Heures)
@@ -591,7 +750,22 @@ export function Settings() {
 								</span>
 							</label>
 						</div>
+					</SettingsSection>
 
+					<SettingsSection
+						titre="l'intégration Jira"
+						icone={<Key className="w-5 h-5 text-primary" />}
+						description="Identifiants et cible des tickets de remédiation."
+						modifie={sectionModifiee("jira")}
+						enregistrement={sectionEnCours === "jira"}
+						succes={sectionEnregistree === "jira"}
+						erreur={
+							sectionEnCours === null && sectionErreur?.section === "jira"
+								? sectionErreur.message
+								: null
+						}
+						onSave={() => enregistrerSection("jira")}
+					>
 						<div className="flex flex-col gap-2">
 							<label htmlFor="jira-base-url" className="text-lg font-bold">
 								Base URL Jira
@@ -717,6 +891,26 @@ export function Settings() {
 							</div>
 						</div>
 
+						{/* Le test porte sur la configuration **enregistrée**, jamais sur
+						    l'écran (§15) : il faut donc le dire, sinon un utilisateur teste
+						    ce qu'il vient de saisir et lit un refus qui l'accuse de ne pas
+						    l'avoir renseigné. */}
+						{sectionModifiee("jira") && (
+							<p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
+								{/* Le pied de section annonce déjà « Modifications non
+								    enregistrées » : ne pas répéter la même phrase, dire ce
+								    qu'elle implique **ici**. */}
+								Le test de connexion porte sur la configuration enregistrée :
+								enregistrez d'abord.
+							</p>
+						)}
+						{!jiraEnregistre.cleConfiguree && (
+							<p className="text-sm text-muted-foreground mt-2">
+								Aucune configuration Jira enregistrée : le test reste
+								indisponible.
+							</p>
+						)}
+
 						<div className="flex items-center gap-4 mt-2">
 							<Button
 								type="button"
@@ -724,9 +918,9 @@ export function Settings() {
 								onClick={handleTestJira}
 								disabled={
 									testJiraLoading ||
-									!settings.JIRA_BASE_URL ||
-									!settings.JIRA_USER ||
-									!secretsConfigures.JIRA_API_KEY
+									!jiraEnregistre.baseUrl ||
+									!jiraEnregistre.user ||
+									!jiraEnregistre.cleConfiguree
 								}
 							>
 								{testJiraLoading ? (
@@ -744,9 +938,7 @@ export function Settings() {
 								</span>
 							)}
 						</div>
-					</div>
-
-					<hr className="border-border" />
+					</SettingsSection>
 
 					<div className="flex flex-col gap-2 rounded-2xl border border-red-500/50 bg-red-500/5 p-6">
 						<span className="text-lg font-bold">Zone de danger</span>
@@ -814,33 +1006,7 @@ export function Settings() {
 							</div>
 						)}
 					</div>
-
-					<div className="flex justify-end items-center gap-4">
-						{saveSuccess && (
-							<span className="text-sm font-medium slide-in-from-right-4">
-								Paramètres sauvegardés avec succès !
-							</span>
-						)}
-						{saveError && (
-							<span role="alert" className="text-sm font-medium text-red-500">
-								Échec de l'enregistrement : {saveError}
-							</span>
-						)}
-						<Button
-							type="submit"
-							size="lg"
-							disabled={saving}
-							className="shadow-lg"
-						>
-							{saving ? (
-								<RefreshCw className="w-5 h-5 mr-2" />
-							) : (
-								<Save className="w-5 h-5 mr-2" />
-							)}
-							Enregistrer
-						</Button>
-					</div>
-				</form>
+				</div>
 			)}
 
 			<TagsManager />

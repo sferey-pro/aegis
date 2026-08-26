@@ -109,6 +109,72 @@ describe("Settings", () => {
 			);
 		});
 
+		test("le champ Cloud ID n'apparaît que pour la passerelle", async () => {
+			// Requis uniquement sur `api.atlassian.com`, qui sert tous les tenants.
+			// L'afficher toujours ferait croire à une configuration obligatoire pour
+			// tout le monde.
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+			await screen.findByLabelText(/Base URL Jira/);
+
+			expect(screen.queryAllByLabelText(/Cloud ID/)).toHaveLength(0);
+		});
+
+		test("choisir le jeton à périmètre fait apparaître le Cloud ID", async () => {
+			// Le type est **déclaré**, plus déduit de l'URL : l'inférer obligeait à
+			// mettre `api.atlassian.com` en URL de base, or cette valeur construit
+			// aussi les liens /browse/<clé> des tickets — ils pointaient alors vers la
+			// passerelle, qui n'est pas une interface web.
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+			await screen.findByLabelText(/Base URL Jira/);
+			expect(screen.queryAllByLabelText(/Cloud ID/)).toHaveLength(0);
+
+			fireEvent.click(screen.getByLabelText(/Jeton d'API à périmètre/));
+
+			expect(await screen.findByLabelText(/Cloud ID/)).toBeInTheDocument();
+			// Le message dit où trouver la valeur : sans cela l'utilisateur cherche.
+			expect(screen.getByText(/_edge\/tenant_info/)).toBeInTheDocument();
+		});
+
+		test("le type et le Cloud ID partent avec la section Jira", async () => {
+			mockFetch({
+				...routesDeBase,
+				"GET /api/settings": jiraEnregistre,
+				"PUT /api/settings": { body: { success: true } },
+			});
+			render(<Settings />);
+			await screen.findByLabelText(/Base URL Jira/);
+
+			fireEvent.click(screen.getByLabelText(/Jeton d'API à périmètre/));
+			fireEvent.change(await screen.findByLabelText(/Cloud ID/), {
+				target: { value: "11111111-2222-3333-4444-555555555555" },
+			});
+			fireEvent.click(screen.getByLabelText("Enregistrer l'intégration Jira"));
+
+			await waitFor(() => {
+				expect(put()).toHaveLength(1);
+			});
+			expect(put()[0]?.body).toMatchObject({
+				JIRA_TOKEN_KIND: "scoped",
+				JIRA_CLOUD_ID: "11111111-2222-3333-4444-555555555555",
+				// L'URL reste celle du site : c'est elle qui fait les liens vers Jira.
+				JIRA_BASE_URL: "https://jira.example.test",
+			});
+		});
+
+		test("revenir au jeton simple masque le Cloud ID", async () => {
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+			await screen.findByLabelText(/Base URL Jira/);
+
+			fireEvent.click(screen.getByLabelText(/Jeton d'API à périmètre/));
+			await screen.findByLabelText(/Cloud ID/);
+			fireEvent.click(screen.getByLabelText(/Jeton d'API simple/));
+
+			expect(screen.queryAllByLabelText(/Cloud ID/)).toHaveLength(0);
+		});
+
 		test("sans configuration enregistrée, le test est indisponible", async () => {
 			const { JIRA_BASE_URL: _url, JIRA_USER: _user, ...neuf } = reglages;
 			mockFetch({ ...routesDeBase, "GET /api/settings": neuf });

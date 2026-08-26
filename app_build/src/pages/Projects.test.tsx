@@ -474,9 +474,13 @@ describe("Projects", () => {
 					},
 				}),
 			],
-			"POST /api/projects/7/git-fetch": { ...reponseFetch(), delayMs: 60 },
-			"POST /api/projects/8/git-fetch": { ...reponseFetch(), delayMs: 60 },
-			"POST /api/projects/9/git-fetch": { ...reponseFetch(), delayMs: 60 },
+			// 400 ms, mesuré à 60 : la marge doit rester large sous la charge de la
+			// suite complète. À 60 ms de réponse pour une mesure à 20, la première
+			// réponse arrivait parfois avant le contrôle, et le test voyait deux
+			// appels — un faux échec sur un code correct.
+			"POST /api/projects/7/git-fetch": { ...reponseFetch(), delayMs: 400 },
+			"POST /api/projects/8/git-fetch": { ...reponseFetch(), delayMs: 400 },
+			"POST /api/projects/9/git-fetch": { ...reponseFetch(), delayMs: 400 },
 		});
 		monte();
 		await waitFor(() => {
@@ -487,7 +491,7 @@ describe("Projects", () => {
 			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
 		);
 
-		await new Promise((r) => setTimeout(r, 20));
+		await new Promise((r) => setTimeout(r, 60));
 		expect(post().filter((c) => c.url.includes("git-fetch"))).toHaveLength(1);
 
 		// ⚠️ Le lot doit être **drainé** avant la fin du test : il est séquentiel, et

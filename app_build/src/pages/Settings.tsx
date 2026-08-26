@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { SnapshotInfo } from "@/db/backup";
 import type { ResetResult } from "@/db/reset";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
+import { estPasserelle } from "@/lib/jira/endpoint";
 import { errorMessage } from "@/lib/utils";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { SettingsSection } from "../components/organisms/SettingsSection";
@@ -27,6 +28,7 @@ const SECTIONS = {
 	audit: ["AUDIT_MAX_AGE_HOURS", "CRITICAL_ONLY", "DISABLE_CONSOLE"],
 	jira: [
 		"JIRA_BASE_URL",
+		"JIRA_CLOUD_ID",
 		"JIRA_USER",
 		"JIRA_API_KEY",
 		"JIRA_PROJECT",
@@ -53,6 +55,7 @@ export function Settings() {
 		JIRA_BASE_URL: "",
 		JIRA_USER: "",
 		JIRA_API_KEY: "",
+		JIRA_CLOUD_ID: "",
 		JIRA_PROJECT: "",
 		JIRA_COMPONENT: "",
 		JIRA_ISSUE_TYPE: "Task",
@@ -170,6 +173,7 @@ export function Settings() {
 					JIRA_BASE_URL: data.JIRA_BASE_URL || "",
 					JIRA_USER: data.JIRA_USER || "",
 					JIRA_API_KEY: "",
+					JIRA_CLOUD_ID: data.JIRA_CLOUD_ID || "",
 					JIRA_PROJECT: data.JIRA_PROJECT || "",
 					JIRA_COMPONENT: data.JIRA_COMPONENT || "",
 					JIRA_ISSUE_TYPE: data.JIRA_ISSUE_TYPE || "Task",
@@ -783,6 +787,36 @@ export function Settings() {
 								placeholder="https://votre-entreprise.atlassian.net"
 							/>
 						</div>
+
+						{/* Cloud ID : requis **uniquement** sur `api.atlassian.com`, où un
+						    jeton à portées doit passer. Le champ n'apparaît que dans ce cas —
+						    l'afficher toujours ferait croire à une configuration obligatoire
+						    pour tout le monde. */}
+						{estPasserelle(settings.JIRA_BASE_URL) && (
+							<div className="flex flex-col gap-2">
+								<label htmlFor="jira-cloud-id" className="text-lg font-bold">
+									Cloud ID
+								</label>
+								<p className="text-sm text-muted-foreground mb-2">
+									Requis avec <code>api.atlassian.com</code>, qui sert tous les
+									sites : rien d'autre ne dit lequel viser. Relevez-le sur{" "}
+									<code>
+										https://votre-site.atlassian.net/_edge/tenant_info
+									</code>
+									.
+								</p>
+								<Input
+									id="jira-cloud-id"
+									type="text"
+									value={settings.JIRA_CLOUD_ID}
+									onChange={(e) =>
+										setSettings({ ...settings, JIRA_CLOUD_ID: e.target.value })
+									}
+									className="font-mono"
+									placeholder="11111111-2222-3333-4444-555555555555"
+								/>
+							</div>
+						)}
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div className="flex flex-col gap-2">

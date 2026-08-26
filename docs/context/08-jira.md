@@ -6,6 +6,32 @@
 
 Créer réellement l'issue de remédiation dans Jira, et conserver le lien.
 
+## Deux familles de jetons, deux chemins
+
+Atlassian propose deux sortes de jetons d'API, et elles ne s'authentifient pas au même endroit :
+
+| Jeton | Point d'entrée | Qui authentifie |
+|---|---|---|
+| **classique** (sans portées) | `https://<site>.atlassian.net/rest/api/3/…` | le site lui-même |
+| **à portées** (`read:jira-user`…) | `https://api.atlassian.com/ex/jira/<cloudId>/rest/api/3/…` | la passerelle d'identité |
+
+⚠️ Un jeton à portées appelé sur le domaine du site est rejeté par un **401 « Client must be authenticated to access this resource »**. C'est un refus d'**identification**, pas de permission : le site ne sait pas consommer ce jeton. Le message n'évoque aucun droit, ce qui en fait un symptôme trompeur — constaté à l'usage.
+
+Le `cloudId` est **obligatoire** sur la passerelle, qui sert tous les tenants : rien dans l'URL ni dans le jeton ne dit lequel viser. Il se lit sans authentification sur `https://<site>.atlassian.net/_edge/tenant_info`.
+
+Réglage `JIRA_CLOUD_ID`, et le champ n'apparaît dans l'écran Réglages **que** si l'URL désigne `api.atlassian.com` — l'afficher toujours ferait croire à une configuration obligatoire pour tout le monde. Il est accepté aussi directement dans l'URL de base (`…/ex/jira/<cloudId>`), les deux écritures existant dans la nature ; le réglage l'emporte, sinon on ne pourrait plus changer de site sans réécrire l'URL.
+
+⚠️ **Le préfixe de la passerelle doit être conservé.** `jiraEndpoint` résolvait le chemin depuis la **racine** du domaine, ce qui effaçait `/ex/jira/<cloudId>` sans rien signaler : l'appel partait vers `https://api.atlassian.com/rest/api/3/myself`, qui n'existe pas. Sans `cloudId` exploitable, la construction rend `null` et **aucun appel ne part** — mieux vaut refuser qu'interroger une URL qu'on sait fausse.
+
+**Conséquence sur les portées.** Avec un jeton classique, le plafond de droits est celui du compte. Avec un jeton à portées, c'est l'intersection des droits du compte et des portées déclarées :
+
+| Appel d'Aegis | Portée nécessaire |
+|---|---|
+| `GET /rest/api/3/myself` | `read:jira-user` |
+| `POST /rest/api/3/issue` | `write:jira-work` |
+
+Un jeton portant seulement `read:jira-user` passe donc le test de connexion et échoue la création, cette fois sur un refus de permission.
+
 ## Création (`POST /api/tickets/create`)
 
 Construit un document **ADF** et appelle l'API Jira v3 avec un en-tête `Authorization: Basic`. Champs envoyés : `project.key`, `summary` (`[Aegis] Remédiation <paquet>`), `description` (ADF), `issuetype.name`, plus `parent.key` et `components[]` s'ils sont configurés.

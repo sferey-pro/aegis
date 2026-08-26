@@ -12,6 +12,7 @@ import {
 	tableRow,
 	text,
 } from "@atlaskit/adf-utils/builders";
+import { diagnostiqueConfiguration, jiraEndpoint } from "@/lib/jira/endpoint";
 import type {
 	JiraCreatedIssue,
 	JiraCurrentUser,
@@ -19,24 +20,6 @@ import type {
 } from "@/lib/jira/types";
 import { errorMessage } from "@/lib/utils";
 import { buildCveGroups } from "../lib/aggregator";
-
-/**
- * Construit une URL Jira absolue, ou `null` si la base n'est pas une URL https.
- *
- * Garde-fou du point d'utilisation contre la SSRF (N4) : la validation à
- * l'écriture couvre les valeurs saisies dans le formulaire, celle-ci couvre
- * aussi ce qui a pu entrer par un import de configuration ou une version
- * antérieure.
- */
-function jiraEndpoint(baseUrl: string, chemin: string): string | null {
-	try {
-		const base = new URL(baseUrl);
-		if (base.protocol !== "https:") return null;
-		return new URL(chemin, base).toString();
-	} catch {
-		return null;
-	}
-}
 
 export const ticketsRoutes = {
 	"/api/tickets": {
@@ -115,6 +98,9 @@ export const ticketsRoutes = {
 			const { saveTicket } = await import("../db/tickets");
 
 			const baseUrl = getSetting("JIRA_BASE_URL", "");
+			// Requis uniquement sur `api.atlassian.com` : la passerelle sert tous les
+			// tenants, et rien d'autre ne dit lequel viser (§8).
+			const cloudId = getSetting("JIRA_CLOUD_ID", "");
 			const user = getSetting("JIRA_USER", "");
 			// Repli sur l'environnement, comme `GITHUB_TOKEN` : le secret peut être
 			// fourni par le déploiement plutôt que collé dans l'interface. Le reste de
@@ -258,12 +244,15 @@ export const ticketsRoutes = {
 				);
 			}
 
-			const cible = jiraEndpoint(baseUrl, "/rest/api/3/issue");
+			const cible = jiraEndpoint(baseUrl, "/rest/api/3/issue", cloudId);
 			if (!cible) {
-				return Response.json(
-					{ error: "URL Jira invalide (https requis)" },
-					{ status: 400 },
-				);
+				// Le diagnostic dit *ce qui* manque — un Cloud ID absent sur la
+				// passerelle n'est pas une URL invalide, et l'annoncer comme telle
+				// envoyait l'utilisateur corriger le bon champ.
+				const raison =
+					diagnostiqueConfiguration(baseUrl, cloudId) ??
+					"URL Jira invalide (https requis)";
+				return Response.json({ error: raison }, { status: 400 });
 			}
 
 			const auth = Buffer.from(`${user}:${apiKey}`).toString("base64");
@@ -370,6 +359,9 @@ export const ticketsRoutes = {
 		async POST() {
 			const { getSetting } = await import("../db/settings");
 			const baseUrl = getSetting("JIRA_BASE_URL", "");
+			// Requis uniquement sur `api.atlassian.com` : la passerelle sert tous les
+			// tenants, et rien d'autre ne dit lequel viser (§8).
+			const cloudId = getSetting("JIRA_CLOUD_ID", "");
 			const user = getSetting("JIRA_USER", "");
 			// Repli sur l'environnement, comme `GITHUB_TOKEN` : le secret peut être
 			// fourni par le déploiement plutôt que collé dans l'interface. Le reste de
@@ -390,10 +382,13 @@ export const ticketsRoutes = {
 			// Second contrôle, au point d'utilisation : une valeur écrite avant
 			// l'ajout de la validation, ou par un import de configuration, ne doit
 			// pas devenir un appel sortant en clair.
-			const cible = jiraEndpoint(baseUrl, "/rest/api/3/myself");
+			const cible = jiraEndpoint(baseUrl, "/rest/api/3/myself", cloudId);
 			if (!cible) {
+				const raison =
+					diagnostiqueConfiguration(baseUrl, cloudId) ??
+					"URL Jira invalide (https requis)";
 				return Response.json(
-					{ success: false, error: "URL Jira invalide (https requis)" },
+					{ success: false, error: raison },
 					{ status: 400 },
 				);
 			}

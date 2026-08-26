@@ -679,6 +679,83 @@ describe("traçabilité dans la console (§11)", () => {
 	});
 });
 
+describe("passerelle Atlassian (jeton à portées)", () => {
+	const CLOUD = "11111111-2222-3333-4444-555555555555";
+
+	test("l'appel part vers /ex/jira/<cloudId>, préfixe conservé", async () => {
+		// Le défaut : la construction d'URL résolvait le chemin depuis la racine du
+		// domaine et effaçait `/ex/jira/<cloudId>`. L'appel partait vers
+		// `https://api.atlassian.com/rest/api/3/myself`, qui n'existe pas.
+		configurerJira({
+			JIRA_BASE_URL: "https://api.atlassian.com",
+			JIRA_CLOUD_ID: CLOUD,
+		});
+		stubJira({ body: { displayName: "Bot Aegis" } });
+
+		const { status } = await srv.json("/api/tickets/test-connection", {
+			method: "POST",
+		});
+
+		expect(status).toBe(200);
+		expect(appelsJira[0]?.url).toBe(
+			`https://api.atlassian.com/ex/jira/${CLOUD}/rest/api/3/myself`,
+		);
+	});
+
+	test("sans Cloud ID, le message dit quoi corriger et où le trouver", async () => {
+		// « URL Jira invalide » envoyait l'utilisateur modifier le bon champ pour la
+		// mauvaise raison.
+		configurerJira({ JIRA_BASE_URL: "https://api.atlassian.com" });
+		stubJira({ body: { displayName: "Bot" } });
+
+		const { status, data } = await srv.json<{ error: string }>(
+			"/api/tickets/test-connection",
+			{ method: "POST" },
+		);
+
+		expect(status).toBe(400);
+		expect(data.error).toContain("Cloud ID");
+		expect(data.error).toContain("_edge/tenant_info");
+		// Aucun appel sortant : on ne tente pas une URL qu'on sait fausse.
+		expect(appelsJira).toHaveLength(0);
+	});
+
+	test("la création de ticket passe aussi par la passerelle", async () => {
+		run([vuln()]);
+		configurerJira({
+			JIRA_BASE_URL: "https://api.atlassian.com",
+			JIRA_CLOUD_ID: CLOUD,
+		});
+		stubJira({ body: { key: "SEC-9" } });
+
+		await srv.json(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2020-8203"],
+			}),
+		);
+
+		expect(appelsJira[0]?.url).toBe(
+			`https://api.atlassian.com/ex/jira/${CLOUD}/rest/api/3/issue`,
+		);
+	});
+
+	test("un site classique n'est pas affecté par le Cloud ID", async () => {
+		// Le réglage peut rester renseigné après un changement d'URL : il ne doit
+		// pas altérer un appel qui n'en a pas besoin.
+		configurerJira({ JIRA_CLOUD_ID: CLOUD });
+		stubJira({ body: { displayName: "Bot" } });
+
+		await srv.json("/api/tickets/test-connection", { method: "POST" });
+
+		expect(appelsJira[0]?.url).toBe(
+			"https://jira.example.test/rest/api/3/myself",
+		);
+	});
+});
+
 describe("POST /api/tickets/test-connection", () => {
 	/**
 	 * La route ne lit plus le corps de la requête : elle vérifie la configuration

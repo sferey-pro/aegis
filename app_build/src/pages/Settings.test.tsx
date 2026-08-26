@@ -26,12 +26,23 @@ const reglages = {
  * fait échouer le test (`expect.unreachable`), et c'est voulu — un endpoint
  * oublié qui renverrait `undefined` donnerait une fausse confiance.
  */
-const quotaRoute = {
+/**
+ * Routes que **tout** montage de cet écran déclenche, en plus des réglages.
+ *
+ * `TagsManager` est rendu sous le formulaire et interroge `/api/tags` dans un
+ * effet. Non déclarée, cette requête faisait échouer le faux `fetch` par un
+ * `expect.unreachable` **à l'intérieur d'un effet React** : le rejet n'était
+ * rattaché à aucune assertion, et le fichier de test se bloquait au lieu
+ * d'échouer. Le bruit était visible depuis longtemps ; le blocage est arrivé avec
+ * un test qui ne faisait plus d'`await` derrière.
+ */
+const routesDeBase = {
 	"GET /api/github/rate-limit": {
 		limit: 5000,
 		remaining: 4321,
 		reset: 1787577633,
 	},
+	"GET /api/tags": [] as unknown[],
 };
 
 const put = () => fetchCalls().filter((c) => c.method === "PUT");
@@ -59,7 +70,7 @@ describe("Settings", () => {
 
 	test("charge les réglages et remplit le formulaire", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
@@ -74,13 +85,92 @@ describe("Settings", () => {
 		);
 	});
 
+	describe("formulaire Jira", () => {
+		/** Réglages avec une configuration Jira complète **enregistrée**. */
+		const jiraEnregistre = {
+			...reglages,
+			JIRA_BASE_URL: "https://jira.example.test",
+			JIRA_USER: "bot@example.test",
+			JIRA_API_KEY_CONFIGURED: "true",
+		};
+
+		test("l'URL Jira n'est pas pré-remplie sur une installation neuve", async () => {
+			// Une valeur d'exemple faisait paraître la configuration renseignée, et
+			// rendait le refus du test de connexion incompréhensible.
+			const { JIRA_BASE_URL: _url, JIRA_USER: _user, ...neuf } = reglages;
+			mockFetch({ ...routesDeBase, "GET /api/settings": neuf });
+			render(<Settings />);
+
+			const champ = await screen.findByLabelText(/Adresse Jira|Base URL Jira/);
+			expect(champ).toHaveValue("");
+			expect(champ).toHaveAttribute(
+				"placeholder",
+				expect.stringContaining("atlassian.net"),
+			);
+		});
+
+		test("sans configuration enregistrée, le test est indisponible", async () => {
+			const { JIRA_BASE_URL: _url, JIRA_USER: _user, ...neuf } = reglages;
+			mockFetch({ ...routesDeBase, "GET /api/settings": neuf });
+			render(<Settings />);
+
+			const bouton = await screen.findByRole("button", {
+				name: /Tester la connexion Jira/,
+			});
+			expect(bouton).toBeDisabled();
+			expect(
+				screen.getByText(/Aucune configuration Jira enregistrée/),
+			).toBeInTheDocument();
+		});
+
+		test("avec une configuration enregistrée, le test est disponible", async () => {
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+
+			await waitFor(() => {
+				expect(
+					screen.getByRole("button", { name: /Tester la connexion Jira/ }),
+				).toBeEnabled();
+			});
+		});
+
+		test("une saisie non enregistrée désactive le test et le dit", async () => {
+			// La route de test lit la base et ignore son corps (§15). Tester ce qu'on
+			// vient de saisir n'a donc aucun sens : il faut le dire, au lieu de
+			// laisser le serveur accuser l'utilisateur de ne rien avoir renseigné.
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+			const champ = await screen.findByLabelText(/Utilisateur Jira/);
+
+			fireEvent.change(champ, { target: { value: "autre@example.test" } });
+
+			expect(
+				screen.getByText(/Le test de connexion porte sur la configuration/),
+			).toBeInTheDocument();
+		});
+
+		test("saisir une clé compte comme une modification non enregistrée", async () => {
+			// Le champ est en écriture seule : le formulaire ne connaît jamais la
+			// valeur courante, donc toute saisie est forcément un changement.
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+			const champ = await screen.findByLabelText(/Clé d'API Jira/);
+
+			fireEvent.change(champ, { target: { value: "nouveau-jeton" } });
+
+			expect(
+				screen.getByText(/Le test de connexion porte sur la configuration/),
+			).toBeInTheDocument();
+		});
+	});
+
 	test("le quota affiché est celui relu chez GitHub, pas celui en base", async () => {
 		// Le défaut : l'écran n'affichait pas « le quota » mais « le dernier quota
 		// vu au passage d'un appel d'avis ». Cette valeur ne bouge pas quand la
 		// fenêtre horaire de GitHub se réinitialise, et sautait donc d'un coup à
 		// 5000 au premier appel suivant un redémarrage.
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": {
 				...reglages,
 				GITHUB_RL_LIMIT: "5000",
@@ -95,7 +185,7 @@ describe("Settings", () => {
 	test("le quota est relu après les réglages, jamais avant", async () => {
 		// Les deux réponses portent les mêmes trois clés : en parallèle, celle de
 		// `/api/settings` pouvait arriver en second et réécrire la valeur fraîche.
-		mockFetch({ ...quotaRoute, "GET /api/settings": reglages });
+		mockFetch({ ...routesDeBase, "GET /api/settings": reglages });
 		render(<Settings />);
 		await screen.findByText("4321 / 5000");
 
@@ -111,6 +201,7 @@ describe("Settings", () => {
 	test("GitHub injoignable : la valeur persistée est conservée, et datée", async () => {
 		// Un quota inventé serait pire qu'un quota daté.
 		mockFetch({
+			...routesDeBase,
 			"GET /api/github/rate-limit": { status: 502, body: { error: "nope" } },
 			"GET /api/settings": {
 				...reglages,
@@ -128,6 +219,7 @@ describe("Settings", () => {
 
 	test("un quota épuisé reste lisible en rouge", async () => {
 		mockFetch({
+			...routesDeBase,
 			"GET /api/github/rate-limit": { limit: 5000, remaining: 0, reset: 42 },
 			"GET /api/settings": reglages,
 		});
@@ -142,7 +234,7 @@ describe("Settings", () => {
 		// absente — et pour un projet en fin de vie, c'est elle qui apporte la
 		// nouvelle faille, pas un commit.
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": {
 				...reglages,
 				ADVISORY_SYNC_LAST_AT: "2026-08-23T14:02:00.000Z",
@@ -157,7 +249,7 @@ describe("Settings", () => {
 
 	test("sans passe effectuée, l'écran le dit au lieu de rester muet", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
@@ -172,7 +264,7 @@ describe("Settings", () => {
 		// Le reposter réécrirait l'horodatage par la valeur affichée : le formulaire
 		// mentirait sur la date à chaque enregistrement.
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": {
 				...reglages,
 				ADVISORY_SYNC_LAST_AT: "2026-08-23T14:02:00.000Z",
@@ -181,9 +273,15 @@ describe("Settings", () => {
 			"PUT /api/settings": { status: 204 },
 		});
 		render(<Settings />);
-		await screen.findByLabelText(/Jeton GitHub/);
+		// Le bouton d'une section est inactif tant que rien n'a bougé : il faut donc
+		// modifier la section avant de pouvoir l'enregistrer.
+		fireEvent.change(await screen.findByLabelText(/Cache d'Audit/), {
+			target: { value: "48" },
+		});
 
-		fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
+		fireEvent.click(
+			screen.getByLabelText("Enregistrer les paramètres d'audit"),
+		);
 
 		await waitFor(() => expect(put()).toHaveLength(1));
 		const corps = put()[0]?.body as Record<string, unknown>;
@@ -196,7 +294,7 @@ describe("Settings", () => {
 		// L'invite porte l'information, ce qui évite de laisser croire que le champ
 		// vide signifie « non configuré » (N5).
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
@@ -210,7 +308,7 @@ describe("Settings", () => {
 
 	test("un secret absent garde l'invite d'exemple", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
@@ -221,7 +319,7 @@ describe("Settings", () => {
 
 	test("les valeurs absentes reçoivent leurs défauts", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": {},
 		});
 		render(<Settings />);
@@ -244,7 +342,7 @@ describe("Settings", () => {
 		// `setSettings`, et le formulaire s'affichait avec ses valeurs par défaut
 		// comme si tout allait bien.
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": { status: 500, body: { error: "boom" } },
 		});
 		render(<Settings />);
@@ -261,7 +359,7 @@ describe("Settings", () => {
 
 	test("une coupure réseau au chargement est signalée (N6)", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": { networkError: "ECONNREFUSED" },
 		});
 		render(<Settings />);
@@ -274,7 +372,7 @@ describe("Settings", () => {
 		// configuration vide, et un enregistrement écraserait la vraie. L'écran
 		// signale donc l'échec plutôt que d'inventer un état.
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": { invalidJson: true },
 		});
 		render(<Settings />);
@@ -286,61 +384,118 @@ describe("Settings", () => {
 
 	test("un échec d'enregistrement est signalé, pas avalé (N6)", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"PUT /api/settings": { status: 400, body: { error: "Durée invalide" } },
 		});
 		render(<Settings />);
-		await screen.findByLabelText(/Base URL Jira/);
+		fireEvent.change(await screen.findByLabelText(/Cache d'Audit/), {
+			target: { value: "-3" },
+		});
 
-		fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
+		fireEvent.click(
+			screen.getByLabelText("Enregistrer les paramètres d'audit"),
+		);
 
+		// L'échec s'affiche **dans la section** qui l'a produit, pas en pied de page.
 		expect(await screen.findByRole("alert")).toHaveTextContent(
 			/Durée invalide/,
 		);
 	});
 
-	test("enregistrer envoie les réglages, secret vide compris", async () => {
-		// Le champ secret part à vide puisque le client ne connaît pas la valeur.
-		// C'est le serveur qui l'ignore alors, pour ne pas effacer le jeton en
-		// place — cf. `src/routes/settings.test.ts` (N5).
+	test("une section n'envoie que ses propres clés", async () => {
+		// C'est tout l'intérêt du découpage : une URL Jira invalide ne doit plus
+		// faire échouer l'enregistrement de la fenêtre d'audit, et réciproquement.
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"PUT /api/settings": { body: { success: true } },
 		});
 		render(<Settings />);
-		await screen.findByLabelText(/Jeton GitHub/);
+		const champ = await screen.findByLabelText(/Cache d'Audit/);
 
-		fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
+		fireEvent.change(champ, { target: { value: "48" } });
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /Enregistrer les paramètres d'audit/,
+			}),
+		);
+
+		await waitFor(() => {
+			expect(put()).toHaveLength(1);
+		});
+		const corps = put()[0]?.body as Record<string, string>;
+		expect(Object.keys(corps).sort()).toEqual([
+			"AUDIT_MAX_AGE_HOURS",
+			"CRITICAL_ONLY",
+			"DISABLE_CONSOLE",
+		]);
+		expect(corps.AUDIT_MAX_AGE_HOURS).toBe("48");
+	});
+
+	test("un secret n'est jamais posté par la section d'une autre", async () => {
+		// Le formulaire ne connaît pas la valeur des secrets : les poster à vide
+		// depuis une section voisine obligeait le serveur à filtrer, et un oubli de
+		// ce filtre effaçait le jeton (N5).
+		mockFetch({
+			...routesDeBase,
+			"GET /api/settings": reglages,
+			"PUT /api/settings": { body: { success: true } },
+		});
+		render(<Settings />);
+		const champ = await screen.findByLabelText(/Cache d'Audit/);
+
+		fireEvent.change(champ, { target: { value: "48" } });
+		fireEvent.click(
+			screen.getByRole("button", {
+				name: /Enregistrer les paramètres d'audit/,
+			}),
+		);
+
+		await waitFor(() => {
+			expect(put()).toHaveLength(1);
+		});
+		const corps = put()[0]?.body as Record<string, string>;
+		expect(corps.GITHUB_TOKEN).toBeUndefined();
+		expect(corps.JIRA_API_KEY).toBeUndefined();
+	});
+
+	test("sans modification, le bouton d'une section reste inactif", async () => {
+		// Un bouton toujours actif ne dit rien. Inactif, il devient l'indicateur :
+		// « il n'y a rien à enregistrer ici ». Ce test a trouvé le défaut : une clé
+		// absente de la réponse serveur — `CRITICAL_ONLY` — recevait sa valeur par
+		// défaut côté formulaire, ce qui se lisait comme une modification.
+		mockFetch({ ...routesDeBase, "GET /api/settings": reglages });
+		render(<Settings />);
+		await screen.findByLabelText(/Base URL Jira/);
+
+		for (const nom of [
+			"Enregistrer le jeton GitHub",
+			"Enregistrer les paramètres d'audit",
+			"Enregistrer l'intégration Jira",
+		]) {
+			expect(screen.getByLabelText(nom)).toBeDisabled();
+		}
+	});
+
+	test("la saisie modifiée part bien au serveur", async () => {
+		mockFetch({
+			...routesDeBase,
+			"GET /api/settings": reglages,
+			"PUT /api/settings": { body: { success: true } },
+		});
+		render(<Settings />);
+		const champ = await screen.findByLabelText(/Utilisateur Jira/);
+
+		fireEvent.change(champ, { target: { value: "moi@example.test" } });
+		fireEvent.click(screen.getByLabelText("Enregistrer l'intégration Jira"));
 
 		await waitFor(() => {
 			expect(put()).toHaveLength(1);
 		});
 		expect(put()[0]?.body).toMatchObject({
-			GITHUB_TOKEN: "",
-			JIRA_BASE_URL: "https://jira.example",
+			JIRA_USER: "moi@example.test",
 		});
-	});
-
-	test("la saisie modifiée part bien au serveur", async () => {
-		mockFetch({
-			...quotaRoute,
-			"GET /api/settings": reglages,
-			"PUT /api/settings": { body: { success: true } },
-		});
-		render(<Settings />);
-		await screen.findByLabelText(/Jeton GitHub/);
-
-		fireEvent.change(screen.getByLabelText(/Jeton GitHub/), {
-			target: { value: "ghp_nouveau" },
-		});
-		fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
-
-		await waitFor(() => {
-			expect(put()).toHaveLength(1);
-		});
-		expect(put()[0]?.body).toMatchObject({ GITHUB_TOKEN: "ghp_nouveau" });
 	});
 
 	test("le champ de fraîcheur interdit la valeur -1 pourtant spécifiée", async () => {
@@ -348,7 +503,7 @@ describe("Settings", () => {
 		// sémantique « toujours réauditer » est explicitement prévue par le
 		// contrat (CONTEXT.md §2 et §12). Documenté ici.
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
@@ -358,7 +513,7 @@ describe("Settings", () => {
 
 	test("le jeton GitHub est masqué à la saisie", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
@@ -370,7 +525,7 @@ describe("Settings", () => {
 
 	test("la clé d'API Jira est masquée à la saisie", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
@@ -383,7 +538,7 @@ describe("Settings", () => {
 
 	test("vider le cache d'avis appelle la bonne route", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"DELETE /api/advisories/cache": { body: { success: true, deleted: 12 } },
 		});
@@ -402,7 +557,7 @@ describe("Settings", () => {
 
 	test("un snapshot en échec affiche le message d'erreur du serveur", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"GET /api/snapshots": { snapshots: [] },
 			"POST /api/snapshots/create": {
@@ -427,7 +582,7 @@ describe("Settings — instantanés", () => {
 
 	function monter(over: Record<string, unknown> = {}) {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"GET /api/snapshots": instantanes,
 			...over,
@@ -562,7 +717,7 @@ describe("Settings — remise à zéro", () => {
 
 	test("la zone de danger annonce ce qui part et ce qui reste", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
@@ -577,7 +732,7 @@ describe("Settings — remise à zéro", () => {
 
 	test("le bouton n'agit qu'après confirmation", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"POST /api/config/reset": {
 				body: {
@@ -604,7 +759,7 @@ describe("Settings — remise à zéro", () => {
 
 	test("annuler ne déclenche aucun appel", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"POST /api/config/reset": {
 				body: {
@@ -629,7 +784,7 @@ describe("Settings — remise à zéro", () => {
 		// Le décompte est affiché **avant** tout rechargement : sans cela,
 		// l'utilisateur ne saurait jamais ce que son clic a emporté.
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"POST /api/config/reset": {
 				body: {
@@ -668,7 +823,7 @@ describe("Settings — remise à zéro", () => {
 
 	test("un échec est signalé et laisse le bouton disponible", async () => {
 		mockFetch({
-			...quotaRoute,
+			...routesDeBase,
 			"GET /api/settings": reglages,
 			"POST /api/config/reset": { status: 500, body: { error: "boom" } },
 		});

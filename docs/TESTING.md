@@ -269,6 +269,46 @@ await waitFor(() => {
 });
 ```
 
+## Ne pas tester une garde de concurrence par une course
+
+Deux tests vérifiaient qu'une remise à zéro et une restauration refusent en 409
+pendant un audit. Ils lançaient un vrai lot d'audits voués à l'échec, puis
+envoyaient la requête en espérant qu'elle arrive avant la fin du lot.
+
+Cette course a été perdue le jour où le contrôle préalable de
+[N20](ISSUE.md#n20-aucune-vérification-préalable-du-chemin-daudit-ni-du-lockfile)
+a supprimé le `spawn` : un lot de quatre audits est passé d'une centaine de
+millisecondes à **23 ms**. La route de restauration valide son corps *avant* de
+lire la garde, elle arrivait donc après la fin du lot — et le test échouait sur
+un `200` qui ne disait rien du défaut visé. En CI seulement, d'abord.
+
+**Ce qui n'a pas marché.** `mock.module("@/lib/audit/queue", …)` pour forcer
+`getAuditStatus()` : le registre de modules est partagé par tout le run, et la
+restauration du module réel n'a pas rendu son état d'origine — trois tests
+voisins sont passés au rouge.
+
+**La parade** ne simule rien, elle rend l'audit **long pour de vrai** :
+
+```ts
+// Faux `npm` qui dort, en tête du PATH ; lockfile présent pour franchir les
+// contrôles préalables. L'audit prend ~400 ms au lieu de 2 ms.
+writeFileSync(join(bin, "npm"), '#!/bin/sh\nsleep 0.4\necho \'{"vulnerabilities":{}}\'\n');
+chmodSync(join(bin, "npm"), 0o755);
+process.env.PATH = `${bin}:${process.env.PATH}`;
+```
+
+Deux détails qui la rendent possible :
+
+- l'audit compose son environnement **à l'appel** (`{...process.env, NO_COLOR}`),
+  alors que les commandes git figent le leur à l'import (`GIT_ENV`). Remplacer
+  `npm` n'affecte donc pas `getGitInfo` ;
+- le lockfile est indispensable : sans lui, le contrôle préalable refuse avant
+  tout lancement et l'audit redevient instantané.
+
+Règle générale : une garde de concurrence se teste en **occupant réellement** la
+ressource, pour une durée qu'on choisit. Deux ordres de grandeur d'écart avec
+l'opération mesurée, pas deux fois.
+
 ## 🚦 CI
 
 `.github/workflows/ci.yml`, sur `push` et `pull_request` vers `main`, depuis

@@ -82,6 +82,30 @@ async function avecAuditEnCours(fn: () => Promise<void>) {
 	}
 }
 
+/**
+ * Retire les secrets de l'environnement le temps d'un test.
+ *
+ * `_CONFIGURED` tient compte du repli sur l'environnement : un poste qui exporte
+ * `GITHUB_TOKEN` ferait échouer les égalités strictes de ce fichier, et pour une
+ * raison qui n'a rien à voir avec le code testé.
+ */
+function neutraliserSecretsEnv(): Record<string, string | undefined> {
+	const initiaux = {
+		GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+		JIRA_API_KEY: process.env.JIRA_API_KEY,
+	};
+	delete process.env.GITHUB_TOKEN;
+	delete process.env.JIRA_API_KEY;
+	return initiaux;
+}
+
+function restaurerSecretsEnv(initiaux: Record<string, string | undefined>) {
+	for (const [cle, valeur] of Object.entries(initiaux)) {
+		if (valeur === undefined) delete process.env[cle];
+		else process.env[cle] = valeur;
+	}
+}
+
 /** La file est un mutex de portée processus : ne rien laisser tourner derrière. */
 async function attendreFinAudit(limiteMs = 8000) {
 	const debut = Date.now();
@@ -124,15 +148,20 @@ afterEach(() => {
 
 describe("GET /api/settings", () => {
 	test("une base neuve ne renvoie que l'état des secrets", async () => {
+		// L'environnement de la machine peut porter un jeton : ces égalités
+		// strictes doivent décrire la base, pas le poste du développeur.
+		const initiaux = neutraliserSecretsEnv();
 		const { status, data } = await srv.json("/api/settings");
 		expect(status).toBe(200);
 		expect(data).toEqual({
 			GITHUB_TOKEN_CONFIGURED: "false",
 			JIRA_API_KEY_CONFIGURED: "false",
 		});
+		restaurerSecretsEnv(initiaux);
 	});
 
 	test("renvoie les clés de la liste blanche, et l'état des secrets", async () => {
+		const initiaux = neutraliserSecretsEnv();
 		setGithubConfig("GITHUB_TOKEN", "ghp_x");
 		setSetting("AUDIT_MAX_AGE_HOURS", "24");
 		const { data } = await srv.json("/api/settings");
@@ -141,6 +170,37 @@ describe("GET /api/settings", () => {
 			GITHUB_TOKEN_CONFIGURED: "true",
 			JIRA_API_KEY_CONFIGURED: "false",
 		});
+		restaurerSecretsEnv(initiaux);
+	});
+
+	test("un secret fourni par l'environnement compte comme configuré", async () => {
+		// `_CONFIGURED` répond « le secret est-il **utilisable** », pas « est-il en
+		// base ». Un jeton fourni par le déploiement faisait afficher « non
+		// configuré » alors que les appels aboutissaient : l'exploitant cherchait
+		// une panne qui n'existait pas.
+		const initial = process.env.JIRA_API_KEY;
+		process.env.JIRA_API_KEY = "jeton-du-deploiement";
+		try {
+			const { data } = await srv.json<Record<string, string>>("/api/settings");
+			expect(data.JIRA_API_KEY_CONFIGURED).toBe("true");
+		} finally {
+			if (initial === undefined) delete process.env.JIRA_API_KEY;
+			else process.env.JIRA_API_KEY = initial;
+		}
+	});
+
+	test("la valeur du secret ne sort jamais, même depuis l'environnement", async () => {
+		// Le repli ne doit pas devenir une porte de sortie pour la valeur.
+		const initial = process.env.JIRA_API_KEY;
+		process.env.JIRA_API_KEY = "jeton-du-deploiement";
+		try {
+			const { data } = await srv.json<Record<string, string>>("/api/settings");
+			expect(Object.values(data)).not.toContain("jeton-du-deploiement");
+			expect(data.JIRA_API_KEY).toBeUndefined();
+		} finally {
+			if (initial === undefined) delete process.env.JIRA_API_KEY;
+			else process.env.JIRA_API_KEY = initial;
+		}
 	});
 
 	test("une clé hors liste blanche n'est pas exposée", async () => {
@@ -746,13 +806,22 @@ describe("POST /api/config/reset", () => {
 	test("l'état des secrets reste cohérent après remise à zéro", async () => {
 		// L'écran Réglages lit `<CLÉ>_CONFIGURED` : la clé GHSA doit rester annoncée
 		// comme configurée bien que la base principale ait été recréée.
-		setGithubConfig("GITHUB_TOKEN", "ghp_a_conserver");
-		setSetting("JIRA_API_KEY", "cle-jira");
-		await srv.json("/api/config/reset", { method: "POST" });
+		//
+		// L'environnement est neutralisé : depuis le repli, un poste qui exporte
+		// `JIRA_API_KEY` rendrait ce test rouge pour une raison étrangère au reset.
+		// C'est arrivé — et c'était le bon signal, pas un faux positif.
+		const initiaux = neutraliserSecretsEnv();
+		try {
+			setGithubConfig("GITHUB_TOKEN", "ghp_a_conserver");
+			setSetting("JIRA_API_KEY", "cle-jira");
+			await srv.json("/api/config/reset", { method: "POST" });
 
-		const { data } = await srv.json<Record<string, string>>("/api/settings");
-		expect(data.GITHUB_TOKEN_CONFIGURED).toBe("true");
-		expect(data.JIRA_API_KEY_CONFIGURED).toBe("false");
+			const { data } = await srv.json<Record<string, string>>("/api/settings");
+			expect(data.GITHUB_TOKEN_CONFIGURED).toBe("true");
+			expect(data.JIRA_API_KEY_CONFIGURED).toBe("false");
+		} finally {
+			restaurerSecretsEnv(initiaux);
+		}
 	});
 
 	test("le serveur reste utilisable sans redémarrage", async () => {

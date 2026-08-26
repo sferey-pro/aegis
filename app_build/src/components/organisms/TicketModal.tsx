@@ -188,7 +188,7 @@ export function TicketModal(props: {
 				setTicketModal({ ...ticketModal, isOpen: open })
 			}
 		>
-			<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+			<DialogContent className="sm:max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
 				<DialogHeader className="p-6 pb-4 border-b shrink-0">
 					<DialogTitle className="flex items-center gap-2">
 						<FileText className="w-5 h-5" />

@@ -66,6 +66,50 @@ const MOTIFS: Array<{ nom: string; motif: RegExp }> = [
 	},
 ];
 
+/**
+ * Largeur de modale écrite sans le préfixe `sm:`.
+ *
+ * L'atome `DialogContent` pose `sm:max-w-lg`. Un `max-w-2xl` nu ne le remplace
+ * pas : les deux classes appartiennent à des groupes différents, `cn()` les garde
+ * toutes les deux, et c'est la règle sous media query qui gagne. La modale reste
+ * donc bornée à 512 px au-delà de `sm`, **quelle que soit la valeur écrite** —
+ * silencieusement, comme les autres motifs de ce fichier.
+ *
+ * Le piège a mordu deux fois : la modale de rapport, puis celle du détail d'un
+ * rapport. D'où ce balayage plutôt qu'un troisième correctif ponctuel.
+ */
+function modalesSansPrefixe(): string[] {
+	const coupables: string[] = [];
+	for (const { chemin, contenu } of SOURCES) {
+		let depuis = 0;
+		for (;;) {
+			const debut = contenu.indexOf("<DialogContent", depuis);
+			if (debut === -1) break;
+			// **Bornée à la balise ouvrante.** Une regex `[^>]*className="…"` court
+			// jusqu'au prochain `className` littéral du fichier quand la balise
+			// utilise un gabarit : elle désignait alors des fichiers innocents. Un
+			// garde-fou qui accuse à faux ne sert à rien.
+			const fin = contenu.indexOf(">", debut);
+			depuis = fin === -1 ? contenu.length : fin + 1;
+			const balise = contenu.slice(debut, depuis);
+
+			const classes = balise.match(/className=\{?["'`]([^"'`]*)["'`]/)?.[1];
+			if (!classes) continue;
+
+			// Toutes les tailles, pas seulement les grandes : `max-w-md` sur une
+			// modale de confirmation est écrasé par le `sm:max-w-lg` de l'atome, donc
+			// l'intention « plus étroite » ne s'applique jamais au-delà de `sm`.
+			const nu =
+				/(?:^|\s)max-w-(?:xs|sm|md|lg|xl|[2-9]xl|screen-\w+)(?:\s|$)/.test(
+					classes,
+				);
+			const prefixe = /(?:^|\s)sm:max-w-/.test(classes);
+			if (nu && !prefixe) coupables.push(chemin);
+		}
+	}
+	return coupables;
+}
+
 describe("intégrité des classes Tailwind", () => {
 	test("l'arbre source est bien balayé", () => {
 		// Un balayage vide passerait tous les tests suivants sans rien vérifier.
@@ -83,4 +127,17 @@ describe("intégrité des classes Tailwind", () => {
 			expect(coupables).toEqual([]);
 		});
 	}
+
+	test("aucune largeur de modale sans préfixe sm:", () => {
+		expect(modalesSansPrefixe()).toEqual([]);
+	});
+
+	test("le balayage des modales trouve bien des modales", () => {
+		// Sans cette contre-épreuve, une expression régulière devenue inopérante
+		// rendrait le test précédent toujours vert.
+		const avecDialog = SOURCES.filter((f) =>
+			/<DialogContent[^>]*className/.test(f.contenu),
+		);
+		expect(avecDialog.length).toBeGreaterThan(3);
+	});
 });

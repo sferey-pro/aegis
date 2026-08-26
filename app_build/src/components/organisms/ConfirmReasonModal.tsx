@@ -33,7 +33,7 @@ export function ConfirmReasonModal({
 				if (!open) setConfirmModal(null);
 			}}
 		>
-			<DialogContent className="max-w-lg p-0 overflow-hidden flex flex-col">
+			<DialogContent className="sm:max-w-lg p-0 overflow-hidden flex flex-col">
 				<form onSubmit={submitConfirm} className="flex flex-col h-full">
 					<DialogHeader className="p-6 pb-4 border-b shrink-0">
 						<DialogTitle className="flex items-center gap-3 text-xl font-bold font-heading">

@@ -12,11 +12,13 @@ import type { GitInfo } from "@/lib/git";
  * Orchestration de « Vérifier les mises à jour Git », côté client.
  *
  * Même mécanisme que « Tout auditer » (§2) : même pool, annulable, compte-rendu
- * portant les projets annulés — mais **un dépôt à la fois** (§5). La boucle précédente était `for (const p of …)
- * { await fetch(…) }` avec un `catch` qui journalisait dans la console du
- * navigateur — donc séquentielle sur quinze dépôts de réseau, non annulable, et
- * muette sur ses échecs. Exactement les défauts que N8 avait corrigés côté
- * audit, restés en place dans la fonctionnalité voisine.
+ * portant les projets annulés — mais **un dépôt à la fois** (§5).
+ *
+ * La boucle précédente était `for (const p of …) { await fetch(…) }`, avec un
+ * `catch` qui journalisait dans la console du navigateur : séquentielle sans
+ * l'avoir décidé, non annulable, et muette sur ses échecs. Exactement les
+ * défauts que N8 avait corrigés côté audit, restés en place dans la
+ * fonctionnalité voisine parce que le pool vivait dans `useGlobalAudit`.
  *
  * **`fetch` seulement, jamais `pull`.** §5 tient à ce que les deux actions
  * restent explicites : `git fetch` ne touche ni à l'arbre ni à la branche, alors

@@ -6,22 +6,22 @@
 
 Créer réellement l'issue de remédiation dans Jira, et conserver le lien.
 
-## Deux familles de jetons, deux chemins
+## Deux types de jetons, déclarés et non déduits
 
-Atlassian propose deux sortes de jetons d'API, et elles ne s'authentifient pas au même endroit :
+Réglage **`JIRA_TOKEN_KIND`**, `classic` par défaut :
 
-| Jeton | Point d'entrée | Qui authentifie |
+| Type déclaré | Point d'entrée de l'API | Qui authentifie |
 |---|---|---|
-| **classique** (sans portées) | `https://<site>.atlassian.net/rest/api/3/…` | le site lui-même |
-| **à portées** (`read:jira-user`…) | `https://api.atlassian.com/ex/jira/<cloudId>/rest/api/3/…` | la passerelle d'identité |
+| `classic` — jeton d'API simple | `https://<site>.atlassian.net/rest/api/3/…` | le site lui-même |
+| `scoped` — jeton à périmètre | `https://api.atlassian.com/ex/jira/<cloudId>/rest/api/3/…` | la passerelle d'identité |
 
-⚠️ Un jeton à portées appelé sur le domaine du site est rejeté par un **401 « Client must be authenticated to access this resource »**. C'est un refus d'**identification**, pas de permission : le site ne sait pas consommer ce jeton. Le message n'évoque aucun droit, ce qui en fait un symptôme trompeur — constaté à l'usage.
+⚠️ Un jeton à périmètre appelé sur le domaine du site est rejeté par un **401 « Client must be authenticated to access this resource »**. C'est un refus d'**identification**, pas de permission : le site ne sait pas consommer ce jeton. Le message n'évoque aucun droit, ce qui en fait un symptôme trompeur — constaté à l'usage.
 
-Le `cloudId` est **obligatoire** sur la passerelle, qui sert tous les tenants : rien dans l'URL ni dans le jeton ne dit lequel viser. Il se lit sans authentification sur `https://<site>.atlassian.net/_edge/tenant_info`.
+⚠️ **`JIRA_BASE_URL` reste toujours l'adresse du site**, y compris avec un jeton à périmètre. Une première version déduisait le point d'entrée du **nom d'hôte** de cette URL, ce qui obligeait à y mettre `api.atlassian.com` — or elle construit aussi les liens `/browse/<clé>` des tickets dans l'interface. Ces liens pointaient alors vers la passerelle, qui n'est pas une interface web : **ils étaient morts**. Le diagnostic refuse désormais explicitement une URL de passerelle en base.
 
-Réglage `JIRA_CLOUD_ID`, et le champ n'apparaît dans l'écran Réglages **que** si l'URL désigne `api.atlassian.com` — l'afficher toujours ferait croire à une configuration obligatoire pour tout le monde. Il est accepté aussi directement dans l'URL de base (`…/ex/jira/<cloudId>`), les deux écritures existant dans la nature ; le réglage l'emporte, sinon on ne pourrait plus changer de site sans réécrire l'URL.
+Le `cloudId` est **obligatoire** pour un jeton à périmètre : la passerelle sert tous les tenants, et rien dans l'URL ni dans le jeton ne dit lequel viser. Réglage `JIRA_CLOUD_ID`, dont le champ n'apparaît dans l'écran Réglages **que** si le type `scoped` est choisi. Il se lit sans authentification sur `https://<site>.atlassian.net/_edge/tenant_info`.
 
-⚠️ **Le préfixe de la passerelle doit être conservé.** `jiraEndpoint` résolvait le chemin depuis la **racine** du domaine, ce qui effaçait `/ex/jira/<cloudId>` sans rien signaler : l'appel partait vers `https://api.atlassian.com/rest/api/3/myself`, qui n'existe pas. Sans `cloudId` exploitable, la construction rend `null` et **aucun appel ne part** — mieux vaut refuser qu'interroger une URL qu'on sait fausse.
+Sans `cloudId`, la construction d'URL rend `null` et **aucun appel ne part** — mieux vaut refuser qu'interroger une URL qu'on sait fausse. Une valeur de `JIRA_TOKEN_KIND` inattendue retombe sur `classic` plutôt que de router au hasard.
 
 **Conséquence sur les portées.** Avec un jeton classique, le plafond de droits est celui du compte. Avec un jeton à portées, c'est l'intersection des droits du compte et des portées déclarées :
 

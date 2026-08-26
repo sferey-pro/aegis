@@ -120,33 +120,33 @@ describe("Settings", () => {
 			expect(screen.queryAllByLabelText(/Cloud ID/)).toHaveLength(0);
 		});
 
-		test("saisir l'URL de la passerelle fait apparaître le Cloud ID", async () => {
-			// Conditionné à ce qui est **saisi**, pas à ce qui est enregistré : sans
-			// cela il faudrait enregistrer une configuration incomplète pour voir le
-			// champ qui la complète.
+		test("choisir le jeton à périmètre fait apparaître le Cloud ID", async () => {
+			// Le type est **déclaré**, plus déduit de l'URL : l'inférer obligeait à
+			// mettre `api.atlassian.com` en URL de base, or cette valeur construit
+			// aussi les liens /browse/<clé> des tickets — ils pointaient alors vers la
+			// passerelle, qui n'est pas une interface web.
 			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
 			render(<Settings />);
-			const url = await screen.findByLabelText(/Base URL Jira/);
+			await screen.findByLabelText(/Base URL Jira/);
+			expect(screen.queryAllByLabelText(/Cloud ID/)).toHaveLength(0);
 
-			fireEvent.change(url, {
-				target: { value: "https://api.atlassian.com" },
-			});
+			fireEvent.click(screen.getByLabelText(/Jeton d'API à périmètre/));
 
 			expect(await screen.findByLabelText(/Cloud ID/)).toBeInTheDocument();
 			// Le message dit où trouver la valeur : sans cela l'utilisateur cherche.
 			expect(screen.getByText(/_edge\/tenant_info/)).toBeInTheDocument();
 		});
 
-		test("le Cloud ID part avec la section Jira", async () => {
+		test("le type et le Cloud ID partent avec la section Jira", async () => {
 			mockFetch({
 				...routesDeBase,
 				"GET /api/settings": jiraEnregistre,
 				"PUT /api/settings": { body: { success: true } },
 			});
 			render(<Settings />);
-			const url = await screen.findByLabelText(/Base URL Jira/);
+			await screen.findByLabelText(/Base URL Jira/);
 
-			fireEvent.change(url, { target: { value: "https://api.atlassian.com" } });
+			fireEvent.click(screen.getByLabelText(/Jeton d'API à périmètre/));
 			fireEvent.change(await screen.findByLabelText(/Cloud ID/), {
 				target: { value: "11111111-2222-3333-4444-555555555555" },
 			});
@@ -156,9 +156,23 @@ describe("Settings", () => {
 				expect(put()).toHaveLength(1);
 			});
 			expect(put()[0]?.body).toMatchObject({
-				JIRA_BASE_URL: "https://api.atlassian.com",
+				JIRA_TOKEN_KIND: "scoped",
 				JIRA_CLOUD_ID: "11111111-2222-3333-4444-555555555555",
+				// L'URL reste celle du site : c'est elle qui fait les liens vers Jira.
+				JIRA_BASE_URL: "https://jira.example.test",
 			});
+		});
+
+		test("revenir au jeton simple masque le Cloud ID", async () => {
+			mockFetch({ ...routesDeBase, "GET /api/settings": jiraEnregistre });
+			render(<Settings />);
+			await screen.findByLabelText(/Base URL Jira/);
+
+			fireEvent.click(screen.getByLabelText(/Jeton d'API à périmètre/));
+			await screen.findByLabelText(/Cloud ID/);
+			fireEvent.click(screen.getByLabelText(/Jeton d'API simple/));
+
+			expect(screen.queryAllByLabelText(/Cloud ID/)).toHaveLength(0);
 		});
 
 		test("sans configuration enregistrée, le test est indisponible", async () => {

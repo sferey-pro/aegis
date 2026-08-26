@@ -686,10 +686,7 @@ describe("passerelle Atlassian (jeton à portées)", () => {
 		// Le défaut : la construction d'URL résolvait le chemin depuis la racine du
 		// domaine et effaçait `/ex/jira/<cloudId>`. L'appel partait vers
 		// `https://api.atlassian.com/rest/api/3/myself`, qui n'existe pas.
-		configurerJira({
-			JIRA_BASE_URL: "https://api.atlassian.com",
-			JIRA_CLOUD_ID: CLOUD,
-		});
+		configurerJira({ JIRA_TOKEN_KIND: "scoped", JIRA_CLOUD_ID: CLOUD });
 		stubJira({ body: { displayName: "Bot Aegis" } });
 
 		const { status } = await srv.json("/api/tickets/test-connection", {
@@ -705,7 +702,7 @@ describe("passerelle Atlassian (jeton à portées)", () => {
 	test("sans Cloud ID, le message dit quoi corriger et où le trouver", async () => {
 		// « URL Jira invalide » envoyait l'utilisateur modifier le bon champ pour la
 		// mauvaise raison.
-		configurerJira({ JIRA_BASE_URL: "https://api.atlassian.com" });
+		configurerJira({ JIRA_TOKEN_KIND: "scoped" });
 		stubJira({ body: { displayName: "Bot" } });
 
 		const { status, data } = await srv.json<{ error: string }>(
@@ -722,10 +719,7 @@ describe("passerelle Atlassian (jeton à portées)", () => {
 
 	test("la création de ticket passe aussi par la passerelle", async () => {
 		run([vuln()]);
-		configurerJira({
-			JIRA_BASE_URL: "https://api.atlassian.com",
-			JIRA_CLOUD_ID: CLOUD,
-		});
+		configurerJira({ JIRA_TOKEN_KIND: "scoped", JIRA_CLOUD_ID: CLOUD });
 		stubJira({ body: { key: "SEC-9" } });
 
 		await srv.json(
@@ -742,8 +736,8 @@ describe("passerelle Atlassian (jeton à portées)", () => {
 		);
 	});
 
-	test("un site classique n'est pas affecté par le Cloud ID", async () => {
-		// Le réglage peut rester renseigné après un changement d'URL : il ne doit
+	test("un jeton simple n'est pas affecté par le Cloud ID", async () => {
+		// Le réglage peut rester renseigné après un changement de type : il ne doit
 		// pas altérer un appel qui n'en a pas besoin.
 		configurerJira({ JIRA_CLOUD_ID: CLOUD });
 		stubJira({ body: { displayName: "Bot" } });

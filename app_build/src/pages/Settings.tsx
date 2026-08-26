@@ -13,7 +13,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { SnapshotInfo } from "@/db/backup";
 import type { ResetResult } from "@/db/reset";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
-import { estPasserelle } from "@/lib/jira/endpoint";
 import { errorMessage } from "@/lib/utils";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { SettingsSection } from "../components/organisms/SettingsSection";
@@ -28,6 +27,7 @@ const SECTIONS = {
 	audit: ["AUDIT_MAX_AGE_HOURS", "CRITICAL_ONLY", "DISABLE_CONSOLE"],
 	jira: [
 		"JIRA_BASE_URL",
+		"JIRA_TOKEN_KIND",
 		"JIRA_CLOUD_ID",
 		"JIRA_USER",
 		"JIRA_API_KEY",
@@ -55,6 +55,7 @@ export function Settings() {
 		JIRA_BASE_URL: "",
 		JIRA_USER: "",
 		JIRA_API_KEY: "",
+		JIRA_TOKEN_KIND: "classic",
 		JIRA_CLOUD_ID: "",
 		JIRA_PROJECT: "",
 		JIRA_COMPONENT: "",
@@ -173,6 +174,7 @@ export function Settings() {
 					JIRA_BASE_URL: data.JIRA_BASE_URL || "",
 					JIRA_USER: data.JIRA_USER || "",
 					JIRA_API_KEY: "",
+					JIRA_TOKEN_KIND: data.JIRA_TOKEN_KIND || "classic",
 					JIRA_CLOUD_ID: data.JIRA_CLOUD_ID || "",
 					JIRA_PROJECT: data.JIRA_PROJECT || "",
 					JIRA_COMPONENT: data.JIRA_COMPONENT || "",
@@ -775,7 +777,8 @@ export function Settings() {
 								Base URL Jira
 							</label>
 							<p className="text-sm text-muted-foreground mb-2">
-								Adresse de votre instance Jira (sans le /browse/).
+								Adresse de votre site, même avec un jeton à périmètre : elle
+								construit aussi les liens vers les tickets.
 							</p>
 							<Input
 								id="jira-base-url"
@@ -788,11 +791,61 @@ export function Settings() {
 							/>
 						</div>
 
-						{/* Cloud ID : requis **uniquement** sur `api.atlassian.com`, où un
-						    jeton à portées doit passer. Le champ n'apparaît que dans ce cas —
-						    l'afficher toujours ferait croire à une configuration obligatoire
-						    pour tout le monde. */}
-						{estPasserelle(settings.JIRA_BASE_URL) && (
+						{/* Type de jeton, **déclaré** et non déduit.
+						 *
+						 * Il décide seul du point d'entrée de l'API. L'inférer du nom d'hôte
+						 * de l'URL obligeait à y mettre `api.atlassian.com` — or cette valeur
+						 * construit aussi les liens /browse/<clé> des tickets, qui pointaient
+						 * alors vers la passerelle : des liens morts. */}
+						<div className="flex flex-col gap-2">
+							<span className="text-lg font-bold">Type de jeton</span>
+							<p className="text-sm text-muted-foreground mb-2">
+								Un jeton à périmètre s'authentifie auprès de la passerelle
+								Atlassian, pas de votre site : appelé sur le site, il est rejeté
+								par un 401 qui ne parle pourtant pas de droits.
+							</p>
+							<label
+								htmlFor="jira-token-classic"
+								className="flex items-center gap-3 cursor-pointer"
+							>
+								<input
+									id="jira-token-classic"
+									type="radio"
+									name="jira-token-kind"
+									value="classic"
+									checked={settings.JIRA_TOKEN_KIND !== "scoped"}
+									onChange={() =>
+										setSettings({ ...settings, JIRA_TOKEN_KIND: "classic" })
+									}
+								/>
+								<span className="text-sm font-medium">
+									Jeton d'API simple — appels sur votre site
+								</span>
+							</label>
+							<label
+								htmlFor="jira-token-scoped"
+								className="flex items-center gap-3 cursor-pointer"
+							>
+								<input
+									id="jira-token-scoped"
+									type="radio"
+									name="jira-token-kind"
+									value="scoped"
+									checked={settings.JIRA_TOKEN_KIND === "scoped"}
+									onChange={() =>
+										setSettings({ ...settings, JIRA_TOKEN_KIND: "scoped" })
+									}
+								/>
+								<span className="text-sm font-medium">
+									Jeton d'API à périmètre (<code>read:jira-user</code>,{" "}
+									<code>write:jira-work</code>…) — appels via la passerelle
+								</span>
+							</label>
+						</div>
+
+						{/* Cloud ID : requis par la passerelle, qui sert tous les tenants.
+						    Le champ n'apparaît donc que pour un jeton à périmètre. */}
+						{settings.JIRA_TOKEN_KIND === "scoped" && (
 							<div className="flex flex-col gap-2">
 								<label htmlFor="jira-cloud-id" className="text-lg font-bold">
 									Cloud ID

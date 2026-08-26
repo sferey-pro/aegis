@@ -58,6 +58,21 @@ Les deux dates sont exposées séparément, chacune nommée par sa source. Une s
 
 CVE disparue → occurrence disparue, annotation persistée, réapparaît si la CVE revient. Groupe sans référence (`ref = null`) → triable, mais la résolution GitHub échoue proprement. Réaudit ne touche jamais les annotations.
 
+## Recherche et filtres
+
+| Critère | Porté par | Nature |
+|---|---|---|
+| projet | `?project=` | égalité, posé par la navigation |
+| CVE | `?cve=` | **égalité**, posé par la navigation depuis un graphique |
+| recherche libre | `?q=` | **correspondance partielle**, saisie à la main |
+| masquer les traitées | état local | bascule « Zero-Inbox » |
+
+Les trois premiers vivent dans l'**URL** : ils se partagent par lien et survivent à un rechargement — on cherche une CVE précise pour la montrer à quelqu'un. `?q=` et `?cve=` se cumulent et ne se confondent pas : le premier cherche, le second cible.
+
+La recherche porte sur ce qui est **lu à l'écran** — référence (CVE ou GHSA), nom du paquet, titre de l'avis — sans distinction de casse. Elle est purement locale : les CVE affichées sont déjà toutes chargées, une requête serveur par frappe rendrait la saisie dépendante du réseau sans rien apporter.
+
+Tout changement de critère **renvoie à la première page**. Sans cela, chercher depuis la page 3 affiche une liste vide, ce qui se lit « aucun résultat » alors qu'il y en a.
+
 ---
 
 > [Index](../CONTEXT.md) · [← §6 — GitHub Advisory Database](06-advisories.md) · [§8 — Tickets Jira →](08-jira.md)

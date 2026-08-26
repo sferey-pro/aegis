@@ -4,8 +4,8 @@ Ce document est l'**inventaire** de ce qui est couvert. Pour les conventions et
 le fonctionnement du harnais, voir [`TESTING.md`](./TESTING.md).
 
 ```
-1504 tests · 0 échec · 105 fichiers
-├── 456 composants (52 fichiers) — DOM, React, fetch simulé
+1512 tests · 0 échec · 105 fichiers
+├── 464 composants (52 fichiers) — DOM, React, fetch simulé
 └── 1048 fonctionnels (53 fichiers) — vrai serveur, vraie base, vrai git
 ```
 

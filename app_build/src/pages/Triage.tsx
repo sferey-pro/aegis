@@ -4,6 +4,7 @@ import {
 	CloudDownload,
 	Info,
 	RefreshCw,
+	Search,
 	Shield,
 	X,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import type {
 	Toast,
 } from "../components/organisms/triage-types";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
 
 /**
@@ -81,6 +83,29 @@ export const Triage = React.memo(function Triage() {
 		? parseInt(searchParams.get("project") as string, 10)
 		: null;
 	const cveFilter = searchParams.get("cve");
+
+	/**
+	 * Recherche libre, portée par l'**URL** (`?q=`) comme le filtre par tag de la
+	 * page Projets. Un état local ne se partagerait pas par lien et ne survivrait
+	 * pas à un rechargement — or on cherche une CVE précise pour la montrer à
+	 * quelqu'un.
+	 *
+	 * À ne pas confondre avec `?cve=` : celui-ci est une **égalité** posée par la
+	 * navigation depuis un graphique, celle-là une correspondance partielle saisie
+	 * à la main. Les deux se cumulent.
+	 */
+	const query = searchParams.get("q") ?? "";
+	const setQuery = useCallback(
+		(valeur: string) => {
+			const params = new URLSearchParams(searchParams);
+			if (valeur) params.set("q", valeur);
+			else params.delete("q");
+			// `replace` : chercher n'est pas naviguer. Empiler une entrée
+			// d'historique par frappe rendrait le bouton « retour » inutilisable.
+			setSearchParams(params, { replace: true });
+		},
+		[searchParams, setSearchParams],
+	);
 
 	const onClearProject = () => {
 		const newParams = new URLSearchParams(searchParams);
@@ -169,12 +194,24 @@ export const Triage = React.memo(function Triage() {
 
 	const packageGroups = React.useMemo(() => {
 		const map = new Map<string, PackageGroup>();
+		// La recherche porte sur ce qu'on lit à l'écran — référence, paquet, titre —
+		// et non sur les identifiants internes.
+		const recherche = query.trim().toLowerCase();
+
 		cves.forEach((cveGroup) => {
 			if (cveFilter && cveGroup.cve !== cveFilter) return;
 
 			cveGroup.occurrences.forEach((occ) => {
 				if (projectId && occ.projectId !== projectId) return;
 				if (hideProcessed && occ.status !== "pending") return;
+				if (
+					recherche &&
+					![cveGroup.cve, cveGroup.ref, occ.package, occ.title].some((champ) =>
+						champ?.toLowerCase().includes(recherche),
+					)
+				) {
+					return;
+				}
 
 				const key = `${occ.projectId}::${occ.package}`;
 				let g = map.get(key);
@@ -249,7 +286,7 @@ export const Triage = React.memo(function Triage() {
 		return Array.from(map.values())
 			.filter((g) => g.cves.length > 0)
 			.sort((a, b) => b.projectName.localeCompare(a.projectName));
-	}, [cves, projectId, cveFilter, hideProcessed]);
+	}, [cves, projectId, cveFilter, hideProcessed, query]);
 
 	// Déclencheurs volontaires : le corps ne les lit pas, mais la pagination doit
 	// repartir à la première page quand un **critère de filtrage** change.
@@ -260,7 +297,7 @@ export const Triage = React.memo(function Triage() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: declencheurs volontaires
 	useEffect(() => {
 		setPage(1);
-	}, [projectId, cveFilter, hideProcessed]);
+	}, [projectId, cveFilter, hideProcessed, query]);
 
 	const totalPages = Math.ceil(packageGroups.length / itemsPerPage);
 
@@ -456,7 +493,21 @@ export const Triage = React.memo(function Triage() {
 						Jira.
 					</p>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-2 flex-wrap">
+					{/* Recherche libre. Purement locale : les CVE affichées sont déjà
+					    toutes chargées, une requête serveur par frappe n'apporterait
+					    rien et rendrait la saisie dépendante du réseau. */}
+					<div className="relative">
+						<Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+						<Input
+							type="search"
+							value={query}
+							onChange={(e) => setQuery(e.target.value)}
+							placeholder="Chercher une CVE, un paquet…"
+							aria-label="Chercher une CVE, un paquet ou un titre"
+							className="pl-9 w-full sm:w-72"
+						/>
+					</div>
 					<Button
 						variant="secondary"
 						onClick={handleEnrichAll}

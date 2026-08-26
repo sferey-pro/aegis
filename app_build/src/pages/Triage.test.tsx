@@ -88,6 +88,133 @@ describe("Triage", () => {
 		expect(urls).toContain("/api/settings");
 	});
 
+	describe("recherche", () => {
+		/** Deux paquets, deux CVE : de quoi vérifier qu'on filtre et non qu'on trie. */
+		const deux = [
+			groupe({
+				cve: "CVE-2024-1",
+				ref: "CVE-2024-1",
+				occurrences: [occ({ package: "lodash", title: "Prototype pollution" })],
+			}),
+			groupe({
+				cve: "GHSA-aaaa-bbbb-cccc",
+				ref: "GHSA-aaaa-bbbb-cccc",
+				occurrences: [
+					occ({ package: "hono", title: "CORS reflète l'origine" }),
+				],
+			}),
+		];
+
+		test("une référence de CVE filtre la liste", async () => {
+			mockFetch({ ...base, "GET /api/cves": deux });
+			monte();
+			await screen.findByText("lodash");
+
+			fireEvent.change(screen.getByLabelText(/Chercher une CVE/), {
+				target: { value: "GHSA-aaaa" },
+			});
+
+			expect(await screen.findByText("hono")).toBeInTheDocument();
+			expect(screen.queryAllByText("lodash")).toHaveLength(0);
+		});
+
+		test("la recherche ne dépend pas de la casse", async () => {
+			mockFetch({ ...base, "GET /api/cves": deux });
+			monte();
+			await screen.findByText("lodash");
+
+			fireEvent.change(screen.getByLabelText(/Chercher une CVE/), {
+				target: { value: "cve-2024-1" },
+			});
+
+			expect(await screen.findByText("lodash")).toBeInTheDocument();
+			expect(screen.queryAllByText("hono")).toHaveLength(0);
+		});
+
+		test("un nom de paquet filtre aussi", async () => {
+			// On cherche « une CVE en particulier », mais on la connaît souvent par
+			// son paquet : refuser ce cas obligerait à connaître la référence par
+			// cœur.
+			mockFetch({ ...base, "GET /api/cves": deux });
+			monte();
+			await screen.findByText("lodash");
+
+			fireEvent.change(screen.getByLabelText(/Chercher une CVE/), {
+				target: { value: "hono" },
+			});
+
+			expect(await screen.findByText("hono")).toBeInTheDocument();
+			expect(screen.queryAllByText("lodash")).toHaveLength(0);
+		});
+
+		test("un titre filtre aussi", async () => {
+			mockFetch({ ...base, "GET /api/cves": deux });
+			monte();
+			await screen.findByText("lodash");
+
+			fireEvent.change(screen.getByLabelText(/Chercher une CVE/), {
+				target: { value: "prototype" },
+			});
+
+			expect(await screen.findByText("lodash")).toBeInTheDocument();
+			expect(screen.queryAllByText("hono")).toHaveLength(0);
+		});
+
+		test("la recherche est portée par l'URL", async () => {
+			// Elle se partage par lien et survit à un rechargement — on cherche une
+			// CVE précise pour la montrer à quelqu'un.
+			mockFetch({ ...base, "GET /api/cves": deux });
+			monte("/triage?q=hono");
+
+			expect(await screen.findByText("hono")).toBeInTheDocument();
+			expect(screen.queryAllByText("lodash")).toHaveLength(0);
+			expect(screen.getByLabelText(/Chercher une CVE/)).toHaveValue("hono");
+		});
+
+		test("une recherche sans résultat ne laisse aucune ligne", async () => {
+			mockFetch({ ...base, "GET /api/cves": deux });
+			monte();
+			await screen.findByText("lodash");
+
+			fireEvent.change(screen.getByLabelText(/Chercher une CVE/), {
+				target: { value: "introuvable-xyz" },
+			});
+
+			await waitFor(() => {
+				expect(screen.queryAllByText("lodash")).toHaveLength(0);
+			});
+			expect(screen.queryAllByText("hono")).toHaveLength(0);
+		});
+
+		test("vider la recherche rend toute la liste", async () => {
+			mockFetch({ ...base, "GET /api/cves": deux });
+			monte("/triage?q=hono");
+			await screen.findByText("hono");
+
+			fireEvent.change(screen.getByLabelText(/Chercher une CVE/), {
+				target: { value: "" },
+			});
+
+			expect(await screen.findByText("lodash")).toBeInTheDocument();
+			expect(screen.getByText("hono")).toBeInTheDocument();
+		});
+
+		test("la recherche renvoie à la première page", async () => {
+			// Sans cela, chercher depuis la page 3 affiche une liste vide — ce qui se
+			// lit « aucun résultat » alors qu'il y en a.
+			mockFetch({ ...base, "GET /api/cves": beaucoup(30) });
+			monte();
+			await screen.findByText("pkg-0");
+
+			fireEvent.click(screen.getByRole("button", { name: "Page suivante" }));
+			fireEvent.change(screen.getByLabelText(/Chercher une CVE/), {
+				target: { value: "pkg-1" },
+			});
+
+			expect(await screen.findByText("pkg-1")).toBeInTheDocument();
+		});
+	});
+
 	describe("dates GHSA et Aegis", () => {
 		const jour = (iso: string) => new Date(iso).toLocaleDateString();
 

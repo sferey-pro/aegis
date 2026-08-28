@@ -112,10 +112,6 @@ function configurerJira(over: Record<string, string> = {}) {
 		JIRA_USER: "bot@example.test",
 		JIRA_API_KEY: "cle",
 		JIRA_PROJECT: "SEC",
-		// Nom **localisé** volontairement : les types d'issue sont traduits par
-		// instance, et « Task » n'existe pas sur un projet français. Il n'y a donc
-		// plus de valeur par défaut côté serveur.
-		JIRA_ISSUE_TYPE: "Tâche",
 		...over,
 	};
 	for (const [k, v] of Object.entries(valeurs)) setSetting(k, v);
@@ -310,6 +306,9 @@ describe("POST /api/tickets/create — Jira", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
+				// Le type vient du corps, comme depuis la modale : il n'y a plus de
+				// réglage global, et un nom **localisé** est la règle, pas l'exception.
+				issueType: "Tâche",
 				...over,
 			}),
 		);
@@ -327,16 +326,15 @@ describe("POST /api/tickets/create — Jira", () => {
 	});
 
 	test("sans type de ticket, aucun appel ne part", async () => {
-		// Les noms de types sont **localisés par instance** : « Task » n'existe pas
-		// sur un projet français, qui expose « Tâche », « Dette Technique », « Bug ».
-		// Le repli silencieux sur « Task » produisait un 400 de Jira **après** une
-		// tentative d'écriture, sur un champ que l'écran présentait comme
-		// facultatif. Constaté sur une instance réelle.
+		// Refus **avant** l'appel : Jira répondrait « Spécifiez un type de ticket
+		// valide », un message que l'utilisateur ne peut pas relier au champ de la
+		// modale. Constaté sur une instance réelle, avec l'ancien repli sur « Task »
+		// — un nom qui n'existe pas sur un projet français.
 		run([vuln()]);
-		configurerJira({ JIRA_ISSUE_TYPE: "" });
+		configurerJira();
 		stubJira({ body: { key: "SEC-1" } });
 
-		const { status, data } = await creer();
+		const { status, data } = await creer({ issueType: "" });
 
 		expect(status).toBe(400);
 		expect(data.error).toContain("type de ticket");
@@ -400,10 +398,10 @@ describe("POST /api/tickets/create — Jira", () => {
 
 	test("le type localisé part tel quel", async () => {
 		run([vuln()]);
-		configurerJira({ JIRA_ISSUE_TYPE: "Dette Technique" });
+		configurerJira();
 		stubJira({ body: { key: "SEC-2" } });
 
-		await creer();
+		await creer({ issueType: "Dette Technique" });
 
 		const charge = JSON.parse(String(appelsJira[0]?.init?.body)) as {
 			fields: { issuetype: { name: string } };
@@ -492,13 +490,10 @@ describe("POST /api/tickets/create — Jira", () => {
 		expect(sans.fields).not.toHaveProperty("components");
 
 		appelsJira.length = 0;
-		configurerJira({
-			JIRA_PARENT_EPIC: "SEC-1",
-			JIRA_COMPONENT: "10001",
-			JIRA_ISSUE_TYPE: "Bug",
-		});
+		configurerJira({ JIRA_PARENT_EPIC: "SEC-1", JIRA_COMPONENT: "10001" });
 		stubJira({ body: { key: "SEC-2" } });
-		await creer({ packageName: "lodash" });
+		// Le type accompagne le ticket, plus les réglages.
+		await creer({ packageName: "lodash", issueType: "Bug" });
 		const avec = JSON.parse(appelsJira[0]?.init?.body as string) as {
 			fields: {
 				parent: { key: string };
@@ -664,6 +659,7 @@ describe("traçabilité dans la console (§11)", () => {
 					projectId: projet.id,
 					packageName: "lodash",
 					cves: ["CVE-2020-8203"],
+					issueType: "Tâche",
 				}),
 			);
 		} finally {
@@ -689,6 +685,7 @@ describe("traçabilité dans la console (§11)", () => {
 					projectId: projet.id,
 					packageName: "lodash",
 					cves: ["CVE-2020-8203"],
+					issueType: "Tâche",
 				}),
 			);
 		} finally {
@@ -712,6 +709,7 @@ describe("traçabilité dans la console (§11)", () => {
 					projectId: projet.id,
 					packageName: "lodash",
 					cves: ["CVE-2020-8203"],
+					issueType: "Tâche",
 				}),
 			);
 		} finally {
@@ -742,6 +740,7 @@ describe("traçabilité dans la console (§11)", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
+				issueType: "Tâche",
 			}),
 		);
 
@@ -764,6 +763,7 @@ describe("traçabilité dans la console (§11)", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
+				issueType: "Tâche",
 			}),
 		);
 		expect(status).toBe(502);
@@ -819,6 +819,7 @@ describe("passerelle Atlassian (jeton à portées)", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
+				issueType: "Tâche",
 			}),
 		);
 
@@ -920,11 +921,11 @@ describe("GET /api/tickets/issue-types", () => {
 		expect(data.raison).toContain("read:jira-work");
 	});
 
-	test("le type choisi par ticket l'emporte sur le réglage", async () => {
+	test("le type du corps est celui envoyé à Jira", async () => {
 		// Une dette technique et un bug ne se rangent pas au même endroit : c'est une
-		// décision par ticket, le réglage restant le défaut.
+		// décision par ticket, prise dans la modale.
 		run([vuln()]);
-		configurerJira({ JIRA_ISSUE_TYPE: "Tâche" });
+		configurerJira();
 		stubJira({ body: { key: "SEC-12" } });
 
 		await srv.json(
@@ -943,12 +944,15 @@ describe("GET /api/tickets/issue-types", () => {
 		expect(charge.fields.issuetype.name).toBe("Dette Technique");
 	});
 
-	test("un type vide retombe sur le réglage", async () => {
+	test("un type fait d'espaces est refusé, sans appel", async () => {
+		// Il n'y a **plus de repli** : le réglage global a été retiré, un nom
+		// enregistré une fois pour toutes se périmant au premier changement de
+		// projet.
 		run([vuln()]);
-		configurerJira({ JIRA_ISSUE_TYPE: "Tâche" });
+		configurerJira();
 		stubJira({ body: { key: "SEC-13" } });
 
-		await srv.json(
+		const { status } = await srv.json(
 			"/api/tickets/create",
 			jsonBody({
 				projectId: projet.id,
@@ -958,10 +962,8 @@ describe("GET /api/tickets/issue-types", () => {
 			}),
 		);
 
-		const charge = JSON.parse(String(appelsJira[0]?.init?.body)) as {
-			fields: { issuetype: { name: string } };
-		};
-		expect(charge.fields.issuetype.name).toBe("Tâche");
+		expect(status).toBe(400);
+		expect(appelsJira).toHaveLength(0);
 	});
 });
 

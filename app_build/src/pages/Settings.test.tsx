@@ -392,18 +392,16 @@ describe("Settings", () => {
 		expect(await screen.findByLabelText(/Cache d'Audit/)).toHaveValue(24);
 	});
 
-	test("le type de ticket n'a **pas** de défaut", async () => {
-		// Les noms de types d'issue sont localisés par instance : un projet français
-		// expose « Tâche », « Dette Technique », « Bug » — et « Task », l'ancien
-		// repli, n'y existe pas. Il n'y a donc pas de valeur par défaut raisonnable,
-		// et proposer la mauvaise coûtait un 400 de Jira après une tentative
-		// d'écriture.
-		mockFetch({ ...routesDeBase, "GET /api/settings": {} });
+	test("le type de ticket ne figure plus dans les réglages", async () => {
+		// Il se choisit **dans la modale de création**, depuis la liste lue chez Jira.
+		// Un réglage global se périmait au premier changement de projet, et la saisie
+		// libre qu'il supposait produisait « Spécifiez un type de ticket valide »
+		// après une tentative d'écriture.
+		mockFetch({ ...routesDeBase, "GET /api/settings": reglages });
 		render(<Settings />);
+		await screen.findByLabelText(/Base URL Jira/);
 
-		const champ = await screen.findByLabelText(/Type de ticket/);
-		expect(champ).toHaveValue("");
-		expect(champ).toHaveAttribute("placeholder", "Tâche");
+		expect(screen.queryAllByLabelText(/Type de ticket/)).toHaveLength(0);
 	});
 
 	/**

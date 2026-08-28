@@ -17,6 +17,35 @@ const ROUTE_TYPES = {
 /** Seules les créations : la lecture des types s'ajoute à chaque montage. */
 const posts = () => fetchCalls().filter((c) => c.method === "POST");
 
+/**
+ * Attend que la liste des types soit lue, comme l'utilisateur qui lit la modale.
+ *
+ * Le bouton de création est inactif tant qu'aucun type n'est choisi : cliquer
+ * avant la fin de la lecture ne déclencherait rien, et le test échouerait sur un
+ * compte d'appels à zéro sans dire pourquoi.
+ */
+async function attendreTypes(attendu = "Tâche") {
+	await waitFor(() => {
+		expect(screen.getByRole("combobox")).toHaveTextContent(attendu);
+	});
+}
+
+/**
+ * Choisit une option dans l'atome `Select` (Radix).
+ *
+ * ⚠️ Ce n'est pas un `<select>` natif : `fireEvent.change` n'a aucun effet, et
+ * `click` sur le déclencheur non plus. C'est **`pointerDown`** qui ouvre la
+ * liste sous happy-dom — vérifié — puis l'option se clique par son rôle.
+ */
+function choisirType(nom: string) {
+	fireEvent.pointerDown(screen.getByRole("combobox"), {
+		button: 0,
+		ctrlKey: false,
+		pointerType: "mouse",
+	});
+	fireEvent.click(screen.getByRole("option", { name: nom }));
+}
+
 import { TicketModal } from "./TicketModal";
 import type {
 	PackageGroup,
@@ -146,16 +175,11 @@ describe("TicketModal", () => {
 		const { props: p } = props();
 		render(<TicketModal {...p} />);
 
-		// Attendre que la liste des types soit lue, comme le fait l'utilisateur qui
-		// lit la modale avant de cliquer. Cliquer avant enverrait un type vide, et le
-		// serveur retomberait sur le réglage enregistré — c'est le repli prévu, mais
-		// ce n'est pas ce que ce test décrit.
-		await waitFor(() => {
-			expect(screen.getByLabelText(/Type de ticket/)).toHaveValue("Tâche");
-		});
+		await attendreTypes();
 		fireEvent.change(screen.getByLabelText(/Notes additionnelles/), {
 			target: { value: "Exposé publiquement" },
 		});
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
@@ -180,6 +204,7 @@ describe("TicketModal", () => {
 		});
 		const { props: p, appels } = props();
 		render(<TicketModal {...p} />);
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
@@ -202,6 +227,7 @@ describe("TicketModal", () => {
 		});
 		const { props: p, appels } = props();
 		render(<TicketModal {...p} />);
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
@@ -221,6 +247,7 @@ describe("TicketModal", () => {
 		});
 		const { props: p, appels } = props();
 		render(<TicketModal {...p} />);
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
@@ -342,6 +369,7 @@ describe("TicketModal", () => {
 			appels,
 		);
 		rerender(<TicketModal {...suivant.props} />);
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => expect(posts()).toHaveLength(1));
@@ -365,11 +393,13 @@ describe("TicketModal — type de ticket", () => {
 		const { props: p } = props();
 		render(<TicketModal {...p} />);
 
-		// Requête refaite dans l'attente : le champ **change de nature** quand la
-		// liste arrive — saisie libre avant, liste déroulante après — donc une
-		// référence capturée avant est détachée du document.
-		await waitFor(() => {
-			expect(screen.getByLabelText(/Type de ticket/)).toHaveValue("Tâche");
+		await attendreTypes();
+		// La liste s'ouvre pour montrer qu'elle porte bien les types de l'instance,
+		// et non une constante du dépôt.
+		fireEvent.pointerDown(screen.getByRole("combobox"), {
+			button: 0,
+			ctrlKey: false,
+			pointerType: "mouse",
 		});
 		expect(
 			screen.getByRole("option", { name: "Dette Technique" }),
@@ -385,13 +415,11 @@ describe("TicketModal — type de ticket", () => {
 		});
 		const { props: p } = props();
 		render(<TicketModal {...p} />);
-		await waitFor(() => {
-			expect(screen.getByLabelText(/Type de ticket/)).toHaveValue("Tâche");
-		});
+		await attendreTypes();
 
-		fireEvent.change(screen.getByLabelText(/Type de ticket/), {
-			target: { value: "Dette Technique" },
-		});
+		choisirType("Dette Technique");
+		// Le déclencheur porte désormais le nouveau choix.
+		await attendreTypes("Dette Technique");
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
@@ -401,8 +429,8 @@ describe("TicketModal — type de ticket", () => {
 	});
 
 	test("liste indisponible : saisie libre, et la création reste possible", async () => {
-		// La liste est un confort. Son absence — portée manquante, réseau — ne doit
-		// pas empêcher de créer un ticket avec le réglage enregistré.
+		// La liste est un confort : son absence — portée manquante, réseau — ne doit
+		// pas empêcher de créer un ticket, mais le type reste requis.
 		mockFetch({
 			"GET /api/tickets/issue-types": {
 				types: [],
@@ -421,11 +449,17 @@ describe("TicketModal — type de ticket", () => {
 			expect(screen.getByText(/Liste non lue depuis Jira/)).toBeInTheDocument();
 		});
 
+		// Le type est requis et n'a plus de repli côté serveur : le bouton reste
+		// inactif tant que rien n'est saisi.
+		expect(
+			screen.getByRole("button", { name: /Créer dans Jira/ }),
+		).toBeDisabled();
+
+		fireEvent.change(champ, { target: { value: "Dette Technique" } });
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 		await waitFor(() => {
 			expect(posts()).toHaveLength(1);
 		});
-		// Type vide : le serveur retombe sur le réglage enregistré.
-		expect(posts()[0]?.body).toMatchObject({ issueType: "" });
+		expect(posts()[0]?.body).toMatchObject({ issueType: "Dette Technique" });
 	});
 });

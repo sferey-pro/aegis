@@ -44,7 +44,11 @@ Réglages lus **en base** : `JIRA_BASE_URL`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_
 
 ## Choix du type de ticket (`GET /api/tickets/issue-types`)
 
-Le type se choisit **dans la modale de création**, par une liste déroulante, et non plus seulement dans les réglages : une dette technique et un bug ne se rangent pas au même endroit. Le réglage `JIRA_ISSUE_TYPE` reste le **défaut** ; le choix par ticket l'emporte.
+Le type se choisit **dans la modale de création**, par une liste déroulante, et **nulle part ailleurs** : le réglage `JIRA_ISSUE_TYPE` a été retiré. Une valeur enregistrée une fois pour toutes se périmait au premier changement de projet, et la saisie libre qu'elle supposait produisait « Spécifiez un type de ticket valide » **après** une tentative d'écriture. Une dette technique et un bug ne se rangent pas au même endroit : c'est une décision par ticket.
+
+Le type est donc **requis dans le corps de la requête**. Sans lui, refus en 400 avant tout appel — et le bouton de création reste inactif tant que rien n'est choisi, ce qui dit « il manque quelque chose ici » plutôt que de laisser partir un appel voué au refus.
+
+La liste déroulante est l'atome `Select` du dépôt (Radix), pas un `<select>` natif : c'est lui qui porte les tokens de thème et le comportement clavier (défaut N27, « design system contourné »).
 
 La liste est **lue dans Jira**, jamais codée en dur : `GET /rest/api/3/issue/createmeta?projectKeys=<clé>` — lecture seule, portée `read:jira-work`, ne crée rien. Une liste en dur serait fausse sur toute instance dont la langue diffère.
 

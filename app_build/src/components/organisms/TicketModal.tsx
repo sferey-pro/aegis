@@ -10,6 +10,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "../ui/dialog";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import type { TicketModalState, Toast } from "./triage-types";
 
@@ -100,18 +107,21 @@ function FormulaireTicket({
 						Type de ticket
 					</label>
 					{types.length > 0 ? (
-						<select
-							id="ticket-issue-type"
-							value={typeChoisi}
-							onChange={(e) => setTypeChoisi(e.target.value)}
-							className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
-						>
-							{types.map((t) => (
-								<option key={t} value={t}>
-									{t}
-								</option>
-							))}
-						</select>
+						// L'atome Radix du dépôt, pas un `<select>` natif : c'est lui qui
+						// porte les tokens de thème et le comportement clavier (défaut N27,
+						// « design system contourné »).
+						<Select value={typeChoisi} onValueChange={setTypeChoisi}>
+							<SelectTrigger id="ticket-issue-type" className="w-full">
+								<SelectValue placeholder="Choisissez un type" />
+							</SelectTrigger>
+							<SelectContent>
+								{types.map((t) => (
+									<SelectItem key={t} value={t}>
+										{t}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					) : (
 						<>
 							{/* Repli : la liste vient de Jira, et son absence ne doit pas
@@ -121,13 +131,14 @@ function FormulaireTicket({
 								type="text"
 								value={typeChoisi}
 								onChange={(e) => setTypeChoisi(e.target.value)}
-								placeholder="Laisser vide pour utiliser le réglage enregistré"
+								placeholder="Nom exact du type, ex. Tâche"
 								className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
 							/>
 							{typesIndisponibles && (
 								<p className="mt-1 text-xs text-muted-foreground">
-									Liste non lue depuis Jira{" "}
-									{typesIndisponibles ? `— ${typesIndisponibles}` : ""}
+									Liste non lue depuis Jira
+									{typesIndisponibles ? ` — ${typesIndisponibles}` : ""}.
+									Saisissez le nom exact tel que votre projet l'expose.
 								</p>
 							)}
 						</>
@@ -230,7 +241,10 @@ function FormulaireTicket({
 							setCreating(false);
 						}
 					}}
-					disabled={creating}
+					// Le type est requis et n'a plus de repli côté serveur : le bouton
+					// inactif dit « il manque quelque chose ici », au lieu de laisser
+					// partir un appel que Jira refuserait.
+					disabled={creating || typeChoisi.trim() === ""}
 					className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
 				>
 					{creating ? (

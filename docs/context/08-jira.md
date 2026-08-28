@@ -36,6 +36,10 @@ Un jeton portant seulement `read:jira-user` passe donc le test de connexion et �
 
 Construit un document **ADF** et appelle l'API Jira v3 avec un en-tête `Authorization: Basic`. Champs envoyés : `project.key`, `summary` (`[Aegis] Remédiation <paquet>`), `description` (ADF), `issuetype.name`, plus `parent.key` et `components[]` s'ils sont configurés.
 
+⚠️ **Le nom du type d'issue n'a pas de valeur par défaut**, et c'est délibéré : ces noms sont **localisés par instance**. Un projet français expose « Tâche », « Dette Technique », « Bug », « Story » — et « Task » n'y existe pas. Le repli silencieux sur `"Task"` produisait donc un **400 de Jira après une tentative d'écriture**, sur un champ que l'écran présentait comme facultatif. La configuration est refusée avant l'appel, en nommant le champ manquant.
+
+Corollaire : la liste des types valides d'un projet se lit sans rien créer, par `GET /rest/api/3/issue/createmeta?projectKeys=<clé>&expand=projects.issuetypes.fields`. Elle donne aussi les champs **obligatoires** de chaque type — dont `parent`, requis pour les sous-tâches et optionnel pour les autres.
+
 Réglages lus **en base** : `JIRA_BASE_URL`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_ISSUE_TYPE`, `JIRA_COMPONENT`, `JIRA_PARENT_EPIC`, et le secret `JIRA_API_KEY`.
 
 ## Garde anti-doublon

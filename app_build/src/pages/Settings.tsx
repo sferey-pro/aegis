@@ -59,7 +59,7 @@ export function Settings() {
 		JIRA_CLOUD_ID: "",
 		JIRA_PROJECT: "",
 		JIRA_COMPONENT: "",
-		JIRA_ISSUE_TYPE: "Task",
+		JIRA_ISSUE_TYPE: "",
 		JIRA_PARENT_EPIC: "",
 		GITHUB_RL_LIMIT: "",
 		GITHUB_RL_REMAINING: "",
@@ -178,7 +178,7 @@ export function Settings() {
 					JIRA_CLOUD_ID: data.JIRA_CLOUD_ID || "",
 					JIRA_PROJECT: data.JIRA_PROJECT || "",
 					JIRA_COMPONENT: data.JIRA_COMPONENT || "",
-					JIRA_ISSUE_TYPE: data.JIRA_ISSUE_TYPE || "Task",
+					JIRA_ISSUE_TYPE: data.JIRA_ISSUE_TYPE || "",
 					JIRA_PARENT_EPIC: data.JIRA_PARENT_EPIC || "",
 					GITHUB_RL_LIMIT: data.GITHUB_RL_LIMIT || "",
 					GITHUB_RL_REMAINING: data.GITHUB_RL_REMAINING || "",
@@ -939,8 +939,16 @@ export function Settings() {
 							</div>
 							<div className="flex flex-col gap-2">
 								<label htmlFor="jira-issue-type" className="text-sm font-bold">
-									Type de ticket (Optionnel)
+									Type de ticket
 								</label>
+								{/* Les noms de types sont **localisés par instance** : un projet
+								    français expose « Tâche », « Dette Technique », « Bug »… et
+								    « Task » n'y existe pas. Il n'y a donc pas de valeur par
+								    défaut raisonnable, et le nom doit correspondre exactement. */}
+								<p className="text-xs text-muted-foreground">
+									Nom exact, tel que votre projet l'expose — souvent traduit («
+									Tâche », « Dette Technique »).
+								</p>
 								<Input
 									id="jira-issue-type"
 									type="text"
@@ -951,7 +959,7 @@ export function Settings() {
 											JIRA_ISSUE_TYPE: e.target.value,
 										})
 									}
-									placeholder="Task ou Bug"
+									placeholder="Tâche"
 								/>
 							</div>
 							<div className="flex flex-col gap-2">

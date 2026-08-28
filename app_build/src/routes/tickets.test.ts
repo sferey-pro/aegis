@@ -112,6 +112,10 @@ function configurerJira(over: Record<string, string> = {}) {
 		JIRA_USER: "bot@example.test",
 		JIRA_API_KEY: "cle",
 		JIRA_PROJECT: "SEC",
+		// Nom **localisé** volontairement : les types d'issue sont traduits par
+		// instance, et « Task » n'existe pas sur un projet français. Il n'y a donc
+		// plus de valeur par défaut côté serveur.
+		JIRA_ISSUE_TYPE: "Tâche",
 		...over,
 	};
 	for (const [k, v] of Object.entries(valeurs)) setSetting(k, v);
@@ -322,6 +326,36 @@ describe("POST /api/tickets/create — Jira", () => {
 		expect((await creer()).status).toBe(400);
 	});
 
+	test("sans type de ticket, aucun appel ne part", async () => {
+		// Les noms de types sont **localisés par instance** : « Task » n'existe pas
+		// sur un projet français, qui expose « Tâche », « Dette Technique », « Bug ».
+		// Le repli silencieux sur « Task » produisait un 400 de Jira **après** une
+		// tentative d'écriture, sur un champ que l'écran présentait comme
+		// facultatif. Constaté sur une instance réelle.
+		run([vuln()]);
+		configurerJira({ JIRA_ISSUE_TYPE: "" });
+		stubJira({ body: { key: "SEC-1" } });
+
+		const { status, data } = await creer();
+
+		expect(status).toBe(400);
+		expect(data.error).toContain("type de ticket");
+		expect(appelsJira).toHaveLength(0);
+	});
+
+	test("le type localisé part tel quel", async () => {
+		run([vuln()]);
+		configurerJira({ JIRA_ISSUE_TYPE: "Dette Technique" });
+		stubJira({ body: { key: "SEC-2" } });
+
+		await creer();
+
+		const charge = JSON.parse(String(appelsJira[0]?.init?.body)) as {
+			fields: { issuetype: { name: string } };
+		};
+		expect(charge.fields.issuetype.name).toBe("Dette Technique");
+	});
+
 	test("la configuration est vérifiée avant tout appel sortant", async () => {
 		// Inutile de joindre Jira sans identifiants, et le message doit rester une
 		// consigne de configuration, pas une erreur HTTP.
@@ -384,7 +418,7 @@ describe("POST /api/tickets/create — Jira", () => {
 		expect(charge.fields.project.key).toBe("SEC");
 		expect(charge.fields.summary).toBe("[Aegis] Remédiation lodash");
 		// Type d'issue par défaut quand le réglage est absent.
-		expect(charge.fields.issuetype.name).toBe("Task");
+		expect(charge.fields.issuetype.name).toBe("Tâche");
 		expect(charge.fields.description.type).toBe("doc");
 		expect(JSON.stringify(charge.fields.description)).toContain(
 			"CVE-2020-8203",

@@ -117,14 +117,22 @@ export const ticketsRoutes = {
 			const apiKey = getSetting("JIRA_API_KEY", process.env.JIRA_API_KEY ?? "");
 			const project = getSetting("JIRA_PROJECT", "");
 			const component = getSetting("JIRA_COMPONENT", "");
-			const issueType = getSetting("JIRA_ISSUE_TYPE", "Task");
+			// **Aucun défaut.** `"Task"` était la valeur de repli, or les noms de
+			// types d'issue sont **localisés par instance** : un projet français
+			// expose « Tâche », « Bug », « Dette Technique »… et `"Task"` n'y existe
+			// pas. Le repli produisait donc un 400 de Jira après une tentative
+			// d'écriture, sur une configuration que l'écran présentait comme
+			// facultative. Constaté sur une instance réelle.
+			const issueType = getSetting("JIRA_ISSUE_TYPE", "").trim();
 			const parentEpic = getSetting("JIRA_PARENT_EPIC", "");
 
-			if (!user || !apiKey || !project) {
+			if (!user || !apiKey || !project || !issueType) {
+				// Le type figure dans la liste : le nommer évite de découvrir son
+				// absence au retour de Jira, une fois l'appel parti.
 				return Response.json(
 					{
 						error:
-							"Veuillez configurer l'utilisateur, la clé d'API et le projet Jira dans les Paramètres.",
+							"Veuillez configurer l'utilisateur, la clé d'API, le projet et le type de ticket Jira dans les Paramètres.",
 					},
 					{ status: 400 },
 				);

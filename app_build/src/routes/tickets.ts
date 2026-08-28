@@ -17,6 +17,11 @@ import {
 	jiraEndpoint,
 	normaliseTokenKind,
 } from "@/lib/jira/endpoint";
+import {
+	AIDE_TYPE_DE_TICKET,
+	formatJiraError,
+	refusSurTypeDeTicket,
+} from "@/lib/jira/errors";
 import type {
 	JiraCreatedIssue,
 	JiraCurrentUser,
@@ -319,12 +324,17 @@ export const ticketsRoutes = {
 					exitCode: response.status,
 					ok: false,
 					ms: Date.now() - debut,
+					// La console garde le corps **brut** : c'est la trace technique.
 					errorText,
 				});
-				return Response.json(
-					{ error: `Erreur Jira: ${response.status} ${errorText}` },
-					{ status: response.status },
-				);
+				// L'interface, elle, reçoit une phrase. Le corps d'erreur de Jira est un
+				// `ErrorCollection` qui nomme le champ fautif ; le recopier tel quel
+				// affichait du JSON à l'utilisateur, avec le message utile noyé dedans.
+				let message = formatJiraError(response.status, errorText);
+				if (refusSurTypeDeTicket(errorText)) {
+					message = `${message}. ${AIDE_TYPE_DE_TICKET}`;
+				}
+				return Response.json({ error: message }, { status: response.status });
 			}
 
 			const data = (await response.json()) as JiraCreatedIssue;

@@ -343,6 +343,61 @@ describe("POST /api/tickets/create — Jira", () => {
 		expect(appelsJira).toHaveLength(0);
 	});
 
+	test("un refus de Jira arrive en phrase, pas en JSON", async () => {
+		// Ce que l'utilisateur voyait : `Erreur Jira: 400 {"errorMessages":[],
+		// "errors":{"issuetype":"Spécifiez un type de ticket valide"}}`. Le message
+		// utile y était, noyé. `errors` nomme le champ fautif — c'est l'information
+		// la plus précieuse d'un échec de création.
+		run([vuln()]);
+		configurerJira();
+		stubJira({
+			status: 400,
+			text: JSON.stringify({
+				errorMessages: [],
+				errors: { issuetype: "Spécifiez un type de ticket valide" },
+			}),
+		});
+
+		const { status, data } = await creer();
+
+		expect(status).toBe(400);
+		expect(data.error).toContain("issuetype");
+		expect(data.error).toContain("Spécifiez un type de ticket valide");
+		expect(data.error).not.toContain("errorMessages");
+		// Aide spécifique : Jira ne dit pas que le nom du type est traduit.
+		expect(data.error).toContain("localisé");
+	});
+
+	test("la console garde le corps brut du refus", async () => {
+		// L'interface reçoit une phrase, la trace technique reste entière.
+		run([vuln()]);
+		configurerJira();
+		const corps = JSON.stringify({ errors: { project: "Projet inconnu" } });
+		stubJira({ status: 400, text: corps });
+
+		const { vus, arret } = (() => {
+			const vus: ConsoleEvent[] = [];
+			const client = {
+				enqueue(payload: string) {
+					for (const ligne of payload.split("\n")) {
+						if (ligne.startsWith("data: "))
+							vus.push(JSON.parse(ligne.slice(6)));
+					}
+				},
+			} as unknown as ReadableStreamDefaultController<string>;
+			addConsoleClient(client);
+			return { vus, arret: () => removeConsoleClient(client) };
+		})();
+		try {
+			await creer();
+		} finally {
+			arret();
+		}
+
+		const fin = vus.find((e) => e.phase === "end" && e.errorText);
+		expect(fin?.errorText).toBe(corps);
+	});
+
 	test("le type localisé part tel quel", async () => {
 		run([vuln()]);
 		configurerJira({ JIRA_ISSUE_TYPE: "Dette Technique" });
@@ -535,7 +590,9 @@ describe("POST /api/tickets/create — Jira", () => {
 
 		const { status, data } = await creer();
 		expect(status).toBe(403);
-		expect(data.error).toContain("Erreur Jira: 403");
+		// Le statut reste dans le message — c'est ce qui distingue un refus de
+		// permission d'une panne. Le corps non-JSON est conservé, tronqué.
+		expect(data.error).toContain("403");
 		expect(data.error).toContain("Forbidden");
 	});
 

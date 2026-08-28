@@ -42,6 +42,26 @@ Corollaire : la liste des types valides d'un projet se lit sans rien créer, par
 
 Réglages lus **en base** : `JIRA_BASE_URL`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_ISSUE_TYPE`, `JIRA_COMPONENT`, `JIRA_PARENT_EPIC`, et le secret `JIRA_API_KEY`.
 
+## Refus de Jira, rendus lisibles
+
+Le corps d'erreur de l'API est un `ErrorCollection` : une liste de messages généraux, et une **liste indexée par champ**. C'est la seconde qui compte — elle nomme exactement le champ à corriger.
+
+Aegis le recopiait brut dans l'interface :
+
+```
+Erreur Jira: 400 {"errorMessages":[],"errors":{"issuetype":"Spécifiez un type de ticket valide"}}
+```
+
+Il rend désormais une phrase, et ajoute l'aide que Jira ne donne pas :
+
+```
+Jira a refusé la demande (400) — issuetype : Spécifiez un type de ticket valide.
+Le nom du type est localisé : vérifiez celui que votre projet expose
+(par exemple « Tâche » plutôt que « Task ») dans les Paramètres.
+```
+
+La **console** (§11), elle, garde le corps brut : c'est la trace technique, et elle ne doit pas être reformulée. Un corps non-JSON — page d'erreur d'un proxy — est conservé tronqué à 200 caractères : mieux qu'un message vide, pas une page entière dans une notification.
+
 ## Garde anti-doublon
 
 La charge est hachée en SHA-256, **`projectId` compris**. Deux projets partageant paquet et CVE produiraient sinon la même empreinte, et le refus citerait la référence d'un ticket appartenant à un autre projet. Une correspondance renvoie **409 sans rappeler Jira**, et rien n'est enregistré si Jira échoue.

@@ -111,3 +111,26 @@ export interface JiraErrorCollection {
 	errors?: Record<string, string>;
 	status?: number;
 }
+
+/**
+ * Un type de ticket, tel que `createmeta` le rend — schéma `IssueTypeIssueCreateMetadata`.
+ *
+ * `subtask` compte : une sous-tâche exige un parent qui soit une tâche, pas une
+ * epic. Les tickets d'Aegis se rattachent à une epic, donc les sous-tâches sont
+ * écartées de la liste proposée.
+ */
+export interface JiraIssueTypeMeta {
+	id?: string;
+	name?: string;
+	subtask?: boolean;
+	description?: string;
+}
+
+/** Réponse de `GET /rest/api/3/issue/createmeta` — schéma `IssueCreateMetadata`. */
+export interface JiraCreateMeta {
+	projects?: Array<{
+		key?: string;
+		name?: string;
+		issuetypes?: JiraIssueTypeMeta[];
+	}>;
+}

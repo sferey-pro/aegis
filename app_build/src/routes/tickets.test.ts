@@ -841,6 +841,130 @@ describe("passerelle Atlassian (jeton à portées)", () => {
 	});
 });
 
+describe("GET /api/tickets/issue-types", () => {
+	/**
+	 * La liste vient de Jira, jamais d'une constante : les noms de types sont
+	 * localisés par instance.
+	 */
+	function meta(types: Array<{ name: string; subtask?: boolean }>) {
+		stubJira({ body: { projects: [{ key: "SEC", issuetypes: types }] } });
+	}
+
+	test("les types du projet sont rendus", async () => {
+		configurerJira();
+		meta([{ name: "Tâche" }, { name: "Dette Technique" }]);
+
+		const { status, data } = await srv.json<{ types: string[] }>(
+			"/api/tickets/issue-types",
+		);
+		expect(status).toBe(200);
+		expect(data.types).toEqual(["Tâche", "Dette Technique"]);
+	});
+
+	test("les sous-tâches sont écartées", async () => {
+		// Une sous-tâche exige un parent qui soit une tâche, alors que les tickets
+		// d'Aegis se rattachent à une epic : la proposer mènerait à un refus garanti.
+		configurerJira();
+		meta([
+			{ name: "Tâche" },
+			{ name: "Sous-tâche", subtask: true },
+			{ name: "Retour recette", subtask: true },
+		]);
+
+		const { data } = await srv.json<{ types: string[] }>(
+			"/api/tickets/issue-types",
+		);
+		expect(data.types).toEqual(["Tâche"]);
+	});
+
+	test("l'appel est en lecture seule, sur createmeta", async () => {
+		configurerJira();
+		meta([{ name: "Tâche" }]);
+		await srv.json("/api/tickets/issue-types");
+
+		expect(appelsJira).toHaveLength(1);
+		expect(appelsJira[0]?.url).toContain("/rest/api/3/issue/createmeta");
+		expect(appelsJira[0]?.url).toContain("projectKeys=SEC");
+		// Aucune méthode : c'est un GET.
+		expect(appelsJira[0]?.init?.method).toBeUndefined();
+	});
+
+	test("sans configuration, la liste est vide et le motif donné", async () => {
+		// La liste est un confort : son absence ne doit pas bloquer la création, qui
+		// reste possible avec le réglage enregistré.
+		const { status, data } = await srv.json<{
+			types: string[];
+			raison: string;
+		}>("/api/tickets/issue-types");
+		expect(status).toBe(200);
+		expect(data.types).toEqual([]);
+		expect(data.raison).toContain("incomplète");
+		expect(appelsJira).toHaveLength(0);
+	});
+
+	test("un refus de Jira donne une liste vide et un motif lisible", async () => {
+		configurerJira();
+		stubJira({
+			status: 403,
+			text: JSON.stringify({
+				errorMessages: ["La portée read:jira-work est requise."],
+			}),
+		});
+
+		const { status, data } = await srv.json<{
+			types: string[];
+			raison: string;
+		}>("/api/tickets/issue-types");
+		expect(status).toBe(200);
+		expect(data.types).toEqual([]);
+		expect(data.raison).toContain("read:jira-work");
+	});
+
+	test("le type choisi par ticket l'emporte sur le réglage", async () => {
+		// Une dette technique et un bug ne se rangent pas au même endroit : c'est une
+		// décision par ticket, le réglage restant le défaut.
+		run([vuln()]);
+		configurerJira({ JIRA_ISSUE_TYPE: "Tâche" });
+		stubJira({ body: { key: "SEC-12" } });
+
+		await srv.json(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2020-8203"],
+				issueType: "Dette Technique",
+			}),
+		);
+
+		const charge = JSON.parse(String(appelsJira[0]?.init?.body)) as {
+			fields: { issuetype: { name: string } };
+		};
+		expect(charge.fields.issuetype.name).toBe("Dette Technique");
+	});
+
+	test("un type vide retombe sur le réglage", async () => {
+		run([vuln()]);
+		configurerJira({ JIRA_ISSUE_TYPE: "Tâche" });
+		stubJira({ body: { key: "SEC-13" } });
+
+		await srv.json(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2020-8203"],
+				issueType: "   ",
+			}),
+		);
+
+		const charge = JSON.parse(String(appelsJira[0]?.init?.body)) as {
+			fields: { issuetype: { name: string } };
+		};
+		expect(charge.fields.issuetype.name).toBe("Tâche");
+	});
+});
+
 describe("POST /api/tickets/test-connection", () => {
 	/**
 	 * La route ne lit plus le corps de la requête : elle vérifie la configuration

@@ -90,6 +90,7 @@ Chaque fichier est autonome : ce que la fonctionnalité fait, ses règles, ses c
 | GET | `/api/tickets/list` | lister les liens de tickets | [8](context/08-jira.md) |
 | POST | `/api/tickets/create` | créer l'issue Jira (API v3, ADF) ; 409 sur doublon | [8](context/08-jira.md) |
 | POST | `/api/tickets/link` · `/unlink` | attacher / détacher un lien manuel | [8](context/08-jira.md) |
+| GET | `/api/tickets/issue-types` | types du projet lus dans Jira, sous-tâches écartées ; 200 + liste vide sur échec | [8](context/08-jira.md) |
 | POST | `/api/tickets/test-connection` | tester la configuration Jira **enregistrée** | [8](context/08-jira.md) |
 | GET / POST | `/api/tags` | lister / créer un tag | [9](context/09-tags.md) |
 | DELETE | `/api/tags/:id` | supprimer un tag (**cascade fonctionnelle**) | [9](context/09-tags.md) |

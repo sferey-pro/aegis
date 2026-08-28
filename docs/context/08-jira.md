@@ -42,6 +42,17 @@ Corollaire : la liste des types valides d'un projet se lit sans rien créer, par
 
 Réglages lus **en base** : `JIRA_BASE_URL`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_ISSUE_TYPE`, `JIRA_COMPONENT`, `JIRA_PARENT_EPIC`, et le secret `JIRA_API_KEY`.
 
+## Choix du type de ticket (`GET /api/tickets/issue-types`)
+
+Le type se choisit **dans la modale de création**, par une liste déroulante, et non plus seulement dans les réglages : une dette technique et un bug ne se rangent pas au même endroit. Le réglage `JIRA_ISSUE_TYPE` reste le **défaut** ; le choix par ticket l'emporte.
+
+La liste est **lue dans Jira**, jamais codée en dur : `GET /rest/api/3/issue/createmeta?projectKeys=<clé>` — lecture seule, portée `read:jira-work`, ne crée rien. Une liste en dur serait fausse sur toute instance dont la langue diffère.
+
+Deux règles :
+
+1. **Les sous-tâches sont écartées.** Elles exigent un parent qui soit une tâche, alors que les tickets d'Aegis se rattachent à une epic (`JIRA_PARENT_EPIC`) : les proposer mènerait à un refus garanti.
+2. **Un échec rend `200` avec une liste vide et le motif.** L'écran retombe alors sur une saisie libre, et la création reste possible avec le réglage enregistré — la liste est un confort, pas une dépendance.
+
 ## Refus de Jira, rendus lisibles
 
 Le corps d'erreur de l'API est un `ErrorCollection` : une liste de messages généraux, et une **liste indexée par champ**. C'est la seconde qui compte — elle nomme exactement le champ à corriger.

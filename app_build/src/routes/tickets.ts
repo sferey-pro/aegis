@@ -24,6 +24,7 @@ import {
 } from "@/lib/jira/errors";
 import type {
 	JiraCreatedIssue,
+	JiraCreateMeta,
 	JiraCurrentUser,
 	JiraIssueCreate,
 } from "@/lib/jira/types";
@@ -102,7 +103,13 @@ export const ticketsRoutes = {
 	},
 	"/api/tickets/create": {
 		async POST(req: Request) {
-			const { projectId, packageName, cves, notes } = await req.json();
+			const {
+				projectId,
+				packageName,
+				cves,
+				notes,
+				issueType: typeDemande,
+			} = await req.json();
 			const { getSetting } = await import("../db/settings");
 			const { saveTicket } = await import("../db/tickets");
 
@@ -128,7 +135,14 @@ export const ticketsRoutes = {
 			// pas. Le repli produisait donc un 400 de Jira après une tentative
 			// d'écriture, sur une configuration que l'écran présentait comme
 			// facultative. Constaté sur une instance réelle.
-			const issueType = getSetting("JIRA_ISSUE_TYPE", "").trim();
+			// Le type choisi dans la modale l'emporte sur le réglage : c'est une
+			// décision par ticket — une dette technique et un bug ne se rangent pas au
+			// même endroit — et le réglage reste le défaut.
+			const issueType = (
+				typeof typeDemande === "string" && typeDemande.trim() !== ""
+					? typeDemande
+					: getSetting("JIRA_ISSUE_TYPE", "")
+			).trim();
 			const parentEpic = getSetting("JIRA_PARENT_EPIC", "");
 
 			if (!user || !apiKey || !project || !issueType) {
@@ -366,6 +380,111 @@ export const ticketsRoutes = {
 			saveTicket(projectId, packageName, data.key, cves, contentHash);
 
 			return Response.json({ success: true, ticketRef: data.key });
+		},
+	},
+
+	"/api/tickets/issue-types": {
+		/**
+		 * Types de ticket **du projet configuré**, lus dans Jira.
+		 *
+		 * Les noms sont localisés par instance : un projet français expose « Tâche »,
+		 * « Dette Technique », « Bug »… Une liste codée en dur serait donc fausse
+		 * partout ailleurs, et une saisie libre expose à un 400 après une tentative
+		 * d'écriture. On demande la vérité à Jira.
+		 *
+		 * `GET /rest/api/3/issue/createmeta` — **lecture seule**, portée
+		 * `read:jira-work`, ne crée rien.
+		 *
+		 * Les **sous-tâches sont écartées** : elles exigent un parent qui soit une
+		 * tâche, alors que les tickets d'Aegis se rattachent à une epic. Les proposer
+		 * mènerait à un refus garanti.
+		 *
+		 * Échec — configuration incomplète, portée manquante, réseau — : **200 avec
+		 * une liste vide** et le motif. L'écran retombe alors sur la saisie libre au
+		 * lieu de bloquer la création, qui reste possible avec le réglage enregistré.
+		 */
+		async GET() {
+			const { getSetting } = await import("../db/settings");
+			const baseUrl = getSetting("JIRA_BASE_URL", "");
+			const user = getSetting("JIRA_USER", "");
+			const apiKey = getSetting("JIRA_API_KEY", process.env.JIRA_API_KEY ?? "");
+			const project = getSetting("JIRA_PROJECT", "");
+			const authJira = {
+				kind: normaliseTokenKind(getSetting("JIRA_TOKEN_KIND", "")),
+				cloudId: getSetting("JIRA_CLOUD_ID", ""),
+			};
+
+			if (!user || !apiKey || !project) {
+				return Response.json({
+					types: [],
+					raison: "Configuration Jira incomplète.",
+				});
+			}
+			const cible = jiraEndpoint(
+				baseUrl,
+				`/rest/api/3/issue/createmeta?projectKeys=${encodeURIComponent(project)}&expand=projects.issuetypes.fields`,
+				authJira,
+			);
+			if (!cible) {
+				return Response.json({
+					types: [],
+					raison:
+						diagnostiqueConfiguration(baseUrl, authJira) ??
+						"URL Jira invalide (https requis)",
+				});
+			}
+
+			const auth = Buffer.from(`${user}:${apiKey}`).toString("base64");
+			const { emitConsoleEnd, emitConsoleStart } = await import(
+				"../lib/console"
+			);
+			const debut = Date.now();
+			const eventId = emitConsoleStart({
+				cmd: `GET /rest/api/3/issue/createmeta (${project})`,
+				cwd: cible,
+				label: "jira",
+			});
+			try {
+				const response = await fetch(cible, {
+					headers: {
+						Authorization: `Basic ${auth}`,
+						Accept: "application/json",
+					},
+				});
+				if (!response.ok) {
+					const corps = await response.text();
+					emitConsoleEnd(eventId, {
+						exitCode: response.status,
+						ok: false,
+						ms: Date.now() - debut,
+						errorText: corps,
+					});
+					return Response.json({
+						types: [],
+						raison: formatJiraError(response.status, corps),
+					});
+				}
+
+				const meta = (await response.json()) as JiraCreateMeta;
+				const types = (meta.projects?.[0]?.issuetypes ?? [])
+					.filter((t) => t.subtask !== true && typeof t.name === "string")
+					.map((t) => t.name as string);
+				emitConsoleEnd(eventId, {
+					exitCode: response.status,
+					ok: true,
+					ms: Date.now() - debut,
+					outText: types.join(", "),
+				});
+				return Response.json({ types });
+			} catch (e: unknown) {
+				emitConsoleEnd(eventId, {
+					exitCode: 0,
+					ok: false,
+					ms: Date.now() - debut,
+					errorText: errorMessage(e),
+				});
+				return Response.json({ types: [], raison: errorMessage(e) });
+			}
 		},
 	},
 

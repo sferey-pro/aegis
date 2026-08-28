@@ -1,5 +1,5 @@
 import { CheckCircle2, Copy, FileText, RefreshCw, Send } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiErrorMessage, fetchJson, jsonInit } from "@/lib/api";
 import { Button } from "../ui/button";
 import {
@@ -51,9 +51,88 @@ function FormulaireTicket({
 	const [notes, setNotes] = useState("");
 	const [creating, setCreating] = useState(false);
 
+	/**
+	 * Type de ticket, choisi **par ticket**.
+	 *
+	 * Le réglage global reste le défaut, mais une dette technique et un bug ne se
+	 * rangent pas au même endroit. Et surtout : les noms sont localisés par
+	 * instance, donc les lire dans Jira supprime la saisie exacte — c'est elle qui
+	 * produisait un « Spécifiez un type de ticket valide » après une tentative
+	 * d'écriture.
+	 */
+	const [types, setTypes] = useState<string[]>([]);
+	const [typeChoisi, setTypeChoisi] = useState("");
+	const [typesIndisponibles, setTypesIndisponibles] = useState<string | null>(
+		null,
+	);
+
+	useEffect(() => {
+		let vivant = true;
+		fetchJson<{ types: string[]; raison?: string }>("/api/tickets/issue-types")
+			.then((data) => {
+				if (!vivant) return;
+				setTypes(data.types);
+				setTypesIndisponibles(
+					data.types.length === 0 ? (data.raison ?? "") : null,
+				);
+				// Le défaut du réglage s'il figure dans la liste, sinon le premier
+				// proposé : jamais une valeur que Jira refuserait.
+				setTypeChoisi((courant) => courant || data.types[0] || "");
+			})
+			// La liste est un confort : son absence ne doit pas empêcher de créer un
+			// ticket avec le réglage enregistré.
+			.catch(() => {
+				if (vivant) setTypesIndisponibles("liste indisponible");
+			});
+		return () => {
+			vivant = false;
+		};
+	}, []);
+
 	return (
 		<>
 			<div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-4">
+				<div>
+					<label
+						htmlFor="ticket-issue-type"
+						className="block text-sm font-medium mb-2"
+					>
+						Type de ticket
+					</label>
+					{types.length > 0 ? (
+						<select
+							id="ticket-issue-type"
+							value={typeChoisi}
+							onChange={(e) => setTypeChoisi(e.target.value)}
+							className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+						>
+							{types.map((t) => (
+								<option key={t} value={t}>
+									{t}
+								</option>
+							))}
+						</select>
+					) : (
+						<>
+							{/* Repli : la liste vient de Jira, et son absence ne doit pas
+							    empêcher de créer un ticket avec le réglage enregistré. */}
+							<input
+								id="ticket-issue-type"
+								type="text"
+								value={typeChoisi}
+								onChange={(e) => setTypeChoisi(e.target.value)}
+								placeholder="Laisser vide pour utiliser le réglage enregistré"
+								className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+							/>
+							{typesIndisponibles && (
+								<p className="mt-1 text-xs text-muted-foreground">
+									Liste non lue depuis Jira{" "}
+									{typesIndisponibles ? `— ${typesIndisponibles}` : ""}
+								</p>
+							)}
+						</>
+					)}
+				</div>
 				<div>
 					<label
 						htmlFor="ticket-notes"
@@ -120,6 +199,7 @@ function FormulaireTicket({
 									packageName: ticketModal.group.package,
 									cves: ticketModal.group.cves.map((c) => c.cve),
 									notes: notes,
+									issueType: typeChoisi,
 								}),
 							);
 							if (data.success) {

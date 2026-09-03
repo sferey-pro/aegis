@@ -323,6 +323,11 @@ describe("lib/console — arrêt propre", () => {
 });
 
 describe("lib/console — sortie serveur", () => {
+	// Sans base jetable ici, `emitConsole*` lit `DISABLE_CONSOLE` et rouvre la
+	// base sur le dernier `DB_PATH` posé — celui du bloc précédent, déjà détruit.
+	// Le fichier renaissait après son `destroy()` et restait dans `tmpdir()`.
+	useTempDb("console-stdout");
+
 	/**
 	 * Le flux SSE ne va qu'au navigateur : en développement, le terminal du
 	 * serveur ne montrait rien des appels sortants. Or c'est là qu'on travaille.

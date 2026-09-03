@@ -54,7 +54,7 @@ Ne touche **jamais** aux projets sur le disque : seul le fichier SQLite d'Aegis 
 
 Table `settings`, clé/valeur. `GET /api/settings` applique une **liste blanche** et remplace chaque secret par un booléen `<CLÉ>_CONFIGURED` — liste blanche et non liste noire, sans quoi tout secret ajouté ensuite fuirait par défaut.
 
-Clés publiques : `AUDIT_MAX_AGE_HOURS`, `CRITICAL_ONLY`, `DISABLE_CONSOLE`, `JIRA_BASE_URL`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_COMPONENT`, `JIRA_ISSUE_TYPE`, `JIRA_PARENT_EPIC`, `GITHUB_RL_LIMIT`, `GITHUB_RL_REMAINING`, `GITHUB_RL_RESET`, plus `ADVISORY_SYNC_LAST_AT` et `ADVISORY_SYNC_LAST_FETCHED` en **lecture seule**. Secrets : `GITHUB_TOKEN`, `JIRA_API_KEY`.
+Clés publiques : `AUDIT_MAX_AGE_HOURS`, `CRITICAL_ONLY`, `DISABLE_CONSOLE`, `JIRA_BASE_URL`, `JIRA_TOKEN_KIND`, `JIRA_CLOUD_ID`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_COMPONENT`, `JIRA_PARENT_EPIC`, `GITHUB_RL_LIMIT`, `GITHUB_RL_REMAINING`, `GITHUB_RL_RESET`, plus `ADVISORY_SYNC_LAST_AT` et `ADVISORY_SYNC_LAST_FETCHED` en **lecture seule**. Secrets : `GITHUB_TOKEN`, `JIRA_API_KEY`.
 
 En écriture, un secret dont la valeur est **vide est ignoré** : le formulaire ne connaît pas la valeur et l'effacerait à chaque enregistrement. Les clés `GITHUB_*` sont **routées vers la base d'avis** ; `getPublicSettings` recompose la vue depuis les deux fichiers.
 

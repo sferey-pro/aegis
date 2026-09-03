@@ -8,9 +8,12 @@ import { expect, mock } from "bun:test";
  * reviendrait à modifier le code de production pour servir le harnais. On
  * remplace donc la globale.
  *
- * Bun isole les globales entre fichiers de test, donc rien ne fuit d'un fichier
- * à l'autre. À l'intérieur d'un fichier en revanche, il faut restaurer :
- * appelez `restoreFetch()` dans un `afterEach`.
+ * ⚠️ `bun test` n'isole **pas** les modules entre fichiers d'un même run : ce
+ * module et son état (`original`, `calls`) sont partagés, et un `fetch` simulé
+ * non restauré survit au fichier qui l'a posé. Appelez donc `restoreFetch()`
+ * dans un `afterEach`, sans exception. `original` ne retient que le tout
+ * premier `fetch` vu : c'est le natif, tant que personne ne l'a remplacé avant
+ * le premier `mockFetch`.
  */
 
 /** Réponse simulée. Un nombre seul est interprété comme un statut vide. */

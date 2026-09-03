@@ -434,7 +434,7 @@ describe("TicketModal — type de ticket", () => {
 		mockFetch({
 			"GET /api/tickets/issue-types": {
 				types: [],
-				raison: "Configuration Jira incomplète.",
+				reason: "Configuration Jira incomplète.",
 			},
 			"POST /api/tickets/create": {
 				body: { success: true, ticketRef: "SEC-9" },

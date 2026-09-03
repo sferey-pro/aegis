@@ -243,6 +243,7 @@ Chacun a coûté du temps ; ils sont consignés pour ne pas le payer deux fois.
 | Couleur d'un badge absente du DOM | happy-dom perd `style` avec `var()` imbriqué | assertion sur la présence de l'élément |
 | `bun test` sort en 1 sans aucune erreur | zéro test collecté | vérifier le glob de `test:ui` / `test:api` |
 | `toBeInTheDocument` refusé par `tsc` | matchers non déclarés | `src/matchers.d.ts` |
+| Un `aegis-<label>-*.sqlite` survit au run, sans `-wal` | un `describe` sans `useTempDb` touche la base après le `destroy()` du bloc précédent : `getDb()` la recrée sur le dernier `DB_PATH` | `useTempDb` dans **chaque** `describe` qui peut atteindre la base, même indirectement (`getSetting` via la console) |
 
 ## Un lot asynchrone doit être drainé avant la fin du test
 

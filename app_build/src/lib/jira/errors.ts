@@ -15,22 +15,22 @@ import type { JiraErrorCollection } from "./types";
  * champ à corriger : c'est l'information la plus précieuse d'un échec de
  * création, et la seule qui dise où aller.
  */
-export function formatJiraError(status: number, corps: string): string {
-	const parsee = analyse(corps);
-	if (!parsee) {
+export function formatJiraError(status: number, body: string): string {
+	const parsed = parseErrorCollection(body);
+	if (!parsed) {
 		// Corps non-JSON — une page d'erreur d'un proxy, par exemple. On garde le
 		// texte, tronqué : il vaut mieux que rien, mais pas une page entière.
-		const brut = corps.trim().slice(0, 200);
-		return brut
-			? `Jira a refusé la demande (${status}) : ${brut}`
+		const raw = body.trim().slice(0, 200);
+		return raw
+			? `Jira a refusé la demande (${status}) : ${raw}`
 			: `Jira a refusé la demande (${status}).`;
 	}
 
-	const parChamp = Object.entries(parsee.errors ?? {}).map(
-		([champ, message]) => `${champ} : ${message}`,
+	const byField = Object.entries(parsed.errors ?? {}).map(
+		([field, message]) => `${field} : ${message}`,
 	);
-	const generaux = parsee.errorMessages ?? [];
-	const details = [...parChamp, ...generaux].filter(Boolean);
+	const general = parsed.errorMessages ?? [];
+	const details = [...byField, ...general].filter(Boolean);
 
 	if (details.length === 0) {
 		return `Jira a refusé la demande (${status}).`;
@@ -47,20 +47,20 @@ export function formatJiraError(status: number, corps: string): string {
  * deviner depuis le message de Jira, qui dit seulement « Spécifiez un type de
  * ticket valide ».
  */
-export function refusSurTypeDeTicket(corps: string): boolean {
-	const parsee = analyse(corps);
-	return Boolean(parsee?.errors && "issuetype" in parsee.errors);
+export function isIssueTypeRefusal(body: string): boolean {
+	const parsed = parseErrorCollection(body);
+	return Boolean(parsed?.errors && "issuetype" in parsed.errors);
 }
 
 /** Indication ajoutée au message quand le type est en cause. */
-export const AIDE_TYPE_DE_TICKET =
-	"Le nom du type est localisé : vérifiez celui que votre projet expose (par exemple « Tâche » plutôt que « Task ») dans les Paramètres.";
+export const ISSUE_TYPE_HINT =
+	"Le nom du type est localisé : choisissez-le dans la liste de la modale, ou saisissez celui que votre projet expose (par exemple « Tâche » plutôt que « Task »).";
 
-function analyse(corps: string): JiraErrorCollection | null {
+function parseErrorCollection(body: string): JiraErrorCollection | null {
 	try {
-		const valeur = JSON.parse(corps) as unknown;
-		if (!valeur || typeof valeur !== "object") return null;
-		return valeur as JiraErrorCollection;
+		const value = JSON.parse(body) as unknown;
+		if (!value || typeof value !== "object") return null;
+		return value as JiraErrorCollection;
 	} catch {
 		return null;
 	}

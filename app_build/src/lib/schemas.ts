@@ -319,6 +319,48 @@ export const configImportBodySchema = z.object({
 	annotations: z.array(importedAnnotationSchema).optional(),
 });
 
+// ---------------------------------------------------------------- tickets
+
+/**
+ * Cible d'un ticket : un paquet dans un projet (CONTEXT.md §8).
+ *
+ * Partagée par le brouillon Markdown, la liaison manuelle, la suppression du
+ * lien et la création Jira. Les quatre routes lisaient le corps sans le
+ * valider : un `cves` absent faisait lever `cves.includes` et sortait en 500.
+ */
+export const ticketTargetSchema = z.object({
+	projectId: z.coerce.number({ message: "Projet requis" }).int("Projet requis"),
+	packageName: z
+		.string({ message: "Paquet requis" })
+		.trim()
+		.min(1, "Paquet requis"),
+});
+
+/** Références CVE/GHSA portées par le ticket ; une liste vide est acceptée. */
+const ticketCves = z.array(z.string()).default([]);
+
+/** `POST /api/tickets/link` — référence saisie à la main. */
+export const ticketLinkBodySchema = ticketTargetSchema.extend({
+	ref: z
+		.string({ message: "Référence requise" })
+		.trim()
+		.min(1, "Référence requise"),
+	cves: ticketCves,
+});
+
+/**
+ * `POST /api/tickets/create`.
+ *
+ * `issueType` est ramené à `""` quand il manque : c'est la route qui refuse,
+ * avec un message qui nomme le champ de la modale, **après** avoir contrôlé la
+ * configuration Jira — l'ordre des deux refus est fixé par les tests.
+ */
+export const ticketCreateBodySchema = ticketTargetSchema.extend({
+	cves: ticketCves,
+	notes: z.string().default(""),
+	issueType: z.string().trim().default(""),
+});
+
 // ---------------------------------------------------------------- snapshots
 
 export const restoreBodySchema = z.object({

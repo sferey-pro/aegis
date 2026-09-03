@@ -54,7 +54,7 @@ export function refusSurTypeDeTicket(corps: string): boolean {
 
 /** Indication ajoutée au message quand le type est en cause. */
 export const AIDE_TYPE_DE_TICKET =
-	"Le nom du type est localisé : vérifiez celui que votre projet expose (par exemple « Tâche » plutôt que « Task ») dans les Paramètres.";
+	"Le nom du type est localisé : choisissez-le dans la liste de la modale, ou saisissez celui que votre projet expose (par exemple « Tâche » plutôt que « Task »).";
 
 function analyse(corps: string): JiraErrorCollection | null {
 	try {

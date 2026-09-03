@@ -892,7 +892,7 @@ describe("GET /api/tickets/issue-types", () => {
 
 	test("sans configuration, la liste est vide et le motif donné", async () => {
 		// La liste est un confort : son absence ne doit pas bloquer la création, qui
-		// reste possible avec le réglage enregistré.
+		// reste possible avec un nom tapé à la main.
 		const { status, data } = await srv.json<{
 			types: string[];
 			raison: string;

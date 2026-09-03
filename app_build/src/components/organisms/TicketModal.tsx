@@ -61,7 +61,7 @@ function FormulaireTicket({
 	/**
 	 * Type de ticket, choisi **par ticket**.
 	 *
-	 * Le réglage global reste le défaut, mais une dette technique et un bug ne se
+	 * Il n'existe plus de réglage global : une dette technique et un bug ne se
 	 * rangent pas au même endroit. Et surtout : les noms sont localisés par
 	 * instance, donc les lire dans Jira supprime la saisie exacte — c'est elle qui
 	 * produisait un « Spécifiez un type de ticket valide » après une tentative
@@ -82,12 +82,12 @@ function FormulaireTicket({
 				setTypesIndisponibles(
 					data.types.length === 0 ? (data.raison ?? "") : null,
 				);
-				// Le défaut du réglage s'il figure dans la liste, sinon le premier
-				// proposé : jamais une valeur que Jira refuserait.
+				// Le premier type proposé par Jira, sauf si l'utilisateur a déjà
+				// choisi : jamais une valeur que Jira refuserait.
 				setTypeChoisi((courant) => courant || data.types[0] || "");
 			})
 			// La liste est un confort : son absence ne doit pas empêcher de créer un
-			// ticket avec le réglage enregistré.
+			// ticket, le nom se saisit alors à la main.
 			.catch(() => {
 				if (vivant) setTypesIndisponibles("liste indisponible");
 			});
@@ -125,7 +125,7 @@ function FormulaireTicket({
 					) : (
 						<>
 							{/* Repli : la liste vient de Jira, et son absence ne doit pas
-							    empêcher de créer un ticket avec le réglage enregistré. */}
+							    empêcher de créer un ticket — le nom se saisit à la main. */}
 							<input
 								id="ticket-issue-type"
 								type="text"

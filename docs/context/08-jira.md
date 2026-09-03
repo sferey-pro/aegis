@@ -40,7 +40,7 @@ Construit un document **ADF** et appelle l'API Jira v3 avec un en-tête `Authori
 
 Corollaire : la liste des types valides d'un projet se lit sans rien créer, par `GET /rest/api/3/issue/createmeta?projectKeys=<clé>&expand=projects.issuetypes.fields`. Elle donne aussi les champs **obligatoires** de chaque type — dont `parent`, requis pour les sous-tâches et optionnel pour les autres.
 
-Réglages lus **en base** : `JIRA_BASE_URL`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_ISSUE_TYPE`, `JIRA_COMPONENT`, `JIRA_PARENT_EPIC`, et le secret `JIRA_API_KEY`.
+Réglages lus **en base** : `JIRA_BASE_URL`, `JIRA_TOKEN_KIND`, `JIRA_CLOUD_ID`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_COMPONENT`, `JIRA_PARENT_EPIC`, et le secret `JIRA_API_KEY`. Le type de ticket vient du corps de la requête (voir ci-dessous).
 
 ## Choix du type de ticket (`GET /api/tickets/issue-types`)
 
@@ -55,7 +55,7 @@ La liste est **lue dans Jira**, jamais codée en dur : `GET /rest/api/3/issue/cr
 Deux règles :
 
 1. **Les sous-tâches sont écartées.** Elles exigent un parent qui soit une tâche, alors que les tickets d'Aegis se rattachent à une epic (`JIRA_PARENT_EPIC`) : les proposer mènerait à un refus garanti.
-2. **Un échec rend `200` avec une liste vide et le motif.** L'écran retombe alors sur une saisie libre, et la création reste possible avec le réglage enregistré — la liste est un confort, pas une dépendance.
+2. **Un échec rend `200` avec une liste vide et le motif.** L'écran retombe alors sur une saisie libre, et la création reste possible avec le nom tapé à la main — la liste est un confort, pas une dépendance.
 
 ## Refus de Jira, rendus lisibles
 
@@ -71,8 +71,8 @@ Il rend désormais une phrase, et ajoute l'aide que Jira ne donne pas :
 
 ```
 Jira a refusé la demande (400) — issuetype : Spécifiez un type de ticket valide.
-Le nom du type est localisé : vérifiez celui que votre projet expose
-(par exemple « Tâche » plutôt que « Task ») dans les Paramètres.
+Le nom du type est localisé : choisissez-le dans la liste de la modale,
+ou saisissez celui que votre projet expose (par exemple « Tâche » plutôt que « Task »).
 ```
 
 La **console** (§11), elle, garde le corps brut : c'est la trace technique, et elle ne doit pas être reformulée. Un corps non-JSON — page d'erreur d'un proxy — est conservé tronqué à 200 caractères : mieux qu'un message vide, pas une page entière dans une notification.

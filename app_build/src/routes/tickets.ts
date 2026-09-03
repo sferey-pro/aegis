@@ -409,7 +409,7 @@ export const ticketsRoutes = {
 		 *
 		 * Échec — configuration incomplète, portée manquante, réseau — : **200 avec
 		 * une liste vide** et le motif. L'écran retombe alors sur la saisie libre au
-		 * lieu de bloquer la création, qui reste possible avec le réglage enregistré.
+		 * lieu de bloquer la création : le nom tapé à la main part tel quel.
 		 */
 		async GET() {
 			const { getSetting } = await import("../db/settings");

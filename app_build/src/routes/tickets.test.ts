@@ -405,7 +405,7 @@ describe("POST /api/tickets/create — Jira", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
-				// Le type vient du corps, comme depuis la modale : il n'y a plus de
+				// Le type vient du corps, comme depuis la page de création : il n'y a plus de
 				// réglage global, et un nom **localisé** est la règle, pas l'exception.
 				issueType: "Tâche",
 				...over,
@@ -427,7 +427,7 @@ describe("POST /api/tickets/create — Jira", () => {
 	test("sans type de ticket, aucun appel ne part", async () => {
 		// Refus **avant** l'appel : Jira répondrait « Spécifiez un type de ticket
 		// valide », un message que l'utilisateur ne peut pas relier au champ de la
-		// modale. Constaté sur une instance réelle, avec l'ancien repli sur « Task »
+		// page. Constaté sur une instance réelle, avec l'ancien repli sur « Task »
 		// — un nom qui n'existe pas sur un projet français.
 		run([vuln()]);
 		configurerJira();
@@ -1022,7 +1022,7 @@ describe("GET /api/tickets/issue-types", () => {
 
 	test("le type du corps est celui envoyé à Jira", async () => {
 		// Une dette technique et un bug ne se rangent pas au même endroit : c'est une
-		// décision par ticket, prise dans la modale.
+		// décision par ticket, prise sur la page de création.
 		run([vuln()]);
 		configurerJira();
 		stubJira({ body: { key: "SEC-12" } });

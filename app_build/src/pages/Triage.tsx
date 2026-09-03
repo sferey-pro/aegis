@@ -9,7 +9,7 @@ import {
 	X,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { AnnotationStatus } from "@/db/annotations";
 import type { Ticket } from "@/db/tickets";
 import type { BulkSyncResult } from "@/lib/advisory-sync";
@@ -19,12 +19,10 @@ import { buildPackageGroups } from "@/lib/package-groups";
 import type { AnnotationInput } from "@/lib/schemas";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
-import { TicketModal } from "../components/organisms/TicketModal";
 import { TriageTable } from "../components/organisms/TriageTable";
 import type {
 	ConfirmModalState,
 	PackageGroup,
-	TicketModalState,
 	Toast,
 } from "../components/organisms/triage-types";
 import { Button } from "../components/ui/button";
@@ -64,6 +62,7 @@ type BulkSyncResponse = BulkSyncResult & { success: boolean };
 
 export const Triage = React.memo(function Triage() {
 	const [searchParams, setSearchParams] = useSearchParams();
+	const navigate = useNavigate();
 	const projectId = searchParams.get("project")
 		? parseInt(searchParams.get("project") as string, 10)
 		: null;
@@ -119,11 +118,6 @@ export const Triage = React.memo(function Triage() {
 	 * groupe, la modale reste ouverte **et** à jour.
 	 */
 	const [selectedKey, setSelectedKey] = useState<string | null>(null);
-	const [ticketModal, setTicketModal] = useState<TicketModalState>({
-		isOpen: false,
-		md: "",
-		copied: false,
-	});
 	const [confirmModal, setConfirmModal] = useState<ConfirmModalState | null>(
 		null,
 	);
@@ -316,35 +310,16 @@ export const Triage = React.memo(function Triage() {
 		setConfirmModal(null);
 	};
 
-	const createTicket = async (e: React.MouseEvent, group: PackageGroup) => {
+	/**
+	 * Le ticket se prépare sur sa propre page (§8) : on y choisit les CVE à
+	 * traiter, et l'URL porte le projet et le paquet — partageable, et le retour
+	 * ramène ici. La ligne du tableau ouvre le détail du paquet : ne pas laisser
+	 * remonter le clic.
+	 */
+	const createTicket = (e: React.MouseEvent, group: PackageGroup) => {
 		e.stopPropagation();
-		try {
-			const data = await fetchJson<{ markdown: string }>(
-				"/api/tickets",
-				jsonInit("POST", {
-					projectId: group.projectId,
-					packageName: group.package,
-				}),
-			);
-			setTicketModal({ isOpen: true, md: data.markdown, copied: false, group });
-		} catch (err) {
-			// La modale s'ouvrait avec un brouillon `undefined` : le référent
-			// copiait une chaîne vide dans son ticket Jira.
-			setToast({
-				isOpen: true,
-				title: "Échec",
-				message: `Brouillon non généré : ${apiErrorMessage(err)}`,
-				type: "error",
-			});
-		}
-	};
-
-	const copyToClipboard = () => {
-		navigator.clipboard.writeText(ticketModal.md);
-		setTicketModal((prev) => ({ ...prev, copied: true }));
-		setTimeout(
-			() => setTicketModal((prev) => ({ ...prev, copied: false })),
-			2000,
+		navigate(
+			`/tickets/new?project=${group.projectId}&package=${encodeURIComponent(group.package)}`,
 		);
 	};
 
@@ -493,14 +468,6 @@ export const Triage = React.memo(function Triage() {
 				setToast={setToast}
 				tickets={tickets}
 				jiraBaseUrl={jiraBaseUrl}
-			/>
-
-			<TicketModal
-				ticketModal={ticketModal}
-				setTicketModal={setTicketModal}
-				copyToClipboard={copyToClipboard}
-				setToast={setToast}
-				fetchTickets={fetchTickets}
 			/>
 
 			<ConfirmReasonModal

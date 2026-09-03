@@ -28,11 +28,3 @@ export interface ConfirmModalState {
 	projectId: number;
 	reason: string;
 }
-
-/** État de la modale de préparation de ticket. */
-export interface TicketModalState {
-	isOpen: boolean;
-	md: string;
-	copied: boolean;
-	group?: PackageGroup;
-}

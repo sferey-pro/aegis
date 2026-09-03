@@ -27,6 +27,7 @@ import { Projects } from "./pages/Projects";
 import { PromptsLibrary } from "./pages/PromptsLibrary";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
+import { TicketCreate } from "./pages/TicketCreate";
 import { Triage } from "./pages/Triage";
 
 export function App() {
@@ -286,6 +287,7 @@ export function App() {
 						<Route path="/projects" element={<Projects />} />
 						<Route path="/projects/:id" element={<ProjectDetail />} />
 						<Route path="/triage" element={<Triage />} />
+						<Route path="/tickets/new" element={<TicketCreate />} />
 						<Route path="/reports" element={<Reports auditing={auditing} />} />
 						<Route path="/prompts" element={<PromptsLibrary />} />
 						<Route path="/settings" element={<Settings />} />

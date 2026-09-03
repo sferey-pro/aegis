@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import type { CveGroup, CveOccurrence } from "@/lib/aggregator";
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
@@ -75,6 +75,29 @@ const posts = () => fetchCalls().filter((c) => c.method === "POST");
 
 describe("Triage", () => {
 	afterEach(restoreFetch);
+
+	test("le bouton Ticket mène à la page de création, projet et paquet dans l'URL", async () => {
+		// Le ticket se prépare sur sa propre page (§8), où l'on choisit les CVE.
+		const g = groupe({ occurrences: [occ({ package: "lodash" })] });
+		const attendu = g.occurrences[0]?.projectId;
+		mockFetch({ ...base, "GET /api/cves": [g] });
+		function EspionRoute() {
+			const { pathname, search } = useLocation();
+			return <span data-testid="route">{pathname + search}</span>;
+		}
+		render(
+			<MemoryRouter initialEntries={["/triage"]}>
+				<Routes>
+					<Route path="/triage" element={<Triage />} />
+					<Route path="/tickets/new" element={<EspionRoute />} />
+				</Routes>
+			</MemoryRouter>,
+		);
+		fireEvent.click(await screen.findByRole("button", { name: /Ticket/ }));
+		expect(screen.getByTestId("route")).toHaveTextContent(
+			`/tickets/new?project=${attendu}&package=lodash`,
+		);
+	});
 
 	test("interroge les trois sources au montage", async () => {
 		mockFetch(base);

@@ -134,7 +134,7 @@ export function RunReport({ run }: { run: ProjectHistoryItem }) {
 										<TableHead>Sévérité</TableHead>
 										<TableHead>Paquet</TableHead>
 										<TableHead>Référence</TableHead>
-										<TableHead>Titre</TableHead>
+										<TableHead className="w-full">Titre</TableHead>
 										<TableHead>Versions affectées</TableHead>
 										<TableHead>Correctif</TableHead>
 									</TableRow>
@@ -179,7 +179,12 @@ export function RunReport({ run }: { run: ProjectHistoryItem }) {
 														(ref ?? "—")
 													)}
 												</TableCell>
-												<TableCell className="text-sm">{v.title}</TableCell>
+												{/* L'atome pose `whitespace-nowrap` : un titre d'avis fait
+													    souvent une phrase, il doit passer à la ligne au lieu
+													    d'étirer le tableau hors de la carte. */}
+												<TableCell className="text-sm whitespace-normal break-words min-w-[16rem]">
+													{v.title}
+												</TableCell>
 												<TableCell className="font-mono text-xs">
 													{v.versionRange ?? "—"}
 												</TableCell>

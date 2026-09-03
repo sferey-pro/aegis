@@ -79,6 +79,13 @@ describe("RunReport", () => {
 		expect(lignes[1]).toHaveTextContent("lodash");
 	});
 
+	test("le titre passe à la ligne au lieu d'étirer le tableau", () => {
+		// `TableCell` pose `whitespace-nowrap` ; un titre d'avis fait une phrase.
+		render(<RunReport run={run()} />);
+		const cellule = screen.getByText("Prototype pollution").closest("td");
+		expect(cellule?.className).toContain("whitespace-normal");
+	});
+
 	test("la référence est un lien quand l'avis en a un, un texte sinon", () => {
 		render(<RunReport run={run()} />);
 		const lien = screen.getByRole("link", { name: "CVE-2024-1" });

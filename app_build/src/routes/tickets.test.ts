@@ -306,6 +306,9 @@ describe("POST /api/tickets/create — Jira", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
+				// Le type vient du corps, comme depuis la modale : il n'y a plus de
+				// réglage global, et un nom **localisé** est la règle, pas l'exception.
+				issueType: "Tâche",
 				...over,
 			}),
 		);
@@ -320,6 +323,90 @@ describe("POST /api/tickets/create — Jira", () => {
 	test("une configuration partielle est refusée", async () => {
 		configurerJira({ JIRA_PROJECT: "" });
 		expect((await creer()).status).toBe(400);
+	});
+
+	test("sans type de ticket, aucun appel ne part", async () => {
+		// Refus **avant** l'appel : Jira répondrait « Spécifiez un type de ticket
+		// valide », un message que l'utilisateur ne peut pas relier au champ de la
+		// modale. Constaté sur une instance réelle, avec l'ancien repli sur « Task »
+		// — un nom qui n'existe pas sur un projet français.
+		run([vuln()]);
+		configurerJira();
+		stubJira({ body: { key: "SEC-1" } });
+
+		const { status, data } = await creer({ issueType: "" });
+
+		expect(status).toBe(400);
+		expect(data.error).toContain("type de ticket");
+		expect(appelsJira).toHaveLength(0);
+	});
+
+	test("un refus de Jira arrive en phrase, pas en JSON", async () => {
+		// Ce que l'utilisateur voyait : `Erreur Jira: 400 {"errorMessages":[],
+		// "errors":{"issuetype":"Spécifiez un type de ticket valide"}}`. Le message
+		// utile y était, noyé. `errors` nomme le champ fautif — c'est l'information
+		// la plus précieuse d'un échec de création.
+		run([vuln()]);
+		configurerJira();
+		stubJira({
+			status: 400,
+			text: JSON.stringify({
+				errorMessages: [],
+				errors: { issuetype: "Spécifiez un type de ticket valide" },
+			}),
+		});
+
+		const { status, data } = await creer();
+
+		expect(status).toBe(400);
+		expect(data.error).toContain("issuetype");
+		expect(data.error).toContain("Spécifiez un type de ticket valide");
+		expect(data.error).not.toContain("errorMessages");
+		// Aide spécifique : Jira ne dit pas que le nom du type est traduit.
+		expect(data.error).toContain("localisé");
+	});
+
+	test("la console garde le corps brut du refus", async () => {
+		// L'interface reçoit une phrase, la trace technique reste entière.
+		run([vuln()]);
+		configurerJira();
+		const corps = JSON.stringify({ errors: { project: "Projet inconnu" } });
+		stubJira({ status: 400, text: corps });
+
+		const { vus, arret } = (() => {
+			const vus: ConsoleEvent[] = [];
+			const client = {
+				enqueue(payload: string) {
+					for (const ligne of payload.split("\n")) {
+						if (ligne.startsWith("data: "))
+							vus.push(JSON.parse(ligne.slice(6)));
+					}
+				},
+			} as unknown as ReadableStreamDefaultController<string>;
+			addConsoleClient(client);
+			return { vus, arret: () => removeConsoleClient(client) };
+		})();
+		try {
+			await creer();
+		} finally {
+			arret();
+		}
+
+		const fin = vus.find((e) => e.phase === "end" && e.errorText);
+		expect(fin?.errorText).toBe(corps);
+	});
+
+	test("le type localisé part tel quel", async () => {
+		run([vuln()]);
+		configurerJira();
+		stubJira({ body: { key: "SEC-2" } });
+
+		await creer({ issueType: "Dette Technique" });
+
+		const charge = JSON.parse(String(appelsJira[0]?.init?.body)) as {
+			fields: { issuetype: { name: string } };
+		};
+		expect(charge.fields.issuetype.name).toBe("Dette Technique");
 	});
 
 	test("la configuration est vérifiée avant tout appel sortant", async () => {
@@ -384,7 +471,7 @@ describe("POST /api/tickets/create — Jira", () => {
 		expect(charge.fields.project.key).toBe("SEC");
 		expect(charge.fields.summary).toBe("[Aegis] Remédiation lodash");
 		// Type d'issue par défaut quand le réglage est absent.
-		expect(charge.fields.issuetype.name).toBe("Task");
+		expect(charge.fields.issuetype.name).toBe("Tâche");
 		expect(charge.fields.description.type).toBe("doc");
 		expect(JSON.stringify(charge.fields.description)).toContain(
 			"CVE-2020-8203",
@@ -403,13 +490,10 @@ describe("POST /api/tickets/create — Jira", () => {
 		expect(sans.fields).not.toHaveProperty("components");
 
 		appelsJira.length = 0;
-		configurerJira({
-			JIRA_PARENT_EPIC: "SEC-1",
-			JIRA_COMPONENT: "10001",
-			JIRA_ISSUE_TYPE: "Bug",
-		});
+		configurerJira({ JIRA_PARENT_EPIC: "SEC-1", JIRA_COMPONENT: "10001" });
 		stubJira({ body: { key: "SEC-2" } });
-		await creer({ packageName: "lodash" });
+		// Le type accompagne le ticket, plus les réglages.
+		await creer({ packageName: "lodash", issueType: "Bug" });
 		const avec = JSON.parse(appelsJira[0]?.init?.body as string) as {
 			fields: {
 				parent: { key: string };
@@ -501,7 +585,9 @@ describe("POST /api/tickets/create — Jira", () => {
 
 		const { status, data } = await creer();
 		expect(status).toBe(403);
-		expect(data.error).toContain("Erreur Jira: 403");
+		// Le statut reste dans le message — c'est ce qui distingue un refus de
+		// permission d'une panne. Le corps non-JSON est conservé, tronqué.
+		expect(data.error).toContain("403");
 		expect(data.error).toContain("Forbidden");
 	});
 
@@ -573,6 +659,7 @@ describe("traçabilité dans la console (§11)", () => {
 					projectId: projet.id,
 					packageName: "lodash",
 					cves: ["CVE-2020-8203"],
+					issueType: "Tâche",
 				}),
 			);
 		} finally {
@@ -598,6 +685,7 @@ describe("traçabilité dans la console (§11)", () => {
 					projectId: projet.id,
 					packageName: "lodash",
 					cves: ["CVE-2020-8203"],
+					issueType: "Tâche",
 				}),
 			);
 		} finally {
@@ -621,6 +709,7 @@ describe("traçabilité dans la console (§11)", () => {
 					projectId: projet.id,
 					packageName: "lodash",
 					cves: ["CVE-2020-8203"],
+					issueType: "Tâche",
 				}),
 			);
 		} finally {
@@ -651,6 +740,7 @@ describe("traçabilité dans la console (§11)", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
+				issueType: "Tâche",
 			}),
 		);
 
@@ -673,6 +763,7 @@ describe("traçabilité dans la console (§11)", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
+				issueType: "Tâche",
 			}),
 		);
 		expect(status).toBe(502);
@@ -728,6 +819,7 @@ describe("passerelle Atlassian (jeton à portées)", () => {
 				projectId: projet.id,
 				packageName: "lodash",
 				cves: ["CVE-2020-8203"],
+				issueType: "Tâche",
 			}),
 		);
 
@@ -747,6 +839,131 @@ describe("passerelle Atlassian (jeton à portées)", () => {
 		expect(appelsJira[0]?.url).toBe(
 			"https://jira.example.test/rest/api/3/myself",
 		);
+	});
+});
+
+describe("GET /api/tickets/issue-types", () => {
+	/**
+	 * La liste vient de Jira, jamais d'une constante : les noms de types sont
+	 * localisés par instance.
+	 */
+	function meta(types: Array<{ name: string; subtask?: boolean }>) {
+		stubJira({ body: { projects: [{ key: "SEC", issuetypes: types }] } });
+	}
+
+	test("les types du projet sont rendus", async () => {
+		configurerJira();
+		meta([{ name: "Tâche" }, { name: "Dette Technique" }]);
+
+		const { status, data } = await srv.json<{ types: string[] }>(
+			"/api/tickets/issue-types",
+		);
+		expect(status).toBe(200);
+		expect(data.types).toEqual(["Tâche", "Dette Technique"]);
+	});
+
+	test("les sous-tâches sont écartées", async () => {
+		// Une sous-tâche exige un parent qui soit une tâche, alors que les tickets
+		// d'Aegis se rattachent à une epic : la proposer mènerait à un refus garanti.
+		configurerJira();
+		meta([
+			{ name: "Tâche" },
+			{ name: "Sous-tâche", subtask: true },
+			{ name: "Retour recette", subtask: true },
+		]);
+
+		const { data } = await srv.json<{ types: string[] }>(
+			"/api/tickets/issue-types",
+		);
+		expect(data.types).toEqual(["Tâche"]);
+	});
+
+	test("l'appel est en lecture seule, sur createmeta", async () => {
+		configurerJira();
+		meta([{ name: "Tâche" }]);
+		await srv.json("/api/tickets/issue-types");
+
+		expect(appelsJira).toHaveLength(1);
+		expect(appelsJira[0]?.url).toContain("/rest/api/3/issue/createmeta");
+		expect(appelsJira[0]?.url).toContain("projectKeys=SEC");
+		// Aucune méthode : c'est un GET.
+		expect(appelsJira[0]?.init?.method).toBeUndefined();
+	});
+
+	test("sans configuration, la liste est vide et le motif donné", async () => {
+		// La liste est un confort : son absence ne doit pas bloquer la création, qui
+		// reste possible avec le réglage enregistré.
+		const { status, data } = await srv.json<{
+			types: string[];
+			raison: string;
+		}>("/api/tickets/issue-types");
+		expect(status).toBe(200);
+		expect(data.types).toEqual([]);
+		expect(data.raison).toContain("incomplète");
+		expect(appelsJira).toHaveLength(0);
+	});
+
+	test("un refus de Jira donne une liste vide et un motif lisible", async () => {
+		configurerJira();
+		stubJira({
+			status: 403,
+			text: JSON.stringify({
+				errorMessages: ["La portée read:jira-work est requise."],
+			}),
+		});
+
+		const { status, data } = await srv.json<{
+			types: string[];
+			raison: string;
+		}>("/api/tickets/issue-types");
+		expect(status).toBe(200);
+		expect(data.types).toEqual([]);
+		expect(data.raison).toContain("read:jira-work");
+	});
+
+	test("le type du corps est celui envoyé à Jira", async () => {
+		// Une dette technique et un bug ne se rangent pas au même endroit : c'est une
+		// décision par ticket, prise dans la modale.
+		run([vuln()]);
+		configurerJira();
+		stubJira({ body: { key: "SEC-12" } });
+
+		await srv.json(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2020-8203"],
+				issueType: "Dette Technique",
+			}),
+		);
+
+		const charge = JSON.parse(String(appelsJira[0]?.init?.body)) as {
+			fields: { issuetype: { name: string } };
+		};
+		expect(charge.fields.issuetype.name).toBe("Dette Technique");
+	});
+
+	test("un type fait d'espaces est refusé, sans appel", async () => {
+		// Il n'y a **plus de repli** : le réglage global a été retiré, un nom
+		// enregistré une fois pour toutes se périmant au premier changement de
+		// projet.
+		run([vuln()]);
+		configurerJira();
+		stubJira({ body: { key: "SEC-13" } });
+
+		const { status } = await srv.json(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2020-8203"],
+				issueType: "   ",
+			}),
+		);
+
+		expect(status).toBe(400);
+		expect(appelsJira).toHaveLength(0);
 	});
 });
 

@@ -33,7 +33,6 @@ const SECTIONS = {
 		"JIRA_API_KEY",
 		"JIRA_PROJECT",
 		"JIRA_COMPONENT",
-		"JIRA_ISSUE_TYPE",
 		"JIRA_PARENT_EPIC",
 	],
 } as const;
@@ -59,7 +58,6 @@ export function Settings() {
 		JIRA_CLOUD_ID: "",
 		JIRA_PROJECT: "",
 		JIRA_COMPONENT: "",
-		JIRA_ISSUE_TYPE: "Task",
 		JIRA_PARENT_EPIC: "",
 		GITHUB_RL_LIMIT: "",
 		GITHUB_RL_REMAINING: "",
@@ -178,7 +176,6 @@ export function Settings() {
 					JIRA_CLOUD_ID: data.JIRA_CLOUD_ID || "",
 					JIRA_PROJECT: data.JIRA_PROJECT || "",
 					JIRA_COMPONENT: data.JIRA_COMPONENT || "",
-					JIRA_ISSUE_TYPE: data.JIRA_ISSUE_TYPE || "Task",
 					JIRA_PARENT_EPIC: data.JIRA_PARENT_EPIC || "",
 					GITHUB_RL_LIMIT: data.GITHUB_RL_LIMIT || "",
 					GITHUB_RL_REMAINING: data.GITHUB_RL_REMAINING || "",
@@ -935,23 +932,6 @@ export function Settings() {
 										setSettings({ ...settings, JIRA_COMPONENT: e.target.value })
 									}
 									placeholder="ex: 10452"
-								/>
-							</div>
-							<div className="flex flex-col gap-2">
-								<label htmlFor="jira-issue-type" className="text-sm font-bold">
-									Type de ticket (Optionnel)
-								</label>
-								<Input
-									id="jira-issue-type"
-									type="text"
-									value={settings.JIRA_ISSUE_TYPE}
-									onChange={(e) =>
-										setSettings({
-											...settings,
-											JIRA_ISSUE_TYPE: e.target.value,
-										})
-									}
-									placeholder="Task ou Bug"
 								/>
 							</div>
 							<div className="flex flex-col gap-2">

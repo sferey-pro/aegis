@@ -1,5 +1,5 @@
 import { CheckCircle2, Copy, FileText, RefreshCw, Send } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiErrorMessage, fetchJson, jsonInit } from "@/lib/api";
 import { Button } from "../ui/button";
 import {
@@ -10,6 +10,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "../ui/dialog";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import type { TicketModalState, Toast } from "./triage-types";
 
@@ -51,9 +58,92 @@ function FormulaireTicket({
 	const [notes, setNotes] = useState("");
 	const [creating, setCreating] = useState(false);
 
+	/**
+	 * Type de ticket, choisi **par ticket**.
+	 *
+	 * Le réglage global reste le défaut, mais une dette technique et un bug ne se
+	 * rangent pas au même endroit. Et surtout : les noms sont localisés par
+	 * instance, donc les lire dans Jira supprime la saisie exacte — c'est elle qui
+	 * produisait un « Spécifiez un type de ticket valide » après une tentative
+	 * d'écriture.
+	 */
+	const [types, setTypes] = useState<string[]>([]);
+	const [typeChoisi, setTypeChoisi] = useState("");
+	const [typesIndisponibles, setTypesIndisponibles] = useState<string | null>(
+		null,
+	);
+
+	useEffect(() => {
+		let vivant = true;
+		fetchJson<{ types: string[]; raison?: string }>("/api/tickets/issue-types")
+			.then((data) => {
+				if (!vivant) return;
+				setTypes(data.types);
+				setTypesIndisponibles(
+					data.types.length === 0 ? (data.raison ?? "") : null,
+				);
+				// Le défaut du réglage s'il figure dans la liste, sinon le premier
+				// proposé : jamais une valeur que Jira refuserait.
+				setTypeChoisi((courant) => courant || data.types[0] || "");
+			})
+			// La liste est un confort : son absence ne doit pas empêcher de créer un
+			// ticket avec le réglage enregistré.
+			.catch(() => {
+				if (vivant) setTypesIndisponibles("liste indisponible");
+			});
+		return () => {
+			vivant = false;
+		};
+	}, []);
+
 	return (
 		<>
 			<div className="flex-1 overflow-y-auto hide-scrollbar p-6 space-y-4">
+				<div>
+					<label
+						htmlFor="ticket-issue-type"
+						className="block text-sm font-medium mb-2"
+					>
+						Type de ticket
+					</label>
+					{types.length > 0 ? (
+						// L'atome Radix du dépôt, pas un `<select>` natif : c'est lui qui
+						// porte les tokens de thème et le comportement clavier (défaut N27,
+						// « design system contourné »).
+						<Select value={typeChoisi} onValueChange={setTypeChoisi}>
+							<SelectTrigger id="ticket-issue-type" className="w-full">
+								<SelectValue placeholder="Choisissez un type" />
+							</SelectTrigger>
+							<SelectContent>
+								{types.map((t) => (
+									<SelectItem key={t} value={t}>
+										{t}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					) : (
+						<>
+							{/* Repli : la liste vient de Jira, et son absence ne doit pas
+							    empêcher de créer un ticket avec le réglage enregistré. */}
+							<input
+								id="ticket-issue-type"
+								type="text"
+								value={typeChoisi}
+								onChange={(e) => setTypeChoisi(e.target.value)}
+								placeholder="Nom exact du type, ex. Tâche"
+								className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+							/>
+							{typesIndisponibles && (
+								<p className="mt-1 text-xs text-muted-foreground">
+									Liste non lue depuis Jira
+									{typesIndisponibles ? ` — ${typesIndisponibles}` : ""}.
+									Saisissez le nom exact tel que votre projet l'expose.
+								</p>
+							)}
+						</>
+					)}
+				</div>
 				<div>
 					<label
 						htmlFor="ticket-notes"
@@ -120,6 +210,7 @@ function FormulaireTicket({
 									packageName: ticketModal.group.package,
 									cves: ticketModal.group.cves.map((c) => c.cve),
 									notes: notes,
+									issueType: typeChoisi,
 								}),
 							);
 							if (data.success) {
@@ -150,7 +241,10 @@ function FormulaireTicket({
 							setCreating(false);
 						}
 					}}
-					disabled={creating}
+					// Le type est requis et n'a plus de repli côté serveur : le bouton
+					// inactif dit « il manque quelque chose ici », au lieu de laisser
+					// partir un appel que Jira refuserait.
+					disabled={creating || typeChoisi.trim() === ""}
 					className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
 				>
 					{creating ? (

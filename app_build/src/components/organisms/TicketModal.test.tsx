@@ -2,6 +2,50 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
+
+/**
+ * Route interrogée au montage de la modale, pour peupler la liste des types.
+ *
+ * Déclarée dans **tous** les `mockFetch` du fichier : une route non déclarée fait
+ * échouer le faux `fetch` **dans un effet React**, sans assertion pour porter le
+ * rejet — le fichier peut alors se bloquer au lieu d'échouer.
+ */
+const ROUTE_TYPES = {
+	"GET /api/tickets/issue-types": { types: ["Tâche", "Bug"] },
+};
+
+/** Seules les créations : la lecture des types s'ajoute à chaque montage. */
+const posts = () => fetchCalls().filter((c) => c.method === "POST");
+
+/**
+ * Attend que la liste des types soit lue, comme l'utilisateur qui lit la modale.
+ *
+ * Le bouton de création est inactif tant qu'aucun type n'est choisi : cliquer
+ * avant la fin de la lecture ne déclencherait rien, et le test échouerait sur un
+ * compte d'appels à zéro sans dire pourquoi.
+ */
+async function attendreTypes(attendu = "Tâche") {
+	await waitFor(() => {
+		expect(screen.getByRole("combobox")).toHaveTextContent(attendu);
+	});
+}
+
+/**
+ * Choisit une option dans l'atome `Select` (Radix).
+ *
+ * ⚠️ Ce n'est pas un `<select>` natif : `fireEvent.change` n'a aucun effet, et
+ * `click` sur le déclencheur non plus. C'est **`pointerDown`** qui ouvre la
+ * liste sous happy-dom — vérifié — puis l'option se clique par son rôle.
+ */
+function choisirType(nom: string) {
+	fireEvent.pointerDown(screen.getByRole("combobox"), {
+		button: 0,
+		ctrlKey: false,
+		pointerType: "mouse",
+	});
+	fireEvent.click(screen.getByRole("option", { name: nom }));
+}
+
 import { TicketModal } from "./TicketModal";
 import type {
 	PackageGroup,
@@ -123,6 +167,7 @@ describe("TicketModal", () => {
 
 	test("les notes saisies partent dans la requête", async () => {
 		mockFetch({
+			...ROUTE_TYPES,
 			"POST /api/tickets/create": {
 				body: { success: true, ticketRef: "SEC-1" },
 			},
@@ -130,30 +175,36 @@ describe("TicketModal", () => {
 		const { props: p } = props();
 		render(<TicketModal {...p} />);
 
+		await attendreTypes();
 		fireEvent.change(screen.getByLabelText(/Notes additionnelles/), {
 			target: { value: "Exposé publiquement" },
 		});
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
-			expect(fetchCalls()).toHaveLength(1);
+			expect(posts()).toHaveLength(1);
 		});
-		expect(fetchCalls()[0]?.body).toEqual({
+		expect(posts()[0]?.body).toEqual({
 			projectId: 7,
 			packageName: "lodash",
 			cves: ["CVE-1", "CVE-2"],
 			notes: "Exposé publiquement",
+			// Le type choisi part avec le ticket : premier de la liste par défaut.
+			issueType: "Tâche",
 		});
 	});
 
 	test("la création réussie recharge les tickets et ferme la modale", async () => {
 		mockFetch({
+			...ROUTE_TYPES,
 			"POST /api/tickets/create": {
 				body: { success: true, ticketRef: "SEC-1" },
 			},
 		});
 		const { props: p, appels } = props();
 		render(<TicketModal {...p} />);
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
@@ -168,6 +219,7 @@ describe("TicketModal", () => {
 		// statut d'erreur et `{ error }`. Elle ne renvoie jamais 200 avec
 		// `success:false`, et `fetchJson` reprend ce message tel quel.
 		mockFetch({
+			...ROUTE_TYPES,
 			"POST /api/tickets/create": {
 				status: 400,
 				body: { error: "Projet Jira non configuré" },
@@ -175,6 +227,7 @@ describe("TicketModal", () => {
 		});
 		const { props: p, appels } = props();
 		render(<TicketModal {...p} />);
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
@@ -189,10 +242,12 @@ describe("TicketModal", () => {
 
 	test("une coupure réseau remonte aussi un toast d'erreur", async () => {
 		mockFetch({
+			...ROUTE_TYPES,
 			"POST /api/tickets/create": { networkError: "ECONNREFUSED" },
 		});
 		const { props: p, appels } = props();
 		render(<TicketModal {...p} />);
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
 		await waitFor(() => {
@@ -205,7 +260,7 @@ describe("TicketModal", () => {
 		const { props: p } = props(etat({ group: undefined }));
 		render(<TicketModal {...p} />);
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
-		expect(fetchCalls()).toHaveLength(0);
+		expect(posts()).toHaveLength(0);
 	});
 
 	test("le bouton de copie délègue au parent", async () => {
@@ -225,7 +280,7 @@ describe("TicketModal", () => {
 		render(<TicketModal {...p} />);
 		fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
 		expect(appels.etats.at(-1)?.isOpen).toBe(false);
-		expect(fetchCalls()).toHaveLength(0);
+		expect(posts()).toHaveLength(0);
 	});
 
 	test("une note ne survit pas à la fermeture (N25)", () => {
@@ -296,6 +351,7 @@ describe("TicketModal", () => {
 		// L'assertion qui compte vraiment : ce n'est pas l'affichage du champ qui
 		// nuit, c'est ce qui partirait dans Jira.
 		mockFetch({
+			...ROUTE_TYPES,
 			"POST /api/tickets/create": {
 				body: { success: true, ticketRef: "SEC-1" },
 			},
@@ -313,11 +369,97 @@ describe("TicketModal", () => {
 			appels,
 		);
 		rerender(<TicketModal {...suivant.props} />);
+		await attendreTypes();
 		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
 
-		await waitFor(() => expect(fetchCalls()).toHaveLength(1));
-		const corps = fetchCalls()[0]?.body as Record<string, unknown>;
+		await waitFor(() => expect(posts()).toHaveLength(1));
+		const corps = posts()[0]?.body as Record<string, unknown>;
 		expect(corps?.packageName).toBe("axios");
 		expect(corps?.notes).toBe("");
+	});
+});
+
+describe("TicketModal — type de ticket", () => {
+	test("la liste vient de Jira, pas d'une liste codée en dur", async () => {
+		// Les noms sont **localisés par instance** : « Tâche », « Dette Technique »…
+		// Une liste en dur serait fausse partout ailleurs, et une saisie exacte
+		// produisait « Spécifiez un type de ticket valide » après une tentative
+		// d'écriture.
+		mockFetch({
+			"GET /api/tickets/issue-types": {
+				types: ["Tâche", "Dette Technique", "Bug"],
+			},
+		});
+		const { props: p } = props();
+		render(<TicketModal {...p} />);
+
+		await attendreTypes();
+		// La liste s'ouvre pour montrer qu'elle porte bien les types de l'instance,
+		// et non une constante du dépôt.
+		fireEvent.pointerDown(screen.getByRole("combobox"), {
+			button: 0,
+			ctrlKey: false,
+			pointerType: "mouse",
+		});
+		expect(
+			screen.getByRole("option", { name: "Dette Technique" }),
+		).toBeInTheDocument();
+	});
+
+	test("le type choisi part avec le ticket", async () => {
+		mockFetch({
+			"GET /api/tickets/issue-types": { types: ["Tâche", "Dette Technique"] },
+			"POST /api/tickets/create": {
+				body: { success: true, ticketRef: "SEC-9" },
+			},
+		});
+		const { props: p } = props();
+		render(<TicketModal {...p} />);
+		await attendreTypes();
+
+		choisirType("Dette Technique");
+		// Le déclencheur porte désormais le nouveau choix.
+		await attendreTypes("Dette Technique");
+		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
+
+		await waitFor(() => {
+			expect(posts()).toHaveLength(1);
+		});
+		expect(posts()[0]?.body).toMatchObject({ issueType: "Dette Technique" });
+	});
+
+	test("liste indisponible : saisie libre, et la création reste possible", async () => {
+		// La liste est un confort : son absence — portée manquante, réseau — ne doit
+		// pas empêcher de créer un ticket, mais le type reste requis.
+		mockFetch({
+			"GET /api/tickets/issue-types": {
+				types: [],
+				raison: "Configuration Jira incomplète.",
+			},
+			"POST /api/tickets/create": {
+				body: { success: true, ticketRef: "SEC-9" },
+			},
+		});
+		const { props: p } = props();
+		render(<TicketModal {...p} />);
+
+		const champ = await screen.findByLabelText(/Type de ticket/);
+		expect(champ.tagName).toBe("INPUT");
+		await waitFor(() => {
+			expect(screen.getByText(/Liste non lue depuis Jira/)).toBeInTheDocument();
+		});
+
+		// Le type est requis et n'a plus de repli côté serveur : le bouton reste
+		// inactif tant que rien n'est saisi.
+		expect(
+			screen.getByRole("button", { name: /Créer dans Jira/ }),
+		).toBeDisabled();
+
+		fireEvent.change(champ, { target: { value: "Dette Technique" } });
+		fireEvent.click(screen.getByRole("button", { name: /Créer dans Jira/ }));
+		await waitFor(() => {
+			expect(posts()).toHaveLength(1);
+		});
+		expect(posts()[0]?.body).toMatchObject({ issueType: "Dette Technique" });
 	});
 });

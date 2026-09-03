@@ -36,7 +36,46 @@ Un jeton portant seulement `read:jira-user` passe donc le test de connexion et �
 
 Construit un document **ADF** et appelle l'API Jira v3 avec un en-tête `Authorization: Basic`. Champs envoyés : `project.key`, `summary` (`[Aegis] Remédiation <paquet>`), `description` (ADF), `issuetype.name`, plus `parent.key` et `components[]` s'ils sont configurés.
 
+⚠️ **Le nom du type d'issue n'a pas de valeur par défaut**, et c'est délibéré : ces noms sont **localisés par instance**. Un projet français expose « Tâche », « Dette Technique », « Bug », « Story » — et « Task » n'y existe pas. Le repli silencieux sur `"Task"` produisait donc un **400 de Jira après une tentative d'écriture**, sur un champ que l'écran présentait comme facultatif. La configuration est refusée avant l'appel, en nommant le champ manquant.
+
+Corollaire : la liste des types valides d'un projet se lit sans rien créer, par `GET /rest/api/3/issue/createmeta?projectKeys=<clé>&expand=projects.issuetypes.fields`. Elle donne aussi les champs **obligatoires** de chaque type — dont `parent`, requis pour les sous-tâches et optionnel pour les autres.
+
 Réglages lus **en base** : `JIRA_BASE_URL`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_ISSUE_TYPE`, `JIRA_COMPONENT`, `JIRA_PARENT_EPIC`, et le secret `JIRA_API_KEY`.
+
+## Choix du type de ticket (`GET /api/tickets/issue-types`)
+
+Le type se choisit **dans la modale de création**, par une liste déroulante, et **nulle part ailleurs** : le réglage `JIRA_ISSUE_TYPE` a été retiré. Une valeur enregistrée une fois pour toutes se périmait au premier changement de projet, et la saisie libre qu'elle supposait produisait « Spécifiez un type de ticket valide » **après** une tentative d'écriture. Une dette technique et un bug ne se rangent pas au même endroit : c'est une décision par ticket.
+
+Le type est donc **requis dans le corps de la requête**. Sans lui, refus en 400 avant tout appel — et le bouton de création reste inactif tant que rien n'est choisi, ce qui dit « il manque quelque chose ici » plutôt que de laisser partir un appel voué au refus.
+
+La liste déroulante est l'atome `Select` du dépôt (Radix), pas un `<select>` natif : c'est lui qui porte les tokens de thème et le comportement clavier (défaut N27, « design system contourné »).
+
+La liste est **lue dans Jira**, jamais codée en dur : `GET /rest/api/3/issue/createmeta?projectKeys=<clé>` — lecture seule, portée `read:jira-work`, ne crée rien. Une liste en dur serait fausse sur toute instance dont la langue diffère.
+
+Deux règles :
+
+1. **Les sous-tâches sont écartées.** Elles exigent un parent qui soit une tâche, alors que les tickets d'Aegis se rattachent à une epic (`JIRA_PARENT_EPIC`) : les proposer mènerait à un refus garanti.
+2. **Un échec rend `200` avec une liste vide et le motif.** L'écran retombe alors sur une saisie libre, et la création reste possible avec le réglage enregistré — la liste est un confort, pas une dépendance.
+
+## Refus de Jira, rendus lisibles
+
+Le corps d'erreur de l'API est un `ErrorCollection` : une liste de messages généraux, et une **liste indexée par champ**. C'est la seconde qui compte — elle nomme exactement le champ à corriger.
+
+Aegis le recopiait brut dans l'interface :
+
+```
+Erreur Jira: 400 {"errorMessages":[],"errors":{"issuetype":"Spécifiez un type de ticket valide"}}
+```
+
+Il rend désormais une phrase, et ajoute l'aide que Jira ne donne pas :
+
+```
+Jira a refusé la demande (400) — issuetype : Spécifiez un type de ticket valide.
+Le nom du type est localisé : vérifiez celui que votre projet expose
+(par exemple « Tâche » plutôt que « Task ») dans les Paramètres.
+```
+
+La **console** (§11), elle, garde le corps brut : c'est la trace technique, et elle ne doit pas être reformulée. Un corps non-JSON — page d'erreur d'un proxy — est conservé tronqué à 200 caractères : mieux qu'un message vide, pas une page entière dans une notification.
 
 ## Garde anti-doublon
 

@@ -17,8 +17,14 @@ import {
 	jiraEndpoint,
 	normaliseTokenKind,
 } from "@/lib/jira/endpoint";
+import {
+	AIDE_TYPE_DE_TICKET,
+	formatJiraError,
+	refusSurTypeDeTicket,
+} from "@/lib/jira/errors";
 import type {
 	JiraCreatedIssue,
+	JiraCreateMeta,
 	JiraCurrentUser,
 	JiraIssueCreate,
 } from "@/lib/jira/types";
@@ -97,7 +103,13 @@ export const ticketsRoutes = {
 	},
 	"/api/tickets/create": {
 		async POST(req: Request) {
-			const { projectId, packageName, cves, notes } = await req.json();
+			const {
+				projectId,
+				packageName,
+				cves,
+				notes,
+				issueType: typeDemande,
+			} = await req.json();
 			const { getSetting } = await import("../db/settings");
 			const { saveTicket } = await import("../db/tickets");
 
@@ -117,7 +129,20 @@ export const ticketsRoutes = {
 			const apiKey = getSetting("JIRA_API_KEY", process.env.JIRA_API_KEY ?? "");
 			const project = getSetting("JIRA_PROJECT", "");
 			const component = getSetting("JIRA_COMPONENT", "");
-			const issueType = getSetting("JIRA_ISSUE_TYPE", "Task");
+			// **Aucun défaut.** `"Task"` était la valeur de repli, or les noms de
+			// types d'issue sont **localisés par instance** : un projet français
+			// expose « Tâche », « Bug », « Dette Technique »… et `"Task"` n'y existe
+			// pas. Le repli produisait donc un 400 de Jira après une tentative
+			// d'écriture, sur une configuration que l'écran présentait comme
+			// facultative. Constaté sur une instance réelle.
+			// Le type vient **du corps de la requête**, donc de la modale, et de
+			// nulle part ailleurs. Il n'y a plus de réglage global : les noms étant
+			// localisés par instance, une valeur enregistrée une fois pour toutes se
+			// périmait au premier changement de projet, et la saisie libre qu'elle
+			// supposait produisait un « Spécifiez un type de ticket valide » après
+			// une tentative d'écriture. La modale lit la liste chez Jira (§8).
+			const issueType =
+				typeof typeDemande === "string" ? typeDemande.trim() : "";
 			const parentEpic = getSetting("JIRA_PARENT_EPIC", "");
 
 			if (!user || !apiKey || !project) {
@@ -126,6 +151,16 @@ export const ticketsRoutes = {
 						error:
 							"Veuillez configurer l'utilisateur, la clé d'API et le projet Jira dans les Paramètres.",
 					},
+					{ status: 400 },
+				);
+			}
+
+			if (!issueType) {
+				// Refus **avant** l'appel : Jira répondrait « Spécifiez un type de
+				// ticket valide », un message que l'utilisateur ne peut pas relier au
+				// champ de la modale.
+				return Response.json(
+					{ error: "Choisissez un type de ticket avant de créer le ticket." },
 					{ status: 400 },
 				);
 			}
@@ -311,12 +346,17 @@ export const ticketsRoutes = {
 					exitCode: response.status,
 					ok: false,
 					ms: Date.now() - debut,
+					// La console garde le corps **brut** : c'est la trace technique.
 					errorText,
 				});
-				return Response.json(
-					{ error: `Erreur Jira: ${response.status} ${errorText}` },
-					{ status: response.status },
-				);
+				// L'interface, elle, reçoit une phrase. Le corps d'erreur de Jira est un
+				// `ErrorCollection` qui nomme le champ fautif ; le recopier tel quel
+				// affichait du JSON à l'utilisateur, avec le message utile noyé dedans.
+				let message = formatJiraError(response.status, errorText);
+				if (refusSurTypeDeTicket(errorText)) {
+					message = `${message}. ${AIDE_TYPE_DE_TICKET}`;
+				}
+				return Response.json({ error: message }, { status: response.status });
 			}
 
 			const data = (await response.json()) as JiraCreatedIssue;
@@ -348,6 +388,111 @@ export const ticketsRoutes = {
 			saveTicket(projectId, packageName, data.key, cves, contentHash);
 
 			return Response.json({ success: true, ticketRef: data.key });
+		},
+	},
+
+	"/api/tickets/issue-types": {
+		/**
+		 * Types de ticket **du projet configuré**, lus dans Jira.
+		 *
+		 * Les noms sont localisés par instance : un projet français expose « Tâche »,
+		 * « Dette Technique », « Bug »… Une liste codée en dur serait donc fausse
+		 * partout ailleurs, et une saisie libre expose à un 400 après une tentative
+		 * d'écriture. On demande la vérité à Jira.
+		 *
+		 * `GET /rest/api/3/issue/createmeta` — **lecture seule**, portée
+		 * `read:jira-work`, ne crée rien.
+		 *
+		 * Les **sous-tâches sont écartées** : elles exigent un parent qui soit une
+		 * tâche, alors que les tickets d'Aegis se rattachent à une epic. Les proposer
+		 * mènerait à un refus garanti.
+		 *
+		 * Échec — configuration incomplète, portée manquante, réseau — : **200 avec
+		 * une liste vide** et le motif. L'écran retombe alors sur la saisie libre au
+		 * lieu de bloquer la création, qui reste possible avec le réglage enregistré.
+		 */
+		async GET() {
+			const { getSetting } = await import("../db/settings");
+			const baseUrl = getSetting("JIRA_BASE_URL", "");
+			const user = getSetting("JIRA_USER", "");
+			const apiKey = getSetting("JIRA_API_KEY", process.env.JIRA_API_KEY ?? "");
+			const project = getSetting("JIRA_PROJECT", "");
+			const authJira = {
+				kind: normaliseTokenKind(getSetting("JIRA_TOKEN_KIND", "")),
+				cloudId: getSetting("JIRA_CLOUD_ID", ""),
+			};
+
+			if (!user || !apiKey || !project) {
+				return Response.json({
+					types: [],
+					raison: "Configuration Jira incomplète.",
+				});
+			}
+			const cible = jiraEndpoint(
+				baseUrl,
+				`/rest/api/3/issue/createmeta?projectKeys=${encodeURIComponent(project)}&expand=projects.issuetypes.fields`,
+				authJira,
+			);
+			if (!cible) {
+				return Response.json({
+					types: [],
+					raison:
+						diagnostiqueConfiguration(baseUrl, authJira) ??
+						"URL Jira invalide (https requis)",
+				});
+			}
+
+			const auth = Buffer.from(`${user}:${apiKey}`).toString("base64");
+			const { emitConsoleEnd, emitConsoleStart } = await import(
+				"../lib/console"
+			);
+			const debut = Date.now();
+			const eventId = emitConsoleStart({
+				cmd: `GET /rest/api/3/issue/createmeta (${project})`,
+				cwd: cible,
+				label: "jira",
+			});
+			try {
+				const response = await fetch(cible, {
+					headers: {
+						Authorization: `Basic ${auth}`,
+						Accept: "application/json",
+					},
+				});
+				if (!response.ok) {
+					const corps = await response.text();
+					emitConsoleEnd(eventId, {
+						exitCode: response.status,
+						ok: false,
+						ms: Date.now() - debut,
+						errorText: corps,
+					});
+					return Response.json({
+						types: [],
+						raison: formatJiraError(response.status, corps),
+					});
+				}
+
+				const meta = (await response.json()) as JiraCreateMeta;
+				const types = (meta.projects?.[0]?.issuetypes ?? [])
+					.filter((t) => t.subtask !== true && typeof t.name === "string")
+					.map((t) => t.name as string);
+				emitConsoleEnd(eventId, {
+					exitCode: response.status,
+					ok: true,
+					ms: Date.now() - debut,
+					outText: types.join(", "),
+				});
+				return Response.json({ types });
+			} catch (e: unknown) {
+				emitConsoleEnd(eventId, {
+					exitCode: 0,
+					ok: false,
+					ms: Date.now() - debut,
+					errorText: errorMessage(e),
+				});
+				return Response.json({ types: [], raison: errorMessage(e) });
+			}
 		},
 	},
 

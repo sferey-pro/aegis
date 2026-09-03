@@ -390,7 +390,18 @@ describe("Settings", () => {
 		});
 		render(<Settings />);
 		expect(await screen.findByLabelText(/Cache d'Audit/)).toHaveValue(24);
-		expect(screen.getByLabelText(/Type de ticket/)).toHaveValue("Task");
+	});
+
+	test("le type de ticket ne figure plus dans les réglages", async () => {
+		// Il se choisit **dans la modale de création**, depuis la liste lue chez Jira.
+		// Un réglage global se périmait au premier changement de projet, et la saisie
+		// libre qu'il supposait produisait « Spécifiez un type de ticket valide »
+		// après une tentative d'écriture.
+		mockFetch({ ...routesDeBase, "GET /api/settings": reglages });
+		render(<Settings />);
+		await screen.findByLabelText(/Base URL Jira/);
+
+		expect(screen.queryAllByLabelText(/Type de ticket/)).toHaveLength(0);
 	});
 
 	/**

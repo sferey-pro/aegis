@@ -309,6 +309,33 @@ Règle générale : une garde de concurrence se teste en **occupant réellement*
 ressource, pour une durée qu'on choisit. Deux ordres de grandeur d'écart avec
 l'opération mesurée, pas deux fois.
 
+## L'atome `Select` (Radix) ne se pilote pas comme un `<select>`
+
+Trois choses ne marchent pas sur lui : `fireEvent.change`, `click` sur le
+déclencheur, et `toHaveValue`. Ce n'est pas un contrôle de formulaire natif — le
+déclencheur est un `button` de rôle `combobox`, et la liste est rendue dans un
+portail à l'ouverture.
+
+Ce qui marche, vérifié sous happy-dom :
+
+```ts
+// lire la valeur : elle est le texte du déclencheur
+expect(screen.getByRole("combobox")).toHaveTextContent("Tâche");
+
+// ouvrir : `pointerDown`, pas `click`
+fireEvent.pointerDown(screen.getByRole("combobox"), {
+  button: 0, ctrlKey: false, pointerType: "mouse",
+});
+fireEvent.click(screen.getByRole("option", { name: "Dette Technique" }));
+```
+
+⚠️ **Un champ qui change de nature invalide les références capturées.** Dans la
+modale de ticket, le champ est une saisie libre avant que la liste ne soit lue,
+puis une liste déroulante après : une référence obtenue par `findByLabelText`
+avant la réponse est détachée du document, et `toHaveValue` y répond
+« Received: element » sans autre explication. Requêtez à nouveau **dans**
+l'attente.
+
 ## 🚦 CI
 
 `.github/workflows/ci.yml`, sur `push` et `pull_request` vers `main`, depuis

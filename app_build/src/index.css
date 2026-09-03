@@ -27,6 +27,15 @@
 	}
 }
 
+/* La gouttière de l'ascenseur est réservée en permanence. Les règles
+   `::-webkit-scrollbar` ci-dessous fixent une barre de 12 px non superposée :
+   une page courte n'en a pas, une page longue en a, et la largeur utile change
+   de 12 px à chaque navigation — le contenu centré (`mx-auto`) et l'en-tête
+   fixe se décalaient de 6 px à chaque clic dans le menu. */
+html {
+	scrollbar-gutter: stable;
+}
+
 body {
 	margin: 0;
 	min-height: 100vh;

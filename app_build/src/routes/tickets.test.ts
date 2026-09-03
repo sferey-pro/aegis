@@ -1087,13 +1087,33 @@ describe("POST /api/tickets/test-connection", () => {
 		expect(appelsJira).toHaveLength(0);
 	});
 
-	test("un refus d'authentification renvoie 400 avec le statut", async () => {
+	test("un refus d'authentification renvoie 400 avec le statut et le motif", async () => {
+		// Le motif compte : « Client must be authenticated » est le symptôme d'un
+		// jeton à périmètre appelé sur le site (§8), pas d'un mot de passe faux.
 		configurerJira();
-		stubJira({ status: 401 });
+		stubJira({
+			status: 401,
+			body: {
+				errorMessages: [
+					"Client must be authenticated to access this resource.",
+				],
+				errors: {},
+			},
+		});
 		const { status, data } = await tester();
 		expect(status).toBe(400);
 		expect(data.success).toBe(false);
-		expect(data.error).toBe("Statut HTTP 401");
+		expect(data.error).toBe(
+			"Jira a refusé la demande (401) — Client must be authenticated to access this resource.",
+		);
+	});
+
+	test("un refus sans corps exploitable garde au moins le statut", async () => {
+		configurerJira();
+		stubJira({ status: 403 });
+		const { status, data } = await tester();
+		expect(status).toBe(400);
+		expect(data.error).toBe("Jira a refusé la demande (403).");
 	});
 
 	test("une panne réseau renvoie 400, pas 500", async () => {

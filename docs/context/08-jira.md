@@ -103,6 +103,8 @@ Table `tickets`, unicité `(project_id, package)`, cascade à la suppression du 
 
 `POST /api/tickets/test-connection` lit la configuration **enregistrée** et **ignore son corps de requête** : accepter une URL libre ferait de cette route un proxy sortant authentifié (§15).
 
+Un refus de Jira y passe par la même mise en forme que la création (ci-dessus) : « Statut HTTP 401 » taisait le « Client must be authenticated » qui signale un jeton à périmètre appelé sur le site, et le rendait indistinguable d'un mot de passe faux.
+
 ## Types, et pourquoi seulement deux endpoints
 
 Le swagger de l'API Jira Cloud est versionné dans `docs/references/swagger-v3.v3.json` (OpenAPI 3.0.1, **421 chemins, 971 schémas**). Aegis n'en appelle que deux : `getCurrentUser` pour le test de connexion, `createIssue` pour le ticket.

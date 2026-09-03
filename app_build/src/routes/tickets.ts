@@ -577,6 +577,7 @@ export const ticketsRoutes = {
 				});
 
 				if (!response.ok) {
+					const body = await response.text();
 					// `ok` explicite : `exitCode` porte ici un statut HTTP, et la
 					// convention shell « zéro vaut succès » afficherait une croix sur un
 					// 200 et une coche sur une coupure réseau.
@@ -584,9 +585,14 @@ export const ticketsRoutes = {
 						exitCode: response.status,
 						ok: false,
 						ms: Date.now() - startedAt,
+						// La console garde le corps **brut** : c'est la trace technique.
+						errorText: body,
 					});
+					// Même mise en forme que la création : « Statut HTTP 401 » taisait le
+					// « Client must be authenticated » qui distingue un jeton à périmètre
+					// appelé sur le site (§8) d'un mot de passe faux.
 					return Response.json(
-						{ success: false, error: `Statut HTTP ${response.status}` },
+						{ success: false, error: formatJiraError(response.status, body) },
 						{ status: 400 },
 					);
 				}

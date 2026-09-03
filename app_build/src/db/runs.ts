@@ -112,6 +112,31 @@ export function getRunsForProject(projectId: number, limit = 30): Run[] {
 	return rows.map(parseRun);
 }
 
+/**
+ * Dernier run **non-erreur** strictement antérieur à `before`, dans l'ordre
+ * `ran_at DESC, id DESC` — la définition unique du « dernier run » (§4).
+ *
+ * Sert d'amorçage au diff `newCves` de l'historique : le plus ancien des trente
+ * runs rendus se compare à celui qui le précède, pas à rien — sinon toutes ses
+ * vulnérabilités passeraient pour nouvelles au seul motif qu'on a tronqué la
+ * liste.
+ */
+export function getPreviousNonErrorRun(
+	projectId: number,
+	before: Pick<Run, "ran_at" | "id">,
+): Run | null {
+	const row = getDb()
+		.query(`
+    SELECT * FROM runs
+    WHERE project_id = ? AND status != 'error'
+      AND (ran_at < ? OR (ran_at = ? AND id < ?))
+    ORDER BY ran_at DESC, id DESC
+    LIMIT 1
+  `)
+		.get(projectId, before.ran_at, before.ran_at, before.id) as RunRow | null;
+	return row ? parseRun(row) : null;
+}
+
 export function getLatestRun(projectId: number): Run | null {
 	const db = getDb();
 	const row = db
@@ -251,12 +276,27 @@ export const HISTORY_DAYS_MAX = 365;
  * (une erreur ne doit pas faire disparaître les vulnérabilités précédentes),
  * l'état est porté dans le temps, la dernière écriture du jour gagne, et seuls
  * les projets non ignorés comptent.
+ *
+ * ## Série d'un seul projet
+ *
+ * `projectId` restreint la série à ce projet, **ignoré ou non** : la page de
+ * détail le montre parce qu'on l'a demandé, et un projet mis de côté garde son
+ * histoire. Même algorithme, même amorçage — c'est la même série, avec un seul
+ * état à porter.
  */
-export function getGlobalHistory(days = 30): HistoryPoint[] {
+export function getGlobalHistory(
+	days = 30,
+	projectId?: number,
+): HistoryPoint[] {
 	const db = getDb();
-	const projets = db
-		.query(`SELECT id FROM projects WHERE ignored = 0`)
-		.all() as { id: number }[];
+	const projets =
+		projectId === undefined
+			? (db.query(`SELECT id FROM projects WHERE ignored = 0`).all() as {
+					id: number;
+				}[])
+			: (db.query(`SELECT id FROM projects WHERE id = ?`).all(projectId) as {
+					id: number;
+				}[]);
 
 	const isHourly = days === 1;
 	/** Longueur de la clé de bucket dans `ran_at` : « YYYY-MM-DD » ou « … HH ». */

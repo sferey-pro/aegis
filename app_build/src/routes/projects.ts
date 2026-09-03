@@ -11,8 +11,18 @@ import {
 	type ProjectTool,
 	updateProject,
 } from "../db/projects";
-import { getLatestRun, getRunsForProject, type Run } from "../db/runs";
-import { auditTargetKey, resolveAuditTarget } from "../lib/audit";
+import {
+	getLatestRun,
+	getPreviousNonErrorRun,
+	getRunsForProject,
+	type Run,
+} from "../db/runs";
+import {
+	auditTargetKey,
+	diffNewCves,
+	type NewCve,
+	resolveAuditTarget,
+} from "../lib/audit";
 import { runSingleAudit } from "../lib/audit/queue";
 import {
 	expandPath,
@@ -38,6 +48,14 @@ export type ProjectGitState = GitInfo | { isRepo: false };
  * lit plus l'état git au chargement (cinq sous-processus par projet), il se
  * demande.
  */
+/**
+ * Un run de l'historique (`GET /api/projects/:id/history`), enrichi des
+ * vulnérabilités absentes du run non-erreur qui le précède — la définition de
+ * `newCves` de §2, calculée à la lecture et jamais persistée. Un run en erreur
+ * n'a rien mesuré : sa liste est vide.
+ */
+export type ProjectHistoryItem = Run & { newCves: NewCve[] };
+
 export type ProjectListItem = Project & {
 	/**
 	 * Dernier état git connu, `null` s'il n'a **jamais** été lu. `checkedAt` dit
@@ -356,7 +374,22 @@ export const projectsRoutes = {
 				return Response.json({ error: "Projet introuvable" }, { status: 404 });
 			}
 
-			return Response.json(getRunsForProject(id));
+			const runs = getRunsForProject(id);
+			// Du plus ancien au plus récent, en portant le dernier run non-erreur :
+			// c'est contre lui que chaque run se compare (§2). Le plus ancien des
+			// trente se compare à celui qui le précède en base, pas à rien.
+			const oldest = runs.at(-1);
+			let previous = oldest ? getPreviousNonErrorRun(id, oldest) : null;
+			const items: ProjectHistoryItem[] = [];
+			for (const run of [...runs].reverse()) {
+				const newCves =
+					run.status === "error"
+						? []
+						: diffNewCves(previous, run.vulnerabilities);
+				items.push({ ...run, newCves });
+				if (run.status !== "error") previous = run;
+			}
+			return Response.json(items.reverse());
 		},
 	},
 

@@ -28,6 +28,10 @@ Projet inconnu → **404** « Projet introuvable », jamais une liste vide : « 
 
 Aucun paramètre de pagination : la limite de 30 est fixée par le contrat, et en inventer un ajouterait de la surface non spécifiée.
 
+**Chaque run porte `newCves`** — les vulnérabilités absentes du run **non-erreur** qui le précède, selon la définition unique de §2 (`diffNewCves`, clé `package::cve`, repli sur le titre). Calculé à la lecture, jamais persisté. Un run en erreur n'a rien mesuré : sa liste est vide, et il ne sert pas de point de comparaison au suivant. Le plus ancien des trente se compare au run non-erreur qui le précède **en base**, pas à rien : tronquer la liste ne doit pas faire passer un vieux stock pour une vague de nouveautés. Le tout premier run d'un projet, lui, a tout en nouveau — même règle qu'à l'audit.
+
+C'est la source de la page de détail d'un projet (`/projects/:id`) : le rapport d'un run — compteurs, nouveautés, liste des vulnérabilités, erreur brute — s'y lit sans relancer l'audit.
+
 ## Évolution globale (`GET /api/history-global`)
 
 Reconstitue, par jour, le total agrégé de **tous les projets actifs**. Sortie : `{date, label, counts, total}[]`, chronologique croissant.
@@ -47,11 +51,13 @@ Reconstitue, par jour, le total agrégé de **tous les projets actifs**. Sortie 
 
 **Amorçage** : la requête est bornée à la fenêtre demandée, plus le dernier run non-erreur de chaque projet **avant** elle. Sans cet amorçage, un projet audité une seule fois il y a six mois disparaîtrait de la série — ce qui se lirait comme une remédiation.
 
+**`?project=<id>`** restreint la série à un seul projet, **ignoré ou non** — on l'a demandé nommément, et mettre un projet de côté n'efface pas ce qu'on a mesuré. Même algorithme, même amorçage, un seul état à porter. Identifiant inconnu → **404** « Projet introuvable », jamais une série à zéro (N6) ; non numérique → **400** « Projet invalide ». C'est la série du graphique d'évolution de la page de détail.
+
 **`?days`** doit être un entier dans `[1, 365]`, sinon 400 « Fenêtre invalide : days doit être un entier entre 1 et 365 ». Non borné, il construisait cent mille buckets et bloquait le process ; non validé, `?days=abc` renvoyait `[]` en 200 — un graphique vide sans message, indistinguable d'un parc sans historique.
 
 ## Cas limites
 
-Aucun run → série de buckets à zéro. Projet ignoré → absent de la série globale, historique projet inchangé. Runs uniquement en erreur → jamais dans la série. Erreur après des runs valides → état conservé. Audit dédupliqué → pas de run, pas de `newCves`.
+Aucun run → série de buckets à zéro. Projet ignoré → absent de la série globale, présent dans la série `?project=` et dans son historique. Runs uniquement en erreur → jamais dans la série. Erreur après des runs valides → état conservé. Audit dédupliqué → pas de run, pas de `newCves`.
 
 ---
 

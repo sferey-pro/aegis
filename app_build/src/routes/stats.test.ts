@@ -314,6 +314,52 @@ describe("GET /api/history-global", () => {
 		expect(data.at(-1)?.counts.critical).toBe(0);
 	});
 
+	test("?project= restreint la série à un projet, ignoré ou non", async () => {
+		const a = projet("serie-a");
+		const b = projet("serie-b", { ignored: true });
+		const ra = run(a.id, [vuln()], compte({ critical: 2 }));
+		const rb = run(b.id, [vuln()], compte({ critical: 5 }));
+		for (const r of [ra, rb]) {
+			getDb()
+				.query("UPDATE runs SET ran_at = ? WHERE id = ?")
+				.run(`${jourCourant()} 10:00:00`, r.id);
+		}
+
+		const globale = (
+			await srv.json<HistoryPoint[]>("/api/history-global?days=7")
+		).data;
+		const seuleA = (
+			await srv.json<HistoryPoint[]>(
+				`/api/history-global?days=7&project=${a.id}`,
+			)
+		).data;
+		const seuleB = (
+			await srv.json<HistoryPoint[]>(
+				`/api/history-global?days=7&project=${b.id}`,
+			)
+		).data;
+		expect(globale.at(-1)?.counts.critical).toBe(2);
+		expect(seuleA.at(-1)?.counts.critical).toBe(2);
+		// Ignoré, donc hors de la série globale — mais demandé nommément ici.
+		expect(seuleB.at(-1)?.counts.critical).toBe(5);
+	});
+
+	test("?project= inconnu répond 404, jamais une série à zéro", async () => {
+		const { status, data } = await srv.json<{ error: string }>(
+			"/api/history-global?project=999999",
+		);
+		expect(status).toBe(404);
+		expect(data.error).toBe("Projet introuvable");
+	});
+
+	test("?project= non numérique répond 400", async () => {
+		const { status, data } = await srv.json<{ error: string }>(
+			"/api/history-global?project=abc",
+		);
+		expect(status).toBe(400);
+		expect(data.error).toBe("Projet invalide");
+	});
+
 	test("chaque point porte les six sévérités et un total (N13)", async () => {
 		const { data } = await srv.json<HistoryPoint[]>(
 			"/api/history-global?days=7",

@@ -11,6 +11,7 @@ import { getDb } from "@/db";
 import { createProject, type Project } from "@/db/projects";
 import { addRun, getRunsForProject, type Run } from "@/db/runs";
 import type { Vulnerability } from "@/lib/parsers/types";
+import type { ProjectHistoryItem } from "@/routes/projects";
 import { startTestServer, type TestServer } from "@/test/server";
 
 let srv: TestServer;
@@ -219,6 +220,62 @@ describe("GET /api/projects/:id/history", () => {
 		expect(data).toHaveLength(1);
 		expect(data[0]?.status).toBe("error");
 		expect(data[0]?.error).toBe("ENOENT");
+	});
+
+	test("chaque run porte ses nouvelles CVE, comparées au run non-erreur précédent (§2)", async () => {
+		const p = projet();
+		const premier = run(p.id, {
+			vulnerabilities: [vuln({ cve: "CVE-2024-1" })],
+		});
+		const erreur = run(p.id, {
+			status: "error",
+			error: "ENOENT",
+			total: 0,
+			vulnerabilities: [],
+		});
+		const second = run(p.id, {
+			vulnerabilities: [
+				vuln({ cve: "CVE-2024-1" }),
+				vuln({ cve: "CVE-2024-2", package: "axios" }),
+			],
+		});
+		daterRun(premier.id, "2026-01-01 10:00:00");
+		daterRun(erreur.id, "2026-01-02 10:00:00");
+		daterRun(second.id, "2026-01-03 10:00:00");
+
+		const { data } = await srv.json<ProjectHistoryItem[]>(
+			`/api/projects/${p.id}/history`,
+		);
+		const parId = new Map(data.map((r) => [r.id, r]));
+		// Premier run, rien avant lui : tout est nouveau (§2).
+		expect(parId.get(premier.id)?.newCves.map((c) => c.ref)).toEqual([
+			"CVE-2024-1",
+		]);
+		// Une erreur n'a rien mesuré, et ne sert pas de point de comparaison.
+		expect(parId.get(erreur.id)?.newCves).toEqual([]);
+		expect(parId.get(second.id)?.newCves).toEqual([
+			{ ref: "CVE-2024-2", package: "axios", severity: "high" },
+		]);
+	});
+
+	test("le plus ancien des trente se compare au run qui le précède en base", async () => {
+		// Tronquer la liste ne doit pas faire passer un vieux stock pour une vague
+		// de nouveautés : l'amorçage lit le run d'avant, hors fenêtre.
+		const p = projet();
+		const horsFenetre = run(p.id, {
+			vulnerabilities: [vuln({ cve: "CVE-2024-1" })],
+		});
+		daterRun(horsFenetre.id, "2025-01-01 10:00:00");
+		for (let i = 0; i < 30; i++) {
+			const r = run(p.id, { vulnerabilities: [vuln({ cve: "CVE-2024-1" })] });
+			daterRun(r.id, `2026-01-${String(i + 1).padStart(2, "0")} 10:00:00`);
+		}
+
+		const { data } = await srv.json<ProjectHistoryItem[]>(
+			`/api/projects/${p.id}/history`,
+		);
+		expect(data).toHaveLength(30);
+		expect(data.every((r) => r.newCves.length === 0)).toBe(true);
 	});
 
 	test("la limite est de trente runs", async () => {

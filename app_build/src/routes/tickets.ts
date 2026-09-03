@@ -28,13 +28,21 @@ import type {
 	JiraCurrentUser,
 	JiraIssueCreate,
 } from "@/lib/jira/types";
+import {
+	ticketCreateBodySchema,
+	ticketLinkBodySchema,
+	ticketTargetSchema,
+} from "@/lib/schemas";
 import { errorMessage } from "@/lib/utils";
+import { parseBody } from "@/lib/validate";
 import { buildCveGroups } from "../lib/aggregator";
 
 export const ticketsRoutes = {
 	"/api/tickets": {
 		async POST(req: Request) {
-			const { projectId, packageName } = await req.json();
+			const parsed = await parseBody(req, ticketTargetSchema);
+			if (parsed.response) return parsed.response;
+			const { projectId, packageName } = parsed.data;
 			const groups = buildCveGroups();
 
 			const occurrences = [];
@@ -87,7 +95,9 @@ export const ticketsRoutes = {
 	},
 	"/api/tickets/link": {
 		async POST(req: Request) {
-			const { projectId, packageName, ref, cves } = await req.json();
+			const parsed = await parseBody(req, ticketLinkBodySchema);
+			if (parsed.response) return parsed.response;
+			const { projectId, packageName, ref, cves } = parsed.data;
 			const { saveTicket } = await import("../db/tickets");
 			saveTicket(projectId, packageName, ref, cves, null);
 			return Response.json({ success: true });
@@ -95,7 +105,9 @@ export const ticketsRoutes = {
 	},
 	"/api/tickets/unlink": {
 		async POST(req: Request) {
-			const { projectId, packageName } = await req.json();
+			const parsed = await parseBody(req, ticketTargetSchema);
+			if (parsed.response) return parsed.response;
+			const { projectId, packageName } = parsed.data;
 			const { deleteTicket } = await import("../db/tickets");
 			deleteTicket(projectId, packageName);
 			return Response.json({ success: true });
@@ -103,13 +115,9 @@ export const ticketsRoutes = {
 	},
 	"/api/tickets/create": {
 		async POST(req: Request) {
-			const {
-				projectId,
-				packageName,
-				cves,
-				notes,
-				issueType: requestedType,
-			} = await req.json();
+			const parsed = await parseBody(req, ticketCreateBodySchema);
+			if (parsed.response) return parsed.response;
+			const { projectId, packageName, cves, notes, issueType } = parsed.data;
 			const { getSetting } = await import("../db/settings");
 			const { saveTicket } = await import("../db/tickets");
 
@@ -141,8 +149,6 @@ export const ticketsRoutes = {
 			// périmait au premier changement de projet, et la saisie libre qu'elle
 			// supposait produisait un « Spécifiez un type de ticket valide » après
 			// une tentative d'écriture. La modale lit la liste chez Jira (§8).
-			const issueType =
-				typeof requestedType === "string" ? requestedType.trim() : "";
 			const parentEpic = getSetting("JIRA_PARENT_EPIC", "");
 
 			if (!user || !apiKey || !project) {
@@ -229,7 +235,7 @@ export const ticketsRoutes = {
 			);
 
 			// Append notes if provided
-			if (notes && notes.trim().length > 0) {
+			if (notes.trim().length > 0) {
 				adfDoc.content.push(
 					// `panelType` est un enum ADF, pas une chaîne libre : on l'emploie
 					// tel quel plutôt que de caster "info".

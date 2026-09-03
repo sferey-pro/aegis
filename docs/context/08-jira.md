@@ -42,6 +42,20 @@ Corollaire : la liste des types valides d'un projet se lit sans rien créer, par
 
 Réglages lus **en base** : `JIRA_BASE_URL`, `JIRA_TOKEN_KIND`, `JIRA_CLOUD_ID`, `JIRA_USER`, `JIRA_PROJECT`, `JIRA_COMPONENT`, `JIRA_PARENT_EPIC`, et le secret `JIRA_API_KEY`. Le type de ticket vient du corps de la requête (voir ci-dessous).
 
+### Validation des corps
+
+Les quatre routes qui prennent un corps — brouillon (`POST /api/tickets`), liaison (`/link`), suppression du lien (`/unlink`), création (`/create`) — passent par Zod (`src/lib/schemas.ts`), en 400 avec un seul message, comme §1 :
+
+| Contrôle | Message |
+|---|---|
+| Corps JSON lisible | « JSON invalide » |
+| `projectId` entier | « Projet requis » |
+| `packageName` non vide (trim) | « Paquet requis » |
+| `ref` non vide (trim), liaison seulement | « Référence requise » |
+| `issueType` non vide, création seulement | « Choisissez un type de ticket avant de créer le ticket. » |
+
+`cves` est facultatif et vaut `[]` par défaut ; `notes` vaut `""`. Un `cves` absent faisait auparavant lever `cves.includes` et sortait en **500**. Le refus sur `issueType` est rendu par la route, **après** le contrôle de configuration Jira : sans configuration, c'est la consigne « configurez… dans les Paramètres » qui prime.
+
 ## Choix du type de ticket (`GET /api/tickets/issue-types`)
 
 Le type se choisit **dans la modale de création**, par une liste déroulante, et **nulle part ailleurs** : le réglage `JIRA_ISSUE_TYPE` a été retiré. Une valeur enregistrée une fois pour toutes se périmait au premier changement de projet, et la saisie libre qu'elle supposait produisait « Spécifiez un type de ticket valide » **après** une tentative d'écriture. Une dette technique et un bug ne se rangent pas au même endroit : c'est une décision par ticket.

@@ -11,6 +11,9 @@ import {
 	settingsBodySchema,
 	TAG_COLORS,
 	tagBodySchema,
+	ticketCreateBodySchema,
+	ticketLinkBodySchema,
+	ticketTargetSchema,
 } from "./schemas";
 
 /** Message du premier problème, tel que `parseBody` le renverra au client. */
@@ -468,6 +471,56 @@ describe("schemas — restoreBodySchema et reportBodySchema", () => {
  * Marche à suivre au correctif : retirer `.failing`, puis supprimer le test
  * « écart documenté » correspondant, qui épinglait l'ancien comportement.
  */
+
+describe("schemas — tickets (CONTEXT.md §8)", () => {
+	const cible = { projectId: 7, packageName: "lodash" };
+
+	test("la cible exige un projet entier et un paquet non vide", () => {
+		expect(ticketTargetSchema.parse(cible)).toEqual(cible);
+		expect(ticketTargetSchema.parse({ ...cible, projectId: "7" })).toEqual(
+			cible,
+		);
+		expect(messageDe(ticketTargetSchema, { packageName: "lodash" })).toBe(
+			"Projet requis",
+		);
+		expect(
+			messageDe(ticketTargetSchema, { projectId: 7.5, packageName: "x" }),
+		).toBe("Projet requis");
+		expect(messageDe(ticketTargetSchema, { projectId: 7 })).toBe(
+			"Paquet requis",
+		);
+		expect(
+			messageDe(ticketTargetSchema, { projectId: 7, packageName: "  " }),
+		).toBe("Paquet requis");
+	});
+
+	test("la liaison exige une référence, et accepte l'absence de CVE", () => {
+		expect(ticketLinkBodySchema.parse({ ...cible, ref: " SEC-1 " })).toEqual({
+			...cible,
+			ref: "SEC-1",
+			cves: [],
+		});
+		expect(messageDe(ticketLinkBodySchema, cible)).toBe("Référence requise");
+		expect(messageDe(ticketLinkBodySchema, { ...cible, ref: "" })).toBe(
+			"Référence requise",
+		);
+	});
+
+	test("la création remplit cves, notes et issueType par défaut", () => {
+		// `issueType` vide n'est pas refusé ici : c'est la route qui le fait, après
+		// le contrôle de configuration Jira, avec le message qui nomme la modale.
+		expect(ticketCreateBodySchema.parse(cible)).toEqual({
+			...cible,
+			cves: [],
+			notes: "",
+			issueType: "",
+		});
+		expect(
+			ticketCreateBodySchema.parse({ ...cible, issueType: " Tâche " })
+				.issueType,
+		).toBe("Tâche");
+	});
+});
 
 describe("contrats attendus — à activer au correctif", () => {
 	// N33 — `z.coerce.boolean` rend vraie toute chaîne non vide. Un client qui

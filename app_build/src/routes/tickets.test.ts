@@ -298,6 +298,59 @@ describe("liaison manuelle de tickets", () => {
 	});
 });
 
+describe("validation des corps (§8)", () => {
+	const routes = [
+		"/api/tickets",
+		"/api/tickets/link",
+		"/api/tickets/unlink",
+		"/api/tickets/create",
+	];
+
+	test.each(routes)("%s : un JSON illisible répond 400", async (route) => {
+		const { status, data } = await srv.json<{ error: string }>(route, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: "{",
+		});
+		expect(status).toBe(400);
+		expect(data.error).toBe("JSON invalide");
+	});
+
+	test.each(routes)("%s : sans projet, « Projet requis »", async (route) => {
+		const { status, data } = await srv.json<{ error: string }>(
+			route,
+			jsonBody({ packageName: "lodash", ref: "SEC-1", issueType: "Tâche" }),
+		);
+		expect(status).toBe(400);
+		expect(data.error).toBe("Projet requis");
+	});
+
+	test("lier sans référence est refusé", async () => {
+		const { status, data } = await srv.json<{ error: string }>(
+			"/api/tickets/link",
+			jsonBody({ projectId: projet.id, packageName: "lodash" }),
+		);
+		expect(status).toBe(400);
+		expect(data.error).toBe("Référence requise");
+		expect(getTickets()).toEqual([]);
+	});
+
+	test("créer sans liste de CVE ne sort plus en 500", async () => {
+		// `cves.includes` levait sur un corps sans `cves` : le défaut `[]` du
+		// schéma le remplace, et la route conclut proprement qu'il n'y a rien.
+		configurerJira();
+		const { status } = await srv.json<{ error: string }>(
+			"/api/tickets/create",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				issueType: "Tâche",
+			}),
+		);
+		expect(status).toBe(404);
+	});
+});
+
 describe("POST /api/tickets/create — Jira", () => {
 	function creer(over: Record<string, unknown> = {}) {
 		return srv.json<{ success?: boolean; ticketRef?: string; error?: string }>(

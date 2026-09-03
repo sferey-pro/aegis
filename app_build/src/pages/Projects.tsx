@@ -986,7 +986,7 @@ export const Projects = React.memo(function Projects() {
 							p={p}
 							index={index}
 							auditState={auditState}
-							onViewTriage={() => navigate(`/triage?project=${p.id}`)}
+							onOpen={(id) => navigate(`/projects/${id}`)}
 							copiedSlug={copiedSlug}
 							setCopiedSlug={setCopiedSlug}
 							copyToClipboard={copyToClipboard}
@@ -1029,7 +1029,7 @@ export const Projects = React.memo(function Projects() {
 										// Grisée plutôt que voilée — un voile en position absolue se
 										// place mal dans une cellule de tableau.
 										className={`group cursor-pointer ${p.ignored ? "opacity-50 grayscale" : ""} ${auditState[p.id] ? "opacity-60 bg-muted/40" : ""}`}
-										onClick={() => navigate(`/triage?project=${p.id}`)}
+										onClick={() => navigate(`/projects/${p.id}`)}
 									>
 										<TableCell>
 											<div className="flex items-center gap-3">

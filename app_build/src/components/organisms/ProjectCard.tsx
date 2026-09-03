@@ -1,5 +1,5 @@
 // biome-ignore-all lint/a11y/useSemanticElements: la carte entiere est cliquable
-// (ouvre le triage du projet) mais contient six boutons d'action imbriques. La
+// (ouvre la page de detail du projet) mais contient six boutons d'action imbriques. La
 // convertir en <button> produirait des controles interactifs imbriques : HTML
 // invalide et regression d'accessibilite. role="button" + tabIndex + onKeyDown
 // est le compromis retenu ; a remplacer par le motif "stretched link" si la
@@ -34,7 +34,8 @@ export interface ProjectCardProps {
 	p: ProjectListItem;
 	index: number;
 	auditState: Record<number, string>;
-	onViewTriage?: (id: number) => void;
+	/** Ouvre la page de détail : rapport du dernier audit et évolution (§4). */
+	onOpen?: (id: number) => void;
 	copiedSlug: number | null;
 	setCopiedSlug: (id: number | null) => void;
 	copyToClipboard: (text: string) => void;
@@ -55,7 +56,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 	p,
 	index,
 	auditState,
-	onViewTriage,
+	onOpen,
 	copiedSlug,
 	setCopiedSlug,
 	copyToClipboard,
@@ -84,14 +85,14 @@ export const ProjectCard = React.memo(function ProjectCard({
 			}}
 			role="button"
 			tabIndex={0}
-			aria-label={`Voir le triage du projet ${p.name}`}
+			aria-label={`Voir le détail du projet ${p.name}`}
 			onClick={() => {
-				if (onViewTriage) onViewTriage(p.id);
+				if (onOpen) onOpen(p.id);
 			}}
 			onKeyDown={(e) => {
 				if (e.key === "Enter" || e.key === " ") {
 					e.preventDefault();
-					if (onViewTriage) onViewTriage(p.id);
+					if (onOpen) onOpen(p.id);
 				}
 			}}
 		>

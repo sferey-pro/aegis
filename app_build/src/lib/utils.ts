@@ -50,3 +50,27 @@ export function relativeAge(iso: string, maintenant = Date.now()): string {
 	const jours = Math.floor(heures / 24);
 	return `il y a ${jours} j`;
 }
+
+/**
+ * Date et heure lisibles d'un horodatage SQLite.
+ *
+ * Même normalisation que `relativeAge` : `CURRENT_TIMESTAMP` est en UTC sans
+ * fuseau, le `Z` est ajouté quand il manque. Illisible → « Inconnu », jamais
+ * « Invalid Date ».
+ */
+export function formatDateTime(sqlite: string | null | undefined): string {
+	if (!sqlite) return "Inconnu";
+	const normalized =
+		sqlite.includes("T") || sqlite.endsWith("Z")
+			? sqlite
+			: `${sqlite.replace(" ", "T")}Z`;
+	const date = new Date(normalized);
+	if (Number.isNaN(date.getTime())) return "Inconnu";
+	return date.toLocaleString("fr-FR", {
+		day: "2-digit",
+		month: "2-digit",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+}

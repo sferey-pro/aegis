@@ -1,4 +1,4 @@
-import { listProjects } from "../db/projects";
+import { getProjectById, listProjects } from "../db/projects";
 import {
 	getGlobalHistory,
 	getLatestRun,
@@ -152,7 +152,22 @@ export const statsRoutes = {
 				);
 			}
 
-			return Response.json(getGlobalHistory(jours));
+			// `?project=` restreint la série à un projet — ignoré ou non, puisqu'on
+			// l'a demandé nommément. Un identifiant inconnu est un 404, jamais une
+			// série à zéro : « aucun historique » et « ce projet n'existe pas » ne se
+			// lisent pas de la même façon (N6).
+			const projetBrut = url.searchParams.get("project");
+			if (projetBrut === null) {
+				return Response.json(getGlobalHistory(jours));
+			}
+			const projectId = Number(projetBrut);
+			if (!Number.isInteger(projectId)) {
+				return Response.json({ error: "Projet invalide" }, { status: 400 });
+			}
+			if (!getProjectById(projectId)) {
+				return Response.json({ error: "Projet introuvable" }, { status: 404 });
+			}
+			return Response.json(getGlobalHistory(jours, projectId));
 		},
 	},
 };

@@ -11,6 +11,7 @@ import {
 	getGlobalHistory,
 	getLatestRun,
 	getLatestRunsByProjectIds,
+	getPreviousNonErrorRun,
 	getRunsForProject,
 } from "./runs";
 
@@ -408,6 +409,136 @@ describe("db/runs — historique global (CONTEXT.md §4)", () => {
 		expect(points).toHaveLength(24);
 		expect(points.at(-1)?.date).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}$/);
 		expect(points.at(-1)?.label).toMatch(/^\d{2}h$/);
+	});
+});
+
+describe("db/runs — série d'un seul projet (CONTEXT.md §4)", () => {
+	useTempDb("historique-projet");
+	const aujourdhui = () => `${new Date().toISOString().slice(0, 10)} 10:00:00`;
+
+	test("la série filtrée ne compte que le projet demandé", () => {
+		const a = projet("a");
+		const b = projet("b");
+		const ra = addRun(
+			run(a.id, {
+				counts: {
+					critical: 2,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 0,
+					unknown: 0,
+				},
+			}),
+		);
+		const rb = addRun(
+			run(b.id, {
+				counts: {
+					critical: 5,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 0,
+					unknown: 0,
+				},
+			}),
+		);
+		daterRun(ra.id, aujourdhui());
+		daterRun(rb.id, aujourdhui());
+
+		expect(getGlobalHistory(7).at(-1)?.counts.critical).toBe(7);
+		expect(getGlobalHistory(7, a.id).at(-1)?.counts.critical).toBe(2);
+		expect(getGlobalHistory(7, b.id).at(-1)?.counts.critical).toBe(5);
+	});
+
+	test("un projet ignoré garde son histoire quand on la demande nommément", () => {
+		// Absent de la série globale (§4), mais la page de détail le montre parce
+		// qu'on l'a demandé : mettre un projet de côté n'efface pas ce qu'on a mesuré.
+		const p = createProject({
+			name: "mis de côté",
+			path: "/srv/ignore",
+			type: "node",
+			tool: "npm",
+			ignored: true,
+		});
+		const r = addRun(
+			run(p.id, {
+				counts: {
+					critical: 3,
+					high: 0,
+					moderate: 0,
+					low: 0,
+					info: 0,
+					unknown: 0,
+				},
+			}),
+		);
+		daterRun(r.id, aujourdhui());
+
+		expect(getGlobalHistory(7).at(-1)?.counts.critical).toBe(0);
+		expect(getGlobalHistory(7, p.id).at(-1)?.counts.critical).toBe(3);
+	});
+
+	test("un projet inconnu donne une série à zéro, pas une erreur", () => {
+		const points = getGlobalHistory(7, 999_999);
+		expect(points.length).toBeGreaterThan(0);
+		expect(points.every((x) => x.total === 0)).toBe(true);
+	});
+});
+
+describe("db/runs — run précédent non-erreur", () => {
+	useTempDb("precedent");
+
+	test("saute les erreurs et respecte l'ordre ran_at puis id", () => {
+		const p = projet();
+		const ancien = addRun(run(p.id, { commit_sha: "ancien" }));
+		const erreur = addRun(run(p.id, { status: "error", error: "ENOENT" }));
+		const courant = addRun(run(p.id, { commit_sha: "courant" }));
+		daterRun(ancien.id, "2026-01-01 10:00:00");
+		daterRun(erreur.id, "2026-01-02 10:00:00");
+		daterRun(courant.id, "2026-01-03 10:00:00");
+
+		// `addRun` rend l'objet d'avant `daterRun` : on passe la date posée.
+		const a = { id: courant.id, ran_at: "2026-01-03 10:00:00" };
+		expect(getPreviousNonErrorRun(p.id, a)?.id).toBe(ancien.id);
+		expect(
+			getPreviousNonErrorRun(p.id, {
+				id: ancien.id,
+				ran_at: "2026-01-01 10:00:00",
+			}),
+		).toBeNull();
+	});
+
+	test("à date égale, c'est l'identifiant qui départage", () => {
+		const p = projet();
+		const premier = addRun(run(p.id));
+		const second = addRun(run(p.id));
+		daterRun(premier.id, "2026-01-01 10:00:00");
+		daterRun(second.id, "2026-01-01 10:00:00");
+
+		const meme = "2026-01-01 10:00:00";
+		expect(
+			getPreviousNonErrorRun(p.id, { id: second.id, ran_at: meme })?.id,
+		).toBe(premier.id);
+		expect(
+			getPreviousNonErrorRun(p.id, { id: premier.id, ran_at: meme }),
+		).toBeNull();
+	});
+
+	test("ne regarde jamais un autre projet", () => {
+		const a = projet("a");
+		const b = projet("b");
+		const rb = addRun(run(b.id));
+		const ra = addRun(run(a.id));
+		daterRun(rb.id, "2026-01-01 10:00:00");
+		daterRun(ra.id, "2026-01-02 10:00:00");
+
+		expect(
+			getPreviousNonErrorRun(a.id, {
+				id: ra.id,
+				ran_at: "2026-01-02 10:00:00",
+			}),
+		).toBeNull();
 	});
 });
 

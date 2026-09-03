@@ -987,6 +987,7 @@ export const Projects = React.memo(function Projects() {
 							index={index}
 							auditState={auditState}
 							onViewTriage={() => navigate(`/triage?project=${p.id}`)}
+							onViewReport={(id) => navigate(`/projects/${id}`)}
 							copiedSlug={copiedSlug}
 							setCopiedSlug={setCopiedSlug}
 							copyToClipboard={copyToClipboard}

@@ -14,6 +14,7 @@ import {
 	CloudDownload,
 	Copy,
 	Edit2,
+	FileText,
 	GitBranch,
 	Info,
 	Loader2,
@@ -35,6 +36,8 @@ export interface ProjectCardProps {
 	index: number;
 	auditState: Record<number, string>;
 	onViewTriage?: (id: number) => void;
+	/** Ouvre la page de détail : rapport du dernier audit et évolution (§4). */
+	onViewReport?: (id: number) => void;
 	copiedSlug: number | null;
 	setCopiedSlug: (id: number | null) => void;
 	copyToClipboard: (text: string) => void;
@@ -56,6 +59,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 	index,
 	auditState,
 	onViewTriage,
+	onViewReport,
 	copiedSlug,
 	setCopiedSlug,
 	copyToClipboard,
@@ -330,6 +334,22 @@ export const ProjectCard = React.memo(function ProjectCard({
 					{p.ignored ? "Réactiver" : "Ignorer le projet"}
 				</button>
 				<div className="flex items-center gap-1">
+					{onViewReport && (
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={(e) => {
+								// La carte entière ouvre le triage : ne pas laisser remonter.
+								e.stopPropagation();
+								onViewReport(p.id);
+							}}
+							className="w-7 h-7 text-muted-foreground"
+							title="Rapport et historique"
+							aria-label={`Rapport et historique de ${p.name}`}
+						>
+							<FileText className="w-3.5 h-3.5" />
+						</Button>
+					)}
 					{!p.is_remote && (
 						<Button
 							variant="ghost"

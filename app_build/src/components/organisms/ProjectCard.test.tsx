@@ -185,6 +185,33 @@ describe("ProjectCard", () => {
 		expect(vus).toEqual([7]);
 	});
 
+	test("le bouton de rapport ouvre le détail sans ouvrir le triage", () => {
+		// La carte entière est cliquable et ouvre le triage : le clic sur le
+		// bouton ne doit pas remonter, sinon deux navigations partent.
+		const rapports: number[] = [];
+		let triages = 0;
+		render(
+			<ProjectCard
+				{...props({
+					onViewReport: (id) => rapports.push(id),
+					onViewTriage: () => triages++,
+				})}
+			/>,
+		);
+		fireEvent.click(
+			screen.getByRole("button", { name: "Rapport et historique de Mon API" }),
+		);
+		expect(rapports).toEqual([7]);
+		expect(triages).toBe(0);
+	});
+
+	test("sans onViewReport, le bouton de rapport n'existe pas", () => {
+		render(<ProjectCard {...props()} />);
+		expect(
+			screen.queryAllByRole("button", { name: /Rapport et historique/ }),
+		).toHaveLength(0);
+	});
+
 	test("les tags du projet sont affichés", () => {
 		const p = projet({ tags: ["prod", "api"] });
 		render(<ProjectCard {...props({ p })} />);

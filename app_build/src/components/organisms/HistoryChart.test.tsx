@@ -35,6 +35,32 @@ describe("HistoryChart", () => {
 		expect(fetchCalls()[0]?.url).toBe("/api/history-global?days=7");
 	});
 
+	test("avec projectId, la série demandée est celle du projet (§4)", async () => {
+		mockFetch({ "/api/history-global?days=7&project=7": [point()] });
+		render(<HistoryChart projectId={7} />);
+		await waitFor(() => {
+			expect(fetchCalls()).toHaveLength(1);
+		});
+		expect(fetchCalls()[0]?.url).toBe("/api/history-global?days=7&project=7");
+		expect(await screen.findByText("Évolution du projet")).toBeInTheDocument();
+		expect(screen.queryAllByText(/tous projets confondus/)).toHaveLength(0);
+	});
+
+	test("refreshToken force une relecture sans changer la requête", async () => {
+		mockFetch({ "/api/history-global?days=7&project=7": [point()] });
+		const { rerender } = render(
+			<HistoryChart projectId={7} refreshToken={0} />,
+		);
+		await waitFor(() => {
+			expect(fetchCalls()).toHaveLength(1);
+		});
+		rerender(<HistoryChart projectId={7} refreshToken={1} />);
+		await waitFor(() => {
+			expect(fetchCalls()).toHaveLength(2);
+		});
+		expect(fetchCalls()[1]?.url).toBe("/api/history-global?days=7&project=7");
+	});
+
 	test("sans donnée, l'absence est annoncée explicitement", async () => {
 		mockFetch({ "/api/history-global?days=7": [] });
 		render(<HistoryChart />);

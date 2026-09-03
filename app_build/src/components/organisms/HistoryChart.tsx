@@ -51,16 +51,35 @@ function aplatir(p: HistoryPoint) {
 	return { label: p.label, total: p.total, ...p.counts };
 }
 
-export function HistoryChart() {
+/**
+ * Graphique d'évolution : tout le parc, ou **un seul projet** (§4).
+ *
+ * `projectId` ajoute `&project=` à la requête, et rien d'autre ne change : la
+ * série a la même forme, l'algorithme est le même côté serveur. `refreshToken`
+ * force une relecture — après un audit lancé depuis la page de détail, la
+ * série du jour a bougé alors que ni la période ni le projet n'ont changé.
+ */
+export function HistoryChart({
+	projectId,
+	refreshToken = 0,
+}: {
+	projectId?: number;
+	refreshToken?: number;
+} = {}) {
 	const [data, setData] = useState<HistoryPoint[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [days, setDays] = useState(7);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: `refreshToken` n'entre pas dans la requête, il la force — après un audit, la série du jour a bougé sans que période ni projet aient changé.
 	useEffect(() => {
 		setLoading(true);
+		const url =
+			projectId === undefined
+				? `/api/history-global?days=${days}`
+				: `/api/history-global?days=${days}&project=${projectId}`;
 		// `fetchJson` lève sur un statut non-2xx : un 500 ne peut plus être passé
 		// à `setData` comme s'il s'agissait d'une série vide.
-		fetchJson<HistoryPoint[]>(`/api/history-global?days=${days}`)
+		fetchJson<HistoryPoint[]>(url)
 			.then((d) => {
 				setData(d);
 				setLoading(false);
@@ -70,7 +89,7 @@ export function HistoryChart() {
 				setData([]);
 				setLoading(false);
 			});
-	}, [days]);
+	}, [days, projectId, refreshToken]);
 
 	const pourLeGraphique = data.map(aplatir);
 
@@ -95,10 +114,14 @@ export function HistoryChart() {
 		<div className="bg-card border-border w-full p-6 rounded-2xl">
 			<div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
-					<h3 className="text-xl font-bold font-heading">Évolution Globale</h3>
+					<h3 className="text-xl font-bold font-heading">
+						{projectId === undefined
+							? "Évolution Globale"
+							: "Évolution du projet"}
+					</h3>
 					<p className="text-sm text-muted-foreground">
-						Volume de vulnérabilités sur les derniers {days} jours (tous projets
-						confondus).
+						Volume de vulnérabilités sur les derniers {days} jours
+						{projectId === undefined ? " (tous projets confondus)" : ""}.
 					</p>
 				</div>
 				<Select

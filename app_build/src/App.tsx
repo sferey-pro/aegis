@@ -22,6 +22,7 @@ import { BlankLayout } from "./components/templates/BlankLayout";
 import { MainLayout } from "./components/templates/MainLayout";
 import { Debug } from "./pages/Debug";
 import { Overview } from "./pages/Overview";
+import { ProjectDetail } from "./pages/ProjectDetail";
 import { Projects } from "./pages/Projects";
 import { PromptsLibrary } from "./pages/PromptsLibrary";
 import { Reports } from "./pages/Reports";
@@ -283,6 +284,7 @@ export function App() {
 							}
 						/>
 						<Route path="/projects" element={<Projects />} />
+						<Route path="/projects/:id" element={<ProjectDetail />} />
 						<Route path="/triage" element={<Triage />} />
 						<Route path="/reports" element={<Reports auditing={auditing} />} />
 						<Route path="/prompts" element={<PromptsLibrary />} />

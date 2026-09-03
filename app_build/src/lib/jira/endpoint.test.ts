@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-	diagnostiqueConfiguration,
-	estPasserelle,
+	diagnoseConfiguration,
+	isGateway,
 	type JiraAuthConfig,
 	jiraEndpoint,
-	normaliseTokenKind,
+	normalizeTokenKind,
 } from "./endpoint";
 
 const CLOUD = "11111111-2222-3333-4444-555555555555";
@@ -19,15 +19,15 @@ describe("lib/jira/endpoint — type de jeton", () => {
 	test("le défaut est le jeton simple", () => {
 		// C'était historiquement le seul géré : une base existante ne doit pas
 		// changer de comportement à la mise à jour.
-		expect(normaliseTokenKind(undefined)).toBe("classic");
-		expect(normaliseTokenKind("")).toBe("classic");
+		expect(normalizeTokenKind(undefined)).toBe("classic");
+		expect(normalizeTokenKind("")).toBe("classic");
 	});
 
 	test("seule la valeur `scoped` bascule sur la passerelle", () => {
-		expect(normaliseTokenKind("scoped")).toBe("scoped");
+		expect(normalizeTokenKind("scoped")).toBe("scoped");
 		// Une valeur inattendue retombe au défaut plutôt que de router au hasard.
-		expect(normaliseTokenKind("SCOPED")).toBe("classic");
-		expect(normaliseTokenKind("oauth")).toBe("classic");
+		expect(normalizeTokenKind("SCOPED")).toBe("classic");
+		expect(normalizeTokenKind("oauth")).toBe("classic");
 	});
 });
 
@@ -116,33 +116,31 @@ describe("lib/jira/endpoint — jeton à périmètre", () => {
 	});
 });
 
-describe("lib/jira/endpoint — estPasserelle", () => {
+describe("lib/jira/endpoint — isGateway", () => {
 	test("ne regarde que le nom d'hôte", () => {
-		expect(estPasserelle(PASSERELLE)).toBe(true);
-		expect(estPasserelle(`${PASSERELLE}/ex/jira/${CLOUD}`)).toBe(true);
-		expect(estPasserelle(SITE)).toBe(false);
+		expect(isGateway(PASSERELLE)).toBe(true);
+		expect(isGateway(`${PASSERELLE}/ex/jira/${CLOUD}`)).toBe(true);
+		expect(isGateway(SITE)).toBe(false);
 	});
 
 	test("un hôte qui contient le nom n'en est pas une", () => {
-		expect(estPasserelle("https://api.atlassian.com.attaquant.test")).toBe(
-			false,
-		);
-		expect(estPasserelle("pas une url")).toBe(false);
+		expect(isGateway("https://api.atlassian.com.attaquant.test")).toBe(false);
+		expect(isGateway("pas une url")).toBe(false);
 	});
 });
 
 describe("lib/jira/endpoint — diagnostic", () => {
 	test("une configuration complète ne dit rien", () => {
-		expect(diagnostiqueConfiguration(SITE, CLASSIQUE)).toBeNull();
-		expect(diagnostiqueConfiguration(SITE, PERIMETRE)).toBeNull();
+		expect(diagnoseConfiguration(SITE, CLASSIQUE)).toBeNull();
+		expect(diagnoseConfiguration(SITE, PERIMETRE)).toBeNull();
 	});
 
 	test("une URL absente est nommée comme telle", () => {
-		expect(diagnostiqueConfiguration("", CLASSIQUE)).toContain("absente");
+		expect(diagnoseConfiguration("", CLASSIQUE)).toContain("absente");
 	});
 
 	test("le message https est celui du contrat, mot pour mot", () => {
-		expect(diagnostiqueConfiguration("http://x.atlassian.net", CLASSIQUE)).toBe(
+		expect(diagnoseConfiguration("http://x.atlassian.net", CLASSIQUE)).toBe(
 			"URL Jira invalide (https requis)",
 		);
 	});
@@ -150,13 +148,13 @@ describe("lib/jira/endpoint — diagnostic", () => {
 	test("l'URL de la passerelle en base est signalée", () => {
 		// Elle sert aussi aux liens /browse/<clé> : `api.atlassian.com/browse/SEC-1`
 		// ne mène nulle part. Le type de jeton suffit à choisir le point d'entrée.
-		const message = diagnostiqueConfiguration(PASSERELLE, PERIMETRE);
+		const message = diagnoseConfiguration(PASSERELLE, PERIMETRE);
 		expect(message).toContain("adresse de votre site");
 		expect(message).toContain("pas celle de la passerelle");
 	});
 
 	test("le cloudId manquant est nommé, avec où le trouver", () => {
-		const message = diagnostiqueConfiguration(SITE, {
+		const message = diagnoseConfiguration(SITE, {
 			kind: "scoped",
 			cloudId: "",
 		});
@@ -165,6 +163,6 @@ describe("lib/jira/endpoint — diagnostic", () => {
 	});
 
 	test("un cloudId absent ne gêne pas un jeton simple", () => {
-		expect(diagnostiqueConfiguration(SITE, CLASSIQUE)).toBeNull();
+		expect(diagnoseConfiguration(SITE, CLASSIQUE)).toBeNull();
 	});
 });

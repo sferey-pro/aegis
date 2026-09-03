@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-	AIDE_TYPE_DE_TICKET,
-	formatJiraError,
-	refusSurTypeDeTicket,
-} from "./errors";
+import { formatJiraError, ISSUE_TYPE_HINT, isIssueTypeRefusal } from "./errors";
 
 /** Corps réellement rendu par Jira sur un type de ticket inconnu. */
 const REFUS_TYPE = JSON.stringify({
@@ -60,23 +56,23 @@ describe("lib/jira/errors — mise en forme", () => {
 
 describe("lib/jira/errors — refus sur le type de ticket", () => {
 	test("il est reconnu", () => {
-		expect(refusSurTypeDeTicket(REFUS_TYPE)).toBe(true);
+		expect(isIssueTypeRefusal(REFUS_TYPE)).toBe(true);
 	});
 
 	test("un autre champ n'est pas confondu", () => {
 		const corps = JSON.stringify({ errors: { project: "Projet inconnu" } });
-		expect(refusSurTypeDeTicket(corps)).toBe(false);
+		expect(isIssueTypeRefusal(corps)).toBe(false);
 	});
 
 	test("un corps illisible ne déclenche pas l'aide", () => {
-		expect(refusSurTypeDeTicket("pas du json")).toBe(false);
-		expect(refusSurTypeDeTicket("")).toBe(false);
+		expect(isIssueTypeRefusal("pas du json")).toBe(false);
+		expect(isIssueTypeRefusal("")).toBe(false);
 	});
 
 	test("l'aide dit ce qu'il faut vérifier, et où", () => {
 		// Jira dit seulement « Spécifiez un type valide » : rien qui indique que le
 		// nom est traduit, ni où le changer.
-		expect(AIDE_TYPE_DE_TICKET).toContain("localisé");
-		expect(AIDE_TYPE_DE_TICKET).toContain("modale");
+		expect(ISSUE_TYPE_HINT).toContain("localisé");
+		expect(ISSUE_TYPE_HINT).toContain("modale");
 	});
 });

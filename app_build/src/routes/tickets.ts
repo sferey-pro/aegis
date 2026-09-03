@@ -13,14 +13,14 @@ import {
 	text,
 } from "@atlaskit/adf-utils/builders";
 import {
-	diagnostiqueConfiguration,
+	diagnoseConfiguration,
 	jiraEndpoint,
-	normaliseTokenKind,
+	normalizeTokenKind,
 } from "@/lib/jira/endpoint";
 import {
-	AIDE_TYPE_DE_TICKET,
 	formatJiraError,
-	refusSurTypeDeTicket,
+	ISSUE_TYPE_HINT,
+	isIssueTypeRefusal,
 } from "@/lib/jira/errors";
 import type {
 	JiraCreatedIssue,
@@ -108,7 +108,7 @@ export const ticketsRoutes = {
 				packageName,
 				cves,
 				notes,
-				issueType: typeDemande,
+				issueType: requestedType,
 			} = await req.json();
 			const { getSetting } = await import("../db/settings");
 			const { saveTicket } = await import("../db/tickets");
@@ -117,8 +117,8 @@ export const ticketsRoutes = {
 			// Le type de jeton **déclaré** décide du point d'entrée de l'API (§8) ;
 			// `JIRA_BASE_URL` reste l'adresse du site, qui sert aussi aux liens
 			// /browse/<clé> de l'interface.
-			const authJira = {
-				kind: normaliseTokenKind(getSetting("JIRA_TOKEN_KIND", "")),
+			const jiraAuth = {
+				kind: normalizeTokenKind(getSetting("JIRA_TOKEN_KIND", "")),
 				cloudId: getSetting("JIRA_CLOUD_ID", ""),
 			};
 			const user = getSetting("JIRA_USER", "");
@@ -142,7 +142,7 @@ export const ticketsRoutes = {
 			// supposait produisait un « Spécifiez un type de ticket valide » après
 			// une tentative d'écriture. La modale lit la liste chez Jira (§8).
 			const issueType =
-				typeof typeDemande === "string" ? typeDemande.trim() : "";
+				typeof requestedType === "string" ? requestedType.trim() : "";
 			const parentEpic = getSetting("JIRA_PARENT_EPIC", "");
 
 			if (!user || !apiKey || !project) {
@@ -287,19 +287,19 @@ export const ticketsRoutes = {
 				);
 			}
 
-			const cible = jiraEndpoint(baseUrl, "/rest/api/3/issue", authJira);
-			if (!cible) {
+			const target = jiraEndpoint(baseUrl, "/rest/api/3/issue", jiraAuth);
+			if (!target) {
 				// Le diagnostic dit *ce qui* manque — un Cloud ID absent sur la
 				// passerelle n'est pas une URL invalide, et l'annoncer comme telle
 				// envoyait l'utilisateur corriger le bon champ.
-				const raison =
-					diagnostiqueConfiguration(baseUrl, authJira) ??
+				const reason =
+					diagnoseConfiguration(baseUrl, jiraAuth) ??
 					"URL Jira invalide (https requis)";
-				return Response.json({ error: raison }, { status: 400 });
+				return Response.json({ error: reason }, { status: 400 });
 			}
 
 			const auth = Buffer.from(`${user}:${apiKey}`).toString("base64");
-			const charge = JSON.stringify(issueData);
+			const payload = JSON.stringify(issueData);
 
 			// C'est le seul endroit où Aegis **écrit** chez un tiers : la charge part
 			// donc dans la console (§11), pour être relue avant et après. Le jeton n'y
@@ -307,23 +307,23 @@ export const ticketsRoutes = {
 			const { emitConsoleEnd, emitConsoleStart } = await import(
 				"../lib/console"
 			);
-			const debut = Date.now();
+			const startedAt = Date.now();
 			const eventId = emitConsoleStart({
 				cmd: `POST /rest/api/3/issue (${project}/${issueType})`,
-				cwd: cible,
+				cwd: target,
 				label: "jira",
-				outText: charge,
+				outText: payload,
 			});
 
 			let response: Response;
 			try {
-				response = await fetch(cible, {
+				response = await fetch(target, {
 					method: "POST",
 					headers: {
 						Authorization: `Basic ${auth}`,
 						"Content-Type": "application/json",
 					},
-					body: charge,
+					body: payload,
 				});
 			} catch (e: unknown) {
 				// Une coupure réseau ne doit pas passer pour un succès : le `fetch` n'était
@@ -331,7 +331,7 @@ export const ticketsRoutes = {
 				emitConsoleEnd(eventId, {
 					exitCode: 0,
 					ok: false,
-					ms: Date.now() - debut,
+					ms: Date.now() - startedAt,
 					errorText: errorMessage(e),
 				});
 				return Response.json(
@@ -345,7 +345,7 @@ export const ticketsRoutes = {
 				emitConsoleEnd(eventId, {
 					exitCode: response.status,
 					ok: false,
-					ms: Date.now() - debut,
+					ms: Date.now() - startedAt,
 					// La console garde le corps **brut** : c'est la trace technique.
 					errorText,
 				});
@@ -353,8 +353,8 @@ export const ticketsRoutes = {
 				// `ErrorCollection` qui nomme le champ fautif ; le recopier tel quel
 				// affichait du JSON à l'utilisateur, avec le message utile noyé dedans.
 				let message = formatJiraError(response.status, errorText);
-				if (refusSurTypeDeTicket(errorText)) {
-					message = `${message}. ${AIDE_TYPE_DE_TICKET}`;
+				if (isIssueTypeRefusal(errorText)) {
+					message = `${message}. ${ISSUE_TYPE_HINT}`;
 				}
 				return Response.json({ error: message }, { status: response.status });
 			}
@@ -370,7 +370,7 @@ export const ticketsRoutes = {
 				emitConsoleEnd(eventId, {
 					exitCode: response.status,
 					ok: false,
-					ms: Date.now() - debut,
+					ms: Date.now() - startedAt,
 					errorText: "réponse Jira sans clé d'issue",
 				});
 				return Response.json(
@@ -382,7 +382,7 @@ export const ticketsRoutes = {
 			emitConsoleEnd(eventId, {
 				exitCode: response.status,
 				ok: true,
-				ms: Date.now() - debut,
+				ms: Date.now() - startedAt,
 				outText: `ticket ${data.key} créé`,
 			});
 			saveTicket(projectId, packageName, data.key, cves, contentHash);
@@ -417,27 +417,27 @@ export const ticketsRoutes = {
 			const user = getSetting("JIRA_USER", "");
 			const apiKey = getSetting("JIRA_API_KEY", process.env.JIRA_API_KEY ?? "");
 			const project = getSetting("JIRA_PROJECT", "");
-			const authJira = {
-				kind: normaliseTokenKind(getSetting("JIRA_TOKEN_KIND", "")),
+			const jiraAuth = {
+				kind: normalizeTokenKind(getSetting("JIRA_TOKEN_KIND", "")),
 				cloudId: getSetting("JIRA_CLOUD_ID", ""),
 			};
 
 			if (!user || !apiKey || !project) {
 				return Response.json({
 					types: [],
-					raison: "Configuration Jira incomplète.",
+					reason: "Configuration Jira incomplète.",
 				});
 			}
-			const cible = jiraEndpoint(
+			const target = jiraEndpoint(
 				baseUrl,
 				`/rest/api/3/issue/createmeta?projectKeys=${encodeURIComponent(project)}&expand=projects.issuetypes.fields`,
-				authJira,
+				jiraAuth,
 			);
-			if (!cible) {
+			if (!target) {
 				return Response.json({
 					types: [],
-					raison:
-						diagnostiqueConfiguration(baseUrl, authJira) ??
+					reason:
+						diagnoseConfiguration(baseUrl, jiraAuth) ??
 						"URL Jira invalide (https requis)",
 				});
 			}
@@ -446,30 +446,30 @@ export const ticketsRoutes = {
 			const { emitConsoleEnd, emitConsoleStart } = await import(
 				"../lib/console"
 			);
-			const debut = Date.now();
+			const startedAt = Date.now();
 			const eventId = emitConsoleStart({
 				cmd: `GET /rest/api/3/issue/createmeta (${project})`,
-				cwd: cible,
+				cwd: target,
 				label: "jira",
 			});
 			try {
-				const response = await fetch(cible, {
+				const response = await fetch(target, {
 					headers: {
 						Authorization: `Basic ${auth}`,
 						Accept: "application/json",
 					},
 				});
 				if (!response.ok) {
-					const corps = await response.text();
+					const body = await response.text();
 					emitConsoleEnd(eventId, {
 						exitCode: response.status,
 						ok: false,
-						ms: Date.now() - debut,
-						errorText: corps,
+						ms: Date.now() - startedAt,
+						errorText: body,
 					});
 					return Response.json({
 						types: [],
-						raison: formatJiraError(response.status, corps),
+						reason: formatJiraError(response.status, body),
 					});
 				}
 
@@ -480,7 +480,7 @@ export const ticketsRoutes = {
 				emitConsoleEnd(eventId, {
 					exitCode: response.status,
 					ok: true,
-					ms: Date.now() - debut,
+					ms: Date.now() - startedAt,
 					outText: types.join(", "),
 				});
 				return Response.json({ types });
@@ -488,10 +488,10 @@ export const ticketsRoutes = {
 				emitConsoleEnd(eventId, {
 					exitCode: 0,
 					ok: false,
-					ms: Date.now() - debut,
+					ms: Date.now() - startedAt,
 					errorText: errorMessage(e),
 				});
-				return Response.json({ types: [], raison: errorMessage(e) });
+				return Response.json({ types: [], reason: errorMessage(e) });
 			}
 		},
 	},
@@ -515,8 +515,8 @@ export const ticketsRoutes = {
 			// Le type de jeton **déclaré** décide du point d'entrée de l'API (§8) ;
 			// `JIRA_BASE_URL` reste l'adresse du site, qui sert aussi aux liens
 			// /browse/<clé> de l'interface.
-			const authJira = {
-				kind: normaliseTokenKind(getSetting("JIRA_TOKEN_KIND", "")),
+			const jiraAuth = {
+				kind: normalizeTokenKind(getSetting("JIRA_TOKEN_KIND", "")),
 				cloudId: getSetting("JIRA_CLOUD_ID", ""),
 			};
 			const user = getSetting("JIRA_USER", "");
@@ -539,13 +539,13 @@ export const ticketsRoutes = {
 			// Second contrôle, au point d'utilisation : une valeur écrite avant
 			// l'ajout de la validation, ou par un import de configuration, ne doit
 			// pas devenir un appel sortant en clair.
-			const cible = jiraEndpoint(baseUrl, "/rest/api/3/myself", authJira);
-			if (!cible) {
-				const raison =
-					diagnostiqueConfiguration(baseUrl, authJira) ??
+			const target = jiraEndpoint(baseUrl, "/rest/api/3/myself", jiraAuth);
+			if (!target) {
+				const reason =
+					diagnoseConfiguration(baseUrl, jiraAuth) ??
 					"URL Jira invalide (https requis)";
 				return Response.json(
-					{ success: false, error: raison },
+					{ success: false, error: reason },
 					{ status: 400 },
 				);
 			}
@@ -556,14 +556,14 @@ export const ticketsRoutes = {
 			);
 			// L'URL complète et l'utilisateur, jamais le jeton : la console est
 			// diffusée à tout client abonné au flux SSE.
-			const debut = Date.now();
+			const startedAt = Date.now();
 			const eventId = emitConsoleStart({
 				cmd: `GET /rest/api/3/myself (${user})`,
-				cwd: cible,
+				cwd: target,
 				label: "jira",
 			});
 			try {
-				const response = await fetch(cible, {
+				const response = await fetch(target, {
 					headers: {
 						Authorization: `Basic ${auth}`,
 						"Content-Type": "application/json",
@@ -577,7 +577,7 @@ export const ticketsRoutes = {
 					emitConsoleEnd(eventId, {
 						exitCode: response.status,
 						ok: false,
-						ms: Date.now() - debut,
+						ms: Date.now() - startedAt,
 					});
 					return Response.json(
 						{ success: false, error: `Statut HTTP ${response.status}` },
@@ -589,7 +589,7 @@ export const ticketsRoutes = {
 				emitConsoleEnd(eventId, {
 					exitCode: response.status,
 					ok: true,
-					ms: Date.now() - debut,
+					ms: Date.now() - startedAt,
 					outText: `connecté en tant que ${data.displayName ?? "?"}`,
 				});
 				return Response.json({ success: true, user: data.displayName });
@@ -597,7 +597,7 @@ export const ticketsRoutes = {
 				emitConsoleEnd(eventId, {
 					exitCode: 0,
 					ok: false,
-					ms: Date.now() - debut,
+					ms: Date.now() - startedAt,
 					errorText: errorMessage(e),
 				});
 				return Response.json(

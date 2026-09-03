@@ -895,11 +895,11 @@ describe("GET /api/tickets/issue-types", () => {
 		// reste possible avec un nom tapé à la main.
 		const { status, data } = await srv.json<{
 			types: string[];
-			raison: string;
+			reason: string;
 		}>("/api/tickets/issue-types");
 		expect(status).toBe(200);
 		expect(data.types).toEqual([]);
-		expect(data.raison).toContain("incomplète");
+		expect(data.reason).toContain("incomplète");
 		expect(appelsJira).toHaveLength(0);
 	});
 
@@ -914,11 +914,11 @@ describe("GET /api/tickets/issue-types", () => {
 
 		const { status, data } = await srv.json<{
 			types: string[];
-			raison: string;
+			reason: string;
 		}>("/api/tickets/issue-types");
 		expect(status).toBe(200);
 		expect(data.types).toEqual([]);
-		expect(data.raison).toContain("read:jira-work");
+		expect(data.reason).toContain("read:jira-work");
 	});
 
 	test("le type du corps est celui envoyé à Jira", async () => {

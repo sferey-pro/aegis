@@ -29,20 +29,20 @@
  */
 
 /** Segment que la passerelle exige devant le chemin de l'API. */
-const PREFIXE_PASSERELLE = "/ex/jira/";
+const GATEWAY_PREFIX = "/ex/jira/";
 
 /** Hôte de la passerelle d'identité d'Atlassian. */
-export const HOTE_PASSERELLE = "api.atlassian.com";
+export const GATEWAY_HOST = "api.atlassian.com";
 
 /** Type de jeton d'API Jira, déclaré dans les réglages. */
 export type JiraTokenKind = "classic" | "scoped";
 
 /** Valeur par défaut : le jeton simple, historiquement le seul géré. */
-export const JIRA_TOKEN_KIND_DEFAUT: JiraTokenKind = "classic";
+export const JIRA_TOKEN_KIND_DEFAULT: JiraTokenKind = "classic";
 
 /** Normalise la valeur lue en base : tout ce qui n'est pas connu retombe au défaut. */
-export function normaliseTokenKind(brut: string | undefined): JiraTokenKind {
-	return brut === "scoped" ? "scoped" : JIRA_TOKEN_KIND_DEFAUT;
+export function normalizeTokenKind(raw: string | undefined): JiraTokenKind {
+	return raw === "scoped" ? "scoped" : JIRA_TOKEN_KIND_DEFAULT;
 }
 
 export interface JiraAuthConfig {
@@ -51,9 +51,9 @@ export interface JiraAuthConfig {
 }
 
 /** L'URL désigne-t-elle la passerelle ? Utilisé pour signaler une saisie incohérente. */
-export function estPasserelle(baseUrl: string): boolean {
+export function isGateway(baseUrl: string): boolean {
 	try {
-		return new URL(baseUrl).hostname === HOTE_PASSERELLE;
+		return new URL(baseUrl).hostname === GATEWAY_HOST;
 	} catch {
 		return false;
 	}
@@ -72,8 +72,8 @@ export function estPasserelle(baseUrl: string): boolean {
  */
 export function jiraEndpoint(
 	baseUrl: string,
-	chemin: string,
-	auth: JiraAuthConfig = { kind: JIRA_TOKEN_KIND_DEFAUT, cloudId: "" },
+	path: string,
+	auth: JiraAuthConfig = { kind: JIRA_TOKEN_KIND_DEFAULT, cloudId: "" },
 ): string | null {
 	let base: URL;
 	try {
@@ -85,14 +85,14 @@ export function jiraEndpoint(
 
 	if (auth.kind === "classic") {
 		// Le site consomme le jeton : le chemin de l'API vit à sa racine.
-		return new URL(chemin, base).toString();
+		return new URL(path, base).toString();
 	}
 
 	const id = auth.cloudId.trim();
 	if (!id) return null;
 	return new URL(
-		`${PREFIXE_PASSERELLE}${id}${chemin}`,
-		`https://${HOTE_PASSERELLE}`,
+		`${GATEWAY_PREFIX}${id}${path}`,
+		`https://${GATEWAY_HOST}`,
 	).toString();
 }
 
@@ -102,7 +102,7 @@ export function jiraEndpoint(
  * Rendu à l'appelant plutôt que jeté : une configuration incomplète est une
  * consigne à l'utilisateur, pas une erreur du serveur.
  */
-export function diagnostiqueConfiguration(
+export function diagnoseConfiguration(
 	baseUrl: string,
 	auth: JiraAuthConfig,
 ): string | null {
@@ -119,7 +119,7 @@ export function diagnostiqueConfiguration(
 
 	// L'adresse du site, jamais celle de la passerelle : c'est aussi elle qui
 	// construit les liens /browse/<clé> de l'interface.
-	if (estPasserelle(base.href)) {
+	if (isGateway(base.href)) {
 		return "URL Jira : indiquez l'adresse de votre site (https://votre-site.atlassian.net), pas celle de la passerelle. Le type de jeton suffit à choisir le point d'entrée de l'API.";
 	}
 

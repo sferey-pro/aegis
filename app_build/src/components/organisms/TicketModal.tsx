@@ -68,31 +68,29 @@ function FormulaireTicket({
 	 * d'écriture.
 	 */
 	const [types, setTypes] = useState<string[]>([]);
-	const [typeChoisi, setTypeChoisi] = useState("");
-	const [typesIndisponibles, setTypesIndisponibles] = useState<string | null>(
-		null,
-	);
+	const [selectedType, setSelectedType] = useState("");
+	const [typesUnavailable, setTypesUnavailable] = useState<string | null>(null);
 
 	useEffect(() => {
-		let vivant = true;
-		fetchJson<{ types: string[]; raison?: string }>("/api/tickets/issue-types")
+		let alive = true;
+		fetchJson<{ types: string[]; reason?: string }>("/api/tickets/issue-types")
 			.then((data) => {
-				if (!vivant) return;
+				if (!alive) return;
 				setTypes(data.types);
-				setTypesIndisponibles(
-					data.types.length === 0 ? (data.raison ?? "") : null,
+				setTypesUnavailable(
+					data.types.length === 0 ? (data.reason ?? "") : null,
 				);
 				// Le premier type proposé par Jira, sauf si l'utilisateur a déjà
 				// choisi : jamais une valeur que Jira refuserait.
-				setTypeChoisi((courant) => courant || data.types[0] || "");
+				setSelectedType((current) => current || data.types[0] || "");
 			})
 			// La liste est un confort : son absence ne doit pas empêcher de créer un
 			// ticket, le nom se saisit alors à la main.
 			.catch(() => {
-				if (vivant) setTypesIndisponibles("liste indisponible");
+				if (alive) setTypesUnavailable("liste indisponible");
 			});
 		return () => {
-			vivant = false;
+			alive = false;
 		};
 	}, []);
 
@@ -110,7 +108,7 @@ function FormulaireTicket({
 						// L'atome Radix du dépôt, pas un `<select>` natif : c'est lui qui
 						// porte les tokens de thème et le comportement clavier (défaut N27,
 						// « design system contourné »).
-						<Select value={typeChoisi} onValueChange={setTypeChoisi}>
+						<Select value={selectedType} onValueChange={setSelectedType}>
 							<SelectTrigger id="ticket-issue-type" className="w-full">
 								<SelectValue placeholder="Choisissez un type" />
 							</SelectTrigger>
@@ -129,16 +127,16 @@ function FormulaireTicket({
 							<input
 								id="ticket-issue-type"
 								type="text"
-								value={typeChoisi}
-								onChange={(e) => setTypeChoisi(e.target.value)}
+								value={selectedType}
+								onChange={(e) => setSelectedType(e.target.value)}
 								placeholder="Nom exact du type, ex. Tâche"
 								className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
 							/>
-							{typesIndisponibles && (
+							{typesUnavailable && (
 								<p className="mt-1 text-xs text-muted-foreground">
 									Liste non lue depuis Jira
-									{typesIndisponibles ? ` — ${typesIndisponibles}` : ""}.
-									Saisissez le nom exact tel que votre projet l'expose.
+									{typesUnavailable ? ` — ${typesUnavailable}` : ""}. Saisissez
+									le nom exact tel que votre projet l'expose.
 								</p>
 							)}
 						</>
@@ -210,7 +208,7 @@ function FormulaireTicket({
 									packageName: ticketModal.group.package,
 									cves: ticketModal.group.cves.map((c) => c.cve),
 									notes: notes,
-									issueType: typeChoisi,
+									issueType: selectedType,
 								}),
 							);
 							if (data.success) {
@@ -244,7 +242,7 @@ function FormulaireTicket({
 					// Le type est requis et n'a plus de repli côté serveur : le bouton
 					// inactif dit « il manque quelque chose ici », au lieu de laisser
 					// partir un appel que Jira refuserait.
-					disabled={creating || typeChoisi.trim() === ""}
+					disabled={creating || selectedType.trim() === ""}
 					className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
 				>
 					{creating ? (

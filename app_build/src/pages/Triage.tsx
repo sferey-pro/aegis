@@ -15,6 +15,7 @@ import type { Ticket } from "@/db/tickets";
 import type { BulkSyncResult } from "@/lib/advisory-sync";
 import type { CveGroup } from "@/lib/aggregator";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
+import { buildPackageGroups } from "@/lib/package-groups";
 import type { AnnotationInput } from "@/lib/schemas";
 import { ConfirmReasonModal } from "../components/organisms/ConfirmReasonModal";
 import { CveDetailsModal } from "../components/organisms/CveDetailsModal";
@@ -28,22 +29,6 @@ import type {
 } from "../components/organisms/triage-types";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { compareVersions, SEV_ORDER } from "../lib/triage-constants";
-
-/**
- * La plus ancienne de deux dates ISO, en ignorant les absentes et les illisibles.
- *
- * Une date illisible traitée comme valide remonterait comme minimum et
- * afficherait « Invalid Date » sur toute la ligne.
- */
-function plusAncienne(
-	a: string | null,
-	b: string | null | undefined,
-): string | null {
-	if (!b || Number.isNaN(new Date(b).getTime())) return a;
-	if (!a) return b;
-	return new Date(b) < new Date(a) ? b : a;
-}
 
 /**
  * Applique une décision de triage à l'agrégat déjà chargé.
@@ -192,101 +177,11 @@ export const Triage = React.memo(function Triage() {
 		fetchSettings();
 	}, [fetchCves, fetchTickets, fetchSettings]);
 
-	const packageGroups = React.useMemo(() => {
-		const map = new Map<string, PackageGroup>();
-		// La recherche porte sur ce qu'on lit à l'écran — référence, paquet, titre —
-		// et non sur les identifiants internes.
-		const recherche = query.trim().toLowerCase();
-
-		cves.forEach((cveGroup) => {
-			if (cveFilter && cveGroup.cve !== cveFilter) return;
-
-			cveGroup.occurrences.forEach((occ) => {
-				if (projectId && occ.projectId !== projectId) return;
-				if (hideProcessed && occ.status !== "pending") return;
-				if (
-					recherche &&
-					![cveGroup.cve, cveGroup.ref, occ.package, occ.title].some((champ) =>
-						champ?.toLowerCase().includes(recherche),
-					)
-				) {
-					return;
-				}
-
-				const key = `${occ.projectId}::${occ.package}`;
-				let g = map.get(key);
-				if (!g) {
-					g = {
-						key,
-						projectId: occ.projectId,
-						projectName: occ.projectName,
-						package: occ.package,
-						tool: occ.tool,
-						cves: [],
-						worstSeverity: occ.severity,
-						pendingCount: 0,
-						hasConfirmed: false,
-						maxBaselineAgeInDays: 0,
-						maxSlaAgeInDays: 0,
-						hasBaseline: false,
-						hasNetDiscovery: false,
-						targetPatch: null as string | null,
-						publishedAt: null as string | null,
-						firstSeenAt: null as string | null,
-					};
-					map.set(key, g);
-				}
-				// La plus ancienne des deux dates : c'est celle qui porte le SLA.
-				g.publishedAt = plusAncienne(g.publishedAt, occ.publishedAt);
-				g.firstSeenAt = plusAncienne(g.firstSeenAt, occ.firstSeenAt);
-				if (
-					occ.fixedIn &&
-					(!g.targetPatch || compareVersions(occ.fixedIn, g.targetPatch) > 0)
-				) {
-					g.targetPatch = occ.fixedIn;
-				}
-				const occAge = occ.ageInDays || 0;
-				if (occ.isBaseline) {
-					g.hasBaseline = true;
-					if (occAge > g.maxBaselineAgeInDays) {
-						g.maxBaselineAgeInDays = occAge;
-					}
-				} else {
-					g.hasNetDiscovery = true;
-					if (occAge > g.maxSlaAgeInDays) {
-						g.maxSlaAgeInDays = occAge;
-					}
-				}
-				if (
-					(SEV_ORDER[occ.severity] ?? -1) > (SEV_ORDER[g.worstSeverity] ?? -1)
-				) {
-					g.worstSeverity = occ.severity;
-				}
-				if (occ.status === "pending") g.pendingCount++;
-				if (occ.status === "confirmed") g.hasConfirmed = true;
-
-				g.cves.push({
-					cve: cveGroup.cve,
-					ref: cveGroup.ref,
-					title: occ.title || cveGroup.cve,
-					severity: occ.severity,
-					versionRange: occ.versionRange,
-					fixedIn: occ.fixedIn,
-					link: occ.link,
-					status: occ.status,
-					note: occ.note,
-					cvssVector: occ.cvssVector,
-					ageInDays: occ.ageInDays,
-					firstSeenAt: occ.firstSeenAt,
-					publishedAt: occ.publishedAt,
-					isBaseline: occ.isBaseline,
-				});
-			});
-		});
-		return Array.from(map.values())
-			.filter((g) => g.cves.length > 0)
-			.sort((a, b) => b.projectName.localeCompare(a.projectName));
-	}, [cves, projectId, cveFilter, hideProcessed, query]);
+	const packageGroups = React.useMemo(
+		() =>
+			buildPackageGroups(cves, { projectId, cveFilter, hideProcessed, query }),
+		[cves, projectId, cveFilter, hideProcessed, query],
+	);
 
 	// Déclencheurs volontaires : le corps ne les lit pas, mais la pagination doit
 	// repartir à la première page quand un **critère de filtrage** change.

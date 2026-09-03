@@ -339,6 +339,15 @@ export const ticketTargetSchema = z.object({
 /** Références CVE/GHSA portées par le ticket ; une liste vide est acceptée. */
 const ticketCves = z.array(z.string()).default([]);
 
+/**
+ * `POST /api/tickets` — brouillon Markdown. `cves` facultatif : la page de
+ * création laisse **choisir** les CVE à traiter, et l'aperçu doit suivre le
+ * choix. Absent, toutes les CVE du paquet.
+ */
+export const ticketDraftBodySchema = ticketTargetSchema.extend({
+	cves: z.array(z.string()).optional(),
+});
+
 /** `POST /api/tickets/link` — référence saisie à la main. */
 export const ticketLinkBodySchema = ticketTargetSchema.extend({
 	ref: z

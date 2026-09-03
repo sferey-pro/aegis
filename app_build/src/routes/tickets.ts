@@ -30,6 +30,7 @@ import type {
 } from "@/lib/jira/types";
 import {
 	ticketCreateBodySchema,
+	ticketDraftBodySchema,
 	ticketLinkBodySchema,
 	ticketTargetSchema,
 } from "@/lib/schemas";
@@ -40,13 +41,15 @@ import { buildCveGroups } from "../lib/aggregator";
 export const ticketsRoutes = {
 	"/api/tickets": {
 		async POST(req: Request) {
-			const parsed = await parseBody(req, ticketTargetSchema);
+			const parsed = await parseBody(req, ticketDraftBodySchema);
 			if (parsed.response) return parsed.response;
-			const { projectId, packageName } = parsed.data;
+			const { projectId, packageName, cves } = parsed.data;
 			const groups = buildCveGroups();
 
 			const occurrences = [];
 			for (const g of groups) {
+				// `cves` fourni : l'aperçu ne décrit que les CVE choisies (§8).
+				if (cves && !cves.includes(g.cve)) continue;
 				for (const occ of g.occurrences) {
 					if (occ.projectId === projectId && occ.package === packageName) {
 						occurrences.push({

@@ -226,6 +226,52 @@ describe("POST /api/tickets — brouillon Markdown", () => {
 	});
 });
 
+describe("POST /api/tickets — brouillon restreint aux CVE choisies (§8)", () => {
+	test("cves fourni : seules ces CVE figurent dans le brouillon", async () => {
+		run([
+			vuln({ cve: "CVE-2020-8203" }),
+			vuln({ cve: "CVE-2021-23337", title: "Command injection" }),
+		]);
+		const { status, data } = await srv.json<{ markdown: string }>(
+			"/api/tickets",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-2021-23337"],
+			}),
+		);
+		expect(status).toBe(200);
+		expect(data.markdown).toContain("Vulnérabilités (1)");
+		expect(data.markdown).toContain("CVE-2021-23337");
+		expect(data.markdown).not.toContain("CVE-2020-8203");
+	});
+
+	test("cves absent : toutes les CVE du paquet", async () => {
+		run([
+			vuln({ cve: "CVE-2020-8203" }),
+			vuln({ cve: "CVE-2021-23337", title: "Command injection" }),
+		]);
+		const { data } = await srv.json<{ markdown: string }>(
+			"/api/tickets",
+			jsonBody({ projectId: projet.id, packageName: "lodash" }),
+		);
+		expect(data.markdown).toContain("Vulnérabilités (2)");
+	});
+
+	test("cves ne correspondant à rien : 404, pas un brouillon vide", async () => {
+		run([vuln()]);
+		const { status } = await srv.json(
+			"/api/tickets",
+			jsonBody({
+				projectId: projet.id,
+				packageName: "lodash",
+				cves: ["CVE-9999-1"],
+			}),
+		);
+		expect(status).toBe(404);
+	});
+});
+
 describe("liaison manuelle de tickets", () => {
 	test("la liste est vide au départ", async () => {
 		const { status, data } = await srv.json("/api/tickets/list");

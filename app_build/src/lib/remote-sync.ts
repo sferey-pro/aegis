@@ -1,8 +1,8 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
 import { getGitInfo } from "./git";
-import { saveGitState } from "../db/git-state";
 
 export async function syncRemoteProject(project: Project) {
 	if (project.source_type !== "remote" || !project.remote_url) {
@@ -11,7 +11,9 @@ export async function syncRemoteProject(project: Project) {
 
 	const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
 	if (!allowedRootsStr) {
-		throw new Error("AEGIS_ALLOWED_ROOTS n'est pas défini. Impossible de déterminer où stocker les fichiers distants.");
+		throw new Error(
+			"AEGIS_ALLOWED_ROOTS n'est pas défini. Impossible de déterminer où stocker les fichiers distants.",
+		);
 	}
 	const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
 	const baseDir = join(firstRoot, ".aegis_remote_projects");

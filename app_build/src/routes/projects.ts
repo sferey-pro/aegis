@@ -296,21 +296,24 @@ export const projectsRoutes = {
 				}
 			}
 
-			let project = createProject(data);
+			const project = createProject(data);
 
 			if (project.source_type === "remote") {
 				const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
 				if (!allowedRootsStr) {
 					// Need to rollback creation? Not really, but it will fail.
 					return Response.json(
-						{ error: "AEGIS_ALLOWED_ROOTS n'est pas défini, impossible de créer un projet distant." },
-						{ status: 403 }
+						{
+							error:
+								"AEGIS_ALLOWED_ROOTS n'est pas défini, impossible de créer un projet distant.",
+						},
+						{ status: 403 },
 					);
 				}
 				const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
 				const baseDir = nodePath.join(firstRoot, ".aegis_remote_projects");
 				const projectDir = nodePath.join(baseDir, `project_${project.id}`);
-				
+
 				// Update path now that we have ID
 				updateProject(project.id, { path: projectDir });
 				project.path = projectDir;
@@ -363,8 +366,11 @@ export const projectsRoutes = {
 				const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
 				if (!allowedRootsStr) {
 					return Response.json(
-						{ error: "AEGIS_ALLOWED_ROOTS n'est pas défini, impossible de créer un projet distant." },
-						{ status: 403 }
+						{
+							error:
+								"AEGIS_ALLOWED_ROOTS n'est pas défini, impossible de créer un projet distant.",
+						},
+						{ status: 403 },
 					);
 				}
 				const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
@@ -479,7 +485,7 @@ export const projectsRoutes = {
 					if (project.source_type === "remote") {
 						const { syncRemoteProject } = await import("../lib/remote-sync");
 						const action = await syncRemoteProject(project);
-						const git = { isRepo: false as const }; 
+						const git = { isRepo: false as const };
 						saveGitState(project.id, git);
 						return { success: true, stdout: action.message, git };
 					} else {

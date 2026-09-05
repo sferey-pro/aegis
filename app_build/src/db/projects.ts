@@ -88,10 +88,10 @@ export function createProject(input: CreateProjectInput): Project {
 
 	const tagsStr = JSON.stringify(input.tags || []);
 	const ignored = input.ignored ? 1 : 0;
-	
+
 	let source_type = input.source_type || "local";
 	if (input.is_remote && !input.source_type) source_type = "ingest";
-	
+
 	const is_remote = source_type === "ingest" ? 1 : 0;
 
 	let slug =
@@ -166,13 +166,15 @@ export function updateProject(
 			: current.ignored
 				? 1
 				: 0;
-	
-	let source_type = input.source_type !== undefined ? input.source_type : current.source_type;
+
+	let source_type =
+		input.source_type !== undefined ? input.source_type : current.source_type;
 	if (input.is_remote !== undefined && input.source_type === undefined) {
 		source_type = input.is_remote ? "ingest" : "local";
 	}
 	const is_remote = source_type === "ingest" ? 1 : 0;
-	const remote_url = input.remote_url !== undefined ? input.remote_url : current.remote_url;
+	const remote_url =
+		input.remote_url !== undefined ? input.remote_url : current.remote_url;
 
 	const query = db.query(`
     UPDATE projects 

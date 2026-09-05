@@ -9,9 +9,12 @@ export async function syncRemoteProject(project: Project) {
 		throw new Error("Projet non distant ou URL manquante");
 	}
 
-	// Create a safe directory in Aegis project (CWD is likely app_build or its parent)
-	// Let's use `process.cwd()/remote_projects` to be safe and inside CWD.
-	const baseDir = join(process.cwd(), "remote_projects");
+	const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
+	if (!allowedRootsStr) {
+		throw new Error("AEGIS_ALLOWED_ROOTS n'est pas défini. Impossible de déterminer où stocker les fichiers distants.");
+	}
+	const firstRoot = allowedRootsStr.split(",")[0].trim();
+	const baseDir = join(firstRoot, ".aegis_remote_projects");
 	const projectDir = join(baseDir, `project_${project.id}`);
 	await mkdir(projectDir, { recursive: true });
 

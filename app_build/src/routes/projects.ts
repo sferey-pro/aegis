@@ -400,10 +400,8 @@ export const projectsRoutes = {
 			if (!project)
 				return Response.json({ error: "Not found" }, { status: 404 });
 
-			if (project.source_type === "local") {
-				const denied = pathGuard(project.path, project.audit_path);
-				if (denied) return denied;
-			}
+			const denied = pathGuard(project.path, project.audit_path);
+			if (denied) return denied;
 
 			const { projectContext } = await import("../lib/console");
 			const res = await projectContext.run(
@@ -435,10 +433,8 @@ export const projectsRoutes = {
 			if (!project)
 				return Response.json({ error: "Not found" }, { status: 404 });
 
-			if (project.source_type === "local") {
-				const denied = pathGuard(project.path, project.audit_path);
-				if (denied) return denied;
-			}
+			const denied = pathGuard(project.path, project.audit_path);
+			if (denied) return denied;
 
 			const { projectContext } = await import("../lib/console");
 			const res = await projectContext.run(
@@ -483,10 +479,8 @@ export const projectsRoutes = {
 						{ status: 404 },
 					);
 
-				if (project.source_type === "local") {
-					const denied = pathGuard(project.path, project.audit_path);
-					if (denied) return denied;
-				}
+				const denied = pathGuard(project.path, project.audit_path);
+				if (denied) return denied;
 
 				const { projectContext } = await import("../lib/console");
 				const res = await projectContext.run({ project: project.name }, () =>

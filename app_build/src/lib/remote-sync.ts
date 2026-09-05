@@ -13,7 +13,7 @@ export async function syncRemoteProject(project: Project) {
 	if (!allowedRootsStr) {
 		throw new Error("AEGIS_ALLOWED_ROOTS n'est pas défini. Impossible de déterminer où stocker les fichiers distants.");
 	}
-	const firstRoot = allowedRootsStr.split(",")[0].trim();
+	const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
 	const baseDir = join(firstRoot, ".aegis_remote_projects");
 	const projectDir = join(baseDir, `project_${project.id}`);
 	await mkdir(projectDir, { recursive: true });

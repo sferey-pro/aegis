@@ -1,4 +1,7 @@
 import {
+	HardDrive,
+	Globe,
+	UploadCloud,
 	AlertTriangle,
 	ArrowDownToLine,
 	Check,
@@ -640,17 +643,21 @@ export const Projects = React.memo(function Projects() {
 									type="button"
 									variant={formData.source_type === "local" ? "default" : "ghost"}
 									onClick={() => setFormData({ ...formData, source_type: "local", is_remote: false })}
-									className={`flex-1 rounded-md`}
+									className={`flex-1 rounded-md gap-2`}
 								>
-									Projet Local
+									<HardDrive className="w-4 h-4" />
+									<span className="hidden sm:inline">Projet Local</span>
+									<span className="sm:hidden">Local</span>
 								</Button>
 								<Button
 									type="button"
 									variant={formData.source_type === "remote" ? "default" : "ghost"}
 									onClick={() => setFormData({ ...formData, source_type: "remote", is_remote: false, path: "" })}
-									className={`flex-1 rounded-md`}
+									className={`flex-1 rounded-md gap-2`}
 								>
-									Distant (Direct)
+									<Globe className="w-4 h-4" />
+									<span className="hidden sm:inline">Distant (Direct)</span>
+									<span className="sm:hidden">Distant</span>
 								</Button>
 								<Button
 									type="button"
@@ -658,9 +665,11 @@ export const Projects = React.memo(function Projects() {
 									onClick={() =>
 										setFormData({ ...formData, source_type: "ingest", is_remote: true, path: "" })
 									}
-									className={`flex-1 rounded-md`}
+									className={`flex-1 rounded-md gap-2`}
 								>
-									Ingestion CI
+									<UploadCloud className="w-4 h-4" />
+									<span className="hidden sm:inline">Ingestion CI</span>
+									<span className="sm:hidden">Ingest</span>
 								</Button>
 							</div>
 

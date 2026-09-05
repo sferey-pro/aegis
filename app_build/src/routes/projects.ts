@@ -281,20 +281,41 @@ export const projectsRoutes = {
 			const { data, response } = await parseBody(req, projectBodySchema);
 			if (!data) return response;
 
-			const denied = pathGuard(data.path, data.audit_path);
-			if (denied) return denied;
+			if (data.source_type === "local") {
+				const denied = pathGuard(data.path, data.audit_path);
+				if (denied) return denied;
 
-			const duplicate = findDuplicate(data.path, data.audit_path);
-			if (duplicate) {
-				return Response.json(
-					{
-						error: `Un projet vise déjà cette cible d'audit : ${duplicate.name}`,
-					},
-					{ status: 409 },
-				);
+				const duplicate = findDuplicate(data.path, data.audit_path);
+				if (duplicate) {
+					return Response.json(
+						{
+							error: `Un projet vise déjà cette cible d'audit : ${duplicate.name}`,
+						},
+						{ status: 409 },
+					);
+				}
 			}
 
-			const project = createProject(data);
+			let project = createProject(data);
+
+			if (project.source_type === "remote") {
+				const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
+				if (!allowedRootsStr) {
+					// Need to rollback creation? Not really, but it will fail.
+					return Response.json(
+						{ error: "AEGIS_ALLOWED_ROOTS n'est pas défini, impossible de créer un projet distant." },
+						{ status: 403 }
+					);
+				}
+				const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
+				const baseDir = nodePath.join(firstRoot, ".aegis_remote_projects");
+				const projectDir = nodePath.join(baseDir, `project_${project.id}`);
+				
+				// Update path now that we have ID
+				updateProject(project.id, { path: projectDir });
+				project.path = projectDir;
+			}
+
 			return Response.json(project, { status: 201 });
 		},
 	},
@@ -323,17 +344,32 @@ export const projectsRoutes = {
 			const { data, response } = await parseBody(req, projectBodySchema);
 			if (!data) return response;
 
-			const denied = pathGuard(data.path, data.audit_path);
-			if (denied) return denied;
+			if (data.source_type === "local") {
+				const denied = pathGuard(data.path, data.audit_path);
+				if (denied) return denied;
 
-			const duplicate = findDuplicate(data.path, data.audit_path, id);
-			if (duplicate) {
-				return Response.json(
-					{
-						error: `Un projet vise déjà cette cible d'audit : ${duplicate.name}`,
-					},
-					{ status: 409 },
-				);
+				const duplicate = findDuplicate(data.path, data.audit_path, id);
+				if (duplicate) {
+					return Response.json(
+						{
+							error: `Un projet vise déjà cette cible d'audit : ${duplicate.name}`,
+						},
+						{ status: 409 },
+					);
+				}
+			}
+
+			if (data.source_type === "remote") {
+				const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
+				if (!allowedRootsStr) {
+					return Response.json(
+						{ error: "AEGIS_ALLOWED_ROOTS n'est pas défini, impossible de créer un projet distant." },
+						{ status: 403 }
+					);
+				}
+				const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
+				const baseDir = nodePath.join(firstRoot, ".aegis_remote_projects");
+				data.path = nodePath.join(baseDir, `project_${id}`);
 			}
 
 			const project = updateProject(id, data);

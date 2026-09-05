@@ -197,6 +197,8 @@ export const Projects = React.memo(function Projects() {
 		type: "node" as "node" | "composer",
 		tags: [] as string[],
 		is_remote: false,
+		source_type: "local" as "local" | "ingest" | "remote",
+		remote_url: "",
 	});
 
 	const copyToClipboard = (text: string) => {
@@ -274,11 +276,15 @@ export const Projects = React.memo(function Projects() {
 			tool: "npm",
 			tags: [],
 			is_remote: false,
+			source_type: "local",
+			remote_url: "",
 		});
 	};
 
 	const handleEdit = (p: ProjectListItem, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
+		let st = p.source_type;
+		if (!st) st = p.is_remote ? "ingest" : "local";
 		setFormData({
 			name: p.name,
 			path: p.path,
@@ -287,6 +293,8 @@ export const Projects = React.memo(function Projects() {
 			tool: p.tool,
 			tags: p.tags || [],
 			is_remote: !!p.is_remote,
+			source_type: st as "local" | "ingest" | "remote",
+			remote_url: p.remote_url || "",
 		});
 		setEditingId(p.id);
 		setIsAdding(true);
@@ -593,7 +601,7 @@ export const Projects = React.memo(function Projects() {
 						) : (
 							<CloudDownload className="w-4 h-4 mr-2" />
 						)}
-						Vérifier les mises à jour Git
+						Synchroniser (Git / Distant)
 					</Button>
 					<Button
 						onClick={() => {
@@ -630,21 +638,29 @@ export const Projects = React.memo(function Projects() {
 							<div className="flex p-1 rounded-lg border mb-2 shrink-0">
 								<Button
 									type="button"
-									variant={!formData.is_remote ? "default" : "ghost"}
-									onClick={() => setFormData({ ...formData, is_remote: false })}
+									variant={formData.source_type === "local" ? "default" : "ghost"}
+									onClick={() => setFormData({ ...formData, source_type: "local", is_remote: false })}
 									className={`flex-1 rounded-md`}
 								>
 									Projet Local
 								</Button>
 								<Button
 									type="button"
-									variant={formData.is_remote ? "default" : "ghost"}
+									variant={formData.source_type === "remote" ? "default" : "ghost"}
+									onClick={() => setFormData({ ...formData, source_type: "remote", is_remote: false, path: "" })}
+									className={`flex-1 rounded-md`}
+								>
+									Distant (Direct)
+								</Button>
+								<Button
+									type="button"
+									variant={formData.source_type === "ingest" ? "default" : "ghost"}
 									onClick={() =>
-										setFormData({ ...formData, is_remote: true, path: "" })
+										setFormData({ ...formData, source_type: "ingest", is_remote: true, path: "" })
 									}
 									className={`flex-1 rounded-md`}
 								>
-									Projet Distant (CI)
+									Ingestion CI
 								</Button>
 							</div>
 
@@ -665,62 +681,64 @@ export const Projects = React.memo(function Projects() {
 									/>
 								</div>
 
-								<div className="flex flex-col gap-1">
-									<label
-										htmlFor="project-ingest-url"
-										className="text-sm font-medium flex items-center gap-1"
-									>
-										<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
-									</label>
-									<div className="relative">
-										<input
-											id="project-ingest-url"
-											readOnly
-											type="text"
-											value={
-												formData.name
-													? `${window.location.origin}/api/ingest/${formData.name
-															.toLowerCase()
-															.replace(/[^a-z0-9]+/g, "-")
-															.replace(/(^-|-$)/g, "")}`
-													: "URL auto-générée"
-											}
-											className="w-full border text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
-											title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
-										/>
-										<Button
-											type="button"
-											variant="ghost"
-											title="Copier l'URL"
-											onClick={(e) => {
-												e.preventDefault();
-												e.stopPropagation();
-												const slug = formData.name
-													? formData.name
-															.toLowerCase()
-															.replace(/[^a-z0-9]+/g, "-")
-															.replace(/(^-|-$)/g, "")
-													: "";
-												if (slug) {
-													copyToClipboard(
-														`${window.location.origin}/api/ingest/${slug}`,
-													);
-													setCopiedSlug(-1);
-													setTimeout(() => setCopiedSlug(null), 2000);
-												}
-											}}
-											className="absolute inset-y-0 right-0 flex items-center px-3 rounded-l-none"
+								{formData.source_type === "ingest" && (
+									<div className="flex flex-col gap-1">
+										<label
+											htmlFor="project-ingest-url"
+											className="text-sm font-medium flex items-center gap-1"
 										>
-											{copiedSlug === -1 ? (
-												<Check className="w-4 h-4" />
-											) : (
-												<Copy className="w-4 h-4 text-muted-foreground" />
-											)}
-										</Button>
+											<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
+										</label>
+										<div className="relative">
+											<input
+												id="project-ingest-url"
+												readOnly
+												type="text"
+												value={
+													formData.name
+														? `${window.location.origin}/api/ingest/${formData.name
+																.toLowerCase()
+																.replace(/[^a-z0-9]+/g, "-")
+																.replace(/(^-|-$)/g, "")}`
+														: "URL auto-générée"
+												}
+												className="w-full border text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
+												title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
+											/>
+											<Button
+												type="button"
+												variant="ghost"
+												title="Copier l'URL"
+												onClick={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+													const slug = formData.name
+														? formData.name
+																.toLowerCase()
+																.replace(/[^a-z0-9]+/g, "-")
+																.replace(/(^-|-$)/g, "")
+														: "";
+													if (slug) {
+														copyToClipboard(
+															`${window.location.origin}/api/ingest/${slug}`,
+														);
+														setCopiedSlug(-1);
+														setTimeout(() => setCopiedSlug(null), 2000);
+													}
+												}}
+												className="absolute inset-y-0 right-0 flex items-center px-3 rounded-l-none"
+											>
+												{copiedSlug === -1 ? (
+													<Check className="w-4 h-4" />
+												) : (
+													<Copy className="w-4 h-4 text-muted-foreground" />
+												)}
+											</Button>
+										</div>
 									</div>
-								</div>
+								)}
 
-								{!formData.is_remote && (
+								{formData.source_type === "local" && (
 									<div className="flex flex-col gap-1 md:col-span-2">
 										<label
 											htmlFor="project-path"
@@ -759,7 +777,7 @@ export const Projects = React.memo(function Projects() {
 									</div>
 								)}
 
-								{!formData.is_remote && (
+								{formData.source_type === "local" && (
 									<div className="flex flex-col gap-1">
 										<label
 											htmlFor="project-audit-path"
@@ -776,6 +794,20 @@ export const Projects = React.memo(function Projects() {
 											}
 											onBlur={handleDetectTool}
 											placeholder="Ex: backend/src (vide si racine)"
+										/>
+									</div>
+								)}
+
+								{formData.source_type === "remote" && (
+									<div className="flex flex-col gap-1 md:col-span-2">
+										<label htmlFor="project-remote-url" className="text-sm font-medium">URL distante du fichier lock</label>
+										<Input
+											id="project-remote-url"
+											required={formData.source_type === "remote"}
+											type="text"
+											value={formData.remote_url}
+											onChange={(e) => setFormData({ ...formData, remote_url: e.target.value })}
+											placeholder="Ex: https://raw.githubusercontent.com/.../package-lock.json"
 										/>
 									</div>
 								)}

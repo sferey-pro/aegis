@@ -25,6 +25,8 @@ function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
 		tags: ["prod"],
 		ignored: false,
 		is_remote: false,
+		source_type: "local",
+		remote_url: null,
 		created_at: "2026-07-01 09:00:00",
 		git: { isRepo: false },
 		lastRun: null,

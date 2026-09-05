@@ -400,25 +400,27 @@ export const projectsRoutes = {
 			if (!project)
 				return Response.json({ error: "Not found" }, { status: 404 });
 
-			// N3 : git exécute les hooks du dépôt qu'il visite. Le contrôle de chemin
-			// doit donc précéder **tout** lancement de sous-processus, et pas
-			// seulement l'enregistrement du projet — un projet créé avant que
-			// `AEGIS_ALLOWED_ROOTS` ne soit posé resterait sinon exécutable.
-			const denied = pathGuard(project.path, project.audit_path);
-			if (denied) return denied;
+			if (project.source_type === "local") {
+				const denied = pathGuard(project.path, project.audit_path);
+				if (denied) return denied;
+			}
 
 			const { projectContext } = await import("../lib/console");
-			// `git` recalculé après l'action, comme §5 le décrit : sans lui la réponse
-			// ne dit pas ce que l'action a changé, et l'appelant devait recharger
-			// toute la liste des projets pour l'apprendre. C'est cette information que
-			// la synchronisation groupée trie (« combien de commits de retard »).
 			const res = await projectContext.run(
 				{ project: project.name },
 				async () => {
-					const action = await gitFetch(project.path);
-					const git = await getGitInfo(project.path);
-					saveGitState(project.id, git);
-					return { ...action, git };
+					if (project.source_type === "remote") {
+						const { syncRemoteProject } = await import("../lib/remote-sync");
+						const action = await syncRemoteProject(project);
+						const git = { isRepo: false as const }; // Remote projects don't have real git states
+						saveGitState(project.id, git);
+						return { success: true, stdout: action.message, git };
+					} else {
+						const action = await gitFetch(project.path);
+						const git = await getGitInfo(project.path);
+						saveGitState(project.id, git);
+						return { ...action, git };
+					}
 				},
 			);
 
@@ -433,25 +435,27 @@ export const projectsRoutes = {
 			if (!project)
 				return Response.json({ error: "Not found" }, { status: 404 });
 
-			// N3 : git exécute les hooks du dépôt qu'il visite. Le contrôle de chemin
-			// doit donc précéder **tout** lancement de sous-processus, et pas
-			// seulement l'enregistrement du projet — un projet créé avant que
-			// `AEGIS_ALLOWED_ROOTS` ne soit posé resterait sinon exécutable.
-			const denied = pathGuard(project.path, project.audit_path);
-			if (denied) return denied;
+			if (project.source_type === "local") {
+				const denied = pathGuard(project.path, project.audit_path);
+				if (denied) return denied;
+			}
 
 			const { projectContext } = await import("../lib/console");
-			// `git` recalculé après l'action, comme §5 le décrit : sans lui la réponse
-			// ne dit pas ce que l'action a changé, et l'appelant devait recharger
-			// toute la liste des projets pour l'apprendre. C'est cette information que
-			// la synchronisation groupée trie (« combien de commits de retard »).
 			const res = await projectContext.run(
 				{ project: project.name },
 				async () => {
-					const action = await gitPull(project.path);
-					const git = await getGitInfo(project.path);
-					saveGitState(project.id, git);
-					return { ...action, git };
+					if (project.source_type === "remote") {
+						const { syncRemoteProject } = await import("../lib/remote-sync");
+						const action = await syncRemoteProject(project);
+						const git = { isRepo: false as const }; 
+						saveGitState(project.id, git);
+						return { success: true, stdout: action.message, git };
+					} else {
+						const action = await gitPull(project.path);
+						const git = await getGitInfo(project.path);
+						saveGitState(project.id, git);
+						return { ...action, git };
+					}
 				},
 			);
 
@@ -479,9 +483,10 @@ export const projectsRoutes = {
 						{ status: 404 },
 					);
 
-				// N3 : contrôle du chemin juste avant le lancement de l'outil d'audit.
-				const denied = pathGuard(project.path, project.audit_path);
-				if (denied) return denied;
+				if (project.source_type === "local") {
+					const denied = pathGuard(project.path, project.audit_path);
+					if (denied) return denied;
+				}
 
 				const { projectContext } = await import("../lib/console");
 				const res = await projectContext.run({ project: project.name }, () =>

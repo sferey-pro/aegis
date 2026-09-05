@@ -14,6 +14,8 @@ export interface Project {
 	tags: string[];
 	ignored: boolean;
 	is_remote: boolean;
+	source_type: "local" | "ingest" | "remote";
+	remote_url: string | null;
 	created_at: string;
 }
 
@@ -27,6 +29,8 @@ export interface CreateProjectInput {
 	tags?: string[];
 	ignored?: boolean;
 	is_remote?: boolean;
+	source_type?: "local" | "ingest" | "remote";
+	remote_url?: string | null;
 }
 
 /**
@@ -40,8 +44,15 @@ type ProjectRow = Omit<Project, "tags" | "ignored" | "is_remote"> & {
 };
 
 function parseProject(row: ProjectRow): Project {
+	let st = row.source_type;
+	if (!st) {
+		st = row.is_remote ? "ingest" : "local";
+	}
+
 	return {
 		...row,
+		source_type: st,
+		remote_url: row.remote_url || null,
 		tags: typeof row.tags === "string" ? JSON.parse(row.tags) : row.tags,
 		ignored: Boolean(row.ignored),
 		is_remote: Boolean(row.is_remote),
@@ -77,7 +88,12 @@ export function createProject(input: CreateProjectInput): Project {
 
 	const tagsStr = JSON.stringify(input.tags || []);
 	const ignored = input.ignored ? 1 : 0;
-	const is_remote = input.is_remote ? 1 : 0;
+	
+	let source_type = input.source_type || "local";
+	if (input.is_remote && !input.source_type) source_type = "ingest";
+	
+	const is_remote = source_type === "ingest" ? 1 : 0;
+
 	let slug =
 		input.slug ||
 		input.name
@@ -95,8 +111,8 @@ export function createProject(input: CreateProjectInput): Project {
 	}
 
 	const query = db.query(`
-    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored, is_remote)
-    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored, $is_remote)
+    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored, is_remote, source_type, remote_url)
+    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored, $is_remote, $source_type, $remote_url)
     RETURNING *
   `);
 
@@ -110,6 +126,8 @@ export function createProject(input: CreateProjectInput): Project {
 		$tags: tagsStr,
 		$ignored: ignored,
 		$is_remote: is_remote,
+		$source_type: source_type,
+		$remote_url: input.remote_url || null,
 	});
 
 	return parseProject(row as ProjectRow);
@@ -148,10 +166,17 @@ export function updateProject(
 			: current.ignored
 				? 1
 				: 0;
+	
+	let source_type = input.source_type !== undefined ? input.source_type : current.source_type;
+	if (input.is_remote !== undefined && input.source_type === undefined) {
+		source_type = input.is_remote ? "ingest" : "local";
+	}
+	const is_remote = source_type === "ingest" ? 1 : 0;
+	const remote_url = input.remote_url !== undefined ? input.remote_url : current.remote_url;
 
 	const query = db.query(`
     UPDATE projects 
-    SET name = $name, path = $path, audit_path = $audit_path, type = $type, tool = $tool, tags = $tags, ignored = $ignored
+    SET name = $name, path = $path, audit_path = $audit_path, type = $type, tool = $tool, tags = $tags, ignored = $ignored, is_remote = $is_remote, source_type = $source_type, remote_url = $remote_url
     WHERE id = $id
     RETURNING *
   `);
@@ -165,6 +190,9 @@ export function updateProject(
 		$tool: tool,
 		$tags: tags,
 		$ignored: ignored,
+		$is_remote: is_remote,
+		$source_type: source_type,
+		$remote_url: remote_url,
 	});
 
 	return parseProject(row as ProjectRow);

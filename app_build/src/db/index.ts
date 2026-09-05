@@ -293,6 +293,16 @@ function initDb(database: Database) {
 	ajouteColonne("reports", "details JSON DEFAULT '[]'");
 	ajouteColonne("tickets", "content_hash TEXT");
 
+	ajouteColonne("projects", "source_type TEXT DEFAULT 'local'");
+	ajouteColonne("projects", "remote_url TEXT");
+
+	// Migration rétrocompatible
+	database.exec(`
+		UPDATE projects 
+		SET source_type = 'ingest' 
+		WHERE is_remote = 1 AND source_type = 'local';
+	`);
+
 	// Index sur `content_hash`, interrogée par égalité à chaque création de ticket
 	// pour la garde anti-doublon (N41, et N21 sur les N+1). Créé après la migration
 	// de colonne, sans quoi la colonne n'existerait pas encore sur une base

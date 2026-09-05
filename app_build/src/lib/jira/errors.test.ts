@@ -73,6 +73,6 @@ describe("lib/jira/errors — refus sur le type de ticket", () => {
 		// Jira dit seulement « Spécifiez un type valide » : rien qui indique que le
 		// nom est traduit, ni où le changer.
 		expect(ISSUE_TYPE_HINT).toContain("localisé");
-		expect(ISSUE_TYPE_HINT).toContain("modale");
+		expect(ISSUE_TYPE_HINT).toContain("page de création");
 	});
 });

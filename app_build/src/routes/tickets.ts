@@ -30,6 +30,7 @@ import type {
 } from "@/lib/jira/types";
 import {
 	ticketCreateBodySchema,
+	ticketDraftBodySchema,
 	ticketLinkBodySchema,
 	ticketTargetSchema,
 } from "@/lib/schemas";
@@ -40,13 +41,15 @@ import { buildCveGroups } from "../lib/aggregator";
 export const ticketsRoutes = {
 	"/api/tickets": {
 		async POST(req: Request) {
-			const parsed = await parseBody(req, ticketTargetSchema);
+			const parsed = await parseBody(req, ticketDraftBodySchema);
 			if (parsed.response) return parsed.response;
-			const { projectId, packageName } = parsed.data;
+			const { projectId, packageName, cves } = parsed.data;
 			const groups = buildCveGroups();
 
 			const occurrences = [];
 			for (const g of groups) {
+				// `cves` fourni : l'aperçu ne décrit que les CVE choisies (§8).
+				if (cves && !cves.includes(g.cve)) continue;
 				for (const occ of g.occurrences) {
 					if (occ.projectId === projectId && occ.package === packageName) {
 						occurrences.push({
@@ -143,12 +146,12 @@ export const ticketsRoutes = {
 			// pas. Le repli produisait donc un 400 de Jira après une tentative
 			// d'écriture, sur une configuration que l'écran présentait comme
 			// facultative. Constaté sur une instance réelle.
-			// Le type vient **du corps de la requête**, donc de la modale, et de
+			// Le type vient **du corps de la requête**, donc de la page de création, et de
 			// nulle part ailleurs. Il n'y a plus de réglage global : les noms étant
 			// localisés par instance, une valeur enregistrée une fois pour toutes se
 			// périmait au premier changement de projet, et la saisie libre qu'elle
 			// supposait produisait un « Spécifiez un type de ticket valide » après
-			// une tentative d'écriture. La modale lit la liste chez Jira (§8).
+			// une tentative d'écriture. La page lit la liste chez Jira (§8).
 			const parentEpic = getSetting("JIRA_PARENT_EPIC", "");
 
 			if (!user || !apiKey || !project) {
@@ -164,7 +167,7 @@ export const ticketsRoutes = {
 			if (!issueType) {
 				// Refus **avant** l'appel : Jira répondrait « Spécifiez un type de
 				// ticket valide », un message que l'utilisateur ne peut pas relier au
-				// champ de la modale.
+				// champ de la page de création.
 				return Response.json(
 					{ error: "Choisissez un type de ticket avant de créer le ticket." },
 					{ status: 400 },

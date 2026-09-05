@@ -8,6 +8,8 @@ import {
 	Edit2,
 	Folder,
 	GitBranch,
+	Globe,
+	HardDrive,
 	Info,
 	LayoutGrid,
 	List,
@@ -17,6 +19,7 @@ import {
 	RefreshCw,
 	Shield,
 	Trash2,
+	UploadCloud,
 	XCircle,
 } from "lucide-react";
 import React, {
@@ -121,6 +124,7 @@ export const Projects = React.memo(function Projects() {
 	);
 
 	const [isAdding, setIsAdding] = useState(false);
+	const [isFormVisible, setIsFormVisible] = useState(false);
 	/**
 	 * Erreur renvoyée par le serveur au dernier envoi du formulaire.
 	 *
@@ -197,6 +201,8 @@ export const Projects = React.memo(function Projects() {
 		type: "node" as "node" | "composer",
 		tags: [] as string[],
 		is_remote: false,
+		source_type: "local" as "local" | "ingest" | "remote",
+		remote_url: "",
 	});
 
 	const copyToClipboard = (text: string) => {
@@ -260,6 +266,7 @@ export const Projects = React.memo(function Projects() {
 
 	const resetForm = () => {
 		setIsAdding(false);
+		setIsFormVisible(false);
 		setEditingId(null);
 		// Sans cela, l'erreur du précédent envoi réapparaîtrait à la réouverture du
 		// formulaire, sur un contenu qui n'a plus rien à voir.
@@ -274,11 +281,15 @@ export const Projects = React.memo(function Projects() {
 			tool: "npm",
 			tags: [],
 			is_remote: false,
+			source_type: "local",
+			remote_url: "",
 		});
 	};
 
 	const handleEdit = (p: ProjectListItem, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
+		let st = p.source_type;
+		if (!st) st = p.is_remote ? "ingest" : "local";
 		setFormData({
 			name: p.name,
 			path: p.path,
@@ -287,9 +298,12 @@ export const Projects = React.memo(function Projects() {
 			tool: p.tool,
 			tags: p.tags || [],
 			is_remote: !!p.is_remote,
+			source_type: st as "local" | "ingest" | "remote",
+			remote_url: p.remote_url || "",
 		});
 		setEditingId(p.id);
 		setIsAdding(true);
+		setIsFormVisible(true);
 	};
 
 	const handleSubmit = async (
@@ -593,7 +607,7 @@ export const Projects = React.memo(function Projects() {
 						) : (
 							<CloudDownload className="w-4 h-4 mr-2" />
 						)}
-						Vérifier les mises à jour Git
+						Synchroniser (Git / Distant)
 					</Button>
 					<Button
 						onClick={() => {
@@ -620,284 +634,393 @@ export const Projects = React.memo(function Projects() {
 						onSubmit={handleSubmit}
 						className="flex flex-col h-full"
 					>
-						<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
-							<DialogTitle className="text-xl font-bold text-primary">
-								{editingId ? "Modifier le Projet" : "Nouveau Projet"}
-							</DialogTitle>
-						</DialogHeader>
-
-						<div className="flex-1 overflow-y-auto px-6 py-2 flex flex-col gap-4 hide-scrollbar">
-							<div className="flex p-1 rounded-lg border mb-2 shrink-0">
-								<Button
-									type="button"
-									variant={!formData.is_remote ? "default" : "ghost"}
-									onClick={() => setFormData({ ...formData, is_remote: false })}
-									className={`flex-1 rounded-md`}
-								>
-									Projet Local
-								</Button>
-								<Button
-									type="button"
-									variant={formData.is_remote ? "default" : "ghost"}
-									onClick={() =>
-										setFormData({ ...formData, is_remote: true, path: "" })
-									}
-									className={`flex-1 rounded-md`}
-								>
-									Projet Distant (CI)
-								</Button>
-							</div>
-
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
-								<div className="flex flex-col gap-1">
-									<label htmlFor="project-name" className="text-sm font-medium">
-										Nom du projet
-									</label>
-									<Input
-										id="project-name"
-										required
-										type="text"
-										value={formData.name}
-										onChange={(e) =>
-											setFormData({ ...formData, name: e.target.value })
-										}
-										placeholder="Ex: Mon API Node"
-									/>
-								</div>
-
-								<div className="flex flex-col gap-1">
-									<label
-										htmlFor="project-ingest-url"
-										className="text-sm font-medium flex items-center gap-1"
-									>
-										<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
-									</label>
-									<div className="relative">
-										<input
-											id="project-ingest-url"
-											readOnly
-											type="text"
-											value={
-												formData.name
-													? `${window.location.origin}/api/ingest/${formData.name
-															.toLowerCase()
-															.replace(/[^a-z0-9]+/g, "-")
-															.replace(/(^-|-$)/g, "")}`
-													: "URL auto-générée"
-											}
-											className="w-full border text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
-											title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
-										/>
-										<Button
-											type="button"
-											variant="ghost"
-											title="Copier l'URL"
-											onClick={(e) => {
-												e.preventDefault();
-												e.stopPropagation();
-												const slug = formData.name
-													? formData.name
-															.toLowerCase()
-															.replace(/[^a-z0-9]+/g, "-")
-															.replace(/(^-|-$)/g, "")
-													: "";
-												if (slug) {
-													copyToClipboard(
-														`${window.location.origin}/api/ingest/${slug}`,
-													);
-													setCopiedSlug(-1);
-													setTimeout(() => setCopiedSlug(null), 2000);
-												}
-											}}
-											className="absolute inset-y-0 right-0 flex items-center px-3 rounded-l-none"
-										>
-											{copiedSlug === -1 ? (
-												<Check className="w-4 h-4" />
-											) : (
-												<Copy className="w-4 h-4 text-muted-foreground" />
-											)}
-										</Button>
-									</div>
-								</div>
-
-								{!formData.is_remote && (
-									<div className="flex flex-col gap-1 md:col-span-2">
-										<label
-											htmlFor="project-path"
-											className="text-sm font-medium"
-										>
-											Chemin absolu (Racine Git)
-										</label>
-										<Input
-											id="project-path"
-											required={!formData.is_remote}
-											type="text"
-											value={formData.path}
-											onChange={(e) =>
-												setFormData({ ...formData, path: e.target.value })
-											}
-											onBlur={handleDetectTool}
-											placeholder="Ex: /home/user/projects/api"
-										/>
-										{detectStatus === "detecting" && (
-											<span className="text-xs mt-1 flex items-center gap-1">
-												<Loader2 className="w-3 h-3" /> Détection automatique...
-											</span>
-										)}
-										{detectStatus === "success" && (
-											<span className="text-xs mt-1 flex items-center gap-1">
-												<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
-												{detectedToolName}
-											</span>
-										)}
-										{detectStatus === "error" && (
-											<span className="text-xs mt-1 flex items-center gap-1">
-												<XCircle className="w-3 h-3" /> Impossible de détecter
-												automatiquement (vérifiez le chemin)
-											</span>
-										)}
-									</div>
-								)}
-
-								{!formData.is_remote && (
-									<div className="flex flex-col gap-1">
-										<label
-											htmlFor="project-audit-path"
-											className="text-sm font-medium"
-										>
-											Sous-dossier d'audit (Optionnel)
-										</label>
-										<Input
-											id="project-audit-path"
-											type="text"
-											value={formData.audit_path}
-											onChange={(e) =>
-												setFormData({ ...formData, audit_path: e.target.value })
-											}
-											onBlur={handleDetectTool}
-											placeholder="Ex: backend/src (vide si racine)"
-										/>
-									</div>
-								)}
-
-								<div className="flex flex-col gap-1">
-									<label htmlFor="project-tool" className="text-sm font-medium">
-										Outil d'audit
-									</label>
-									<Select
-										value={formData.tool}
-										onValueChange={(val) =>
+						{!isFormVisible ? (
+							<div className="flex flex-col h-full">
+								<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
+									<DialogTitle className="text-xl font-bold text-primary">
+										Type de projet
+									</DialogTitle>
+								</DialogHeader>
+								<div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 p-10 bg-muted/20">
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
 											setFormData({
 												...formData,
-												// Valeurs bornées par les <SelectItem> déclarés juste en dessous.
-												tool: val as ProjectTool,
-												type: val === "composer" ? "composer" : "node",
-											})
-										}
+												source_type: "local",
+												is_remote: false,
+											});
+											setIsFormVisible(true);
+										}}
+										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
 									>
-										<SelectTrigger id="project-tool" className="w-full">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="npm">NPM</SelectItem>
-											<SelectItem value="yarn">Yarn</SelectItem>
-											<SelectItem value="bun">Bun</SelectItem>
-											<SelectItem value="composer">Composer</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
+										<HardDrive className="w-12 h-12 text-primary" />
+										<span className="font-semibold text-base whitespace-normal text-center">
+											Projet Local
+										</span>
+									</Button>
 
-								<div className="flex flex-col gap-2 md:col-span-2">
-									<span className="text-sm font-medium">
-										Tags (Configurations)
-									</span>
-									<div className="flex flex-wrap gap-2">
-										{availableTags.map((t) => {
-											const isSelected = formData.tags.includes(t.name);
-											return (
-												<button
-													key={t.id}
-													type="button"
-													onClick={() => {
-														if (isSelected) {
-															setFormData({
-																...formData,
-																tags: formData.tags.filter(
-																	(tag) => tag !== t.name,
-																),
-															});
-														} else {
-															setFormData({
-																...formData,
-																tags: [...formData.tags, t.name],
-															});
-														}
-													}}
-													className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground"}`}
-												>
-													<span
-														className="w-2 h-2 rounded-full inline-block mr-2"
-														style={{
-															backgroundColor: `var(--color-${t.color}-500, var(--primary))`,
-														}}
-													></span>
-													{t.name}
-												</button>
-											);
-										})}
-										{availableTags.length === 0 && (
-											<span className="text-xs text-muted-foreground italic">
-												Aucun tag configuré dans les Paramètres.
-											</span>
-										)}
-									</div>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setFormData({
+												...formData,
+												source_type: "remote",
+												is_remote: false,
+												path: "",
+											});
+											setIsFormVisible(true);
+										}}
+										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+									>
+										<Globe className="w-12 h-12 text-primary" />
+										<span className="font-semibold text-base whitespace-normal text-center">
+											Distant (Direct)
+										</span>
+									</Button>
+
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setFormData({
+												...formData,
+												source_type: "ingest",
+												is_remote: true,
+												path: "",
+											});
+											setIsFormVisible(true);
+										}}
+										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+									>
+										<UploadCloud className="w-12 h-12 text-primary" />
+										<span className="font-semibold text-base whitespace-normal text-center">
+											Ingestion CI
+										</span>
+									</Button>
 								</div>
 							</div>
-						</div>
+						) : (
+							<>
+								<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
+									<div className="flex items-center gap-3">
+										{!editingId && (
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 rounded-full"
+												onClick={() => setIsFormVisible(false)}
+											>
+												<ArrowDownToLine className="w-4 h-4 rotate-90" />
+											</Button>
+										)}
+										<DialogTitle className="text-xl font-bold text-primary">
+											{editingId
+												? "Modifier le Projet"
+												: formData.source_type === "local"
+													? "Nouveau Projet Local"
+													: formData.source_type === "remote"
+														? "Nouveau Projet Distant"
+														: "Nouvelle Ingestion CI"}
+										</DialogTitle>
+									</div>
+								</DialogHeader>
 
-						<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-col items-stretch gap-2 bg-muted/20 sm:flex-row sm:items-center sm:justify-end">
-							{submitError && (
-								<p
-									role="alert"
-									className="mr-auto text-sm font-medium text-red-500"
-								>
-									{submitError}
-								</p>
-							)}
-							<Button type="button" variant="secondary" onClick={resetForm}>
-								Annuler
-							</Button>
-							{!editingId && !formData.is_remote && (
-								<Button
-									type="button"
-									variant="outline"
-									onClick={(e) => {
-										if (formRef.current && !formRef.current.checkValidity()) {
-											formRef.current.reportValidity();
-											return;
-										}
-										handleSubmit(e, true);
-									}}
-									className="text-blue-500"
-								>
-									Créer et Auditer
-								</Button>
-							)}
-							{formData.is_remote && !editingId && (
-								<Button type="submit" className="shadow-lg">
-									Créer le projet CI
-								</Button>
-							)}
-							{(!formData.is_remote || editingId) && (
-								<Button
-									type="submit"
-									onClick={(e) => handleSubmit(e, false)}
-									className="shadow-lg"
-								>
-									{editingId ? "Enregistrer" : "Créer sans auditer"}
-								</Button>
-							)}
-						</DialogFooter>
+								<div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6 hide-scrollbar">
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
+										<div className="flex flex-col gap-1">
+											<label
+												htmlFor="project-name"
+												className="text-sm font-medium"
+											>
+												Nom du projet
+											</label>
+											<Input
+												id="project-name"
+												required
+												type="text"
+												value={formData.name}
+												onChange={(e) =>
+													setFormData({ ...formData, name: e.target.value })
+												}
+												placeholder="Ex: Mon API Node"
+											/>
+										</div>
+
+										{formData.source_type === "ingest" && (
+											<div className="flex flex-col gap-1">
+												<label
+													htmlFor="project-ingest-url"
+													className="text-sm font-medium flex items-center gap-1"
+												>
+													<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
+												</label>
+												<div className="relative">
+													<input
+														id="project-ingest-url"
+														readOnly
+														type="text"
+														value={
+															formData.name
+																? `${window.location.origin}/api/ingest/${formData.name
+																		.toLowerCase()
+																		.replace(/[^a-z0-9]+/g, "-")
+																		.replace(/(^-|-$)/g, "")}`
+																: "URL auto-générée"
+														}
+														className="w-full border text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
+														title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
+													/>
+													<Button
+														type="button"
+														variant="ghost"
+														title="Copier l'URL"
+														onClick={(e) => {
+															e.preventDefault();
+															e.stopPropagation();
+															const slug = formData.name
+																? formData.name
+																		.toLowerCase()
+																		.replace(/[^a-z0-9]+/g, "-")
+																		.replace(/(^-|-$)/g, "")
+																: "";
+															if (slug) {
+																copyToClipboard(
+																	`${window.location.origin}/api/ingest/${slug}`,
+																);
+																setCopiedSlug(-1);
+																setTimeout(() => setCopiedSlug(null), 2000);
+															}
+														}}
+														className="absolute inset-y-0 right-0 flex items-center px-3 rounded-l-none"
+													>
+														{copiedSlug === -1 ? (
+															<Check className="w-4 h-4" />
+														) : (
+															<Copy className="w-4 h-4 text-muted-foreground" />
+														)}
+													</Button>
+												</div>
+											</div>
+										)}
+
+										{formData.source_type === "local" && (
+											<div className="flex flex-col gap-1 md:col-span-2">
+												<label
+													htmlFor="project-path"
+													className="text-sm font-medium"
+												>
+													Chemin absolu (Racine Git)
+												</label>
+												<Input
+													id="project-path"
+													required={!formData.is_remote}
+													type="text"
+													value={formData.path}
+													onChange={(e) =>
+														setFormData({ ...formData, path: e.target.value })
+													}
+													onBlur={handleDetectTool}
+													placeholder="Ex: /home/user/projects/api"
+												/>
+												{detectStatus === "detecting" && (
+													<span className="text-xs mt-1 flex items-center gap-1">
+														<Loader2 className="w-3 h-3" /> Détection
+														automatique...
+													</span>
+												)}
+												{detectStatus === "success" && (
+													<span className="text-xs mt-1 flex items-center gap-1">
+														<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
+														{detectedToolName}
+													</span>
+												)}
+												{detectStatus === "error" && (
+													<span className="text-xs mt-1 flex items-center gap-1">
+														<XCircle className="w-3 h-3" /> Impossible de
+														détecter automatiquement (vérifiez le chemin)
+													</span>
+												)}
+											</div>
+										)}
+
+										{formData.source_type === "local" && (
+											<div className="flex flex-col gap-1">
+												<label
+													htmlFor="project-audit-path"
+													className="text-sm font-medium"
+												>
+													Sous-dossier d'audit (Optionnel)
+												</label>
+												<Input
+													id="project-audit-path"
+													type="text"
+													value={formData.audit_path}
+													onChange={(e) =>
+														setFormData({
+															...formData,
+															audit_path: e.target.value,
+														})
+													}
+													onBlur={handleDetectTool}
+													placeholder="Ex: backend/src (vide si racine)"
+												/>
+											</div>
+										)}
+
+										{formData.source_type === "remote" && (
+											<div className="flex flex-col gap-1 md:col-span-2">
+												<label
+													htmlFor="project-remote-url"
+													className="text-sm font-medium"
+												>
+													URL distante du fichier lock
+												</label>
+												<Input
+													id="project-remote-url"
+													required={formData.source_type === "remote"}
+													type="text"
+													value={formData.remote_url}
+													onChange={(e) =>
+														setFormData({
+															...formData,
+															remote_url: e.target.value,
+														})
+													}
+													placeholder="Ex: https://raw.githubusercontent.com/.../package-lock.json"
+												/>
+											</div>
+										)}
+
+										<div className="flex flex-col gap-1">
+											<label
+												htmlFor="project-tool"
+												className="text-sm font-medium"
+											>
+												Outil d'audit
+											</label>
+											<Select
+												value={formData.tool}
+												onValueChange={(val) =>
+													setFormData({
+														...formData,
+														// Valeurs bornées par les <SelectItem> déclarés juste en dessous.
+														tool: val as ProjectTool,
+														type: val === "composer" ? "composer" : "node",
+													})
+												}
+											>
+												<SelectTrigger id="project-tool" className="w-full">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="npm">NPM</SelectItem>
+													<SelectItem value="yarn">Yarn</SelectItem>
+													<SelectItem value="bun">Bun</SelectItem>
+													<SelectItem value="composer">Composer</SelectItem>
+												</SelectContent>
+											</Select>
+										</div>
+
+										<div className="flex flex-col gap-2 md:col-span-2">
+											<span className="text-sm font-medium">
+												Tags (Configurations)
+											</span>
+											<div className="flex flex-wrap gap-2">
+												{availableTags.map((t) => {
+													const isSelected = formData.tags.includes(t.name);
+													return (
+														<button
+															key={t.id}
+															type="button"
+															onClick={() => {
+																if (isSelected) {
+																	setFormData({
+																		...formData,
+																		tags: formData.tags.filter(
+																			(tag) => tag !== t.name,
+																		),
+																	});
+																} else {
+																	setFormData({
+																		...formData,
+																		tags: [...formData.tags, t.name],
+																	});
+																}
+															}}
+															className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground"}`}
+														>
+															<span
+																className="w-2 h-2 rounded-full inline-block mr-2"
+																style={{
+																	backgroundColor: `var(--color-${t.color}-500, var(--primary))`,
+																}}
+															></span>
+															{t.name}
+														</button>
+													);
+												})}
+												{availableTags.length === 0 && (
+													<span className="text-xs text-muted-foreground italic">
+														Aucun tag configuré dans les Paramètres.
+													</span>
+												)}
+											</div>
+										</div>
+									</div>
+								</div>
+
+								<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-col items-stretch gap-2 bg-muted/20 sm:flex-row sm:items-center sm:justify-end">
+									{submitError && (
+										<p
+											role="alert"
+											className="mr-auto text-sm font-medium text-red-500"
+										>
+											{submitError}
+										</p>
+									)}
+									<Button type="button" variant="secondary" onClick={resetForm}>
+										Annuler
+									</Button>
+									{!editingId && !formData.is_remote && (
+										<Button
+											type="button"
+											variant="outline"
+											onClick={(e) => {
+												if (
+													formRef.current &&
+													!formRef.current.checkValidity()
+												) {
+													formRef.current.reportValidity();
+													return;
+												}
+												handleSubmit(e, true);
+											}}
+											className="text-blue-500"
+										>
+											Créer et Auditer
+										</Button>
+									)}
+									{formData.is_remote && !editingId && (
+										<Button type="submit" className="shadow-lg">
+											Créer le projet CI
+										</Button>
+									)}
+									{(!formData.is_remote || editingId) && (
+										<Button
+											type="submit"
+											onClick={(e) => handleSubmit(e, false)}
+											className="shadow-lg"
+										>
+											{editingId ? "Enregistrer" : "Créer sans auditer"}
+										</Button>
+									)}
+								</DialogFooter>
+							</>
+						)}
 					</form>
 				</DialogContent>
 			</Dialog>

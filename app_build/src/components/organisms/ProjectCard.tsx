@@ -15,6 +15,8 @@ import {
 	Copy,
 	Edit2,
 	GitBranch,
+	Globe,
+	HardDrive,
 	Info,
 	Loader2,
 	MoreHorizontal,
@@ -22,6 +24,7 @@ import {
 	RefreshCw,
 	Shield,
 	Trash2,
+	UploadCloud,
 } from "lucide-react";
 import React from "react";
 import { relativeAge } from "@/lib/utils";
@@ -190,17 +193,36 @@ export const ProjectCard = React.memo(function ProjectCard({
 				</div>
 			</div>
 
-			{!p.is_remote && (
-				<div className="flex items-center gap-1 mt-0">
-					<span className="text-xs text-muted-foreground">Local</span>
-					<span
-						title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || "Racine"}`}
-						className="cursor-help inline-flex"
-					>
-						<Info className="w-3 h-3 text-muted-foreground/50" />
-					</span>
-				</div>
-			)}
+			<div className="flex items-center gap-1 mt-0">
+				{p.source_type === "local" ? (
+					<>
+						<HardDrive className="w-3 h-3 text-muted-foreground" />
+						<span className="text-xs text-muted-foreground">Local</span>
+						<span
+							title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || "Racine"}`}
+							className="cursor-help inline-flex"
+						>
+							<Info className="w-3 h-3 text-muted-foreground/50" />
+						</span>
+					</>
+				) : p.source_type === "remote" ? (
+					<>
+						<Globe className="w-3 h-3 text-muted-foreground" />
+						<span className="text-xs text-muted-foreground">Distant</span>
+						<span
+							title={`URL Lockfile : ${p.remote_url}`}
+							className="cursor-help inline-flex"
+						>
+							<Info className="w-3 h-3 text-muted-foreground/50" />
+						</span>
+					</>
+				) : (
+					<>
+						<UploadCloud className="w-3 h-3 text-muted-foreground" />
+						<span className="text-xs text-muted-foreground">Ingestion CI</span>
+					</>
+				)}
+			</div>
 
 			{p.tags && p.tags.length > 0 && (
 				<div className="flex flex-wrap gap-1 mt-2">

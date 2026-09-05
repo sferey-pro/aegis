@@ -30,6 +30,8 @@ function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
 		tags: [],
 		ignored: false,
 		is_remote: false,
+		source_type: "local",
+		remote_url: null,
 		created_at: "2026-07-01 09:00:00",
 		git: { isRepo: false },
 		lastRun: null,
@@ -252,6 +254,7 @@ describe("Projects", () => {
 		await screen.findByText("Aucun projet");
 
 		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
 		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
 			target: { value: "Nouveau" },
 		});
@@ -285,6 +288,7 @@ describe("Projects", () => {
 		await screen.findByText("Aucun projet");
 
 		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
 		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
 			target: { value: "Doublon" },
 		});
@@ -319,6 +323,7 @@ describe("Projects", () => {
 		await screen.findByText("Aucun projet");
 
 		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
 		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
 			target: { value: "   " },
 		});
@@ -340,6 +345,7 @@ describe("Projects", () => {
 		await screen.findByText("Aucun projet");
 
 		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
 		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
 			target: { value: "   " },
 		});
@@ -488,7 +494,7 @@ describe("Projects", () => {
 		});
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+			screen.getByRole("button", { name: /Synchroniser \(Git \/ Distant\)/ }),
 		);
 
 		await new Promise((r) => setTimeout(r, 60));
@@ -524,7 +530,7 @@ describe("Projects", () => {
 		});
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+			screen.getByRole("button", { name: /Synchroniser \(Git \/ Distant\)/ }),
 		);
 
 		// « 4 commits de retard » vient du premier dépôt, alors que le lot tourne
@@ -548,7 +554,7 @@ describe("Projects", () => {
 		});
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+			screen.getByRole("button", { name: /Synchroniser \(Git \/ Distant\)/ }),
 		);
 
 		await waitFor(() => {
@@ -574,7 +580,7 @@ describe("Projects", () => {
 		});
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+			screen.getByRole("button", { name: /Synchroniser \(Git \/ Distant\)/ }),
 		);
 		await waitFor(() => {
 			expect(fetchCalls().length).toBeGreaterThanOrEqual(2);
@@ -610,7 +616,7 @@ describe("Projects", () => {
 		});
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+			screen.getByRole("button", { name: /Synchroniser \(Git \/ Distant\)/ }),
 		);
 
 		expect(
@@ -665,7 +671,7 @@ describe("Projects", () => {
 		});
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+			screen.getByRole("button", { name: /Synchroniser \(Git \/ Distant\)/ }),
 		);
 
 		expect(
@@ -719,7 +725,7 @@ describe("Projects", () => {
 		});
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+			screen.getByRole("button", { name: /Synchroniser \(Git \/ Distant\)/ }),
 		);
 
 		await waitFor(() => {
@@ -741,7 +747,7 @@ describe("Projects", () => {
 		});
 
 		fireEvent.click(
-			screen.getByRole("button", { name: /Vérifier les mises à jour Git/ }),
+			screen.getByRole("button", { name: /Synchroniser \(Git \/ Distant\)/ }),
 		);
 		await waitFor(() => {
 			expect(fetchCalls().length).toBeGreaterThanOrEqual(2);

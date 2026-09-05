@@ -56,9 +56,25 @@ Les quatre routes qui prennent un corps — brouillon (`POST /api/tickets`), lia
 
 `cves` est facultatif et vaut `[]` par défaut ; `notes` vaut `""`. Un `cves` absent faisait auparavant lever `cves.includes` et sortait en **500**. Le refus sur `issueType` est rendu par la route, **après** le contrôle de configuration Jira : sans configuration, c'est la consigne « configurez… dans les Paramètres » qui prime.
 
+## Page de création (`/tickets/new`)
+
+Le ticket se prépare sur **sa propre page**, portée par l'URL — `?project=<id>&package=<nom>` — comme les filtres du triage : partageable, et le retour ramène au triage du projet. On y arrive par le bouton « Ticket » d'un paquet du triage.
+
+Trois choix y sont faits, et nulle part ailleurs :
+
+1. **le paquet**, parmi ceux du projet qui portent des vulnérabilités — l'unicité de la table `tickets` est `(project_id, package)`, un ticket vaut pour un paquet ;
+2. **les CVE à traiter**, par cases à cocher, toutes cochées au départ : le cas courant reste « tout le paquet », décocher est l'exception qu'on rend possible. Un paquet à huit CVE ne se traite pas toujours d'un bloc, et une dette technique et un bug ne se rangent pas au même endroit ;
+3. **le type de ticket**, ci-dessous.
+
+L'aperçu Markdown suit la sélection : `POST /api/tickets` accepte un `cves` facultatif et ne décrit que ces CVE — absent, tout le paquet ; rien qui corresponde, **404**. La création (`POST /api/tickets/create`) part avec la même liste. Sans CVE cochée ni type choisi, le bouton reste inactif : le serveur refuserait, autant le dire avant.
+
+Un ticket déjà lié au paquet est **signalé** sur la page, avec son lien ; la garde anti-doublon (ci-dessous) reste celle du serveur.
+
+Cette page remplace une modale ouverte depuis le triage, qui embarquait toutes les CVE du paquet sans choix possible. L'état réseau vit dans `lib/useTicketDraft.ts` ; les organismes `CveSelectionList` et `TicketForm` composent la page.
+
 ## Choix du type de ticket (`GET /api/tickets/issue-types`)
 
-Le type se choisit **dans la modale de création**, par une liste déroulante, et **nulle part ailleurs** : le réglage `JIRA_ISSUE_TYPE` a été retiré. Une valeur enregistrée une fois pour toutes se périmait au premier changement de projet, et la saisie libre qu'elle supposait produisait « Spécifiez un type de ticket valide » **après** une tentative d'écriture. Une dette technique et un bug ne se rangent pas au même endroit : c'est une décision par ticket.
+Le type se choisit **sur la page de création**, par une liste déroulante, et **nulle part ailleurs** : le réglage `JIRA_ISSUE_TYPE` a été retiré. Une valeur enregistrée une fois pour toutes se périmait au premier changement de projet, et la saisie libre qu'elle supposait produisait « Spécifiez un type de ticket valide » **après** une tentative d'écriture. Une dette technique et un bug ne se rangent pas au même endroit : c'est une décision par ticket.
 
 Le type est donc **requis dans le corps de la requête**. Sans lui, refus en 400 avant tout appel — et le bouton de création reste inactif tant que rien n'est choisi, ce qui dit « il manque quelque chose ici » plutôt que de laisser partir un appel voué au refus.
 
@@ -85,7 +101,7 @@ Il rend désormais une phrase, et ajoute l'aide que Jira ne donne pas :
 
 ```
 Jira a refusé la demande (400) — issuetype : Spécifiez un type de ticket valide.
-Le nom du type est localisé : choisissez-le dans la liste de la modale,
+Le nom du type est localisé : choisissez-le dans la liste de la page de création,
 ou saisissez celui que votre projet expose (par exemple « Tâche » plutôt que « Task »).
 ```
 

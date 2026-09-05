@@ -54,7 +54,7 @@ export function isIssueTypeRefusal(body: string): boolean {
 
 /** Indication ajoutée au message quand le type est en cause. */
 export const ISSUE_TYPE_HINT =
-	"Le nom du type est localisé : choisissez-le dans la liste de la modale, ou saisissez celui que votre projet expose (par exemple « Tâche » plutôt que « Task »).";
+	"Le nom du type est localisé : choisissez-le dans la liste de la page de création, ou saisissez celui que votre projet expose (par exemple « Tâche » plutôt que « Task »).";
 
 function parseErrorCollection(body: string): JiraErrorCollection | null {
 	try {

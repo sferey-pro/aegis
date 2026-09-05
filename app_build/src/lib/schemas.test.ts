@@ -508,7 +508,7 @@ describe("schemas — tickets (CONTEXT.md §8)", () => {
 
 	test("la création remplit cves, notes et issueType par défaut", () => {
 		// `issueType` vide n'est pas refusé ici : c'est la route qui le fait, après
-		// le contrôle de configuration Jira, avec le message qui nomme la modale.
+		// le contrôle de configuration Jira, avec le message qui nomme le champ.
 		expect(ticketCreateBodySchema.parse(cible)).toEqual({
 			...cible,
 			cves: [],

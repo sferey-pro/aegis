@@ -1,6 +1,3 @@
-import type { CveOccurrence } from "@/lib/aggregator";
-import type { Severity } from "@/lib/parsers/types";
-
 /**
  * Types propres à l'écran de triage. Ils n'ont pas d'équivalent côté serveur :
  * `GET /api/cves` renvoie des `CveGroup` (regroupés par référence CVE), et le
@@ -11,59 +8,10 @@ import type { Severity } from "@/lib/parsers/types";
  * `console-types.ts` l'est pour la console.
  */
 
-/** Unité de travail du triage : un package dans un projet, et ses CVE. */
-export interface PackageGroup {
-	/** Clé de regroupement `projectId::package`. */
-	key: string;
-	projectId: number;
-	projectName: string;
-	package: string;
-	tool: string;
-	cves: PackageGroupCve[];
-	worstSeverity: Severity;
-	pendingCount: number;
-	hasConfirmed: boolean;
-	maxBaselineAgeInDays: number;
-	maxSlaAgeInDays: number;
-	hasBaseline: boolean;
-	hasNetDiscovery: boolean;
-	/** Version cible retenue pour le package, `null` si aucune n'est connue. */
-	targetPatch: string | null;
-	/**
-	 * Publication d'avis la plus ancienne du groupe (GHSA). `null` tant que
-	 * l'enrichissement GHSA n'a pas tourné.
-	 */
-	publishedAt: string | null;
-	/**
-	 * Première détection par Aegis la plus ancienne du groupe. On retient la plus
-	 * ancienne des deux dates parce que c'est elle qui porte le SLA : afficher la
-	 * plus récente ferait paraître le groupe plus jeune qu'il ne l'est.
-	 */
-	firstSeenAt: string | null;
-}
+import type { PackageGroup, PackageGroupCve } from "@/lib/package-groups";
 
-/** Une CVE au sein d'un `PackageGroup`, aplatie depuis une `CveOccurrence`. */
-export interface PackageGroupCve
-	extends Pick<
-		CveOccurrence,
-		| "title"
-		| "severity"
-		| "versionRange"
-		| "fixedIn"
-		| "link"
-		| "status"
-		| "note"
-		| "cvssVector"
-		| "ageInDays"
-		| "firstSeenAt"
-		| "publishedAt"
-		| "isBaseline"
-	> {
-	/** Clé du groupe CVE : la référence, ou le libellé de repli. */
-	cve: string;
-	/** Référence affichable, `null` si l'avis n'en porte pas. */
-	ref: string | null;
-}
+/** Types déplacés dans la lib, réexportés pour les organismes qui les lisaient ici. */
+export type { PackageGroup, PackageGroupCve };
 
 /** Notification éphémère affichée après une action de triage. */
 export interface Toast {
@@ -79,12 +27,4 @@ export interface ConfirmModalState {
 	cve: string;
 	projectId: number;
 	reason: string;
-}
-
-/** État de la modale de préparation de ticket. */
-export interface TicketModalState {
-	isOpen: boolean;
-	md: string;
-	copied: boolean;
-	group?: PackageGroup;
 }

@@ -102,16 +102,50 @@ export const projectToolSchema = z.enum(["npm", "yarn", "bun", "composer"], {
 	message: "Outil invalide (npm|yarn|composer)",
 });
 
-export const projectBodySchema = z.object({
-	name: z.string({ message: "Nom requis" }).trim().min(1, "Nom requis"),
-	path: z.string({ message: "Chemin requis" }).trim().min(1, "Chemin requis"),
-	audit_path: emptyToNull,
-	type: projectTypeSchema,
-	tool: projectToolSchema,
-	tags: tagNames.default([]),
-	ignored: boolStrict.default(false),
-	is_remote: boolStrict.default(false),
-});
+export const projectSourceTypeSchema = z
+	.enum(["local", "ingest", "remote"])
+	.default("local");
+
+export const projectBodySchema = z
+	.object({
+		name: z.string({ message: "Nom requis" }).trim().min(1, "Nom requis"),
+		source_type: projectSourceTypeSchema,
+		path: z.string().trim().catch(""),
+		audit_path: emptyToNull,
+		type: projectTypeSchema,
+		tool: projectToolSchema,
+		tags: tagNames.default([]),
+		ignored: boolStrict.default(false),
+		is_remote: boolStrict.default(false),
+		remote_url: emptyToNull,
+	})
+	.superRefine((data, ctx) => {
+		if (data.source_type === "local" && !data.path) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Chemin requis",
+				path: ["path"],
+			});
+		} else if (data.source_type === "remote") {
+			if (!data.remote_url) {
+				ctx.addIssue({
+					code: "custom",
+					message: "URL distante requise",
+					path: ["remote_url"],
+				});
+			} else {
+				try {
+					new URL(data.remote_url);
+				} catch {
+					ctx.addIssue({
+						code: "custom",
+						message: "URL invalide",
+						path: ["remote_url"],
+					});
+				}
+			}
+		}
+	});
 
 export type ProjectBody = z.infer<typeof projectBodySchema>;
 
@@ -338,6 +372,15 @@ export const ticketTargetSchema = z.object({
 
 /** Références CVE/GHSA portées par le ticket ; une liste vide est acceptée. */
 const ticketCves = z.array(z.string()).default([]);
+
+/**
+ * `POST /api/tickets` — brouillon Markdown. `cves` facultatif : la page de
+ * création laisse **choisir** les CVE à traiter, et l'aperçu doit suivre le
+ * choix. Absent, toutes les CVE du paquet.
+ */
+export const ticketDraftBodySchema = ticketTargetSchema.extend({
+	cves: z.array(z.string()).optional(),
+});
 
 /** `POST /api/tickets/link` — référence saisie à la main. */
 export const ticketLinkBodySchema = ticketTargetSchema.extend({

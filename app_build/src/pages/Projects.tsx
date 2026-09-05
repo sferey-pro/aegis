@@ -124,6 +124,7 @@ export const Projects = React.memo(function Projects() {
 	);
 
 	const [isAdding, setIsAdding] = useState(false);
+	const [isFormVisible, setIsFormVisible] = useState(false);
 	/**
 	 * Erreur renvoyée par le serveur au dernier envoi du formulaire.
 	 *
@@ -265,6 +266,7 @@ export const Projects = React.memo(function Projects() {
 
 	const resetForm = () => {
 		setIsAdding(false);
+		setIsFormVisible(false);
 		setEditingId(null);
 		// Sans cela, l'erreur du précédent envoi réapparaîtrait à la réouverture du
 		// formulaire, sur un contenu qui n'a plus rien à voir.
@@ -301,6 +303,7 @@ export const Projects = React.memo(function Projects() {
 		});
 		setEditingId(p.id);
 		setIsAdding(true);
+		setIsFormVisible(true);
 	};
 
 	const handleSubmit = async (
@@ -631,47 +634,74 @@ export const Projects = React.memo(function Projects() {
 						onSubmit={handleSubmit}
 						className="flex flex-col h-full"
 					>
-						<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
-							<DialogTitle className="text-xl font-bold text-primary">
-								{editingId ? "Modifier le Projet" : "Nouveau Projet"}
-							</DialogTitle>
-						</DialogHeader>
-
-						<div className="flex-1 overflow-y-auto px-6 py-2 flex flex-col gap-4 hide-scrollbar">
-							<div className="flex p-1 rounded-lg border mb-2 shrink-0">
-								<Button
-									type="button"
-									variant={formData.source_type === "local" ? "default" : "ghost"}
-									onClick={() => setFormData({ ...formData, source_type: "local", is_remote: false })}
-									className={`flex-1 rounded-md gap-2`}
-								>
-									<HardDrive className="w-4 h-4" />
-									<span className="hidden sm:inline">Projet Local</span>
-									<span className="sm:hidden">Local</span>
-								</Button>
-								<Button
-									type="button"
-									variant={formData.source_type === "remote" ? "default" : "ghost"}
-									onClick={() => setFormData({ ...formData, source_type: "remote", is_remote: false, path: "" })}
-									className={`flex-1 rounded-md gap-2`}
-								>
-									<Globe className="w-4 h-4" />
-									<span className="hidden sm:inline">Distant (Direct)</span>
-									<span className="sm:hidden">Distant</span>
-								</Button>
-								<Button
-									type="button"
-									variant={formData.source_type === "ingest" ? "default" : "ghost"}
-									onClick={() =>
-										setFormData({ ...formData, source_type: "ingest", is_remote: true, path: "" })
-									}
-									className={`flex-1 rounded-md gap-2`}
-								>
-									<UploadCloud className="w-4 h-4" />
-									<span className="hidden sm:inline">Ingestion CI</span>
-									<span className="sm:hidden">Ingest</span>
-								</Button>
+						{!isFormVisible ? (
+							<div className="flex flex-col h-full">
+								<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
+									<DialogTitle className="text-xl font-bold text-primary">
+										Type de projet
+									</DialogTitle>
+								</DialogHeader>
+								<div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 p-10 bg-muted/20">
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setFormData({ ...formData, source_type: "local", is_remote: false });
+											setIsFormVisible(true);
+										}}
+										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+									>
+										<HardDrive className="w-12 h-12 text-primary" />
+										<span className="font-semibold text-base whitespace-normal text-center">Projet Local</span>
+									</Button>
+									
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setFormData({ ...formData, source_type: "remote", is_remote: false, path: "" });
+											setIsFormVisible(true);
+										}}
+										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+									>
+										<Globe className="w-12 h-12 text-primary" />
+										<span className="font-semibold text-base whitespace-normal text-center">Distant (Direct)</span>
+									</Button>
+									
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setFormData({ ...formData, source_type: "ingest", is_remote: true, path: "" });
+											setIsFormVisible(true);
+										}}
+										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+									>
+										<UploadCloud className="w-12 h-12 text-primary" />
+										<span className="font-semibold text-base whitespace-normal text-center">Ingestion CI</span>
+									</Button>
+								</div>
 							</div>
+						) : (
+							<>
+								<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
+									<div className="flex items-center gap-3">
+										{!editingId && (
+											<Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setIsFormVisible(false)}>
+												<ArrowDownToLine className="w-4 h-4 rotate-90" />
+											</Button>
+										)}
+										<DialogTitle className="text-xl font-bold text-primary">
+											{editingId ? "Modifier le Projet" : (
+												formData.source_type === "local" ? "Nouveau Projet Local" :
+												formData.source_type === "remote" ? "Nouveau Projet Distant" :
+												"Nouvelle Ingestion CI"
+											)}
+										</DialogTitle>
+									</div>
+								</DialogHeader>
+
+								<div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6 hide-scrollbar">
 
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
 								<div className="flex flex-col gap-1">
@@ -939,6 +969,8 @@ export const Projects = React.memo(function Projects() {
 								</Button>
 							)}
 						</DialogFooter>
+						</>
+						)}
 					</form>
 				</DialogContent>
 			</Dialog>

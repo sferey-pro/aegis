@@ -254,6 +254,7 @@ describe("Projects", () => {
 		await screen.findByText("Aucun projet");
 
 		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
 		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
 			target: { value: "Nouveau" },
 		});
@@ -287,6 +288,7 @@ describe("Projects", () => {
 		await screen.findByText("Aucun projet");
 
 		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
 		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
 			target: { value: "Doublon" },
 		});
@@ -321,6 +323,7 @@ describe("Projects", () => {
 		await screen.findByText("Aucun projet");
 
 		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
 		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
 			target: { value: "   " },
 		});
@@ -342,6 +345,7 @@ describe("Projects", () => {
 		await screen.findByText("Aucun projet");
 
 		fireEvent.click(screen.getByRole("button", { name: /Ajouter un Projet/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
 		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
 			target: { value: "   " },
 		});

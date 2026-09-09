@@ -70,6 +70,7 @@ export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
 	const [projects, setProjects] = useState<ProjectListItem[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [hasGithubToken, setHasGithubToken] = useState(false);
 
 	const [availableTags, setAvailableTags] = useState<Tag[]>([]);
 
@@ -250,8 +251,16 @@ export const Projects = React.memo(function Projects() {
 
 	const fetchProjects = useCallback(async () => {
 		try {
-			const data = await fetchJson<ProjectListItem[]>("/api/projects");
+			const [data, settingsData] = await Promise.all([
+				fetchJson<ProjectListItem[]>("/api/projects"),
+				fetchJson<Record<string, string | boolean>>("/api/settings").catch(() => ({} as Record<string, string | boolean>))
+			]);
 			setProjects(data);
+			if (settingsData.GITHUB_TOKEN_CONFIGURED === true || settingsData.GITHUB_TOKEN_CONFIGURED === "true") {
+				setHasGithubToken(true);
+			} else {
+				setHasGithubToken(false);
+			}
 		} catch (e) {
 			console.error(e);
 		} finally {
@@ -664,6 +673,8 @@ export const Projects = React.memo(function Projects() {
 									<Button
 										type="button"
 										variant="outline"
+										disabled={!hasGithubToken}
+										title={!hasGithubToken ? "Un jeton GitHub est requis dans les paramètres pour les projets distants" : ""}
 										onClick={() => {
 											setFormData({
 												...formData,
@@ -673,7 +684,7 @@ export const Projects = React.memo(function Projects() {
 											});
 											setIsFormVisible(true);
 										}}
-										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
 									>
 										<Globe className="w-12 h-12 text-primary" />
 										<span className="font-semibold text-base whitespace-normal text-center">

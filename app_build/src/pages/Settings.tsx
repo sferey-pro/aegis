@@ -544,8 +544,8 @@ export function Settings() {
 							</div>
 							<p className="text-sm text-muted-foreground mb-2">
 								Nécessaire pour interroger la base <i>GitHub Advisory</i>{" "}
-								(contournement des limites de taux) et enrichir les CVEs avec
-								les scores CVSS réels.
+								(contournement des limites de taux) et pour récupérer les fichiers
+								`*.lock` des <b>Projets Distants</b>.
 							</p>
 							<Input
 								id="github-token"

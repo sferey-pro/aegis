@@ -20,7 +20,14 @@ export async function syncRemoteProject(project: Project) {
 	const projectDir = join(baseDir, `project_${project.id}`);
 	await mkdir(projectDir, { recursive: true });
 
-	const res = await fetch(project.remote_url);
+	const { getGithubConfig } = await import("../db/advisories");
+	const token = getGithubConfig("GITHUB_TOKEN") || process.env.GITHUB_TOKEN;
+	const headers: Record<string, string> = {};
+	if (token && (project.remote_url.includes("github.com") || project.remote_url.includes("githubusercontent.com"))) {
+		headers.Authorization = `token ${token}`;
+	}
+
+	const res = await fetch(project.remote_url, { headers });
 	if (!res.ok) {
 		throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
 	}

@@ -253,10 +253,15 @@ export const Projects = React.memo(function Projects() {
 		try {
 			const [data, settingsData] = await Promise.all([
 				fetchJson<ProjectListItem[]>("/api/projects"),
-				fetchJson<Record<string, string | boolean>>("/api/settings").catch(() => ({} as Record<string, string | boolean>))
+				fetchJson<Record<string, string | boolean>>("/api/settings").catch(
+					() => ({}) as Record<string, string | boolean>,
+				),
 			]);
 			setProjects(data);
-			if (settingsData.GITHUB_TOKEN_CONFIGURED === true || settingsData.GITHUB_TOKEN_CONFIGURED === "true") {
+			if (
+				settingsData.GITHUB_TOKEN_CONFIGURED === true ||
+				settingsData.GITHUB_TOKEN_CONFIGURED === "true"
+			) {
 				setHasGithubToken(true);
 			} else {
 				setHasGithubToken(false);
@@ -674,7 +679,11 @@ export const Projects = React.memo(function Projects() {
 										type="button"
 										variant="outline"
 										disabled={!hasGithubToken}
-										title={!hasGithubToken ? "Un jeton GitHub est requis dans les paramètres pour les projets distants" : ""}
+										title={
+											!hasGithubToken
+												? "Un jeton GitHub est requis dans les paramètres pour les projets distants"
+												: ""
+										}
 										onClick={() => {
 											setFormData({
 												...formData,
@@ -760,6 +769,50 @@ export const Projects = React.memo(function Projects() {
 												placeholder="Ex: Mon API Node"
 											/>
 										</div>
+
+										{editingId && (
+											<div className="flex flex-col gap-1">
+												<label
+													htmlFor="project-source-type"
+													className="text-sm font-medium"
+												>
+													Type de projet
+												</label>
+												<Select
+													value={formData.source_type}
+													onValueChange={(val) => {
+														const st = val as "local" | "ingest" | "remote";
+														setFormData({
+															...formData,
+															source_type: st,
+															is_remote: st !== "local",
+															path:
+																st === "remote" || st === "ingest"
+																	? ""
+																	: formData.path,
+														});
+													}}
+												>
+													<SelectTrigger
+														id="project-source-type"
+														className="w-full"
+													>
+														<SelectValue />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="local">Local</SelectItem>
+														<SelectItem
+															value="remote"
+															disabled={!hasGithubToken}
+														>
+															Distant (Direct){" "}
+															{!hasGithubToken && "(Requis: Jeton GitHub)"}
+														</SelectItem>
+														<SelectItem value="ingest">Ingestion CI</SelectItem>
+													</SelectContent>
+												</Select>
+											</div>
+										)}
 
 										{formData.source_type === "ingest" && (
 											<div className="flex flex-col gap-1">

@@ -253,10 +253,15 @@ export const Projects = React.memo(function Projects() {
 		try {
 			const [data, settingsData] = await Promise.all([
 				fetchJson<ProjectListItem[]>("/api/projects"),
-				fetchJson<Record<string, string | boolean>>("/api/settings").catch(() => ({} as Record<string, string | boolean>))
+				fetchJson<Record<string, string | boolean>>("/api/settings").catch(
+					() => ({}) as Record<string, string | boolean>,
+				),
 			]);
 			setProjects(data);
-			if (settingsData.GITHUB_TOKEN_CONFIGURED === true || settingsData.GITHUB_TOKEN_CONFIGURED === "true") {
+			if (
+				settingsData.GITHUB_TOKEN_CONFIGURED === true ||
+				settingsData.GITHUB_TOKEN_CONFIGURED === "true"
+			) {
 				setHasGithubToken(true);
 			} else {
 				setHasGithubToken(false);
@@ -674,7 +679,11 @@ export const Projects = React.memo(function Projects() {
 										type="button"
 										variant="outline"
 										disabled={!hasGithubToken}
-										title={!hasGithubToken ? "Un jeton GitHub est requis dans les paramètres pour les projets distants" : ""}
+										title={
+											!hasGithubToken
+												? "Un jeton GitHub est requis dans les paramètres pour les projets distants"
+												: ""
+										}
 										onClick={() => {
 											setFormData({
 												...formData,
@@ -777,17 +786,27 @@ export const Projects = React.memo(function Projects() {
 															...formData,
 															source_type: st,
 															is_remote: st !== "local",
-															path: st === "remote" || st === "ingest" ? "" : formData.path,
+															path:
+																st === "remote" || st === "ingest"
+																	? ""
+																	: formData.path,
 														});
 													}}
 												>
-													<SelectTrigger id="project-source-type" className="w-full">
+													<SelectTrigger
+														id="project-source-type"
+														className="w-full"
+													>
 														<SelectValue />
 													</SelectTrigger>
 													<SelectContent>
 														<SelectItem value="local">Local</SelectItem>
-														<SelectItem value="remote" disabled={!hasGithubToken}>
-															Distant (Direct) {!hasGithubToken && "(Requis: Jeton GitHub)"}
+														<SelectItem
+															value="remote"
+															disabled={!hasGithubToken}
+														>
+															Distant (Direct){" "}
+															{!hasGithubToken && "(Requis: Jeton GitHub)"}
 														</SelectItem>
 														<SelectItem value="ingest">Ingestion CI</SelectItem>
 													</SelectContent>

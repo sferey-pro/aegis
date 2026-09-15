@@ -150,7 +150,7 @@ describe("Settings", () => {
 			fireEvent.change(await screen.findByLabelText(/Cloud ID/), {
 				target: { value: "11111111-2222-3333-4444-555555555555" },
 			});
-			fireEvent.click(screen.getByLabelText("Enregistrer l'intégration Jira"));
+			fireEvent.click(screen.getByLabelText("Enregistrer Intégration Jira"));
 
 			await waitFor(() => {
 				expect(put()).toHaveLength(1);
@@ -308,7 +308,7 @@ describe("Settings", () => {
 			},
 		});
 		render(<Settings />);
-		await screen.findByLabelText(/Jeton GitHub/);
+		await screen.findByLabelText(/Jeton API/);
 
 		expect(screen.getByText(/12 avis récupérés/)).toBeInTheDocument();
 	});
@@ -319,7 +319,7 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
-		await screen.findByLabelText(/Jeton GitHub/);
+		await screen.findByLabelText(/Jeton API/);
 
 		expect(
 			screen.getByText(/Aucun rafraîchissement automatique encore effectué/),
@@ -346,7 +346,7 @@ describe("Settings", () => {
 		});
 
 		fireEvent.click(
-			screen.getByLabelText("Enregistrer les paramètres d'audit"),
+			screen.getByLabelText("Enregistrer Paramètres d'Audit"),
 		);
 
 		await waitFor(() => expect(put()).toHaveLength(1));
@@ -364,7 +364,7 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
-		const jeton = await screen.findByLabelText(/Jeton GitHub/);
+		const jeton = await screen.findByLabelText(/Jeton API/);
 		expect(jeton).toHaveValue("");
 		expect(jeton).toHaveAttribute(
 			"placeholder",
@@ -471,7 +471,7 @@ describe("Settings", () => {
 		});
 
 		fireEvent.click(
-			screen.getByLabelText("Enregistrer les paramètres d'audit"),
+			screen.getByLabelText("Enregistrer Paramètres d'Audit"),
 		);
 
 		// L'échec s'affiche **dans la section** qui l'a produit, pas en pied de page.
@@ -494,7 +494,7 @@ describe("Settings", () => {
 		fireEvent.change(champ, { target: { value: "48" } });
 		fireEvent.click(
 			screen.getByRole("button", {
-				name: /Enregistrer les paramètres d'audit/,
+				name: /Enregistrer Paramètres d'Audit/,
 			}),
 		);
 
@@ -525,7 +525,7 @@ describe("Settings", () => {
 		fireEvent.change(champ, { target: { value: "48" } });
 		fireEvent.click(
 			screen.getByRole("button", {
-				name: /Enregistrer les paramètres d'audit/,
+				name: /Enregistrer Paramètres d'Audit/,
 			}),
 		);
 
@@ -547,9 +547,9 @@ describe("Settings", () => {
 		await screen.findByLabelText(/Base URL Jira/);
 
 		for (const nom of [
-			"Enregistrer le jeton GitHub",
-			"Enregistrer les paramètres d'audit",
-			"Enregistrer l'intégration Jira",
+			"Enregistrer Jeton GitHub",
+			"Enregistrer Paramètres d'Audit",
+			"Enregistrer Intégration Jira",
 		]) {
 			expect(screen.getByLabelText(nom)).toBeDisabled();
 		}
@@ -565,7 +565,7 @@ describe("Settings", () => {
 		const champ = await screen.findByLabelText(/Utilisateur Jira/);
 
 		fireEvent.change(champ, { target: { value: "moi@example.test" } });
-		fireEvent.click(screen.getByLabelText("Enregistrer l'intégration Jira"));
+		fireEvent.click(screen.getByLabelText("Enregistrer Intégration Jira"));
 
 		await waitFor(() => {
 			expect(put()).toHaveLength(1);
@@ -594,7 +594,7 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
-		expect(await screen.findByLabelText(/Jeton GitHub/)).toHaveAttribute(
+		expect(await screen.findByLabelText(/Jeton API/)).toHaveAttribute(
 			"type",
 			"password",
 		);
@@ -606,7 +606,7 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
-		await screen.findByLabelText(/Jeton GitHub/);
+		await screen.findByLabelText(/Jeton API/);
 		expect(screen.getByLabelText(/Clé d'API Jira/)).toHaveAttribute(
 			"type",
 			"password",
@@ -620,7 +620,7 @@ describe("Settings", () => {
 			"DELETE /api/advisories/cache": { body: { success: true, deleted: 12 } },
 		});
 		render(<Settings />);
-		await screen.findByLabelText(/Jeton GitHub/);
+		await screen.findByLabelText(/Jeton API/);
 
 		fireEvent.click(screen.getByRole("button", { name: /Vider le cache/ }));
 
@@ -643,7 +643,7 @@ describe("Settings", () => {
 			},
 		});
 		render(<Settings />);
-		await screen.findByLabelText(/Jeton GitHub/);
+		await screen.findByLabelText(/Jeton API/);
 
 		const bouton = screen
 			.getAllByRole("button")

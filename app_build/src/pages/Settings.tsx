@@ -522,7 +522,7 @@ export function Settings() {
 			) : (
 				<div className="space-y-6">
 					<SettingsSection
-						titre="le jeton GitHub"
+						titre="Jeton GitHub"
 						icone={<Key className="w-5 h-5 text-primary" />}
 						description="Interrogation de la base GitHub Advisory, et quota associé."
 						modifie={sectionModifiee("github")}
@@ -536,12 +536,9 @@ export function Settings() {
 						onSave={() => enregistrerSection("github")}
 					>
 						<div className="flex flex-col gap-2">
-							<div className="flex items-center gap-2">
-								<Key className="w-5 h-5" />
-								<label htmlFor="github-token" className="text-lg font-bold">
-									Jeton GitHub (API)
-								</label>
-							</div>
+							<label htmlFor="github-token" className="text-sm font-bold">
+								Jeton API
+							</label>
 							<p className="text-sm text-muted-foreground mb-2">
 								Nécessaire pour interroger la base <i>GitHub Advisory</i>{" "}
 								(contournement des limites de taux) et pour récupérer les
@@ -674,7 +671,7 @@ export function Settings() {
 					</SettingsSection>
 
 					<SettingsSection
-						titre="les paramètres d'audit"
+						titre="Paramètres d'Audit"
 						icone={<SettingsIcon className="w-5 h-5 text-primary" />}
 						description="Fenêtre de fraîcheur et options globales du moteur."
 						modifie={sectionModifiee("audit")}
@@ -688,7 +685,7 @@ export function Settings() {
 						onSave={() => enregistrerSection("audit")}
 					>
 						<div className="flex flex-col gap-2">
-							<label htmlFor="audit-max-age" className="text-lg font-bold">
+							<label htmlFor="audit-max-age" className="text-sm font-bold">
 								Cache d'Audit (Heures)
 							</label>
 							<p className="text-sm text-muted-foreground mb-2">
@@ -711,8 +708,8 @@ export function Settings() {
 							/>
 						</div>
 
-						<div className="flex flex-col gap-2">
-							<span className="text-lg font-bold">Options Globales</span>
+						<div className="flex flex-col gap-2 mt-4">
+							<span className="text-sm font-bold">Options Globales</span>
 
 							<label
 								htmlFor="critical-only"
@@ -756,7 +753,7 @@ export function Settings() {
 					</SettingsSection>
 
 					<SettingsSection
-						titre="l'intégration Jira"
+						titre="Intégration Jira"
 						icone={<Key className="w-5 h-5 text-primary" />}
 						description="Identifiants et cible des tickets de remédiation."
 						modifie={sectionModifiee("jira")}
@@ -770,7 +767,7 @@ export function Settings() {
 						onSave={() => enregistrerSection("jira")}
 					>
 						<div className="flex flex-col gap-2">
-							<label htmlFor="jira-base-url" className="text-lg font-bold">
+							<label htmlFor="jira-base-url" className="text-sm font-bold">
 								Base URL Jira
 							</label>
 							<p className="text-sm text-muted-foreground mb-2">
@@ -794,8 +791,8 @@ export function Settings() {
 						 * de l'URL obligeait à y mettre `api.atlassian.com` — or cette valeur
 						 * construit aussi les liens /browse/<clé> des tickets, qui pointaient
 						 * alors vers la passerelle : des liens morts. */}
-						<div className="flex flex-col gap-2">
-							<span className="text-lg font-bold">Type de jeton</span>
+						<div className="flex flex-col gap-2 mt-2">
+							<span className="text-sm font-bold">Type de jeton</span>
 							<p className="text-sm text-muted-foreground mb-2">
 								Un jeton à périmètre s'authentifie auprès de la passerelle
 								Atlassian, pas de votre site : appelé sur le site, il est rejeté
@@ -843,8 +840,8 @@ export function Settings() {
 						{/* Cloud ID : requis par la passerelle, qui sert tous les tenants.
 						    Le champ n'apparaît donc que pour un jeton à périmètre. */}
 						{settings.JIRA_TOKEN_KIND === "scoped" && (
-							<div className="flex flex-col gap-2">
-								<label htmlFor="jira-cloud-id" className="text-lg font-bold">
+							<div className="flex flex-col gap-2 mt-2">
+								<label htmlFor="jira-cloud-id" className="text-sm font-bold">
 									Cloud ID
 								</label>
 								<p className="text-sm text-muted-foreground mb-2">

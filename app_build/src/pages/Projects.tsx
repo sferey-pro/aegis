@@ -204,6 +204,7 @@ export const Projects = React.memo(function Projects() {
 		is_remote: false,
 		source_type: "local" as "local" | "ingest" | "remote",
 		remote_url: "",
+		remote_token: "",
 	});
 
 	const copyToClipboard = (text: string) => {
@@ -297,6 +298,7 @@ export const Projects = React.memo(function Projects() {
 			is_remote: false,
 			source_type: "local",
 			remote_url: "",
+			remote_token: "",
 		});
 	};
 
@@ -314,6 +316,7 @@ export const Projects = React.memo(function Projects() {
 			is_remote: !!p.is_remote,
 			source_type: st as "local" | "ingest" | "remote",
 			remote_url: p.remote_url || "",
+			remote_token: p.remote_token || "",
 		});
 		setEditingId(p.id);
 		setIsAdding(true);
@@ -956,6 +959,32 @@ export const Projects = React.memo(function Projects() {
 													}
 													placeholder="Ex: https://raw.githubusercontent.com/.../package-lock.json"
 												/>
+											</div>
+										)}
+
+										{formData.source_type === "remote" && (
+											<div className="flex flex-col gap-1">
+												<label
+													htmlFor="project-remote-token"
+													className="text-sm font-medium"
+												>
+													Jeton d'accès (Optionnel)
+												</label>
+												<Input
+													id="project-remote-token"
+													type="password"
+													value={formData.remote_token}
+													onChange={(e) =>
+														setFormData({
+															...formData,
+															remote_token: e.target.value,
+														})
+													}
+													placeholder="Ex: ghp_xxxxxxxxxxxxxxxxxxxx"
+												/>
+												<p className="text-xs text-muted-foreground mt-1">
+													Laisse vide pour utiliser le jeton GitHub global (si github.com).
+												</p>
 											</div>
 										)}
 

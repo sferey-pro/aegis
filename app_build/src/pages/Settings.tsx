@@ -541,8 +541,8 @@ export function Settings() {
 							</label>
 							<p className="text-sm text-muted-foreground mb-2">
 								Nécessaire pour interroger la base <i>GitHub Advisory</i>{" "}
-								(contournement des limites de taux) et pour récupérer les
-								fichiers `*.lock` des <b>Projets Distants</b>.
+								(contournement des limites de taux). Sert également de jeton par défaut
+								pour récupérer les fichiers `*.lock` des <b>Projets Distants</b> hébergés sur github.com.
 							</p>
 							<Input
 								id="github-token"

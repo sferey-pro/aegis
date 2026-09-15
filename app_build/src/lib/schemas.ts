@@ -118,6 +118,7 @@ export const projectBodySchema = z
 		ignored: boolStrict.default(false),
 		is_remote: boolStrict.default(false),
 		remote_url: emptyToNull,
+		remote_token: emptyToNull,
 	})
 	.superRefine((data, ctx) => {
 		if (data.source_type === "local" && !data.path) {

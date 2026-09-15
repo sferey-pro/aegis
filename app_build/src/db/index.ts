@@ -132,6 +132,9 @@ function initDb(database: Database) {
       tags JSON DEFAULT '[]',
       ignored BOOLEAN DEFAULT 0,
       is_remote BOOLEAN DEFAULT 0,
+      source_type TEXT NOT NULL DEFAULT 'local',
+      remote_url TEXT,
+      remote_token TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -295,6 +298,7 @@ function initDb(database: Database) {
 
 	ajouteColonne("projects", "source_type TEXT DEFAULT 'local'");
 	ajouteColonne("projects", "remote_url TEXT");
+	ajouteColonne("projects", "remote_token TEXT");
 
 	// Migration rétrocompatible
 	database.exec(`

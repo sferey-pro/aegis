@@ -16,6 +16,7 @@ export interface Project {
 	is_remote: boolean;
 	source_type: "local" | "ingest" | "remote";
 	remote_url: string | null;
+	remote_token?: string | null;
 	created_at: string;
 }
 
@@ -31,6 +32,7 @@ export interface CreateProjectInput {
 	is_remote?: boolean;
 	source_type?: "local" | "ingest" | "remote";
 	remote_url?: string | null;
+	remote_token?: string | null;
 }
 
 /**
@@ -53,6 +55,7 @@ function parseProject(row: ProjectRow): Project {
 		...row,
 		source_type: st,
 		remote_url: row.remote_url || null,
+		remote_token: row.remote_token || null,
 		tags: typeof row.tags === "string" ? JSON.parse(row.tags) : row.tags,
 		ignored: Boolean(row.ignored),
 		is_remote: Boolean(row.is_remote),
@@ -111,8 +114,8 @@ export function createProject(input: CreateProjectInput): Project {
 	}
 
 	const query = db.query(`
-    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored, is_remote, source_type, remote_url)
-    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored, $is_remote, $source_type, $remote_url)
+    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored, is_remote, source_type, remote_url, remote_token)
+    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored, $is_remote, $source_type, $remote_url, $remote_token)
     RETURNING *
   `);
 
@@ -128,6 +131,7 @@ export function createProject(input: CreateProjectInput): Project {
 		$is_remote: is_remote,
 		$source_type: source_type,
 		$remote_url: input.remote_url || null,
+		$remote_token: input.remote_token || null,
 	});
 
 	return parseProject(row as ProjectRow);
@@ -175,10 +179,12 @@ export function updateProject(
 	const is_remote = source_type === "ingest" ? 1 : 0;
 	const remote_url =
 		input.remote_url !== undefined ? input.remote_url : current.remote_url;
+	const remote_token =
+		input.remote_token !== undefined ? input.remote_token : current.remote_token;
 
 	const query = db.query(`
     UPDATE projects 
-    SET name = $name, path = $path, audit_path = $audit_path, type = $type, tool = $tool, tags = $tags, ignored = $ignored, is_remote = $is_remote, source_type = $source_type, remote_url = $remote_url
+    SET name = $name, path = $path, audit_path = $audit_path, type = $type, tool = $tool, tags = $tags, ignored = $ignored, is_remote = $is_remote, source_type = $source_type, remote_url = $remote_url, remote_token = $remote_token
     WHERE id = $id
     RETURNING *
   `);
@@ -195,6 +201,7 @@ export function updateProject(
 		$is_remote: is_remote,
 		$source_type: source_type,
 		$remote_url: remote_url,
+		$remote_token: remote_token,
 	});
 
 	return parseProject(row as ProjectRow);

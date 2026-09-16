@@ -939,25 +939,15 @@ export const Projects = React.memo(function Projects() {
 										)}
 
 										{formData.source_type === "remote" && (
-											<div className="flex flex-col gap-4 md:col-span-2">
-												<div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm flex flex-col gap-2">
-													<p className="font-semibold text-primary">
-														Configuration d'un projet distant
-													</p>
-													<ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-														<li>Saisissez l'URL brute (<em>Raw</em>) pointant directement vers le fichier <code>package-lock.json</code>, <code>yarn.lock</code> ou <code>bun.lockb</code> de votre dépôt.</li>
-														<li>Si votre dépôt est privé (ex: GitHub Enterprise, GitLab), configurez le <strong>Jeton d'accès global (Projets Distants)</strong> dans la page <em>Paramètres</em>. Le jeton sera automatiquement inclus dans l'en-tête <code>Authorization: Bearer</code> lors de la synchronisation.</li>
-													</ul>
-												</div>
-												<div className="flex flex-col gap-1">
-													<label
-														htmlFor="project-remote-url"
-														className="text-sm font-medium"
-													>
-														URL distante du fichier lock
-													</label>
-													<Input
-														id="project-remote-url"
+											<div className="flex flex-col gap-1 md:col-span-2">
+												<label
+													htmlFor="project-remote-url"
+													className="text-sm font-medium"
+												>
+													URL distante du fichier lock
+												</label>
+												<Input
+													id="project-remote-url"
 													required={formData.source_type === "remote"}
 													type="text"
 													value={formData.remote_url}
@@ -970,8 +960,7 @@ export const Projects = React.memo(function Projects() {
 													placeholder="Ex: https://raw.githubusercontent.com/.../package-lock.json"
 												/>
 											</div>
-										</div>
-									)}
+										)}
 
 
 										<div className="flex flex-col gap-1">

@@ -7,6 +7,7 @@ import {
 	RefreshCw,
 	Settings as SettingsIcon,
 	Upload,
+	InfoIcon,
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +19,14 @@ import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { SettingsSection } from "../components/organisms/SettingsSection";
 import { TagsManager } from "../components/organisms/TagsManager";
 import { Button } from "../components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Switch } from "../components/ui/switch";
 
@@ -689,9 +698,46 @@ export function Settings() {
 						onSave={() => enregistrerSection("remote")}
 					>
 						<div className="flex flex-col gap-2">
-							<label htmlFor="remote-token" className="text-sm font-bold">
-								Jeton d'accès global
-							</label>
+							<div className="flex items-center justify-between">
+								<label htmlFor="remote-token" className="text-sm font-bold">
+									Jeton d'accès global
+								</label>
+								<Dialog>
+									<DialogTrigger asChild>
+										<Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground flex items-center gap-1">
+											<InfoIcon className="w-3 h-3" /> Comment configurer un projet distant ?
+										</Button>
+									</DialogTrigger>
+									<DialogContent>
+										<DialogHeader>
+											<DialogTitle>Configuration d'un projet distant</DialogTitle>
+											<DialogDescription>
+												Gérez facilement vos projets stockés sur un dépôt privé (GitHub Enterprise, GitLab, etc.).
+											</DialogDescription>
+										</DialogHeader>
+										<div className="space-y-4 text-sm mt-2">
+											<div className="rounded-lg border bg-muted/50 p-4 flex flex-col gap-2">
+												<p>
+													<strong>1. Obtenir l'URL brute (Raw)</strong>
+												</p>
+												<p className="text-muted-foreground">
+													Dans Aegis, lors de la création du projet, sélectionnez la source <strong>Distant (Direct)</strong>.
+													Saisissez ensuite l'URL pointant directement vers le fichier <code>package-lock.json</code>, <code>yarn.lock</code>, ou <code>bun.lockb</code> de votre dépôt.
+												</p>
+											</div>
+											<div className="rounded-lg border bg-muted/50 p-4 flex flex-col gap-2">
+												<p>
+													<strong>2. Configurer le jeton d'accès (Optionnel)</strong>
+												</p>
+												<p className="text-muted-foreground">
+													Si votre dépôt est privé, générez un jeton d'accès personnel avec les droits de lecture sur le dépôt. Saisissez ce jeton dans le champ ci-dessous. 
+													Lors des audits, Aegis l'inclura automatiquement dans l'en-tête <code>Authorization: Bearer</code> pour télécharger le fichier en toute sécurité.
+												</p>
+											</div>
+										</div>
+									</DialogContent>
+								</Dialog>
+							</div>
 							<p className="text-sm text-muted-foreground mb-2">
 								Jeton par défaut utilisé pour récupérer les fichiers `*.lock` des Projets Distants. 
 								Typiquement votre token GitHub Enterprise, GitLab, etc.

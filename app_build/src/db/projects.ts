@@ -200,8 +200,8 @@ export function updateProject(
 		$ignored: ignored,
 		$is_remote: is_remote,
 		$source_type: source_type,
-		$remote_url: remote_url,
-		$remote_token: remote_token,
+		$remote_url: remote_url ?? null,
+		$remote_token: remote_token ?? null,
 	});
 
 	return parseProject(row as ProjectRow);

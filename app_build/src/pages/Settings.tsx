@@ -24,6 +24,7 @@ import { Switch } from "../components/ui/switch";
 /** Les trois sections enregistrables, et les clés que chacune possède. */
 const SECTIONS = {
 	github: ["GITHUB_TOKEN"],
+	remote: ["REMOTE_TOKEN"],
 	audit: ["AUDIT_MAX_AGE_HOURS", "CRITICAL_ONLY", "DISABLE_CONSOLE"],
 	jira: [
 		"JIRA_BASE_URL",
@@ -40,11 +41,12 @@ const SECTIONS = {
 type SectionId = keyof typeof SECTIONS;
 
 /** Clés en écriture seule : le formulaire ne connaît jamais leur valeur. */
-const CLES_SECRETES = ["GITHUB_TOKEN", "JIRA_API_KEY"] as const;
+const CLES_SECRETES = ["GITHUB_TOKEN", "JIRA_API_KEY", "REMOTE_TOKEN"] as const;
 
 export function Settings() {
 	const [settings, setSettings] = useState({
 		GITHUB_TOKEN: "",
+		REMOTE_TOKEN: "",
 		AUDIT_MAX_AGE_HOURS: "24",
 		CRITICAL_ONLY: "false",
 		// Chaîne vide, jamais une URL d'exemple : le champ porte déjà un
@@ -129,6 +131,7 @@ export function Settings() {
 	 */
 	const [secretsConfigures, setSecretsConfigures] = useState({
 		GITHUB_TOKEN: false,
+		REMOTE_TOKEN: false,
 		JIRA_API_KEY: false,
 	});
 
@@ -146,6 +149,7 @@ export function Settings() {
 				// champs restent donc vides, et leur placeholder dit l'état.
 				setSecretsConfigures({
 					GITHUB_TOKEN: data.GITHUB_TOKEN_CONFIGURED === "true",
+					REMOTE_TOKEN: data.REMOTE_TOKEN_CONFIGURED === "true",
 					JIRA_API_KEY: data.JIRA_API_KEY_CONFIGURED === "true",
 				});
 				// Référence de départ : ce que le serveur dit être enregistré. Les
@@ -167,6 +171,7 @@ export function Settings() {
 				});
 				const formulaire = {
 					GITHUB_TOKEN: "",
+					REMOTE_TOKEN: "",
 					AUDIT_MAX_AGE_HOURS: data.AUDIT_MAX_AGE_HOURS || "24",
 					CRITICAL_ONLY: data.CRITICAL_ONLY || "false",
 					JIRA_BASE_URL: data.JIRA_BASE_URL || "",
@@ -541,8 +546,7 @@ export function Settings() {
 							</label>
 							<p className="text-sm text-muted-foreground mb-2">
 								Nécessaire pour interroger la base <i>GitHub Advisory</i>{" "}
-								(contournement des limites de taux). Sert également de jeton par défaut
-								pour récupérer les fichiers `*.lock` des <b>Projets Distants</b> hébergés sur github.com.
+								(contournement des limites de taux).
 							</p>
 							<Input
 								id="github-token"
@@ -667,6 +671,45 @@ export function Settings() {
 									{clearCacheMessage.text}
 								</div>
 							)}
+						</div>
+					</SettingsSection>
+
+					<SettingsSection
+						titre="Projets Distants"
+						icone={<Key className="w-5 h-5 text-primary" />}
+						description="Authentification pour récupérer le code distant (Entreprise)."
+						modifie={sectionModifiee("remote")}
+						enregistrement={sectionEnCours === "remote"}
+						succes={sectionEnregistree === "remote"}
+						erreur={
+							sectionEnCours === null && sectionErreur?.section === "remote"
+								? sectionErreur.message
+								: null
+						}
+						onSave={() => enregistrerSection("remote")}
+					>
+						<div className="flex flex-col gap-2">
+							<label htmlFor="remote-token" className="text-sm font-bold">
+								Jeton d'accès global
+							</label>
+							<p className="text-sm text-muted-foreground mb-2">
+								Jeton par défaut utilisé pour récupérer les fichiers `*.lock` des Projets Distants. 
+								Typiquement votre token GitHub Enterprise, GitLab, etc.
+							</p>
+							<Input
+								id="remote-token"
+								type="password"
+								value={settings.REMOTE_TOKEN}
+								onChange={(e) =>
+									setSettings({ ...settings, REMOTE_TOKEN: e.target.value })
+								}
+								className="font-mono"
+								placeholder={
+									secretsConfigures.REMOTE_TOKEN
+										? "Jeton enregistré — saisir pour le remplacer"
+										: "ghp_xxxxxxxxxxxxxxxxxxxx"
+								}
+							/>
 						</div>
 					</SettingsSection>
 

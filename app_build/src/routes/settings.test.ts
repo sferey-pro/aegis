@@ -92,9 +92,11 @@ async function avecAuditEnCours(fn: () => Promise<void>) {
 function neutraliserSecretsEnv(): Record<string, string | undefined> {
 	const initiaux = {
 		GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+		REMOTE_TOKEN: process.env.REMOTE_TOKEN,
 		JIRA_API_KEY: process.env.JIRA_API_KEY,
 	};
 	delete process.env.GITHUB_TOKEN;
+	delete process.env.REMOTE_TOKEN;
 	delete process.env.JIRA_API_KEY;
 	return initiaux;
 }
@@ -155,6 +157,7 @@ describe("GET /api/settings", () => {
 		expect(status).toBe(200);
 		expect(data).toEqual({
 			GITHUB_TOKEN_CONFIGURED: "false",
+			REMOTE_TOKEN_CONFIGURED: "false",
 			JIRA_API_KEY_CONFIGURED: "false",
 		});
 		restaurerSecretsEnv(initiaux);
@@ -168,6 +171,7 @@ describe("GET /api/settings", () => {
 		expect(data).toEqual({
 			AUDIT_MAX_AGE_HOURS: "24",
 			GITHUB_TOKEN_CONFIGURED: "true",
+			REMOTE_TOKEN_CONFIGURED: "false",
 			JIRA_API_KEY_CONFIGURED: "false",
 		});
 		restaurerSecretsEnv(initiaux);

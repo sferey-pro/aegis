@@ -20,19 +20,12 @@ export async function syncRemoteProject(project: Project) {
 	const projectDir = join(baseDir, `project_${project.id}`);
 	await mkdir(projectDir, { recursive: true });
 
-	const { getGithubConfig } = await import("../db/advisories");
-	// 1. Priorité absolue au remote_token spécifique au projet (Enterprise, GitLab, etc.)
-	// 2. Fallback sur le GITHUB_TOKEN global UNIQUEMENT pour les projets sur github.com
-	const globalToken = getGithubConfig("GITHUB_TOKEN") || process.env.GITHUB_TOKEN;
-	const isPublicGithub =
-		project.remote_url.includes("github.com") ||
-		project.remote_url.includes("githubusercontent.com");
-
-	const token = project.remote_token || (isPublicGithub ? globalToken : null);
+	const { getSetting } = await import("../db/settings");
+	const globalToken = getSetting("REMOTE_TOKEN", process.env.REMOTE_TOKEN ?? "");
+	const token = project.remote_token || globalToken;
 
 	const headers: Record<string, string> = {};
 	if (token) {
-		// Par défaut, Bearer fonctionne avec GitLab, GitHub, Bitbucket, etc.
 		headers.Authorization = `Bearer ${token}`;
 	}
 

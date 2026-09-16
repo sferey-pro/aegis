@@ -62,7 +62,7 @@ export function setAllSettings(settings: Record<string, string>): void {
  * Clés dont la valeur est un secret : elles ne sortent **jamais** de l'API.
  * Elles s'écrivent, elles ne se lisent pas.
  */
-export const SECRET_SETTING_KEYS = ["GITHUB_TOKEN", "JIRA_API_KEY"] as const;
+export const SECRET_SETTING_KEYS = ["GITHUB_TOKEN", "JIRA_API_KEY", "REMOTE_TOKEN"] as const;
 
 /**
  * Clés lisibles par le client. **Liste blanche, et non liste noire** : c'est le

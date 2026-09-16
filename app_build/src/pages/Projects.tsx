@@ -962,31 +962,6 @@ export const Projects = React.memo(function Projects() {
 											</div>
 										)}
 
-										{formData.source_type === "remote" && (
-											<div className="flex flex-col gap-1">
-												<label
-													htmlFor="project-remote-token"
-													className="text-sm font-medium"
-												>
-													Jeton d'accès (Optionnel)
-												</label>
-												<Input
-													id="project-remote-token"
-													type="password"
-													value={formData.remote_token}
-													onChange={(e) =>
-														setFormData({
-															...formData,
-															remote_token: e.target.value,
-														})
-													}
-													placeholder="Ex: ghp_xxxxxxxxxxxxxxxxxxxx"
-												/>
-												<p className="text-xs text-muted-foreground mt-1">
-													Laisse vide pour utiliser le jeton GitHub global (si github.com).
-												</p>
-											</div>
-										)}
 
 										<div className="flex flex-col gap-1">
 											<label

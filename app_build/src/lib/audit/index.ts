@@ -241,10 +241,19 @@ export async function runAudit(
 	if (!project) throw new Error("Projet introuvable");
 
 	return projectContext.run({ project: project.name }, async () => {
-		const cwd = getAuditTarget(project);
+		let currentProject = project;
+		if (currentProject.source_type === "remote") {
+			const { syncRemoteProject } = await import("../remote-sync");
+			await syncRemoteProject(currentProject);
+			// Re-fetch project to get updated path if it was modified
+			const updated = getProjectById(projectId);
+			if (updated) currentProject = updated;
+		}
+
+		const cwd = getAuditTarget(currentProject);
 
 		// 1. Lire l'état git
-		const gitInfo = await getGitInfo(project.path); // gitInfo sur la racine git
+		const gitInfo = await getGitInfo(currentProject.path); // gitInfo sur la racine git
 
 		// 2. Chercher le dernier run
 		const lastRun = getLatestRun(projectId);
@@ -267,12 +276,12 @@ export async function runAudit(
 		// 4. Outil connu ? Sinon il n'y a pas de commande à tenter, et l'ancienne
 		// cascade de `if` laissait `args` à `[]` : `spawn([])` levait, le run en
 		// erreur ne portait aucune commande, et le diagnostic était vide (N20).
-		if (!isKnownTool(project.tool)) {
+		if (!isKnownTool(currentProject.tool)) {
 			const errRun = addErrorRun({
 				projectId,
 				command: "",
 				commitSha: gitInfo.sha,
-				error: [`Outil d'audit inconnu: ${project.tool}`, `cwd: ${cwd}`].join(
+				error: [`Outil d'audit inconnu: ${currentProject.tool}`, `cwd: ${cwd}`].join(
 					"\n",
 				),
 				duration_ms: 0,
@@ -283,13 +292,13 @@ export async function runAudit(
 		// 5. Contrôles préalables (§2, « Cas limites ») : chemin puis lockfile,
 		// avant tout `spawn`. Nommer la cause, plutôt que de laisser l'outil
 		// remonter un ENOENT brut que le référent devra interpréter.
-		const preflightError = preflightAudit(project.tool, cwd);
+		const preflightError = preflightAudit(currentProject.tool, cwd);
 		if (preflightError) {
 			// Aucune ligne `exit:` : rien n'a été exécuté, et un code inventé se
 			// lirait comme un échec de l'outil.
 			const errRun = addErrorRun({
 				projectId,
-				command: auditCommand(project.tool).join(" "),
+				command: auditCommand(currentProject.tool).join(" "),
 				commitSha: gitInfo.sha,
 				error: [preflightError, `cwd: ${cwd}`].join("\n"),
 				duration_ms: 0,
@@ -298,7 +307,7 @@ export async function runAudit(
 		}
 
 		// 6. Lancement de l'audit
-		const args = auditCommand(project.tool);
+		const args = auditCommand(currentProject.tool);
 		const commandStr = args.join(" ");
 		const startTime = Date.now();
 
@@ -339,7 +348,7 @@ export async function runAudit(
 		if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
 			const errMsg = systemError
 				? `Erreur système: ${systemError}`
-				: stderr.trim() || `${project.tool}: aucune sortie (exit ${exitCode})`;
+				: stderr.trim() || `${currentProject.tool}: aucune sortie (exit ${exitCode})`;
 
 			// Format de l'erreur multi-ligne
 			const errorBody = [
@@ -364,12 +373,12 @@ export async function runAudit(
 
 		// Parsing
 		try {
-			const parsed = parseAuditOutput(project.tool, stdout);
+			const parsed = parseAuditOutput(currentProject.tool, stdout);
 
 			const isBaseline = !lastRun;
 			const { enhancedVulns, counts } = await enhanceVulnerabilities(
 				projectId,
-				project.tool,
+				currentProject.tool,
 				parsed.vulnerabilities,
 				isBaseline,
 			);

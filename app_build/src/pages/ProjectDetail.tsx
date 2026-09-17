@@ -115,20 +115,18 @@ export function ProjectDetail() {
 									}}
 								/>
 							)}
-							{!detail.project.is_remote && (
-								<Button
-									onClick={() => void detail.runAudit()}
-									disabled={detail.auditing}
-									className="flex items-center gap-2"
-								>
-									{detail.auditing ? (
-										<Loader2 className="w-4 h-4 animate-spin" />
-									) : (
-										<Play className="w-4 h-4" />
-									)}
-									Auditer maintenant
-								</Button>
-							)}
+							<Button
+								onClick={() => void detail.runAudit()}
+								disabled={detail.auditing}
+								className="flex items-center gap-2"
+							>
+								{detail.auditing ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									<Play className="w-4 h-4" />
+								)}
+								Auditer maintenant
+							</Button>
 						</div>
 					</header>
 

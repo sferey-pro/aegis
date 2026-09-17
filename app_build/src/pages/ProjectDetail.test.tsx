@@ -220,13 +220,13 @@ describe("ProjectDetail", () => {
 		expect(historiques()).toHaveLength(1);
 	});
 
-	test("un projet distant n'a pas de bouton d'audit", async () => {
+	test("un projet distant a un bouton d'audit fonctionnel", async () => {
 		mockFetch({ ...base, "GET /api/projects/7": projet({ is_remote: true }) });
 		monte();
 		await screen.findByRole("heading", { level: 1, name: "Mon API" });
 		expect(
-			screen.queryAllByRole("button", { name: /Auditer maintenant/ }),
-		).toHaveLength(0);
+			screen.getByRole("button", { name: /Auditer maintenant/ }),
+		).toBeInTheDocument();
 		expect(screen.getByText("Distant")).toBeInTheDocument();
 	});
 

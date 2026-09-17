@@ -112,6 +112,30 @@ export function ProjectEditDialog({
 							</div>
 
 							<div className="flex flex-col gap-1">
+								<Label htmlFor="edit-tool">Outil d'audit</Label>
+								<Select
+									value={formData.tool}
+									onValueChange={(val) =>
+										setFormData({
+											...formData,
+											tool: val as "npm" | "yarn" | "bun" | "composer",
+											type: val === "composer" ? "composer" : "node",
+										})
+									}
+								>
+									<SelectTrigger id="edit-tool">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="npm">NPM</SelectItem>
+										<SelectItem value="yarn">Yarn</SelectItem>
+										<SelectItem value="bun">Bun</SelectItem>
+										<SelectItem value="composer">Composer</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="flex flex-col gap-1 md:col-span-2">
 								<Label htmlFor="edit-tags">Tags</Label>
 								<div className="flex flex-wrap gap-2 pt-2">
 									{availableTags.map((t) => {
@@ -133,7 +157,7 @@ export function ProjectEditDialog({
 														});
 													}
 												}}
-												className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground"}`}
+												className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${isSelected ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:bg-muted"}`}
 											>
 												<span
 													className="w-2 h-2 rounded-full inline-block mr-2"
@@ -146,14 +170,14 @@ export function ProjectEditDialog({
 										);
 									})}
 									{availableTags.length === 0 && (
-										<span className="text-xs text-muted-foreground italic">
+										<span className="text-xs text-muted-foreground italic mt-1">
 											Aucun tag configuré dans les Paramètres.
 										</span>
 									)}
 								</div>
 							</div>
 
-							<div className="flex flex-col gap-1 md:col-span-2">
+							<div className="flex flex-col gap-1 md:col-span-2 mt-2">
 								<Label htmlFor="edit-source-type">Source du projet</Label>
 								<Select
 									value={formData.source_type}
@@ -223,30 +247,6 @@ export function ProjectEditDialog({
 									/>
 								</div>
 							)}
-
-							<div className="flex flex-col gap-1">
-								<Label htmlFor="edit-tool">Outil d'audit</Label>
-								<Select
-									value={formData.tool}
-									onValueChange={(val) =>
-										setFormData({
-											...formData,
-											tool: val as "npm" | "yarn" | "bun" | "composer",
-											type: val === "composer" ? "composer" : "node",
-										})
-									}
-								>
-									<SelectTrigger id="edit-tool">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="npm">npm</SelectItem>
-										<SelectItem value="yarn">yarn</SelectItem>
-										<SelectItem value="bun">bun</SelectItem>
-										<SelectItem value="composer">composer</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
 						</div>
 
 

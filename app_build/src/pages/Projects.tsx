@@ -1342,17 +1342,15 @@ export const Projects = React.memo(function Projects() {
 														)}
 													</>
 												)}
-												{!p.is_remote && (
-													<Button
-														variant="ghost"
-														size="icon"
-														onClick={(e) => handleForceAudit(p.id, e)}
-														className="w-7 h-7 text-muted-foreground"
-														title="Forcer un audit"
-													>
-														<Play className="w-3.5 h-3.5" />
-													</Button>
-												)}
+												<Button
+													variant="ghost"
+													size="icon"
+													onClick={(e) => handleForceAudit(p.id, e)}
+													className="w-7 h-7 text-muted-foreground"
+													title="Forcer un audit"
+												>
+													<Play className="w-3.5 h-3.5" />
+												</Button>
 												<Button
 													variant="ghost"
 													size="icon"

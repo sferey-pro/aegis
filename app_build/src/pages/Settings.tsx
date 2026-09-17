@@ -733,7 +733,7 @@ export function Settings() {
 													Si votre dépôt est privé, générez un jeton d'accès personnel avec les droits de lecture sur le dépôt. Saisissez ce jeton dans le champ ci-dessous. 
 												</p>
 												<p className="text-muted-foreground">
-													<em>Recommandation de sécurité :</em> Privilégiez un <strong>Fine-grained token</strong> (ex: <code>github_pat_...</code>) avec la portée strictement limitée à <code>Contents: Read-only</code> sur les dépôts concernés.
+													<em>Recommandation de sécurité :</em> Privilégiez un <strong>Fine-grained token</strong> (ex: <code>github_pat_...</code>) avec les permissions <code>Contents: Read-only</code> et <code>Deployments: Read-only</code> sur les dépôts concernés.
 													Lors des audits, Aegis l'inclura automatiquement dans l'en-tête <code>Authorization: Bearer</code> pour télécharger le fichier en toute sécurité.
 												</p>
 											</div>

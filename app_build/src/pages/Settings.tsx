@@ -568,7 +568,7 @@ export function Settings() {
 								placeholder={
 									secretsConfigures.GITHUB_TOKEN
 										? "Jeton enregistré — saisir pour le remplacer"
-										: "ghp_xxxxxxxxxxxxxxxxxxxx"
+										: "ghp_... ou github_pat_..."
 								}
 							/>
 							{settings.GITHUB_RL_LIMIT && (
@@ -731,6 +731,9 @@ export function Settings() {
 												</p>
 												<p className="text-muted-foreground">
 													Si votre dépôt est privé, générez un jeton d'accès personnel avec les droits de lecture sur le dépôt. Saisissez ce jeton dans le champ ci-dessous. 
+												</p>
+												<p className="text-muted-foreground">
+													<em>Recommandation de sécurité :</em> Privilégiez un <strong>Fine-grained token</strong> (ex: <code>github_pat_...</code>) avec la portée strictement limitée à <code>Contents: Read-only</code> sur les dépôts concernés.
 													Lors des audits, Aegis l'inclura automatiquement dans l'en-tête <code>Authorization: Bearer</code> pour télécharger le fichier en toute sécurité.
 												</p>
 											</div>
@@ -753,7 +756,7 @@ export function Settings() {
 								placeholder={
 									secretsConfigures.REMOTE_TOKEN
 										? "Jeton enregistré — saisir pour le remplacer"
-										: "ghp_xxxxxxxxxxxxxxxxxxxx"
+										: "ghp_... ou github_pat_..."
 								}
 							/>
 						</div>

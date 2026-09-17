@@ -1,12 +1,14 @@
-import { ArrowLeft, Loader2, Play, Table2 } from "lucide-react";
+import { ArrowLeft, Loader2, Play, Table2, Settings } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useProjectDetail } from "@/lib/useProjectDetail";
 import { TagBadge } from "../components/molecules/TagBadge";
 import { HistoryChart } from "../components/organisms/HistoryChart";
 import { RunReport } from "../components/organisms/RunReport";
 import { RunTimeline } from "../components/organisms/RunTimeline";
+import { ProjectEditDialog } from "../components/organisms/ProjectEditDialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { useState } from "react";
 
 /**
  * Détail d'un projet : sa fiche, l'évolution de ses vulnérabilités (§4), ses
@@ -20,6 +22,7 @@ export function ProjectDetail() {
 	const navigate = useNavigate();
 	const projectId = id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
 	const detail = useProjectDetail(projectId);
+	const [isEditing, setIsEditing] = useState(false);
 
 	return (
 		<main className="flex-1 w-full max-w-7xl mx-auto mt-4 z-10 flex flex-col gap-6">
@@ -94,6 +97,24 @@ export function ProjectDetail() {
 								<Table2 className="w-4 h-4" />
 								Voir le triage
 							</Button>
+							<Button
+								variant="outline"
+								onClick={() => setIsEditing(true)}
+								className="flex items-center gap-2"
+								title="Configuration du projet"
+							>
+								<Settings className="w-4 h-4" />
+							</Button>
+							{isEditing && (
+								<ProjectEditDialog
+									project={detail.project}
+									isOpen={isEditing}
+									onOpenChange={setIsEditing}
+									onSaved={() => {
+										void detail.reload();
+									}}
+								/>
+							)}
 							{!detail.project.is_remote && (
 								<Button
 									onClick={() => void detail.runAudit()}

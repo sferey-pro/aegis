@@ -153,6 +153,29 @@ export function ProjectEditDialog({
 								</div>
 							</div>
 
+							<div className="flex flex-col gap-1 md:col-span-2">
+								<Label htmlFor="edit-source-type">Source du projet</Label>
+								<Select
+									value={formData.source_type}
+									onValueChange={(val) =>
+										setFormData({
+											...formData,
+											source_type: val as "local" | "ingest" | "remote",
+											is_remote: val === "remote" || val === "ingest",
+										})
+									}
+								>
+									<SelectTrigger id="edit-source-type">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="local">Local (Dossier sur le serveur)</SelectItem>
+										<SelectItem value="remote">Distant (Fichier distant brut)</SelectItem>
+										<SelectItem value="ingest">Ingestion (Dépôt Git via pipeline)</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+
 							{formData.source_type === "local" && (
 								<div className="flex flex-col gap-1 md:col-span-2">
 									<Label htmlFor="edit-path">

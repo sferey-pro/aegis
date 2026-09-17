@@ -232,6 +232,7 @@ export function ProjectEditDialog({
 										setFormData({
 											...formData,
 											tool: val as "npm" | "yarn" | "bun" | "composer",
+											type: val === "composer" ? "composer" : "node",
 										})
 									}
 								>
@@ -248,24 +249,7 @@ export function ProjectEditDialog({
 							</div>
 						</div>
 
-						<div className="flex flex-col gap-2 mt-2 pt-4 border-t">
-							<Label className="flex items-center gap-2 cursor-pointer">
-								<Switch
-									checked={formData.type === "composer"}
-									onCheckedChange={(c) =>
-										setFormData({
-											...formData,
-											type: c ? "composer" : "node",
-											tool: c ? "composer" : formData.tool === "composer" ? "npm" : formData.tool,
-										})
-									}
-								/>
-								Projet PHP (Composer)
-							</Label>
-							<p className="text-sm text-muted-foreground ml-11">
-								Par défaut, Node.js est assumé.
-							</p>
-						</div>
+
 
 						<div className="flex flex-col gap-2 mt-2 pt-4 border-t">
 							<Label className="flex items-center gap-2 cursor-pointer text-red-600 dark:text-red-400">

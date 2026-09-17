@@ -208,7 +208,7 @@ export function ProjectEditDialog({
 								</div>
 							)}
 
-							{(formData.source_type === "local" || formData.source_type === "remote") && (
+							{formData.source_type === "local" && (
 								<div className="flex flex-col gap-1 md:col-span-2">
 									<Label htmlFor="edit-audit-path">
 										Sous-répertoire (Monorepo)

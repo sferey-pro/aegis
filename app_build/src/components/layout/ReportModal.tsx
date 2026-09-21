@@ -1,4 +1,5 @@
-import { Shield } from "lucide-react";
+import { Shield, Copy, Check } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Report } from "@/db/reports";
 
@@ -46,6 +47,16 @@ export function ReportModal({
 	setReportModal: (val: Report | null) => void;
 }) {
 	const navigate = useNavigate();
+	const [copied, setCopied] = useState(false);
+
+	const handleCopy = async () => {
+		if (summaryText) {
+			await navigator.clipboard.writeText(summaryText.trim());
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		}
+	};
+
 	return (
 		<Dialog
 			open={!!reportModal}
@@ -108,7 +119,27 @@ export function ReportModal({
 
 					{summaryText && (
 						<div className="mt-4 flex flex-col gap-2">
-							<p className="text-sm font-semibold">Résumé pour compte-rendu</p>
+							<div className="flex items-center justify-between">
+								<p className="text-sm font-semibold">Résumé pour compte-rendu</p>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-8 gap-1.5 px-2 text-xs"
+									onClick={handleCopy}
+								>
+									{copied ? (
+										<>
+											<Check className="h-3.5 w-3.5 text-green-500" />
+											<span className="text-green-500">Copié !</span>
+										</>
+									) : (
+										<>
+											<Copy className="h-3.5 w-3.5" />
+											<span>Copier</span>
+										</>
+									)}
+								</Button>
+							</div>
 							<textarea
 								readOnly
 								className="w-full text-xs font-mono p-3 rounded-lg border bg-muted/50 resize-none outline-none focus:ring-1 focus:ring-primary"

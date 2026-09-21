@@ -18,19 +18,22 @@ export async function syncRemoteProject(project: Project) {
 	const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
 	const baseDir = join(firstRoot, ".aegis_remote_projects");
 	const projectDir = join(baseDir, `project_${project.id}`);
-	
+	const { getSetting } = await import("../db/settings");
+	const globalToken = getSetting("REMOTE_TOKEN", process.env.REMOTE_TOKEN ?? "");
+	const token = project.remote_token || globalToken;
+
+	const cmdString = token
+		? `curl -H "Authorization: Bearer ***" ${project.remote_url}`
+		: `curl ${project.remote_url}`;
+
 	const consoleId = emitConsoleStart({
-		cmd: `curl ${project.remote_url}`,
+		cmd: cmdString,
 		cwd: projectDir,
 		label: "sync",
 	});
 
 	try {
 		await mkdir(projectDir, { recursive: true });
-
-		const { getSetting } = await import("../db/settings");
-		const globalToken = getSetting("REMOTE_TOKEN", process.env.REMOTE_TOKEN ?? "");
-		const token = project.remote_token || globalToken;
 
 		const headers: Record<string, string> = {};
 		if (token) {

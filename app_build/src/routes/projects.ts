@@ -259,10 +259,12 @@ export const projectsRoutes = {
 					const p = projects[index];
 					if (!p) continue;
 					let git: ProjectGitState = { isRepo: false };
-					try {
-						git = await getGitInfo(p.path);
-					} catch (e) {
-						console.error(`Git error on ${p.path}:`, e);
+					if (!p.is_remote) {
+						try {
+							git = await getGitInfo(p.path);
+						} catch (e) {
+							console.error(`Git error on ${p.path}:`, e);
+						}
 					}
 					// Persisté : c'est ce qui évite de tout recalculer au prochain
 					// affichage, et qui fait qu'une vérification laisse une trace.
@@ -328,12 +330,14 @@ export const projectsRoutes = {
 			const id = parseInt(req.params.id, 10);
 			const p = listProjects().find((p) => p.id === id);
 			if (!p) return Response.json({ error: "Not found" }, { status: 404 });
-			let git: ProjectGitState = { isRepo: false };
-			try {
-				git = await getGitInfo(p.path);
-			} catch (e) {
-				console.error(`Git error on ${p.path}:`, e);
-			}
+					let git: ProjectGitState = { isRepo: false };
+					if (!p.is_remote) {
+						try {
+							git = await getGitInfo(p.path);
+						} catch (e) {
+							console.error(`Git error on ${p.path}:`, e);
+						}
+					}
 			saveGitState(p.id, git);
 			const run = getLatestRun(p.id);
 			return Response.json({ ...p, git, lastRun: run });

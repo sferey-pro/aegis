@@ -253,7 +253,20 @@ export async function runAudit(
 		const cwd = getAuditTarget(currentProject);
 
 		// 1. Lire l'état git
-		const gitInfo = await getGitInfo(currentProject.path); // gitInfo sur la racine git
+		let gitInfo: import("../git").GitInfo;
+		if (currentProject.is_remote) {
+			gitInfo = {
+				isRepo: false,
+				branch: null,
+				sha: null,
+				upstream: null,
+				ahead: 0,
+				behind: 0,
+				dirty: false,
+			};
+		} else {
+			gitInfo = await getGitInfo(currentProject.path); // gitInfo sur la racine git
+		}
 
 		// 2. Chercher le dernier run
 		const lastRun = getLatestRun(projectId);

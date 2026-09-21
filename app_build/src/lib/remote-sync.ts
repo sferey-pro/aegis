@@ -2,7 +2,6 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
-import { getGitInfo } from "./git";
 
 export async function syncRemoteProject(project: Project) {
 	if (project.source_type !== "remote" || !project.remote_url) {
@@ -50,7 +49,15 @@ export async function syncRemoteProject(project: Project) {
 	}
 
 	// Fake a git state update to reflect the "fetch" success
-	const git = await getGitInfo(projectDir);
+	const git = {
+		isRepo: false,
+		branch: null,
+		sha: null,
+		upstream: null,
+		ahead: 0,
+		behind: 0,
+		dirty: false,
+	};
 	saveGitState(project.id, git);
 
 	return { success: true, message: "Fichier lock téléchargé avec succès." };

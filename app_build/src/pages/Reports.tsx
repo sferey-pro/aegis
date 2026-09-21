@@ -2,7 +2,7 @@ import {
 	Activity,
 	ArrowDownRight,
 	ArrowUpRight,
-	Calendar,
+	Calendar, Copy, Check,
 	ChevronLeft,
 	ChevronRight,
 	Eye,
@@ -65,6 +65,7 @@ export const Reports = memo(function Reports({
 	const [reports, setReports] = useState<Report[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [isFetching, setIsFetching] = useState(false);
+	const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 	const [reportToDelete, setReportToDelete] = useState<number | null>(null);
 	const [selectedReports, setSelectedReports] = useState<number[]>([]);
 	/** Échecs partiels d'une suppression en lot (N6). */
@@ -167,6 +168,71 @@ export const Reports = memo(function Reports({
 		if (auditPrecedent.current && !auditing) fetchReports();
 		auditPrecedent.current = auditing;
 	}, [auditing, fetchReports]);
+
+	const handleCopySummary = async (e: React.MouseEvent, index: number) => {
+		e.stopPropagation();
+		const currentReport = reports[index];
+		const prevReport = index < reports.length - 1 ? reports[index + 1] : null;
+		if (!currentReport) return;
+
+		const projectStats = new Map<number, { name: string; currentTotal: number; previousTotal: number; newCount: number }>();
+		const currentVulns = new Map<string, { projectId: number }>();
+		const prevVulns = new Map<string, { projectId: number }>();
+
+		if (currentReport.details) {
+			currentReport.details.forEach((d) => {
+				if (!projectStats.has(d.projectId)) {
+					projectStats.set(d.projectId, { name: d.projectName, currentTotal: 0, previousTotal: 0, newCount: 0 });
+				}
+				if (d.vulns) {
+					projectStats.get(d.projectId)!.currentTotal = d.vulns.length;
+					d.vulns.forEach((v) => {
+						const key = `${d.projectId}-${v.package}-${v.cve || v.title}`;
+						currentVulns.set(key, { projectId: d.projectId });
+					});
+				}
+			});
+		}
+
+		if (prevReport?.details) {
+			prevReport.details.forEach((d) => {
+				if (!projectStats.has(d.projectId)) {
+					projectStats.set(d.projectId, { name: d.projectName, currentTotal: 0, previousTotal: 0, newCount: 0 });
+				}
+				if (d.vulns) {
+					projectStats.get(d.projectId)!.previousTotal = d.vulns.length;
+					d.vulns.forEach((v) => {
+						const key = `${d.projectId}-${v.package}-${v.cve || v.title}`;
+						prevVulns.set(key, { projectId: d.projectId });
+					});
+				}
+			});
+		}
+
+		currentVulns.forEach((v, k) => {
+			if (!prevVulns.has(k)) {
+				projectStats.get(v.projectId)!.newCount++;
+			}
+		});
+
+		let summaryText = "";
+		Array.from(projectStats.values()).forEach((p) => {
+			let fixedCount = 0;
+			if (prevReport) {
+				fixedCount = Math.max(0, p.previousTotal + p.newCount - p.currentTotal);
+			}
+			const etat = p.currentTotal === 0 ? "Sain" : (p.currentTotal < p.previousTotal ? "En amélioration" : (p.newCount > 0 ? "En danger" : "Vulnérable"));
+			summaryText += `${p.name} +${p.newCount} nouvelles CVEs (Total : ${p.currentTotal}) +${fixedCount} CVEs Corrigé - ${etat}\n`;
+		});
+
+		if (!summaryText) {
+			summaryText = "Aucun projet vulnérable (Sain)\n";
+		}
+
+		await navigator.clipboard.writeText(summaryText.trim());
+		setCopiedIndex(index);
+		setTimeout(() => setCopiedIndex(null), 2000);
+	};
 
 	const handleDelete = async (id: number) => {
 		setReportToDelete(id);
@@ -380,6 +446,19 @@ export const Reports = memo(function Reports({
 										</TableCell>
 										<TableCell className="text-right">
 											<div className="flex items-center justify-end gap-1">
+												<Button
+													variant="ghost"
+													size="icon"
+													onClick={(e) => handleCopySummary(e, reports.indexOf(r))}
+													className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+													title="Copier le résumé"
+												>
+													{copiedIndex === reports.indexOf(r) ? (
+														<Check className="w-4 h-4 text-green-500" />
+													) : (
+														<Copy className="w-4 h-4" />
+													)}
+												</Button>
 												<Button
 													variant="ghost"
 													size="icon"

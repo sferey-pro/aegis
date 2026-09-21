@@ -254,7 +254,7 @@ export async function runAudit(
 
 		// 1. Lire l'état git
 		let gitInfo: import("../git").GitInfo;
-		if (currentProject.is_remote) {
+		if (currentProject.source_type !== "local") {
 			gitInfo = {
 				isRepo: false,
 				branch: null,

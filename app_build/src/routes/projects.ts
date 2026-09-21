@@ -259,7 +259,7 @@ export const projectsRoutes = {
 					const p = projects[index];
 					if (!p) continue;
 					let git: ProjectGitState = { isRepo: false };
-					if (!p.is_remote) {
+					if (p.source_type === "local") {
 						try {
 							git = await getGitInfo(p.path);
 						} catch (e) {
@@ -331,7 +331,7 @@ export const projectsRoutes = {
 			const p = listProjects().find((p) => p.id === id);
 			if (!p) return Response.json({ error: "Not found" }, { status: 404 });
 					let git: ProjectGitState = { isRepo: false };
-					if (!p.is_remote) {
+					if (p.source_type === "local") {
 						try {
 							git = await getGitInfo(p.path);
 						} catch (e) {

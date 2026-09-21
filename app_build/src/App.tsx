@@ -182,9 +182,11 @@ export function App() {
 				if (p.lastRun) {
 					fixedCount = Math.max(0, previousTotal + newCount - currentTotal);
 				}
-				const etat = currentTotal === 0 ? "Sain" : (currentTotal < previousTotal ? "En amélioration" : (newCount > 0 ? "En danger" : "Vulnérable"));
 				
-				summaryText += `${p.name} +${newCount} nouvelles CVEs (Total : ${currentTotal}) +${fixedCount} CVEs Corrigé - ${etat}\n`;
+				if (currentTotal > 0 || fixedCount > 0 || newCount > 0) {
+					const etat = currentTotal === 0 ? "Sain" : (currentTotal < previousTotal ? "En amélioration" : (newCount > 0 ? "En danger" : "Vulnérable"));
+					summaryText += `${p.name} +${newCount} nouvelles CVEs (Total : ${currentTotal}) +${fixedCount} CVEs Corrigé - ${etat}\n`;
+				}
 
 				totalVulns += run.total || 0;
 				counts.critical += run.counts.critical || 0;
@@ -231,6 +233,9 @@ export function App() {
 				}),
 			);
 			setReportModal(generatedReport);
+			if (!summaryText) {
+				summaryText = "Aucun projet vulnérable (Sain)\n";
+			}
 			setAuditSummaryText(summaryText);
 			setAuditErrors(
 				annules > 0

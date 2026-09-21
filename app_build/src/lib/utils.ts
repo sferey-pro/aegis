@@ -74,3 +74,39 @@ export function formatDateTime(sqlite: string | null | undefined): string {
 		minute: "2-digit",
 	});
 }
+
+/**
+ * Copie du texte dans le presse-papiers de manière robuste.
+ * 
+ * Sur un accès HTTP (hors localhost), navigator.clipboard est undefined.
+ * Cette fonction bascule sur document.execCommand en solution de repli
+ * pour garantir le fonctionnement en réseau local.
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+	if (navigator.clipboard && window.isSecureContext) {
+		try {
+			await navigator.clipboard.writeText(text);
+			return true;
+		} catch (e) {
+			console.error("Échec clipboard API, tentative de repli:", e);
+		}
+	}
+	
+	try {
+		const textArea = document.createElement("textarea");
+		textArea.value = text;
+		textArea.style.position = "fixed";
+		textArea.style.left = "-999999px";
+		textArea.style.top = "-999999px";
+		document.body.appendChild(textArea);
+		textArea.focus();
+		textArea.select();
+		
+		const success = document.execCommand("copy");
+		textArea.remove();
+		return success;
+	} catch (err) {
+		console.error("Échec de la copie de repli:", err);
+		return false;
+	}
+}

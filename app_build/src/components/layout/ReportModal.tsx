@@ -2,6 +2,7 @@ import { Shield, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Report } from "@/db/reports";
+import { copyToClipboard } from "@/lib/utils";
 
 /**
  * Échec d'audit d'un projet.
@@ -51,7 +52,7 @@ export function ReportModal({
 
 	const handleCopy = async () => {
 		if (summaryText) {
-			await navigator.clipboard.writeText(summaryText.trim());
+			await copyToClipboard(summaryText.trim());
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		}

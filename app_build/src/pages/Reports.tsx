@@ -15,6 +15,7 @@ import {
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Report } from "@/db/reports";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
+import { copyToClipboard } from "@/lib/utils";
 import type { Vulnerability } from "@/lib/parsers/types";
 
 /**
@@ -221,6 +222,12 @@ export const Reports = memo(function Reports({
 			if (prevReport) {
 				fixedCount = Math.max(0, p.previousTotal + p.newCount - p.currentTotal);
 			}
+
+			// Le "strict nécessaire" : on exclut les projets sains qui n'ont fait l'objet d'aucune correction.
+			if (p.currentTotal === 0 && fixedCount === 0 && p.newCount === 0) {
+				return;
+			}
+
 			const etat = p.currentTotal === 0 ? "Sain" : (p.currentTotal < p.previousTotal ? "En amélioration" : (p.newCount > 0 ? "En danger" : "Vulnérable"));
 			summaryText += `${p.name} +${p.newCount} nouvelles CVEs (Total : ${p.currentTotal}) +${fixedCount} CVEs Corrigé - ${etat}\n`;
 		});
@@ -229,7 +236,7 @@ export const Reports = memo(function Reports({
 			summaryText = "Aucun projet vulnérable (Sain)\n";
 		}
 
-		await navigator.clipboard.writeText(summaryText.trim());
+		await copyToClipboard(summaryText.trim());
 		setCopiedIndex(index);
 		setTimeout(() => setCopiedIndex(null), 2000);
 	};

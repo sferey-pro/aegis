@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
+import { emitConsoleStart, emitConsoleEnd } from "./console";
 
 export async function syncRemoteProject(project: Project) {
 	if (project.source_type !== "remote" || !project.remote_url) {
@@ -17,48 +18,62 @@ export async function syncRemoteProject(project: Project) {
 	const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
 	const baseDir = join(firstRoot, ".aegis_remote_projects");
 	const projectDir = join(baseDir, `project_${project.id}`);
-	await mkdir(projectDir, { recursive: true });
+	
+	const consoleId = emitConsoleStart({
+		cmd: `curl ${project.remote_url}`,
+		cwd: projectDir,
+		label: "sync",
+	});
 
-	const { getSetting } = await import("../db/settings");
-	const globalToken = getSetting("REMOTE_TOKEN", process.env.REMOTE_TOKEN ?? "");
-	const token = project.remote_token || globalToken;
+	try {
+		await mkdir(projectDir, { recursive: true });
 
-	const headers: Record<string, string> = {};
-	if (token) {
-		headers.Authorization = `Bearer ${token}`;
+		const { getSetting } = await import("../db/settings");
+		const globalToken = getSetting("REMOTE_TOKEN", process.env.REMOTE_TOKEN ?? "");
+		const token = project.remote_token || globalToken;
+
+		const headers: Record<string, string> = {};
+		if (token) {
+			headers.Authorization = `Bearer ${token}`;
+		}
+
+		const res = await fetch(project.remote_url, { headers });
+		if (!res.ok) {
+			throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
+		}
+		const content = await res.arrayBuffer();
+
+		// Deduce filename from URL or project tool
+		let filename = "package-lock.json";
+		if (project.tool === "yarn") filename = "yarn.lock";
+		if (project.tool === "bun") filename = "bun.lockb";
+		if (project.tool === "composer") filename = "composer.lock";
+
+		const filePath = join(projectDir, filename);
+		await Bun.write(filePath, content);
+
+		// Update the project path to point to this new local directory
+		if (project.path !== projectDir) {
+			updateProject(project.id, { path: projectDir });
+		}
+
+		// Fake a git state update to reflect the "fetch" success
+		const git = {
+			isRepo: false,
+			branch: null,
+			sha: null,
+			upstream: null,
+			ahead: 0,
+			behind: 0,
+			dirty: false,
+		};
+		saveGitState(project.id, git);
+
+		emitConsoleEnd(consoleId, { ok: true, exitCode: 0, outText: "Fichier lock téléchargé avec succès." });
+		return { success: true, message: "Fichier lock téléchargé avec succès." };
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		emitConsoleEnd(consoleId, { ok: false, exitCode: 1, errorText: msg });
+		throw error;
 	}
-
-	const res = await fetch(project.remote_url, { headers });
-	if (!res.ok) {
-		throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
-	}
-	const content = await res.arrayBuffer();
-
-	// Deduce filename from URL or project tool
-	let filename = "package-lock.json";
-	if (project.tool === "yarn") filename = "yarn.lock";
-	if (project.tool === "bun") filename = "bun.lockb";
-	if (project.tool === "composer") filename = "composer.lock";
-
-	const filePath = join(projectDir, filename);
-	await Bun.write(filePath, content);
-
-	// Update the project path to point to this new local directory
-	if (project.path !== projectDir) {
-		updateProject(project.id, { path: projectDir });
-	}
-
-	// Fake a git state update to reflect the "fetch" success
-	const git = {
-		isRepo: false,
-		branch: null,
-		sha: null,
-		upstream: null,
-		ahead: 0,
-		behind: 0,
-		dirty: false,
-	};
-	saveGitState(project.id, git);
-
-	return { success: true, message: "Fichier lock téléchargé avec succès." };
 }

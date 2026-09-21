@@ -13,7 +13,7 @@ export interface ConsoleEvent {
 	 * point où l'outil écrit chez un tiers. On ne pouvait donc pas relire ce qui
 	 * partait.
 	 */
-	label: "git" | "audit" | "github" | "jira";
+	label: "git" | "audit" | "github" | "jira" | "sync";
 	project?: string;
 	exitCode?: number;
 	/**

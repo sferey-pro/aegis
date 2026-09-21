@@ -31,6 +31,7 @@ import {
 export function ReportModal({
 	reportModal,
 	auditErrors = [],
+	summaryText,
 	setReportModal,
 }: {
 	reportModal: Report | null;
@@ -41,6 +42,7 @@ export function ReportModal({
 	 * complet possible.
 	 */
 	auditErrors?: AuditFailure[];
+	summaryText?: string | null;
 	setReportModal: (val: Report | null) => void;
 }) {
 	const navigate = useNavigate();
@@ -103,6 +105,19 @@ export function ReportModal({
 							</span>
 						</div>
 					</div>
+
+					{summaryText && (
+						<div className="mt-4 flex flex-col gap-2">
+							<p className="text-sm font-semibold">Résumé pour compte-rendu</p>
+							<textarea
+								readOnly
+								className="w-full text-xs font-mono p-3 rounded-lg border bg-muted/50 resize-none outline-none focus:ring-1 focus:ring-primary"
+								rows={Math.min(10, summaryText.split("\n").length || 3)}
+								value={summaryText.trim()}
+								onClick={(e) => e.currentTarget.select()}
+							/>
+						</div>
+					)}
 
 					{auditErrors.length > 0 && (
 						<div

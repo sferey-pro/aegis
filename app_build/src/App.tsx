@@ -41,6 +41,7 @@ export function App() {
 	const [auditErrors, setAuditErrors] = useState<AuditFailure[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [reportModal, setReportModal] = useState<Report | null>(null);
+	const [auditSummaryText, setAuditSummaryText] = useState<string | null>(null);
 
 	const [loadingMessage, setLoadingMessage] = useState(
 		"Connexion à la base de données...",
@@ -154,11 +155,15 @@ export function App() {
 			// vulnérabilité » quand les vingt avaient échoué — puis l'archivait.
 			const echecs: AuditFailure[] = [];
 
+			let summaryText = "";
+
 			// `resultats` arrive déjà trié : erreurs d'abord, puis plus de nouvelles
 			// CVE (§2). L'ordre du compte-rendu et celui des détails en découlent.
 			for (const r of resultats) {
 				if (r.annule) continue;
+				const p = r.project as ProjectListItem;
 				if (r.erreur) {
+					summaryText += `${p.name} - Erreur d'audit\n`;
 					echecs.push({
 						projectId: r.project.id,
 						name: r.project.name,
@@ -169,6 +174,17 @@ export function App() {
 
 				const run = r.reponse?.run;
 				if (!run?.counts) continue;
+
+				const previousTotal = p.lastRun?.total ?? 0;
+				const currentTotal = run.total || 0;
+				const newCount = r.reponse?.newCves?.length || 0;
+				let fixedCount = 0;
+				if (p.lastRun) {
+					fixedCount = Math.max(0, previousTotal + newCount - currentTotal);
+				}
+				const etat = currentTotal === 0 ? "Sain" : (currentTotal < previousTotal ? "En amélioration" : (newCount > 0 ? "En danger" : "Vulnérable"));
+				
+				summaryText += `${p.name} +${newCount} nouvelles CVEs (Total : ${currentTotal}) +${fixedCount} CVEs Corrigé - ${etat}\n`;
 
 				totalVulns += run.total || 0;
 				counts.critical += run.counts.critical || 0;
@@ -192,6 +208,7 @@ export function App() {
 			// Un lot annulé de bout en bout n'a rien mesuré : l'archiver produirait un
 			// compte-rendu qui décrit un parc qu'on n'a pas regardé.
 			if (annules === resultats.length && resultats.length > 0) {
+				setAuditSummaryText(null);
 				setAuditErrors([
 					{
 						projectId: -1,
@@ -214,6 +231,7 @@ export function App() {
 				}),
 			);
 			setReportModal(generatedReport);
+			setAuditSummaryText(summaryText);
 			setAuditErrors(
 				annules > 0
 					? [
@@ -302,6 +320,7 @@ export function App() {
 				reportModal={reportModal}
 				setReportModal={setReportModal}
 				auditErrors={auditErrors}
+				summaryText={auditSummaryText}
 			/>
 		</>
 	);

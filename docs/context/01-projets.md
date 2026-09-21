@@ -15,7 +15,10 @@
 | `tool` | `npm` \| `yarn` \| `bun` \| `composer` | outil d'audit |
 | `tags` | JSON | tableau de **noms** référençant le catalogue (§9) |
 | `ignored` | BOOLEAN | projet EOL, exclu des audits et agrégations |
-| `is_remote` | BOOLEAN | projet sans copie locale |
+| `is_remote` | BOOLEAN | projet sans copie locale (distant ou ingesté) |
+| `source_type` | `local` \| `remote` \| `ingest` | provenance du projet (local, fichier distant, webhook CI) |
+| `remote_url` | TEXT \| null | URL brute du lockfile (pour `source_type = remote`) |
+| `remote_token` | TEXT \| null | jeton d'accès spécifique au projet |
 | `created_at` | DATETIME | horodatage d'insertion |
 
 ## Cible d'audit résolue

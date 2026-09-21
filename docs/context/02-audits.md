@@ -17,6 +17,8 @@ Lancer à la demande l'analyse de vulnérabilités d'un projet en exécutant l'o
 
 Environnement : `NO_COLOR=1`. Répertoire de travail : la **cible d'audit résolue** (§1), jamais la racine git.
 
+Pour les projets distants (`source_type === "remote"`), l'audit est précédé d'une étape de **synchronisation automatique** : le lockfile ciblé par `remote_url` est téléchargé via jeton d'accès et stocké dans un répertoire sécurisé géré par `AEGIS_ALLOWED_ROOTS` (sous `.aegis_remote_projects/`). L'audit est ensuite exécuté sur ce répertoire local temporaire.
+
 ## Barrière de déduplication
 
 Le run est sauté — réponse `{deduped: true}`, aucun run créé — **seulement si toutes** ces conditions tiennent :

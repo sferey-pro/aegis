@@ -14,6 +14,8 @@ import { ProjectDetail } from "./ProjectDetail";
  */
 
 function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
+	
+ 	// @ts-expect-error
 	return {
 		id: 7,
 		name: "Mon API",
@@ -24,9 +26,7 @@ function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
 		tool: "npm",
 		tags: ["prod"],
 		ignored: false,
-		is_remote: false,
 		source_type: "local",
-		remote_url: null,
 		created_at: "2026-07-01 09:00:00",
 		git: { isRepo: false },
 		lastRun: null,
@@ -221,7 +221,7 @@ describe("ProjectDetail", () => {
 	});
 
 	test("un projet distant a un bouton d'audit fonctionnel", async () => {
-		mockFetch({ ...base, "GET /api/projects/7": projet({ is_remote: true }) });
+		mockFetch({ ...base, "GET /api/projects/7": projet({ source_type: "remote" }) });
 		monte();
 		await screen.findByRole("heading", { level: 1, name: "Mon API" });
 		expect(

@@ -67,18 +67,32 @@ export function ProjectDetail() {
 								{detail.project.ignored && (
 									<Badge variant="secondary">Ignoré</Badge>
 								)}
-								{detail.project.is_remote && (
+								{detail.project.source_type === "remote" && (
 									<Badge variant="secondary">Distant</Badge>
+								)}
+								{detail.project.source_type === "ingest" && (
+									<Badge variant="secondary">Ingestion CI</Badge>
 								)}
 							</div>
 							<p
 								className="text-sm text-muted-foreground font-mono truncate"
-								title={detail.project.path}
+								title={
+									detail.project.source_type === "remote"
+										? detail.project.remote_url
+										: detail.project.path
+								}
 							>
-								{detail.project.path}
-								{detail.project.audit_path
-									? ` → ${detail.project.audit_path}`
-									: ""}
+								{detail.project.source_type === "remote" &&
+									detail.project.remote_url}
+								{detail.project.source_type === "local" && (
+									<>
+										{detail.project.path}
+										{detail.project.audit_path
+											? ` → ${detail.project.audit_path}`
+											: ""}
+									</>
+								)}
+								{detail.project.source_type === "ingest" && "Ingestion API"}
 							</p>
 							{detail.project.tags.length > 0 && (
 								<div className="flex flex-wrap gap-1">
@@ -159,6 +173,7 @@ export function ProjectDetail() {
 								runs={detail.history}
 								selectedId={detail.selectedRun?.id ?? null}
 								onSelect={detail.selectRun}
+								onDelete={detail.deleteRun}
 							/>
 						</aside>
 						<section className="bg-card border-border rounded-2xl p-6 min-w-0">

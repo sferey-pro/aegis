@@ -1,3 +1,4 @@
+<RULE[domain_context]>
 # Contexte du Domaine Métier
 
 *Cette règle système s'applique obligatoirement à **TOUS LES AGENTS** (PM, Engineer, QA, DevOps) lorsqu'ils traitent une requête de l'utilisateur. Elle complète les objectifs et le contexte global décrits dans le fichier `CONTEXT.md` situé à la racine du projet.*
@@ -19,3 +20,4 @@
 - **Sobriété Réseau** : Les appels vers GitHub (Advisory Database) se font uniquement *à la demande* du client ou lors d'une action manuelle, et jamais de manière asynchrone cachée pendant l'exécution d'un audit de lockfile.
 - **Déduplication & Intégrité** : Le backend bloque la relance d'audits inutiles en validant le SHA commit Git et le statut "dirty". L'agrégation CVE déduplique rigoureusement via un triplet (CVE, package, titre).
 - **Architecture Minimaliste** : N'ajoutez aucune dépendance lourde d'infrastructure (PostgreSQL, Redis, Firebase, etc.). L'écosystème doit rester strictement confiné au duo Bun / SQLite pour garantir portabilité et performances fulgurantes.
+</RULE[domain_context]>

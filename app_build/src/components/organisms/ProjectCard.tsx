@@ -241,7 +241,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 				)}
 			</div>
 
-			{p.git?.isRepo ? (
+			{p.source_type !== "local" ? null : p.git?.isRepo ? (
 				<div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
 					<div className="flex flex-col gap-1">
 						<span
@@ -344,7 +344,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 				</div>
 			)}
 
-			<div className="flex items-center justify-between mt-auto pt-4 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
+			<div className="flex items-center justify-between mt-auto pt-4 border-t border-border ">
 				<button
 					type="button"
 					onClick={(e) => toggleIgnore(p, e)}
@@ -353,7 +353,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 					{p.ignored ? "Réactiver" : "Ignorer le projet"}
 				</button>
 				<div className="flex items-center gap-1">
-					{!p.is_remote && (
+					{p.source_type !== "ingest" && (
 						<Button
 							variant="ghost"
 							size="icon"

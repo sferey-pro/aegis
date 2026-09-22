@@ -18,3 +18,37 @@
 # Instantanés SQLite et sauvegardes de configuration (CONTEXT.md §12)
 backups/
 .aegis_remote_projects/
+
+# Agent Scratchpad
+.agents/scratch/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE & Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+
+# Node / Bun & Build outputs
+node_modules/
+dist/
+out/
+build/
+coverage/
+*.lcov
+*.tsbuildinfo
+.eslintcache
+.cache/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+bun.log*

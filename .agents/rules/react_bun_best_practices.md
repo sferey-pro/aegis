@@ -1,3 +1,4 @@
+<RULE[react_bun_best_practices]>
 # Règles et Bonnes Pratiques : React 19 & Bun
 
 Ces règles doivent être appliquées par tous les agents (Ingénieur, QA, Code Reviewer) lorsqu'ils génèrent, modifient ou revoient du code dans l'application.
@@ -25,3 +26,4 @@ Ces règles doivent être appliquées par tous les agents (Ingénieur, QA, Code 
 ## 4. UI avec TailwindCSS et Shadcn
 - Utilisez toujours l'utilitaire `cn()` fourni (qui combine `clsx` et `tailwind-merge`) pour la fusion conditionnelle des classes Tailwind. Cela évite les conflits et écrasements inattendus.
 - L'accessibilité est reine. Ne supprimez pas les propriétés sémantiques ou `aria-*` générées par les composants Shadcn/Radix.
+</RULE[react_bun_best_practices]>

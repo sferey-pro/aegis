@@ -50,7 +50,6 @@ export function ProjectEditDialog({
 		type: "node",
 		tags: [] as string[],
 		ignored: false,
-		is_remote: false,
 		source_type: "local" as "local" | "ingest" | "remote",
 		remote_url: "",
 		remote_token: "",
@@ -73,14 +72,12 @@ export function ProjectEditDialog({
 				type: project.type,
 				tags: project.tags || [],
 				ignored: !!project.ignored,
-				is_remote: !!project.is_remote,
-				source_type: (project.source_type ||
-					(project.is_remote ? "ingest" : "local")) as
-					| "local"
-					| "ingest"
-					| "remote",
-				remote_url: project.remote_url || "",
-				remote_token: project.remote_token || "",
+
+				source_type: (project?.source_type ||
+					(project as any)?.source_type ||
+					"local") as "local" | "ingest" | "remote",
+				remote_url: (project as any).remote_url || "",
+				remote_token: (project as any).remote_token || "",
 			});
 			setSubmitError(null);
 			setDetectStatus("idle");
@@ -177,7 +174,6 @@ export function ProjectEditDialog({
 										setFormData({
 											...formData,
 											source_type: st,
-											is_remote: st !== "local",
 											path:
 												st === "remote" || st === "ingest" ? "" : formData.path,
 										});
@@ -265,7 +261,7 @@ export function ProjectEditDialog({
 									<Label htmlFor="edit-path">Chemin absolu (Racine Git)</Label>
 									<Input
 										id="edit-path"
-										required={!formData.is_remote}
+										required={formData.source_type === "local"}
 										type="text"
 										value={formData.path}
 										onChange={(e) =>

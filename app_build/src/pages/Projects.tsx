@@ -492,7 +492,8 @@ export const Projects = React.memo(function Projects() {
 		// La réponse porte l'état git, si bien qu'un dossier non-git est écarté des
 		// lots suivants sans avoir rien coûté de plus.
 		const cibles = visibleProjects.filter(
-			(p) => !p.ignored && !p.is_remote && p.git?.isRepo !== false,
+			(p) =>
+				!p.ignored && p.source_type !== "ingest" && p.git?.isRepo !== false,
 		);
 		setGitSyncFailures([]);
 		const resultats = await startGitSync(
@@ -1202,7 +1203,12 @@ export const Projects = React.memo(function Projects() {
 												<div className="flex flex-col">
 													<span className="font-bold">{p.name}</span>
 													<span className="text-[10px] text-muted-foreground uppercase">
-														{p.tool} • {p.is_remote ? "Remote (CI)" : "Local"}
+														{p.tool} •{" "}
+														{p.source_type === "ingest"
+															? "Ingest (CI)"
+															: p.source_type === "remote"
+																? "Remote (Git)"
+																: "Local"}
 													</span>
 												</div>
 											</div>
@@ -1233,7 +1239,7 @@ export const Projects = React.memo(function Projects() {
 											</div>
 										</TableCell>
 										<TableCell>
-											{p.git?.isRepo ? (
+											{p.source_type !== "local" ? null : p.git?.isRepo ? (
 												<div className="flex items-center gap-3 text-xs">
 													<div className="flex items-center gap-1 font-mono">
 														<GitBranch className="w-3 h-3" />

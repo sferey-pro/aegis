@@ -40,6 +40,7 @@ import { ShieldLoader } from "../components/molecules/ShieldLoader";
 import { TagBadge } from "../components/molecules/TagBadge";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { ProjectCard } from "../components/organisms/ProjectCard";
+import { ProjectEditDialog } from "../components/organisms/ProjectEditDialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -142,7 +143,7 @@ export const Projects = React.memo(function Projects() {
 	const [detectingId, setDetectingId] = useState<number | null>(null);
 	const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
 	const [detectedToolName, setDetectedToolName] = useState<string | null>(null);
-	const [editingId, setEditingId] = useState<number | null>(null);
+	const [projectToEdit, setProjectToEdit] = useState<ProjectListItem | null>(null);
 	const [copiedSlug, setCopiedSlug] = useState<number | null>(null);
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [auditState, setAuditState] = useState<Record<number, string>>({});
@@ -282,7 +283,6 @@ export const Projects = React.memo(function Projects() {
 	const resetForm = () => {
 		setIsAdding(false);
 		setIsFormVisible(false);
-		setEditingId(null);
 		// Sans cela, l'erreur du précédent envoi réapparaîtrait à la réouverture du
 		// formulaire, sur un contenu qui n'a plus rien à voir.
 		setSubmitError(null);
@@ -304,23 +304,7 @@ export const Projects = React.memo(function Projects() {
 
 	const handleEdit = (p: ProjectListItem, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
-		let st = p.source_type;
-		if (!st) st = p.is_remote ? "ingest" : "local";
-		setFormData({
-			name: p.name,
-			path: p.path,
-			audit_path: p.audit_path || "",
-			type: p.type,
-			tool: p.tool,
-			tags: p.tags || [],
-			is_remote: !!p.is_remote,
-			source_type: st as "local" | "ingest" | "remote",
-			remote_url: p.remote_url || "",
-			remote_token: p.remote_token || "",
-		});
-		setEditingId(p.id);
-		setIsAdding(true);
-		setIsFormVisible(true);
+		setProjectToEdit(p);
 	};
 
 	const handleSubmit = async (
@@ -331,23 +315,14 @@ export const Projects = React.memo(function Projects() {
 		setSubmitError(null);
 		try {
 			const payload = { ...formData };
-			let createdProjectId = null;
+			
+			const nouveau = await fetchJson<Project>("/api/projects", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
 
-			if (editingId) {
-				await fetchVoid(`/api/projects/${editingId}`, {
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(payload),
-				});
-			} else {
-				const nouveau = await fetchJson<Project>("/api/projects", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(payload),
-				});
-
-				createdProjectId = nouveau.id;
-			}
+			const createdProjectId = nouveau.id;
 
 			resetForm();
 			await fetchProjects();
@@ -371,9 +346,9 @@ export const Projects = React.memo(function Projects() {
 					.catch(console.error)
 					.finally(() => {
 						setAuditState((prev) => {
-							const n = { ...prev };
-							delete n[createdProjectId];
-							return n;
+							const newState = { ...prev };
+							delete newState[createdProjectId];
+							return newState;
 						});
 					});
 			}
@@ -727,7 +702,7 @@ export const Projects = React.memo(function Projects() {
 							<>
 								<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
 									<div className="flex items-center gap-3">
-										{!editingId && (
+										{true && (
 											<Button
 												type="button"
 												variant="ghost"
@@ -739,9 +714,7 @@ export const Projects = React.memo(function Projects() {
 											</Button>
 										)}
 										<DialogTitle className="text-xl font-bold text-primary">
-											{editingId
-												? "Modifier le Projet"
-												: formData.source_type === "local"
+											{formData.source_type === "local"
 													? "Nouveau Projet Local"
 													: formData.source_type === "remote"
 														? "Nouveau Projet Distant"
@@ -771,7 +744,7 @@ export const Projects = React.memo(function Projects() {
 											/>
 										</div>
 
-										{editingId && (
+										{false && (
 											<div className="flex flex-col gap-1">
 												<label
 													htmlFor="project-source-type"
@@ -1051,7 +1024,7 @@ export const Projects = React.memo(function Projects() {
 									<Button type="button" variant="secondary" onClick={resetForm}>
 										Annuler
 									</Button>
-									{!editingId && !formData.is_remote && (
+									{!formData.is_remote && (
 										<Button
 											type="button"
 											variant="outline"
@@ -1070,18 +1043,18 @@ export const Projects = React.memo(function Projects() {
 											Créer et Auditer
 										</Button>
 									)}
-									{formData.is_remote && !editingId && (
+									{formData.is_remote && (
 										<Button type="submit" className="shadow-lg">
 											Créer le projet CI
 										</Button>
 									)}
-									{(!formData.is_remote || editingId) && (
+									{(!formData.is_remote) && (
 										<Button
 											type="submit"
 											onClick={(e) => handleSubmit(e, false)}
 											className="shadow-lg"
 										>
-											{editingId ? "Enregistrer" : "Créer sans auditer"}
+											{"Créer sans auditer"}
 										</Button>
 									)}
 								</DialogFooter>
@@ -1393,6 +1366,19 @@ export const Projects = React.memo(function Projects() {
 				label="Mise à jour Git"
 				offset
 			/>
+
+			
+			{projectToEdit && (
+				<ProjectEditDialog
+					project={projectToEdit}
+					isOpen={true}
+					onOpenChange={(isOpen) => {
+						if (!isOpen) setProjectToEdit(null);
+					}}
+					onSaved={fetchProjects}
+					showIgnoreToggle={false}
+				/>
+			)}
 
 			<ConfirmDialog
 				isOpen={projectToDelete !== null}

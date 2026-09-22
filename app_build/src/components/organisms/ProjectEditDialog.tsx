@@ -19,6 +19,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -176,61 +177,31 @@ export function ProjectEditDialog({
 
 							<div className="flex flex-col gap-1">
 								<Label htmlFor="edit-source-type">Type de projet</Label>
-								<div className="flex gap-2">
-									<Button
-										type="button"
-										variant={
-											formData.source_type === "local" ? "default" : "outline"
-										}
-										onClick={() => {
-											setFormData({
-												...formData,
-												source_type: "local",
-												is_remote: false,
-											});
-										}}
-										title="Local"
-										className="w-full flex justify-center items-center px-0"
-									>
-										<HardDrive className="w-5 h-5" />
-									</Button>
-									<Button
-										type="button"
-										variant={
-											formData.source_type === "remote" ? "default" : "outline"
-										}
-										onClick={() => {
-											setFormData({
-												...formData,
-												source_type: "remote",
-												is_remote: true,
-												path: "",
-											});
-										}}
-										title="Distant (Direct)"
-										className="w-full flex justify-center items-center px-0"
-									>
-										<Globe className="w-5 h-5" />
-									</Button>
-									<Button
-										type="button"
-										variant={
-											formData.source_type === "ingest" ? "default" : "outline"
-										}
-										onClick={() => {
-											setFormData({
-												...formData,
-												source_type: "ingest",
-												is_remote: true,
-												path: "",
-											});
-										}}
-										title="Ingestion CI"
-										className="w-full flex justify-center items-center px-0"
-									>
-										<UploadCloud className="w-5 h-5" />
-									</Button>
-								</div>
+								<Tabs
+									value={formData.source_type}
+									onValueChange={(val) => {
+										const st = val as "local" | "ingest" | "remote";
+										setFormData({
+											...formData,
+											source_type: st,
+											is_remote: st !== "local",
+											path: st === "remote" || st === "ingest" ? "" : formData.path,
+										});
+									}}
+									className="w-full"
+								>
+									<TabsList className="w-full h-10">
+										<TabsTrigger value="local" title="Local" className="flex-1">
+											<HardDrive className="w-5 h-5" />
+										</TabsTrigger>
+										<TabsTrigger value="remote" title="Distant (Direct)" className="flex-1">
+											<Globe className="w-5 h-5" />
+										</TabsTrigger>
+										<TabsTrigger value="ingest" title="Ingestion CI" className="flex-1">
+											<UploadCloud className="w-5 h-5" />
+										</TabsTrigger>
+									</TabsList>
+								</Tabs>
 							</div>
 
 							{formData.source_type === "ingest" && (
@@ -359,7 +330,7 @@ export function ProjectEditDialog({
 
 							<div className="flex flex-col gap-1">
 								<Label htmlFor="edit-tool">Outil d'audit</Label>
-								<Select
+								<Tabs
 									value={formData.tool}
 									onValueChange={(val) =>
 										setFormData({
@@ -368,17 +339,15 @@ export function ProjectEditDialog({
 											type: val === "composer" ? "composer" : "node",
 										})
 									}
+									className="w-full"
 								>
-									<SelectTrigger id="edit-tool" className="w-full">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="npm">NPM</SelectItem>
-										<SelectItem value="yarn">Yarn</SelectItem>
-										<SelectItem value="bun">Bun</SelectItem>
-										<SelectItem value="composer">Composer</SelectItem>
-									</SelectContent>
-								</Select>
+									<TabsList className="w-full h-10">
+										<TabsTrigger value="npm" className="flex-1">NPM</TabsTrigger>
+										<TabsTrigger value="yarn" className="flex-1">Yarn</TabsTrigger>
+										<TabsTrigger value="bun" className="flex-1">Bun</TabsTrigger>
+										<TabsTrigger value="composer" className="flex-1">Composer</TabsTrigger>
+									</TabsList>
+								</Tabs>
 							</div>
 
 							<div className="flex flex-col gap-2 md:col-span-2">

@@ -5,20 +5,15 @@ import {
 	CheckCircle2,
 	CloudDownload,
 	Copy,
-	Edit2,
 	Folder,
-	GitBranch,
 	Globe,
 	HardDrive,
 	Info,
 	LayoutGrid,
 	List,
 	Loader2,
-	Play,
 	Plus,
 	RefreshCw,
-	Shield,
-	Trash2,
 	UploadCloud,
 	XCircle,
 } from "lucide-react";
@@ -37,11 +32,10 @@ import { useGlobalGitSync } from "@/lib/useGlobalGitSync";
 import type { ProjectGitState, ProjectListItem } from "@/routes/projects";
 import { AuditProgressBar } from "../components/molecules/AuditProgressBar";
 import { ShieldLoader } from "../components/molecules/ShieldLoader";
-import { TagBadge } from "../components/molecules/TagBadge";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
-import { ProjectCard } from "../components/organisms/ProjectCard";
 import { ProjectEditDialog } from "../components/organisms/ProjectEditDialog";
-import { Badge } from "../components/ui/badge";
+import { ProjectCard } from "../components/organisms/project-cards";
+import { ProjectRow } from "../components/organisms/project-rows";
 import { Button } from "../components/ui/button";
 import {
 	Dialog,
@@ -61,7 +55,6 @@ import {
 import {
 	Table,
 	TableBody,
-	TableCell,
 	TableHead,
 	TableHeader,
 	TableRow,
@@ -1179,177 +1172,22 @@ export const Projects = React.memo(function Projects() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{visibleProjects.map((p) => {
-								const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
-								const hasNoCves =
-									p.lastRun &&
-									Object.values(p.lastRun.counts).reduce((a, b) => a + b, 0) ===
-										0;
-								return (
-									<TableRow
-										key={p.id}
-										// La vue liste n'avait aucun indicateur d'activité : pendant
-										// un lot, rien ne distinguait la ligne au travail des autres.
-										// Grisée plutôt que voilée — un voile en position absolue se
-										// place mal dans une cellule de tableau.
-										className={`group cursor-pointer ${p.ignored ? "opacity-50 grayscale" : ""} ${auditState[p.id] ? "opacity-60 bg-muted/40" : ""}`}
-										onClick={() => navigate(`/projects/${p.id}`)}
-									>
-										<TableCell>
-											<div className="flex items-center gap-3">
-												<Shield
-													className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-red-500" : "text-primary"}`}
-												/>
-												<div className="flex flex-col">
-													<span className="font-bold">{p.name}</span>
-													<span className="text-[10px] text-muted-foreground uppercase">
-														{p.tool} •{" "}
-														{p.source_type === "ingest"
-															? "Ingest (CI)"
-															: p.source_type === "remote"
-																? "Remote (Git)"
-																: "Local"}
-													</span>
-												</div>
-											</div>
-										</TableCell>
-										<TableCell>
-											<div className="flex flex-col gap-2 items-start">
-												<div className="flex flex-wrap gap-1">
-													{p.tags?.map((tag: string) => (
-														<TagBadge
-															key={tag}
-															name={tag}
-															color={tagColors[tag]}
-														/>
-													))}
-												</div>
-												<div className="flex items-center gap-2">
-													{hasNoCves && (
-														<Badge variant="outline" className="text-[10px]">
-															Sain
-														</Badge>
-													)}
-													{hasCritical && (
-														<Badge variant="outline" className="text-[10px]">
-															Critique
-														</Badge>
-													)}
-												</div>
-											</div>
-										</TableCell>
-										<TableCell>
-											{p.source_type !== "local" ? null : p.git?.isRepo ? (
-												<div className="flex items-center gap-3 text-xs">
-													<div className="flex items-center gap-1 font-mono">
-														<GitBranch className="w-3 h-3" />
-														<span
-															className="truncate max-w-[80px]"
-															title={p.git.branch || "detached"}
-														>
-															{p.git.branch || "detached"}
-														</span>
-													</div>
-													{p.git.dirty && (
-														<span
-															title="Arbre de travail sale"
-															className="inline-flex"
-														>
-															<AlertTriangle className="w-3.5 h-3.5" />
-														</span>
-													)}
-													{p.git.behind > 0 && (
-														<span
-															className="text-red-600 dark:text-red-400 font-bold flex items-center gap-0.5"
-															title={`${p.git.behind} commits de retard`}
-														>
-															<ArrowDownToLine className="w-3 h-3" />{" "}
-															{p.git.behind}
-														</span>
-													)}
-												</div>
-											) : (
-												<div className="flex items-center gap-2">
-													{/* `null` = non chargé, `{isRepo:false}` = pas un dépôt. */}
-													<span className="text-xs text-muted-foreground italic">
-														{p.git === null ? "Git non chargé" : "Non-Git"}
-													</span>
-													<button
-														type="button"
-														onClick={(e) => handleDetectGit(p.id, e)}
-														disabled={detectingId === p.id}
-														className="p-1 text-muted-foreground rounded disabled:opacity-50"
-														title={
-															p.git === null
-																? "Lire l'état Git de ce projet"
-																: "Re-détecter le dépôt Git"
-														}
-													>
-														<RefreshCw
-															className={`w-3 h-3 ${detectingId === p.id ? "animate-spin text-primary" : ""}`}
-														/>
-													</button>
-												</div>
-											)}
-										</TableCell>
-										<TableCell
-											className="text-right"
-											onClick={(e) => e.stopPropagation()}
-										>
-											<div className="flex items-center justify-end gap-1">
-												{p.git?.isRepo && (
-													<>
-														<Button
-															variant="ghost"
-															size="icon"
-															onClick={(e) => handleFetch(p.id, e)}
-															className="w-7 h-7 text-muted-foreground"
-															title="Git Fetch"
-														>
-															<CloudDownload className="w-3.5 h-3.5" />
-														</Button>
-														{p.git.behind > 0 && (
-															<Button
-																variant="outline"
-																size="sm"
-																onClick={(e) => handlePull(p.id, e)}
-																className="h-6 px-2 text-[10px] uppercase mx-1"
-															>
-																Pull
-															</Button>
-														)}
-													</>
-												)}
-												<Button
-													variant="ghost"
-													size="icon"
-													onClick={(e) => handleForceAudit(p.id, e)}
-													className="w-7 h-7 text-muted-foreground"
-													title="Forcer un audit"
-												>
-													<Play className="w-3.5 h-3.5" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="icon"
-													onClick={(e) => handleEdit(p, e)}
-													className="w-7 h-7 text-muted-foreground"
-												>
-													<Edit2 className="w-3.5 h-3.5" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="icon"
-													onClick={(e) => handleDelete(p.id, e)}
-													className="w-7 h-7 text-muted-foreground"
-												>
-													<Trash2 className="w-3.5 h-3.5" />
-												</Button>
-											</div>
-										</TableCell>
-									</TableRow>
-								);
-							})}
+							{visibleProjects.map((p) => (
+								<ProjectRow
+									key={p.id}
+									p={p}
+									auditState={auditState}
+									navigate={navigate}
+									tagColors={tagColors}
+									detectingId={detectingId}
+									handleDetectGit={handleDetectGit}
+									handleFetch={handleFetch}
+									handlePull={handlePull}
+									handleForceAudit={handleForceAudit}
+									handleEdit={handleEdit}
+									handleDelete={handleDelete}
+								/>
+							))}
 						</TableBody>
 					</Table>
 				</div>

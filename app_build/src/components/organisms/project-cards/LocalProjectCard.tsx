@@ -1,21 +1,11 @@
-// biome-ignore-all lint/a11y/useSemanticElements: la carte entiere est cliquable
-// (ouvre la page de detail du projet) mais contient six boutons d'action imbriques. La
-// convertir en <button> produirait des controles interactifs imbriques : HTML
-// invalide et regression d'accessibilite. role="button" + tabIndex + onKeyDown
-// est le compromis retenu ; a remplacer par le motif "stretched link" si la
-// carte est retravaillee.
-
 import {
 	AlertTriangle,
 	ArrowDownToLine,
-	Check,
 	CheckCircle2,
 	Clock,
 	CloudDownload,
-	Copy,
 	Edit2,
 	GitBranch,
-	Globe,
 	HardDrive,
 	Info,
 	Loader2,
@@ -24,45 +14,19 @@ import {
 	RefreshCw,
 	Shield,
 	Trash2,
-	UploadCloud,
 } from "lucide-react";
 import React from "react";
 import { relativeAge } from "@/lib/utils";
-import type { ProjectListItem } from "@/routes/projects";
-import { TagBadge } from "../molecules/TagBadge";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+import { TagBadge } from "../../molecules/TagBadge";
+import { Badge } from "../../ui/badge";
+import { Button } from "../../ui/button";
+import type { ProjectCardProps } from "./index";
 
-export interface ProjectCardProps {
-	p: ProjectListItem;
-	index: number;
-	auditState: Record<number, string>;
-	/** Ouvre la page de détail : rapport du dernier audit et évolution (§4). */
-	onOpen?: (id: number) => void;
-	copiedSlug: number | null;
-	setCopiedSlug: (id: number | null) => void;
-	copyToClipboard: (text: string) => void;
-	detectingId: number | null;
-	handleDetectGit: (id: number, e: React.MouseEvent) => void;
-	handleFetch: (id: number, e: React.MouseEvent) => void;
-	handlePull: (id: number, e: React.MouseEvent) => void;
-	toggleIgnore: (p: ProjectListItem, e: React.MouseEvent) => void;
-	handleForceAudit: (id: number, e: React.MouseEvent) => void;
-	handleEdit: (p: ProjectListItem, e: React.MouseEvent) => void;
-	handleDelete: (id: number, e: React.MouseEvent) => void;
-	formatDate: (dateStr: string) => string;
-	/** Couleur par nom de tag. Un projet ne stocke que les noms. */
-	tagColors?: Record<string, string>;
-}
-
-export const ProjectCard = React.memo(function ProjectCard({
+export const LocalProjectCard = React.memo(function LocalProjectCard({
 	p,
 	index,
 	auditState,
 	onOpen,
-	copiedSlug,
-	setCopiedSlug,
-	copyToClipboard,
 	detectingId,
 	handleDetectGit,
 	handleFetch,
@@ -99,13 +63,6 @@ export const ProjectCard = React.memo(function ProjectCard({
 				}
 			}}
 		>
-			{/* Carte occupée : voile opaque **sur la carte seule**.
-			    L'overlay n'avait aucun fond, si bien que le libellé
-			    (« Opération Git… », « Audit npm… ») se superposait au contenu et que
-			    rien ne distinguait une carte au travail d'une carte au repos —
-			    précisément l'information utile pendant un lot. `bg-card/85` laisse
-			    devenir la forme de la carte sans rendre le texte illisible, et les
-			    deux teintes sont posées puisqu'un token n'existe pas pour ce voile. */}
 			{auditState[p.id] && (
 				<div
 					className="absolute inset-0 z-10 flex items-center justify-center flex-col gap-2 rounded-xl bg-card/85 backdrop-blur-[2px]"
@@ -162,66 +119,19 @@ export const ProjectCard = React.memo(function ProjectCard({
 								{p.tool}
 							</span>
 						</div>
-						<button
-							type="button"
-							title="Copier l'URL d'ingestion CI"
-							onClick={(e) => {
-								e.preventDefault();
-								e.stopPropagation();
-								const slugToCopy =
-									p.slug ||
-									`${p.name
-										.toLowerCase()
-										.replace(/[^a-z0-9]+/g, "-")
-										.replace(/(^-|-$)/g, "")}-${p.id}`;
-								copyToClipboard(
-									`${window.location.origin}/api/ingest/${slugToCopy}`,
-								);
-								setCopiedSlug(p.id);
-								setTimeout(() => setCopiedSlug(null), 2000);
-							}}
-							className="flex items-center gap-2 text-xs px-2 py-1.5 rounded text-left hover:bg-muted"
-						>
-							{copiedSlug === p.id ? (
-								<Check className="w-3.5 h-3.5" />
-							) : (
-								<Copy className="w-3.5 h-3.5" />
-							)}
-							{copiedSlug === p.id ? "Copié !" : "Copier URL Ingestion"}
-						</button>
 					</div>
 				</div>
 			</div>
 
 			<div className="flex items-center gap-1 mt-0">
-				{p.source_type === "local" ? (
-					<>
-						<HardDrive className="w-3 h-3 text-muted-foreground" />
-						<span className="text-xs text-muted-foreground">Local</span>
-						<span
-							title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || "Racine"}`}
-							className="cursor-help inline-flex"
-						>
-							<Info className="w-3 h-3 text-muted-foreground/50" />
-						</span>
-					</>
-				) : p.source_type === "remote" ? (
-					<>
-						<Globe className="w-3 h-3 text-muted-foreground" />
-						<span className="text-xs text-muted-foreground">Distant</span>
-						<span
-							title={`URL Lockfile : ${p.remote_url}`}
-							className="cursor-help inline-flex"
-						>
-							<Info className="w-3 h-3 text-muted-foreground/50" />
-						</span>
-					</>
-				) : (
-					<>
-						<UploadCloud className="w-3 h-3 text-muted-foreground" />
-						<span className="text-xs text-muted-foreground">Ingestion CI</span>
-					</>
-				)}
+				<HardDrive className="w-3 h-3 text-muted-foreground" />
+				<span className="text-xs text-muted-foreground">Local</span>
+				<span
+					title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || "Racine"}`}
+					className="cursor-help inline-flex"
+				>
+					<Info className="w-3 h-3 text-muted-foreground/50" />
+				</span>
 			</div>
 
 			{p.tags && p.tags.length > 0 && (
@@ -241,7 +151,7 @@ export const ProjectCard = React.memo(function ProjectCard({
 				)}
 			</div>
 
-			{p.source_type !== "local" ? null : p.git?.isRepo ? (
+			{p.git?.isRepo ? (
 				<div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
 					<div className="flex flex-col gap-1">
 						<span
@@ -252,10 +162,6 @@ export const ProjectCard = React.memo(function ProjectCard({
 									: undefined
 							}
 						>
-							{/* L'âge de la mesure, parce qu'elle est persistée et non live :
-							    `dirty` change à chaque fichier modifié, `behind` à chaque
-							    fetch. Sans date, une mesure de la semaine dernière se lirait
-							    comme la situation actuelle. */}
 							Branche
 							{p.git.checkedAt ? ` · ${relativeAge(p.git.checkedAt)}` : ""}
 						</span>
@@ -314,10 +220,6 @@ export const ProjectCard = React.memo(function ProjectCard({
 				</div>
 			) : (
 				<div className="flex items-center justify-between mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
-					{/* Trois états, pas deux. `git === null` = **non chargé** : la liste
-					    ne lit plus l'état git au chargement (cinq sous-processus par
-					    projet). Afficher « Dépôt non-git » dans ce cas mentirait sur tout
-					    le parc à chaque ouverture de la page. */}
 					<span className="text-muted-foreground italic">
 						{p.git === null ? "État Git non chargé" : "Dépôt Non-Git"}
 					</span>
@@ -353,17 +255,15 @@ export const ProjectCard = React.memo(function ProjectCard({
 					{p.ignored ? "Réactiver" : "Ignorer le projet"}
 				</button>
 				<div className="flex items-center gap-1">
-					{p.source_type !== "ingest" && (
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={(e) => handleForceAudit(p.id, e)}
-							className="w-7 h-7 text-muted-foreground"
-							title="Forcer un audit (sans déduplication)"
-						>
-							<Play className="w-3.5 h-3.5" />
-						</Button>
-					)}
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={(e) => handleForceAudit(p.id, e)}
+						className="w-7 h-7 text-muted-foreground"
+						title="Forcer un audit (sans déduplication)"
+					>
+						<Play className="w-3.5 h-3.5" />
+					</Button>
 					<Button
 						variant="ghost"
 						size="icon"

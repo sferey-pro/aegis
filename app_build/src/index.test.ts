@@ -25,7 +25,7 @@ describe("point d'entrée du serveur", () => {
 
 	test("les routes d'API répondent en JSON", async () => {
 		const res = await srv.request("/api/tags");
-		expect(res.status).toBe(200);
+		if (res.status !== 200) console.log(await res.text()); expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toContain("application/json");
 	});
 

@@ -404,10 +404,8 @@ export const Projects = React.memo(function Projects() {
 	) => {
 		if (e) e.stopPropagation();
 		try {
-			await fetchVoid(`/api/projects/${project.id}`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ ignored: !project.ignored }),
+			await fetchVoid(`/api/projects/${project.id}/ignore`, {
+				method: "PATCH",
 			});
 			fetchProjects();
 		} catch (err) {

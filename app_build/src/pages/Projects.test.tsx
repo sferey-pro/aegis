@@ -74,7 +74,7 @@ function tagDeLUrl(): string | null {
 }
 
 const post = () => fetchCalls().filter((c) => c.method === "POST");
-const put = () => fetchCalls().filter((c) => c.method === "PUT");
+const patch = () => fetchCalls().filter((c) => c.method === "PATCH");
 const del = () => fetchCalls().filter((c) => c.method === "DELETE");
 
 describe("Projects", () => {
@@ -368,15 +368,13 @@ describe("Projects", () => {
 		});
 	});
 
-	test("toggleIgnore envoie un PUT partiel, refusé par la validation", async () => {
-		// Défaut UX10 : le corps ne contient que `{ ignored }`, alors que la
-		// validation Zod exige name, path, type et tool. Le serveur répond 400 et
-		// le composant ne le signale pas. Documenté, pas validé.
+	test("toggleIgnore envoie un PATCH partiel, validé par la route ignore", async () => {
+		const projects = base["GET /api/projects"] as any[];
 		mockFetch({
 			...base,
-			"PUT /api/projects/7": {
-				status: 400,
-				body: { error: "Nom requis" },
+			"PATCH /api/projects/7/ignore": {
+				status: 200,
+				body: { ...projects[0], ignored: true },
 			},
 		});
 		monte();
@@ -387,10 +385,9 @@ describe("Projects", () => {
 		fireEvent.click(screen.getByText("Ignorer le projet"));
 
 		await waitFor(() => {
-			expect(put()).toHaveLength(1);
+			expect(patch()).toHaveLength(1);
+			expect(patch()[0]?.url).toBe("/api/projects/7/ignore");
 		});
-		expect(put()[0]?.body).toEqual({ ignored: true });
-		expect(screen.queryAllByText("Nom requis")).toHaveLength(0);
 	});
 
 	test("supprimer demande confirmation avant d'appeler l'API", async () => {

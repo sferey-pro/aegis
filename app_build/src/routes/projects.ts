@@ -10,6 +10,7 @@ import {
 	type Project,
 	type ProjectTool,
 	updateProject,
+	toggleIgnoreProject,
 } from "../db/projects";
 import {
 	getLatestRun,
@@ -392,6 +393,18 @@ export const projectsRoutes = {
 			}
 			return Response.json({ success: true });
 		},
+	},
+
+	"/api/projects/:id/ignore": {
+		async PATCH(req: BunRequest<"/api/projects/:id/ignore">) {
+			const id = parseInt(req.params.id, 10);
+			try {
+				const project = toggleIgnoreProject(id);
+				return Response.json(project);
+			} catch (e: any) {
+				return Response.json({ error: e.message }, { status: 404 });
+			}
+		}
 	},
 
 	/**

@@ -1,4 +1,4 @@
-import { Check, CheckCircle2, Copy, Loader2, XCircle } from "lucide-react";
+import { Check, CheckCircle2, Copy, Loader2, XCircle, HardDrive, Globe, UploadCloud } from "lucide-react";
 import React, { useEffect, useState, useRef } from "react";
 import type { ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
@@ -152,27 +152,55 @@ export function ProjectEditDialog({
 
 							<div className="flex flex-col gap-1">
 								<Label htmlFor="edit-source-type">Type de projet</Label>
-								<Select
-									value={formData.source_type}
-									onValueChange={(val) => {
-										const st = val as "local" | "ingest" | "remote";
-										setFormData({
-											...formData,
-											source_type: st,
-											is_remote: st !== "local",
-											path: st === "remote" || st === "ingest" ? "" : formData.path,
-										});
-									}}
-								>
-									<SelectTrigger id="edit-source-type" className="w-full">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="local">Local</SelectItem>
-										<SelectItem value="remote">Distant</SelectItem>
-										<SelectItem value="ingest">Ingestion CI</SelectItem>
-									</SelectContent>
-								</Select>
+								<div className="flex gap-2">
+									<Button
+										type="button"
+										variant={formData.source_type === "local" ? "default" : "outline"}
+										onClick={() => {
+											setFormData({
+												...formData,
+												source_type: "local",
+												is_remote: false,
+											});
+										}}
+										title="Local"
+										className="w-full flex justify-center items-center px-0"
+									>
+										<HardDrive className="w-5 h-5" />
+									</Button>
+									<Button
+										type="button"
+										variant={formData.source_type === "remote" ? "default" : "outline"}
+										onClick={() => {
+											setFormData({
+												...formData,
+												source_type: "remote",
+												is_remote: true,
+												path: "",
+											});
+										}}
+										title="Distant (Direct)"
+										className="w-full flex justify-center items-center px-0"
+									>
+										<Globe className="w-5 h-5" />
+									</Button>
+									<Button
+										type="button"
+										variant={formData.source_type === "ingest" ? "default" : "outline"}
+										onClick={() => {
+											setFormData({
+												...formData,
+												source_type: "ingest",
+												is_remote: true,
+												path: "",
+											});
+										}}
+										title="Ingestion CI"
+										className="w-full flex justify-center items-center px-0"
+									>
+										<UploadCloud className="w-5 h-5" />
+									</Button>
+								</div>
 							</div>
 
 							{formData.source_type === "ingest" && (

@@ -1,14 +1,14 @@
-import { ArrowLeft, Loader2, Play, Table2, Settings } from "lucide-react";
+import { ArrowLeft, Loader2, Play, Settings, Table2 } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useProjectDetail } from "@/lib/useProjectDetail";
 import { TagBadge } from "../components/molecules/TagBadge";
 import { HistoryChart } from "../components/organisms/HistoryChart";
+import { ProjectEditDialog } from "../components/organisms/ProjectEditDialog";
 import { RunReport } from "../components/organisms/RunReport";
 import { RunTimeline } from "../components/organisms/RunTimeline";
-import { ProjectEditDialog } from "../components/organisms/ProjectEditDialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { useState } from "react";
 
 /**
  * Détail d'un projet : sa fiche, l'évolution de ses vulnérabilités (§4), ses

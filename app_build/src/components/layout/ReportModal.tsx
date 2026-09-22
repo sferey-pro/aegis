@@ -1,4 +1,4 @@
-import { Shield, Copy, Check } from "lucide-react";
+import { Check, Copy, Shield } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Report } from "@/db/reports";
@@ -121,7 +121,9 @@ export function ReportModal({
 					{summaryText && (
 						<div className="mt-4 flex flex-col gap-2">
 							<div className="flex items-center justify-between">
-								<p className="text-sm font-semibold">Résumé pour compte-rendu</p>
+								<p className="text-sm font-semibold">
+									Résumé pour compte-rendu
+								</p>
 								<Button
 									variant="ghost"
 									size="sm"

@@ -77,7 +77,7 @@ export function formatDateTime(sqlite: string | null | undefined): string {
 
 /**
  * Copie du texte dans le presse-papiers de manière robuste.
- * 
+ *
  * Sur un accès HTTP (hors localhost), navigator.clipboard est undefined.
  * Cette fonction bascule sur document.execCommand en solution de repli
  * pour garantir le fonctionnement en réseau local.
@@ -91,7 +91,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 			console.error("Échec clipboard API, tentative de repli:", e);
 		}
 	}
-	
+
 	try {
 		const textArea = document.createElement("textarea");
 		textArea.value = text;
@@ -101,7 +101,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 		document.body.appendChild(textArea);
 		textArea.focus();
 		textArea.select();
-		
+
 		const success = document.execCommand("copy");
 		textArea.remove();
 		return success;

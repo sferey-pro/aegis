@@ -3,12 +3,12 @@ import {
 	CheckCircle2,
 	Database,
 	Download,
+	InfoIcon,
 	Key,
 	RefreshCw,
 	Settings as SettingsIcon,
-	Upload,
-	InfoIcon,
 	ShieldCheck,
+	Upload,
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -705,55 +705,85 @@ export function Settings() {
 								</label>
 								<Dialog>
 									<DialogTrigger asChild>
-										<Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground flex items-center gap-1">
-											<InfoIcon className="w-3 h-3" /> Comment configurer un projet distant ?
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-6 px-2 text-xs text-muted-foreground flex items-center gap-1"
+										>
+											<InfoIcon className="w-3 h-3" /> Comment configurer un
+											projet distant ?
 										</Button>
 									</DialogTrigger>
 									<DialogContent>
 										<DialogHeader>
-											<DialogTitle>Configuration d'un projet distant</DialogTitle>
+											<DialogTitle>
+												Configuration d'un projet distant
+											</DialogTitle>
 											<DialogDescription>
-												Gérez facilement vos projets stockés sur un dépôt privé (GitHub Enterprise, GitLab, etc.).
+												Gérez facilement vos projets stockés sur un dépôt privé
+												(GitHub Enterprise, GitLab, etc.).
 											</DialogDescription>
 										</DialogHeader>
 										<div className="space-y-6 text-sm mt-4">
 											<div className="rounded-xl border bg-card p-5 shadow-sm flex flex-col gap-3">
 												<h3 className="font-semibold text-base flex items-center gap-2">
-													<span className="flex items-center justify-center bg-primary text-primary-foreground w-6 h-6 rounded-full text-xs">1</span>
+													<span className="flex items-center justify-center bg-primary text-primary-foreground w-6 h-6 rounded-full text-xs">
+														1
+													</span>
 													Obtenir l'URL brute (Raw)
 												</h3>
 												<p className="text-muted-foreground leading-relaxed">
-													Dans Aegis, lors de la création du projet, sélectionnez la source <strong>Distant (Direct)</strong>.
-													Saisissez ensuite l'URL pointant directement vers le fichier <code>package-lock.json</code>, <code>yarn.lock</code>, ou <code>bun.lockb</code> de votre dépôt.
+													Dans Aegis, lors de la création du projet,
+													sélectionnez la source{" "}
+													<strong>Distant (Direct)</strong>. Saisissez ensuite
+													l'URL pointant directement vers le fichier{" "}
+													<code>package-lock.json</code>, <code>yarn.lock</code>
+													, ou <code>bun.lockb</code> de votre dépôt.
 												</p>
 											</div>
-											
+
 											<div className="rounded-xl border bg-card p-5 shadow-sm flex flex-col gap-4">
 												<h3 className="font-semibold text-base flex items-center gap-2">
-													<span className="flex items-center justify-center bg-primary text-primary-foreground w-6 h-6 rounded-full text-xs">2</span>
+													<span className="flex items-center justify-center bg-primary text-primary-foreground w-6 h-6 rounded-full text-xs">
+														2
+													</span>
 													Configurer le jeton d'accès
-													<span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-1 rounded-md border">Optionnel</span>
+													<span className="text-xs font-normal text-muted-foreground ml-auto bg-muted px-2 py-1 rounded-md border">
+														Optionnel
+													</span>
 												</h3>
 												<p className="text-muted-foreground leading-relaxed">
-													Si votre dépôt est privé, générez un jeton d'accès personnel avec les droits de lecture sur le dépôt. Saisissez ce jeton dans le champ ci-dessous. 
-													Lors des audits, Aegis l'inclura automatiquement dans l'en-tête <code>Authorization: Bearer</code> pour télécharger le fichier en toute sécurité.
+													Si votre dépôt est privé, générez un jeton d'accès
+													personnel avec les droits de lecture sur le dépôt.
+													Saisissez ce jeton dans le champ ci-dessous. Lors des
+													audits, Aegis l'inclura automatiquement dans l'en-tête{" "}
+													<code>Authorization: Bearer</code> pour télécharger le
+													fichier en toute sécurité.
 												</p>
 
 												<div className="mt-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 p-4">
 													<h4 className="font-medium text-blue-900 dark:text-blue-300 flex items-center gap-2 mb-3">
-														<ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" /> Recommandation de sécurité
+														<ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />{" "}
+														Recommandation de sécurité
 													</h4>
 													<p className="text-blue-800 dark:text-blue-400 mb-3 leading-relaxed">
-														Privilégiez un <strong>Fine-grained token</strong> (format: <code>github_pat_...</code>). Vous devez lui accorder strictement les permissions suivantes sur les dépôts concernés :
+														Privilégiez un <strong>Fine-grained token</strong>{" "}
+														(format: <code>github_pat_...</code>). Vous devez
+														lui accorder strictement les permissions suivantes
+														sur les dépôts concernés :
 													</p>
 													<ul className="flex flex-col gap-2.5">
 														<li className="flex items-center gap-2 text-sm">
 															<CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-500 shrink-0" />
-															<code className="bg-white dark:bg-black/40 px-2 py-1 rounded border border-blue-100 dark:border-blue-900/50 text-blue-950 dark:text-blue-200 font-mono font-semibold">Contents: Read-only</code>
+															<code className="bg-white dark:bg-black/40 px-2 py-1 rounded border border-blue-100 dark:border-blue-900/50 text-blue-950 dark:text-blue-200 font-mono font-semibold">
+																Contents: Read-only
+															</code>
 														</li>
 														<li className="flex items-center gap-2 text-sm">
 															<CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-500 shrink-0" />
-															<code className="bg-white dark:bg-black/40 px-2 py-1 rounded border border-blue-100 dark:border-blue-900/50 text-blue-950 dark:text-blue-200 font-mono font-semibold">Deployments: Read-only</code>
+															<code className="bg-white dark:bg-black/40 px-2 py-1 rounded border border-blue-100 dark:border-blue-900/50 text-blue-950 dark:text-blue-200 font-mono font-semibold">
+																Deployments: Read-only
+															</code>
 														</li>
 													</ul>
 												</div>
@@ -763,8 +793,9 @@ export function Settings() {
 								</Dialog>
 							</div>
 							<p className="text-sm text-muted-foreground mb-2">
-								Jeton par défaut utilisé pour récupérer les fichiers `*.lock` des Projets Distants. 
-								Typiquement votre token GitHub Enterprise, GitLab, etc.
+								Jeton par défaut utilisé pour récupérer les fichiers `*.lock`
+								des Projets Distants. Typiquement votre token GitHub Enterprise,
+								GitLab, etc.
 							</p>
 							<Input
 								id="remote-token"

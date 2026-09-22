@@ -1,10 +1,15 @@
-import { Check, CheckCircle2, Copy, Loader2, XCircle, HardDrive, Globe, UploadCloud } from "lucide-react";
-import React, { useEffect, useState, useRef } from "react";
-import type { ProjectTool } from "@/db/projects";
-import type { Tag } from "@/db/tags";
-import type { ProjectListItem } from "@/routes/projects";
-import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
-import { copyToClipboard } from "@/lib/utils";
+import {
+	Check,
+	CheckCircle2,
+	Copy,
+	Globe,
+	HardDrive,
+	Loader2,
+	UploadCloud,
+	XCircle,
+} from "lucide-react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -23,6 +28,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import type { ProjectTool } from "@/db/projects";
+import type { Tag } from "@/db/tags";
+import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
+import { copyToClipboard } from "@/lib/utils";
+import type { ProjectListItem } from "@/routes/projects";
 
 export function ProjectEditDialog({
 	project,
@@ -53,7 +63,9 @@ export function ProjectEditDialog({
 	});
 	const [availableTags, setAvailableTags] = useState<Tag[]>([]);
 	const [submitError, setSubmitError] = useState<string | null>(null);
-	const [detectStatus, setDetectStatus] = useState<"idle" | "detecting" | "success" | "error">("idle");
+	const [detectStatus, setDetectStatus] = useState<
+		"idle" | "detecting" | "success" | "error"
+	>("idle");
 	const [detectedToolName, setDetectedToolName] = useState<string>("");
 	const [copiedSlug, setCopiedSlug] = useState<number | null>(null);
 
@@ -69,15 +81,16 @@ export function ProjectEditDialog({
 				ignored: !!project.ignored,
 				is_remote: !!project.is_remote,
 				source_type: (project.source_type ||
-					(project.is_remote ? "ingest" : "local")) as "local" | "ingest" | "remote",
+					(project.is_remote ? "ingest" : "local")) as
+					| "local"
+					| "ingest"
+					| "remote",
 				remote_url: project.remote_url || "",
 				remote_token: project.remote_token || "",
 			});
 			setSubmitError(null);
 			setDetectStatus("idle");
-			fetchJson<Tag[]>("/api/tags")
-				.then(setAvailableTags)
-				.catch(console.error);
+			fetchJson<Tag[]>("/api/tags").then(setAvailableTags).catch(console.error);
 		}
 	}, [isOpen, project]);
 
@@ -85,14 +98,17 @@ export function ProjectEditDialog({
 		if (!formData.path) return;
 		setDetectStatus("detecting");
 		try {
-			const data = await fetchJson<{ tool: ProjectTool | null }>("/api/projects/detect", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					path: formData.path,
-					audit_path: formData.audit_path,
-				}),
-			});
+			const data = await fetchJson<{ tool: ProjectTool | null }>(
+				"/api/projects/detect",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						path: formData.path,
+						audit_path: formData.audit_path,
+					}),
+				},
+			);
 			const outil = data.tool;
 			if (outil) {
 				setFormData((prev) => ({
@@ -105,7 +121,7 @@ export function ProjectEditDialog({
 			} else {
 				setDetectStatus("error");
 			}
-		} catch (e) {
+		} catch (_e) {
 			setDetectStatus("error");
 		}
 	};
@@ -129,10 +145,16 @@ export function ProjectEditDialog({
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-				<form ref={formRef} onSubmit={handleSubmit} className="flex flex-col h-full">
+				<form
+					ref={formRef}
+					onSubmit={handleSubmit}
+					className="flex flex-col h-full"
+				>
 					<DialogHeader className="p-6 pb-4 border-b shrink-0">
 						<DialogTitle className="text-xl font-bold text-primary">
-							{showIgnoreToggle ? "Configuration du projet" : "Modifier la configuration"}
+							{showIgnoreToggle
+								? "Configuration du projet"
+								: "Modifier la configuration"}
 						</DialogTitle>
 					</DialogHeader>
 
@@ -145,7 +167,9 @@ export function ProjectEditDialog({
 									required
 									type="text"
 									value={formData.name}
-									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+									onChange={(e) =>
+										setFormData({ ...formData, name: e.target.value })
+									}
 									placeholder="Ex: Mon API Node"
 								/>
 							</div>
@@ -155,7 +179,9 @@ export function ProjectEditDialog({
 								<div className="flex gap-2">
 									<Button
 										type="button"
-										variant={formData.source_type === "local" ? "default" : "outline"}
+										variant={
+											formData.source_type === "local" ? "default" : "outline"
+										}
 										onClick={() => {
 											setFormData({
 												...formData,
@@ -170,7 +196,9 @@ export function ProjectEditDialog({
 									</Button>
 									<Button
 										type="button"
-										variant={formData.source_type === "remote" ? "default" : "outline"}
+										variant={
+											formData.source_type === "remote" ? "default" : "outline"
+										}
 										onClick={() => {
 											setFormData({
 												...formData,
@@ -186,7 +214,9 @@ export function ProjectEditDialog({
 									</Button>
 									<Button
 										type="button"
-										variant={formData.source_type === "ingest" ? "default" : "outline"}
+										variant={
+											formData.source_type === "ingest" ? "default" : "outline"
+										}
 										onClick={() => {
 											setFormData({
 												...formData,
@@ -207,7 +237,8 @@ export function ProjectEditDialog({
 								<div className="flex flex-col gap-1 md:col-span-2 bg-muted/30 p-4 rounded-lg border border-border/50">
 									<Label>URL d'ingestion (API)</Label>
 									<p className="text-xs text-muted-foreground mb-2">
-										Envoyez le résultat de votre scan npm audit, yarn audit ou trivy sur cette URL.
+										Envoyez le résultat de votre scan npm audit, yarn audit ou
+										trivy sur cette URL.
 									</p>
 									<div className="relative flex items-center">
 										<Input
@@ -237,7 +268,9 @@ export function ProjectEditDialog({
 															.replace(/(^-|-$)/g, "")
 													: "";
 												if (slug) {
-													copyToClipboard(`${window.location.origin}/api/ingest/${slug}`);
+													copyToClipboard(
+														`${window.location.origin}/api/ingest/${slug}`,
+													);
 													setCopiedSlug(-1);
 													setTimeout(() => setCopiedSlug(null), 2000);
 												}
@@ -262,7 +295,9 @@ export function ProjectEditDialog({
 										required={!formData.is_remote}
 										type="text"
 										value={formData.path}
-										onChange={(e) => setFormData({ ...formData, path: e.target.value })}
+										onChange={(e) =>
+											setFormData({ ...formData, path: e.target.value })
+										}
 										onBlur={handleDetectTool}
 										placeholder="Ex: /home/user/projects/api"
 									/>
@@ -273,12 +308,14 @@ export function ProjectEditDialog({
 									)}
 									{detectStatus === "success" && (
 										<span className="text-xs mt-1 flex items-center gap-1">
-											<CheckCircle2 className="w-3 h-3" /> Outil détecté : {detectedToolName}
+											<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
+											{detectedToolName}
 										</span>
 									)}
 									{detectStatus === "error" && (
 										<span className="text-xs mt-1 flex items-center gap-1">
-											<XCircle className="w-3 h-3" /> Impossible de détecter automatiquement (vérifiez le chemin)
+											<XCircle className="w-3 h-3" /> Impossible de détecter
+											automatiquement (vérifiez le chemin)
 										</span>
 									)}
 								</div>
@@ -286,12 +323,16 @@ export function ProjectEditDialog({
 
 							{formData.source_type === "local" && (
 								<div className="flex flex-col gap-1">
-									<Label htmlFor="edit-audit-path">Sous-dossier d'audit (Optionnel)</Label>
+									<Label htmlFor="edit-audit-path">
+										Sous-dossier d'audit (Optionnel)
+									</Label>
 									<Input
 										id="edit-audit-path"
 										type="text"
 										value={formData.audit_path}
-										onChange={(e) => setFormData({ ...formData, audit_path: e.target.value })}
+										onChange={(e) =>
+											setFormData({ ...formData, audit_path: e.target.value })
+										}
 										onBlur={handleDetectTool}
 										placeholder="Ex: backend/src (vide si racine)"
 									/>
@@ -300,13 +341,17 @@ export function ProjectEditDialog({
 
 							{formData.source_type === "remote" && (
 								<div className="flex flex-col gap-1 md:col-span-2">
-									<Label htmlFor="edit-remote-url">URL distante du fichier lock</Label>
+									<Label htmlFor="edit-remote-url">
+										URL distante du fichier lock
+									</Label>
 									<Input
 										id="edit-remote-url"
 										required={formData.source_type === "remote"}
 										type="text"
 										value={formData.remote_url}
-										onChange={(e) => setFormData({ ...formData, remote_url: e.target.value })}
+										onChange={(e) =>
+											setFormData({ ...formData, remote_url: e.target.value })
+										}
 										placeholder="Ex: https://raw.githubusercontent.com/.../package-lock.json"
 									/>
 								</div>
@@ -349,7 +394,9 @@ export function ProjectEditDialog({
 													if (isSelected) {
 														setFormData({
 															...formData,
-															tags: formData.tags.filter((tag) => tag !== t.name),
+															tags: formData.tags.filter(
+																(tag) => tag !== t.name,
+															),
 														});
 													} else {
 														setFormData({
@@ -384,12 +431,15 @@ export function ProjectEditDialog({
 								<Label className="flex items-center gap-2 cursor-pointer text-red-600 dark:text-red-400">
 									<Switch
 										checked={formData.ignored}
-										onCheckedChange={(c) => setFormData({ ...formData, ignored: c })}
+										onCheckedChange={(c) =>
+											setFormData({ ...formData, ignored: c })
+										}
 									/>
 									Ignorer lors des audits globaux
 								</Label>
 								<p className="text-sm text-muted-foreground ml-11">
-									Si activé, ce projet ne sera pas audité lors de l'audit global ou programmé.
+									Si activé, ce projet ne sera pas audité lors de l'audit global
+									ou programmé.
 								</p>
 							</div>
 						)}
@@ -397,7 +447,10 @@ export function ProjectEditDialog({
 
 					<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-col items-stretch gap-2 bg-muted/20 sm:flex-row sm:items-center sm:justify-end">
 						{submitError && (
-							<p role="alert" className="mr-auto text-sm font-medium text-red-500">
+							<p
+								role="alert"
+								className="mr-auto text-sm font-medium text-red-500"
+							>
 								{submitError}
 							</p>
 						)}

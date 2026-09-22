@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
-import { emitConsoleStart, emitConsoleEnd } from "./console";
+import { emitConsoleEnd, emitConsoleStart } from "./console";
 
 export async function syncRemoteProject(project: Project) {
 	if (project.source_type !== "remote" || !project.remote_url) {
@@ -19,12 +19,17 @@ export async function syncRemoteProject(project: Project) {
 	const baseDir = join(firstRoot, ".aegis_remote_projects");
 	const projectDir = join(baseDir, `project_${project.id}`);
 	const { getSetting } = await import("../db/settings");
-	const globalToken = getSetting("REMOTE_TOKEN", process.env.REMOTE_TOKEN ?? "");
+	const globalToken = getSetting(
+		"REMOTE_TOKEN",
+		process.env.REMOTE_TOKEN ?? "",
+	);
 	const token = project.remote_token || globalToken;
 
-	const cmdString = token
-		? `curl -H "Authorization: Bearer ***" ${project.remote_url}`
-		: `curl ${project.remote_url}`;
+	let cmdString = `curl -H "Accept: application/vnd.github.v3.raw, */*"`;
+	if (token) {
+		cmdString += ` -H "Authorization: Bearer ***"`;
+	}
+	cmdString += ` ${project.remote_url}`;
 
 	const consoleId = emitConsoleStart({
 		cmd: cmdString,
@@ -35,7 +40,17 @@ export async function syncRemoteProject(project: Project) {
 	try {
 		await mkdir(projectDir, { recursive: true });
 
-		const headers: Record<string, string> = {};
+		const headers: Record<string, string> = {
+			// Demander explicitement le contenu brut si l'URL pointe vers l'API REST GitHub
+			// (ex: https://api.github.com/repos/.../contents/package-lock.json)
+			Accept:
+				"application/vnd.github.raw+json, application/vnd.github.v3.raw, */*",
+		};
+
+		if (project.remote_url.includes("api.github.com")) {
+			headers["X-GitHub-Api-Version"] = "2022-11-28";
+		}
+
 		if (token) {
 			headers.Authorization = `Bearer ${token}`;
 		}
@@ -72,7 +87,11 @@ export async function syncRemoteProject(project: Project) {
 		};
 		saveGitState(project.id, git);
 
-		emitConsoleEnd(consoleId, { ok: true, exitCode: 0, outText: "Fichier lock téléchargé avec succès." });
+		emitConsoleEnd(consoleId, {
+			ok: true,
+			exitCode: 0,
+			outText: "Fichier lock téléchargé avec succès.",
+		});
 		return { success: true, message: "Fichier lock téléchargé avec succès." };
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);

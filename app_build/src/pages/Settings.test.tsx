@@ -345,9 +345,7 @@ describe("Settings", () => {
 			target: { value: "48" },
 		});
 
-		fireEvent.click(
-			screen.getByLabelText("Enregistrer Paramètres d'Audit"),
-		);
+		fireEvent.click(screen.getByLabelText("Enregistrer Paramètres d'Audit"));
 
 		await waitFor(() => expect(put()).toHaveLength(1));
 		const corps = put()[0]?.body as Record<string, unknown>;
@@ -470,9 +468,7 @@ describe("Settings", () => {
 			target: { value: "-3" },
 		});
 
-		fireEvent.click(
-			screen.getByLabelText("Enregistrer Paramètres d'Audit"),
-		);
+		fireEvent.click(screen.getByLabelText("Enregistrer Paramètres d'Audit"));
 
 		// L'échec s'affiche **dans la section** qui l'a produit, pas en pied de page.
 		expect(await screen.findByRole("alert")).toHaveTextContent(

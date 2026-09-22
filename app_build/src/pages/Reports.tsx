@@ -2,9 +2,11 @@ import {
 	Activity,
 	ArrowDownRight,
 	ArrowUpRight,
-	Calendar, Copy, Check,
+	Calendar,
+	Check,
 	ChevronLeft,
 	ChevronRight,
+	Copy,
 	Eye,
 	FileText,
 	Minus,
@@ -15,8 +17,8 @@ import {
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Report } from "@/db/reports";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
-import { copyToClipboard } from "@/lib/utils";
 import type { Vulnerability } from "@/lib/parsers/types";
+import { copyToClipboard } from "@/lib/utils";
 
 /**
  * Vulnérabilité telle que l'écran manipule un diff entre deux comptes-rendus :
@@ -176,16 +178,30 @@ export const Reports = memo(function Reports({
 		const prevReport = index < reports.length - 1 ? reports[index + 1] : null;
 		if (!currentReport) return;
 
-		const projectStats = new Map<number, { name: string; currentTotal: number; previousTotal: number; newCount: number }>();
+		const projectStats = new Map<
+			number,
+			{
+				name: string;
+				currentTotal: number;
+				previousTotal: number;
+				newCount: number;
+			}
+		>();
 		const currentVulns = new Map<string, { projectId: number }>();
 		const prevVulns = new Map<string, { projectId: number }>();
 
 		if (currentReport.details) {
 			currentReport.details.forEach((d) => {
 				if (!projectStats.has(d.projectId)) {
-					projectStats.set(d.projectId, { name: d.projectName, currentTotal: 0, previousTotal: 0, newCount: 0 });
+					projectStats.set(d.projectId, {
+						name: d.projectName,
+						currentTotal: 0,
+						previousTotal: 0,
+						newCount: 0,
+					});
 				}
 				if (d.vulns) {
+					// biome-ignore lint/style/noNonNullAssertion: safe
 					projectStats.get(d.projectId)!.currentTotal = d.vulns.length;
 					d.vulns.forEach((v) => {
 						const key = `${d.projectId}-${v.package}-${v.cve || v.title}`;
@@ -198,9 +214,15 @@ export const Reports = memo(function Reports({
 		if (prevReport?.details) {
 			prevReport.details.forEach((d) => {
 				if (!projectStats.has(d.projectId)) {
-					projectStats.set(d.projectId, { name: d.projectName, currentTotal: 0, previousTotal: 0, newCount: 0 });
+					projectStats.set(d.projectId, {
+						name: d.projectName,
+						currentTotal: 0,
+						previousTotal: 0,
+						newCount: 0,
+					});
 				}
 				if (d.vulns) {
+					// biome-ignore lint/style/noNonNullAssertion: safe
 					projectStats.get(d.projectId)!.previousTotal = d.vulns.length;
 					d.vulns.forEach((v) => {
 						const key = `${d.projectId}-${v.package}-${v.cve || v.title}`;
@@ -212,6 +234,7 @@ export const Reports = memo(function Reports({
 
 		currentVulns.forEach((v, k) => {
 			if (!prevVulns.has(k)) {
+				// biome-ignore lint/style/noNonNullAssertion: safe
 				projectStats.get(v.projectId)!.newCount++;
 			}
 		});
@@ -228,7 +251,14 @@ export const Reports = memo(function Reports({
 				return;
 			}
 
-			const etat = p.currentTotal === 0 ? "Sain" : (p.currentTotal < p.previousTotal ? "En amélioration" : (p.newCount > 0 ? "En danger" : "Vulnérable"));
+			const etat =
+				p.currentTotal === 0
+					? "Sain"
+					: p.currentTotal < p.previousTotal
+						? "En amélioration"
+						: p.newCount > 0
+							? "En danger"
+							: "Vulnérable";
 			summaryText += `${p.name} +${p.newCount} nouvelles CVEs (Total : ${p.currentTotal}) +${fixedCount} CVEs Corrigé - ${etat}\n`;
 		});
 
@@ -456,7 +486,9 @@ export const Reports = memo(function Reports({
 												<Button
 													variant="ghost"
 													size="icon"
-													onClick={(e) => handleCopySummary(e, reports.indexOf(r))}
+													onClick={(e) =>
+														handleCopySummary(e, reports.indexOf(r))
+													}
 													className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
 													title="Copier le résumé"
 												>

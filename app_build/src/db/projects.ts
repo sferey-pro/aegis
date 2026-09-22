@@ -180,7 +180,9 @@ export function updateProject(
 	const remote_url =
 		input.remote_url !== undefined ? input.remote_url : current.remote_url;
 	const remote_token =
-		input.remote_token !== undefined ? input.remote_token : current.remote_token;
+		input.remote_token !== undefined
+			? input.remote_token
+			: current.remote_token;
 
 	const query = db.query(`
     UPDATE projects 

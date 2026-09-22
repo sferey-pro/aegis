@@ -143,7 +143,9 @@ export const Projects = React.memo(function Projects() {
 	const [detectingId, setDetectingId] = useState<number | null>(null);
 	const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
 	const [detectedToolName, setDetectedToolName] = useState<string | null>(null);
-	const [projectToEdit, setProjectToEdit] = useState<ProjectListItem | null>(null);
+	const [projectToEdit, setProjectToEdit] = useState<ProjectListItem | null>(
+		null,
+	);
 	const [copiedSlug, setCopiedSlug] = useState<number | null>(null);
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [auditState, setAuditState] = useState<Record<number, string>>({});
@@ -315,7 +317,7 @@ export const Projects = React.memo(function Projects() {
 		setSubmitError(null);
 		try {
 			const payload = { ...formData };
-			
+
 			const nouveau = await fetchJson<Project>("/api/projects", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -715,10 +717,10 @@ export const Projects = React.memo(function Projects() {
 										)}
 										<DialogTitle className="text-xl font-bold text-primary">
 											{formData.source_type === "local"
-													? "Nouveau Projet Local"
-													: formData.source_type === "remote"
-														? "Nouveau Projet Distant"
-														: "Nouvelle Ingestion CI"}
+												? "Nouveau Projet Local"
+												: formData.source_type === "remote"
+													? "Nouveau Projet Distant"
+													: "Nouvelle Ingestion CI"}
 										</DialogTitle>
 									</div>
 								</DialogHeader>
@@ -933,7 +935,6 @@ export const Projects = React.memo(function Projects() {
 											</div>
 										)}
 
-
 										<div className="flex flex-col gap-1">
 											<label
 												htmlFor="project-tool"
@@ -1048,7 +1049,7 @@ export const Projects = React.memo(function Projects() {
 											Créer le projet CI
 										</Button>
 									)}
-									{(!formData.is_remote) && (
+									{!formData.is_remote && (
 										<Button
 											type="submit"
 											onClick={(e) => handleSubmit(e, false)}
@@ -1367,7 +1368,6 @@ export const Projects = React.memo(function Projects() {
 				offset
 			/>
 
-			
 			{projectToEdit && (
 				<ProjectEditDialog
 					project={projectToEdit}

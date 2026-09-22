@@ -369,6 +369,7 @@ describe("Projects", () => {
 	});
 
 	test("toggleIgnore envoie un PATCH partiel, validé par la route ignore", async () => {
+		// biome-ignore lint/suspicious/noExplicitAny: test
 		const projects = base["GET /api/projects"] as any[];
 		mockFetch({
 			...base,

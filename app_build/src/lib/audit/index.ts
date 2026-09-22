@@ -294,9 +294,10 @@ export async function runAudit(
 				projectId,
 				command: "",
 				commitSha: gitInfo.sha,
-				error: [`Outil d'audit inconnu: ${currentProject.tool}`, `cwd: ${cwd}`].join(
-					"\n",
-				),
+				error: [
+					`Outil d'audit inconnu: ${currentProject.tool}`,
+					`cwd: ${cwd}`,
+				].join("\n"),
 				duration_ms: 0,
 			});
 			return { run: errRun, deduped: false, newCves: [] };
@@ -361,7 +362,8 @@ export async function runAudit(
 		if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
 			const errMsg = systemError
 				? `Erreur système: ${systemError}`
-				: stderr.trim() || `${currentProject.tool}: aucune sortie (exit ${exitCode})`;
+				: stderr.trim() ||
+					`${currentProject.tool}: aucune sortie (exit ${exitCode})`;
 
 			// Format de l'erreur multi-ligne
 			const errorBody = [

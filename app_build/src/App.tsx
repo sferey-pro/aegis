@@ -182,9 +182,16 @@ export function App() {
 				if (p.lastRun) {
 					fixedCount = Math.max(0, previousTotal + newCount - currentTotal);
 				}
-				
+
 				if (currentTotal > 0 || fixedCount > 0 || newCount > 0) {
-					const etat = currentTotal === 0 ? "Sain" : (currentTotal < previousTotal ? "En amélioration" : (newCount > 0 ? "En danger" : "Vulnérable"));
+					const etat =
+						currentTotal === 0
+							? "Sain"
+							: currentTotal < previousTotal
+								? "En amélioration"
+								: newCount > 0
+									? "En danger"
+									: "Vulnérable";
 					summaryText += `${p.name} +${newCount} nouvelles CVEs (Total : ${currentTotal}) +${fixedCount} CVEs Corrigé - ${etat}\n`;
 				}
 

@@ -9,8 +9,8 @@ import {
 	listProjects,
 	type Project,
 	type ProjectTool,
-	updateProject,
 	toggleIgnoreProject,
+	updateProject,
 } from "../db/projects";
 import {
 	getLatestRun,
@@ -331,14 +331,14 @@ export const projectsRoutes = {
 			const id = parseInt(req.params.id, 10);
 			const p = listProjects().find((p) => p.id === id);
 			if (!p) return Response.json({ error: "Not found" }, { status: 404 });
-					let git: ProjectGitState = { isRepo: false };
-					if (p.source_type === "local") {
-						try {
-							git = await getGitInfo(p.path);
-						} catch (e) {
-							console.error(`Git error on ${p.path}:`, e);
-						}
-					}
+			let git: ProjectGitState = { isRepo: false };
+			if (p.source_type === "local") {
+				try {
+					git = await getGitInfo(p.path);
+				} catch (e) {
+					console.error(`Git error on ${p.path}:`, e);
+				}
+			}
 			saveGitState(p.id, git);
 			const run = getLatestRun(p.id);
 			return Response.json({ ...p, git, lastRun: run });
@@ -401,10 +401,10 @@ export const projectsRoutes = {
 			try {
 				const project = toggleIgnoreProject(id);
 				return Response.json(project);
-			} catch (e: any) {
-				return Response.json({ error: e.message }, { status: 404 });
+			} catch (e: unknown) {
+				return Response.json({ error: (e as Error).message }, { status: 404 });
 			}
-		}
+		},
 	},
 
 	/**
@@ -554,7 +554,7 @@ export const projectsRoutes = {
 				const { AuditEnCoursError } = await import("../lib/audit/queue");
 				if (e instanceof AuditEnCoursError) {
 					return Response.json(
-						{ success: false, error: e.message },
+						{ success: false, error: (e as Error).message },
 						{ status: 409 },
 					);
 				}

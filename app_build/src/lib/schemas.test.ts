@@ -41,7 +41,7 @@ describe("schemas — projectBodySchema", () => {
 		const r = projectBodySchema.parse(projetValide);
 		expect(r.tags).toEqual([]);
 		expect(r.ignored).toBe(false);
-		expect(r.is_remote).toBe(false);
+		expect(r.source_type === "ingest").toBe(false);
 		expect(r.audit_path).toBeNull();
 	});
 
@@ -148,7 +148,7 @@ describe("schemas — projectBodySchema", () => {
 			is_remote: "true",
 		});
 		expect(r.ignored).toBe(true);
-		expect(r.is_remote).toBe(true);
+		expect(r.source_type === "ingest").toBe(true);
 	});
 
 	test("les champs inconnus sont écartés du résultat", () => {
@@ -533,6 +533,6 @@ describe("contrats attendus — à activer au correctif", () => {
 			is_remote: "false",
 		});
 		expect(r.ignored).toBe(false);
-		expect(r.is_remote).toBe(false);
+		expect(r.source_type === "ingest").toBe(false);
 	});
 });

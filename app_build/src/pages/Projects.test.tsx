@@ -19,6 +19,8 @@ import { Projects } from "./Projects";
 let sse: ReturnType<typeof mockEventSource>;
 
 function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
+	
+ 	// @ts-expect-error
 	return {
 		id: 7,
 		name: "Mon API",
@@ -29,9 +31,7 @@ function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
 		tool: "npm",
 		tags: [],
 		ignored: false,
-		is_remote: false,
 		source_type: "local",
-		remote_url: null,
 		created_at: "2026-07-01 09:00:00",
 		git: { isRepo: false },
 		lastRun: null,

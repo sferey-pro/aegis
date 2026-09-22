@@ -32,6 +32,7 @@ import {
 	gitFetch,
 	gitPull,
 } from "../lib/git";
+import { getAdapter } from "../lib/project-adapters";
 import { detectBodySchema, projectBodySchema } from "../lib/schemas";
 import { parseBody } from "../lib/validate";
 
@@ -315,7 +316,7 @@ export const projectsRoutes = {
 			const project = createProject(data);
 
 			if (project.source_type === "remote") {
-				const baseDir = nodePath.join(process.cwd(), ".aegis_remote_projects");
+				const baseDir = nodePath.join(process.cwd(), process.cwd().endsWith("app_build") ? ".." : ".", ".aegis_remote_projects");
 				const projectDir = nodePath.join(baseDir, `project_${project.id}`);
 
 				// Update path now that we have ID
@@ -369,7 +370,7 @@ export const projectsRoutes = {
 			}
 
 			if (data.source_type === "remote") {
-				const baseDir = nodePath.join(process.cwd(), ".aegis_remote_projects");
+				const baseDir = nodePath.join(process.cwd(), process.cwd().endsWith("app_build") ? ".." : ".", ".aegis_remote_projects");
 				data.path = nodePath.join(baseDir, `project_${id}`);
 			}
 
@@ -377,8 +378,15 @@ export const projectsRoutes = {
 			return Response.json(project);
 		},
 		async DELETE(req: BunRequest<"/api/projects/:id">) {
-			// N37 : 404 si rien n'a été supprimé.
-			if (!deleteProject(parseInt(req.params.id, 10))) {
+			const id = parseInt(req.params.id, 10);
+			const project = getProjectById(id);
+			if (!project)
+				return Response.json({ error: "Projet introuvable" }, { status: 404 });
+
+			const adapter = getAdapter(project);
+			await adapter.destroy();
+
+			if (!deleteProject(id)) {
 				return Response.json({ error: "Projet introuvable" }, { status: 404 });
 			}
 			return Response.json({ success: true });
@@ -456,18 +464,20 @@ export const projectsRoutes = {
 			const res = await projectContext.run(
 				{ project: project.name },
 				async () => {
+					const adapter = getAdapter(project);
+					let action: any = { success: true, stdout: "Opération terminée" };
 					if (project.source_type === "remote") {
-						const { syncRemoteProject } = await import("../lib/remote-sync");
-						const action = await syncRemoteProject(project);
-						const git = { isRepo: false as const }; // Remote projects don't have real git states
-						saveGitState(project.id, git);
-						return { success: true, stdout: action.message, git };
+						await adapter.prepare();
+						action.stdout = "Fichier lock téléchargé avec succès.";
+					} else if (project.source_type === "local") {
+						action = await gitFetch(project.path);
 					} else {
-						const action = await gitFetch(project.path);
-						const git = await getGitInfo(project.path);
-						saveGitState(project.id, git);
-						return { ...action, git };
+						action.stdout = "Ignoré pour un projet ingest.";
 					}
+
+					const git = await adapter.getGitInfo();
+					saveGitState(project.id, git as any);
+					return { ...action, git };
 				},
 			);
 
@@ -489,18 +499,20 @@ export const projectsRoutes = {
 			const res = await projectContext.run(
 				{ project: project.name },
 				async () => {
+					const adapter = getAdapter(project);
+					let action: any = { success: true, stdout: "Opération terminée" };
 					if (project.source_type === "remote") {
-						const { syncRemoteProject } = await import("../lib/remote-sync");
-						const action = await syncRemoteProject(project);
-						const git = { isRepo: false as const };
-						saveGitState(project.id, git);
-						return { success: true, stdout: action.message, git };
+						await adapter.prepare();
+						action.stdout = "Fichier lock téléchargé avec succès.";
+					} else if (project.source_type === "local") {
+						action = await gitPull(project.path);
 					} else {
-						const action = await gitPull(project.path);
-						const git = await getGitInfo(project.path);
-						saveGitState(project.id, git);
-						return { ...action, git };
+						action.stdout = "Ignoré pour un projet ingest.";
 					}
+
+					const git = await adapter.getGitInfo();
+					saveGitState(project.id, git as any);
+					return { ...action, git };
 				},
 			);
 

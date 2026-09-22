@@ -11,9 +11,10 @@ import {
 } from "../../db/projects";
 import { addRun, getLatestRun, type Run } from "../../db/runs";
 import { emitConsoleEnd, emitConsoleStart, projectContext } from "../console";
-import { expandPath, getGitInfo } from "../git";
+import { expandPath } from "../git";
 import { parseAuditOutput } from "../parsers";
 import type { Severity, Vulnerability } from "../parsers/types";
+import { getAdapter } from "../project-adapters";
 import { auditCommand, isKnownTool, preflightAudit } from "./preflight";
 
 /** Entrée du diff « nouvelles CVE » d'un run (CONTEXT.md §2). */
@@ -241,32 +242,10 @@ export async function runAudit(
 	if (!project) throw new Error("Projet introuvable");
 
 	return projectContext.run({ project: project.name }, async () => {
-		let currentProject = project;
-		if (currentProject.source_type === "remote") {
-			const { syncRemoteProject } = await import("../remote-sync");
-			await syncRemoteProject(currentProject);
-			// Re-fetch project to get updated path if it was modified
-			const updated = getProjectById(projectId);
-			if (updated) currentProject = updated;
-		}
-
-		const cwd = getAuditTarget(currentProject);
-
-		// 1. Lire l'état git
-		let gitInfo: import("../git").GitInfo;
-		if (currentProject.source_type !== "local") {
-			gitInfo = {
-				isRepo: false,
-				branch: null,
-				sha: null,
-				upstream: null,
-				ahead: 0,
-				behind: 0,
-				dirty: false,
-			};
-		} else {
-			gitInfo = await getGitInfo(currentProject.path); // gitInfo sur la racine git
-		}
+		const adapter = getAdapter(project);
+		await adapter.prepare();
+		const cwd = adapter.getAuditCwd();
+		const gitInfo = await adapter.getGitInfo();
 
 		// 2. Chercher le dernier run
 		const lastRun = getLatestRun(projectId);
@@ -289,15 +268,14 @@ export async function runAudit(
 		// 4. Outil connu ? Sinon il n'y a pas de commande à tenter, et l'ancienne
 		// cascade de `if` laissait `args` à `[]` : `spawn([])` levait, le run en
 		// erreur ne portait aucune commande, et le diagnostic était vide (N20).
-		if (!isKnownTool(currentProject.tool)) {
+		if (!isKnownTool(project.tool)) {
 			const errRun = addErrorRun({
 				projectId,
 				command: "",
 				commitSha: gitInfo.sha,
-				error: [
-					`Outil d'audit inconnu: ${currentProject.tool}`,
-					`cwd: ${cwd}`,
-				].join("\n"),
+				error: [`Outil d'audit inconnu: ${project.tool}`, `cwd: ${cwd}`].join(
+					"\n",
+				),
 				duration_ms: 0,
 			});
 			return { run: errRun, deduped: false, newCves: [] };
@@ -306,13 +284,13 @@ export async function runAudit(
 		// 5. Contrôles préalables (§2, « Cas limites ») : chemin puis lockfile,
 		// avant tout `spawn`. Nommer la cause, plutôt que de laisser l'outil
 		// remonter un ENOENT brut que le référent devra interpréter.
-		const preflightError = preflightAudit(currentProject.tool, cwd);
+		const preflightError = preflightAudit(project.tool, cwd);
 		if (preflightError) {
 			// Aucune ligne `exit:` : rien n'a été exécuté, et un code inventé se
 			// lirait comme un échec de l'outil.
 			const errRun = addErrorRun({
 				projectId,
-				command: auditCommand(currentProject.tool).join(" "),
+				command: auditCommand(project.tool).join(" "),
 				commitSha: gitInfo.sha,
 				error: [preflightError, `cwd: ${cwd}`].join("\n"),
 				duration_ms: 0,
@@ -321,7 +299,7 @@ export async function runAudit(
 		}
 
 		// 6. Lancement de l'audit
-		const args = auditCommand(currentProject.tool);
+		const args = auditCommand(project.tool);
 		const commandStr = args.join(" ");
 		const startTime = Date.now();
 
@@ -362,8 +340,7 @@ export async function runAudit(
 		if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
 			const errMsg = systemError
 				? `Erreur système: ${systemError}`
-				: stderr.trim() ||
-					`${currentProject.tool}: aucune sortie (exit ${exitCode})`;
+				: stderr.trim() || `${project.tool}: aucune sortie (exit ${exitCode})`;
 
 			// Format de l'erreur multi-ligne
 			const errorBody = [
@@ -388,12 +365,12 @@ export async function runAudit(
 
 		// Parsing
 		try {
-			const parsed = parseAuditOutput(currentProject.tool, stdout);
+			const parsed = parseAuditOutput(project.tool, stdout);
 
 			const isBaseline = !lastRun;
 			const { enhancedVulns, counts } = await enhanceVulnerabilities(
 				projectId,
-				currentProject.tool,
+				project.tool,
 				parsed.vulnerabilities,
 				isBaseline,
 			);

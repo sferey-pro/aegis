@@ -3,62 +3,119 @@ import { getDb } from "./index";
 export type ProjectType = "node" | "composer";
 export type ProjectTool = "npm" | "yarn" | "bun" | "composer";
 
-export interface Project {
+export interface BaseProject {
 	id: number;
 	name: string;
 	slug: string;
-	path: string;
-	audit_path: string | null;
 	type: ProjectType;
 	tool: ProjectTool;
 	tags: string[];
 	ignored: boolean;
-	is_remote: boolean;
-	source_type: "local" | "ingest" | "remote";
-	remote_url: string | null;
-	remote_token?: string | null;
 	created_at: string;
 }
+
+export interface LocalProject extends BaseProject {
+	source_type: "local";
+	path: string;
+	audit_path: string | null;
+}
+
+export interface RemoteProject extends BaseProject {
+	source_type: "remote";
+	path: string; // The local cache path
+	audit_path: string | null;
+	remote_url: string;
+	remote_token: string | null;
+}
+
+export interface IngestProject extends BaseProject {
+	source_type: "ingest";
+	path: string; // usually ""
+	audit_path: string | null;
+}
+
+export type Project = LocalProject | RemoteProject | IngestProject;
 
 export interface CreateProjectInput {
 	name: string;
 	slug?: string;
-	path: string;
-	audit_path?: string | null;
 	type: ProjectType;
 	tool: ProjectTool;
 	tags?: string[];
 	ignored?: boolean;
-	is_remote?: boolean;
 	source_type?: "local" | "ingest" | "remote";
+
+	// Local & Remote
+	path?: string;
+	audit_path?: string | null;
+
+	// Remote
 	remote_url?: string | null;
 	remote_token?: string | null;
 }
 
 /**
- * Ligne `projects` brute : `tags` est du JSON en chaîne et les booléens sont
- * stockés en 0/1 par SQLite.
+ * Ligne `projects` brute
  */
-type ProjectRow = Omit<Project, "tags" | "ignored" | "is_remote"> & {
+type ProjectRow = {
+	id: number;
+	name: string;
+	slug: string;
+	type: any;
+	tool: any;
+	created_at: string;
+	source_type: any;
 	tags: string | string[];
 	ignored: number | boolean;
-	is_remote: number | boolean;
+	is_remote?: number | boolean;
+	path: string;
+	audit_path: string | null;
+	remote_url?: string | null;
+	remote_token?: string | null;
 };
 
 function parseProject(row: ProjectRow): Project {
 	let st = row.source_type;
 	if (!st) {
-		st = row.is_remote ? "ingest" : "local";
+		st = row.source_type === "ingest" ? "ingest" : "local";
+	}
+
+	const base = {
+		id: row.id,
+		name: row.name,
+		slug: row.slug,
+		type: row.type,
+		tool: row.tool,
+		tags: typeof row.tags === "string" ? JSON.parse(row.tags) : row.tags,
+		ignored: Boolean(row.ignored),
+		created_at: row.created_at,
+	};
+
+	if (st === "remote") {
+		return {
+			...base,
+			source_type: "remote",
+			path: row.path,
+			audit_path: row.audit_path || null,
+			remote_url: row.remote_url!,
+			remote_token: row.remote_token || null,
+		};
+	}
+
+	if (st === "ingest") {
+		return {
+			...base,
+			source_type: "ingest",
+			path: row.path,
+			audit_path: row.audit_path || null,
+		};
 	}
 
 	return {
-		...row,
-		source_type: st,
-		remote_url: row.remote_url || null,
-		remote_token: row.remote_token || null,
-		tags: typeof row.tags === "string" ? JSON.parse(row.tags) : row.tags,
-		ignored: Boolean(row.ignored),
-		is_remote: Boolean(row.is_remote),
+		...base,
+		source_type: "local",
+		path: row.path,
+		audit_path: row.audit_path || null,
 	};
 }
 
@@ -91,11 +148,7 @@ export function createProject(input: CreateProjectInput): Project {
 
 	const tagsStr = JSON.stringify(input.tags || []);
 	const ignored = input.ignored ? 1 : 0;
-
-	let source_type = input.source_type || "local";
-	if (input.is_remote && !input.source_type) source_type = "ingest";
-
-	const is_remote = source_type === "ingest" ? 1 : 0;
+	const source_type = input.source_type || "local";
 
 	let slug =
 		input.slug ||
@@ -105,7 +158,6 @@ export function createProject(input: CreateProjectInput): Project {
 			.replace(/(^-|-$)/g, "");
 	if (!slug) slug = "project";
 
-	// Assure slug uniqueness
 	let finalSlug = slug;
 	let counter = 1;
 	while (db.query(`SELECT id FROM projects WHERE slug = ?`).get(finalSlug)) {
@@ -114,8 +166,8 @@ export function createProject(input: CreateProjectInput): Project {
 	}
 
 	const query = db.query(`
-    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored, is_remote, source_type, remote_url, remote_token)
-    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored, $is_remote, $source_type, $remote_url, $remote_token)
+    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored, source_type, remote_url, remote_token)
+    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored, $source_type, $remote_url, $remote_token)
     RETURNING *
   `);
 
@@ -128,7 +180,6 @@ export function createProject(input: CreateProjectInput): Project {
 		$tool: input.tool,
 		$tags: tagsStr,
 		$ignored: ignored,
-		$is_remote: is_remote,
 		$source_type: source_type,
 		$remote_url: input.remote_url || null,
 		$remote_token: input.remote_token || null,
@@ -142,11 +193,8 @@ export function updateProject(
 	input: Partial<CreateProjectInput>,
 ): Project {
 	const db = getDb();
-
 	const current = getProjectById(id);
-	if (!current) {
-		throw new Error(`Project with id ${id} not found`);
-	}
+	if (!current) throw new Error(`Project with id ${id} not found`);
 
 	const name = input.name !== undefined ? input.name.trim() : current.name;
 	const path = input.path !== undefined ? input.path.trim() : current.path;
@@ -170,23 +218,21 @@ export function updateProject(
 			: current.ignored
 				? 1
 				: 0;
-
-	let source_type =
+	const source_type =
 		input.source_type !== undefined ? input.source_type : current.source_type;
-	if (input.is_remote !== undefined && input.source_type === undefined) {
-		source_type = input.is_remote ? "ingest" : "local";
-	}
-	const is_remote = source_type === "ingest" ? 1 : 0;
+
+	const currentRemoteUrl =
+		current.source_type === "remote" ? current.remote_url : null;
+	const currentRemoteToken =
+		current.source_type === "remote" ? current.remote_token : null;
 	const remote_url =
-		input.remote_url !== undefined ? input.remote_url : current.remote_url;
+		input.remote_url !== undefined ? input.remote_url : currentRemoteUrl;
 	const remote_token =
-		input.remote_token !== undefined
-			? input.remote_token
-			: current.remote_token;
+		input.remote_token !== undefined ? input.remote_token : currentRemoteToken;
 
 	const query = db.query(`
     UPDATE projects 
-    SET name = $name, path = $path, audit_path = $audit_path, type = $type, tool = $tool, tags = $tags, ignored = $ignored, is_remote = $is_remote, source_type = $source_type, remote_url = $remote_url, remote_token = $remote_token
+    SET name = $name, path = $path, audit_path = $audit_path, type = $type, tool = $tool, tags = $tags, ignored = $ignored, source_type = $source_type, remote_url = $remote_url, remote_token = $remote_token
     WHERE id = $id
     RETURNING *
   `);
@@ -200,7 +246,6 @@ export function updateProject(
 		$tool: tool,
 		$tags: tags,
 		$ignored: ignored,
-		$is_remote: is_remote,
 		$source_type: source_type,
 		$remote_url: remote_url ?? null,
 		$remote_token: remote_token ?? null,
@@ -211,10 +256,6 @@ export function updateProject(
 
 export function deleteProject(id: number): boolean {
 	const db = getDb();
-	// N37 : retourne s'il y a bien eu suppression, pour que la route réponde
-	// 404 sur un identifiant inconnu. Sans cela, l'interface ne distinguait
-	// pas « supprimé » de « n'existait pas », ce qui masquait une
-	// désynchronisation entre la liste affichée et l'état réel.
 	const info = db.query(`DELETE FROM projects WHERE id = ?`).run(id);
 	return info.changes > 0;
 }

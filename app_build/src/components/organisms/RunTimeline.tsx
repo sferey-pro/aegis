@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ShieldAlert, Trash2 } from "lucide-react";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { ProjectHistoryItem } from "@/routes/projects";
 
@@ -11,10 +11,12 @@ export function RunTimeline({
 	runs,
 	selectedId,
 	onSelect,
+	onDelete,
 }: {
 	runs: ProjectHistoryItem[];
 	selectedId: number | null;
 	onSelect: (id: number) => void;
+	onDelete?: (id: number) => void;
 }) {
 	if (runs.length === 0) {
 		return (
@@ -30,13 +32,13 @@ export function RunTimeline({
 				const selected = run.id === selectedId;
 				const nouveautes = run.newCves.length;
 				return (
-					<li key={run.id}>
+					<li key={run.id} className="flex items-stretch gap-1 group">
 						<button
 							type="button"
 							aria-pressed={selected}
 							onClick={() => onSelect(run.id)}
 							className={cn(
-								"w-full text-left rounded-lg border px-3 py-2 text-sm transition-colors",
+								"flex-1 text-left rounded-lg border px-3 py-2 text-sm transition-colors",
 								selected
 									? "border-primary bg-primary/10"
 									: "border-border hover:bg-accent",
@@ -57,6 +59,20 @@ export function RunTimeline({
 								)}
 							</div>
 						</button>
+						{onDelete && (
+							<button
+								type="button"
+								aria-label="Supprimer cet audit"
+								onClick={() => {
+									if (window.confirm("Supprimer cet audit ?")) {
+										onDelete(run.id);
+									}
+								}}
+								className="px-2 flex items-center justify-center rounded-lg border border-transparent text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
+							>
+								<Trash2 className="w-4 h-4" />
+							</button>
+						)}
 					</li>
 				);
 			})}

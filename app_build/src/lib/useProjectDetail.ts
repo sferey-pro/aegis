@@ -106,6 +106,16 @@ export function useProjectDetail(projectId: number | null) {
 		}
 	}, [projectId, load]);
 
+		const deleteRun = useCallback(async (runId: number) => {
+		try {
+			await fetchJson(`/api/runs/${runId}`, { method: "DELETE" });
+			await load();
+			setRefreshToken((t) => t + 1);
+		} catch (e: unknown) {
+			setFeedback({ type: "error", text: apiErrorMessage(e) });
+		}
+	}, [load]);
+
 	const selectedRun = history.find((r) => r.id === selectedRunId) ?? null;
 
 	return {
@@ -120,5 +130,6 @@ export function useProjectDetail(projectId: number | null) {
 		runAudit,
 		reload: load,
 		refreshToken,
+		deleteRun,
 	};
 }

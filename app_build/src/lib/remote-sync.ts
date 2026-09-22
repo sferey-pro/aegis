@@ -9,7 +9,7 @@ export async function syncRemoteProject(project: Project) {
 		throw new Error("Projet non distant ou URL manquante");
 	}
 
-	const baseDir = join(process.cwd(), ".aegis_remote_projects");
+	const baseDir = join(process.cwd(), process.cwd().endsWith("app_build") ? ".." : ".", ".aegis_remote_projects");
 	const projectDir = join(baseDir, `project_${project.id}`);
 	const { getSetting } = await import("../db/settings");
 	const globalToken = getSetting(
@@ -62,6 +62,11 @@ export async function syncRemoteProject(project: Project) {
 
 		const filePath = join(projectDir, filename);
 		await Bun.write(filePath, content);
+
+		// Create dummy manifest files so that audit tools (like composer or npm) don't crash
+		// complaining about missing composer.json or package.json
+		const manifestName = project.tool === "composer" ? "composer.json" : "package.json";
+		await Bun.write(join(projectDir, manifestName), "{}");
 
 		// Update the project path to point to this new local directory
 		if (project.path !== projectDir) {

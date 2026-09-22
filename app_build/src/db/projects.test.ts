@@ -32,16 +32,16 @@ describe("db/projects", () => {
 		const p = createProject(base);
 		expect(p.tags).toEqual([]);
 		expect(p.ignored).toBe(false);
-		expect(p.is_remote).toBe(false);
+		expect(p.source_type).toBe("local");
 		expect(p.audit_path).toBeNull();
 	});
 
 	test("les booléens SQLite 0/1 sont réhydratés en vrais booléens", () => {
 		// La colonne stocke des entiers : sans conversion, `ignored` vaudrait 0,
 		// qui est falsy mais pas `false`.
-		const p = createProject({ ...base, ignored: true, is_remote: true });
+		const p = createProject({ ...base, ignored: true, source_type: "ingest" });
 		expect(p.ignored).toBe(true);
-		expect(p.is_remote).toBe(true);
+		expect(p.source_type).toBe("ingest");
 	});
 
 	test("les tags sont stockés en JSON et relus en tableau", () => {

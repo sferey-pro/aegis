@@ -17,3 +17,4 @@
 
 # Instantanés SQLite et sauvegardes de configuration (CONTEXT.md §12)
 backups/
+.aegis_remote_projects/

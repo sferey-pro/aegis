@@ -19,16 +19,9 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
@@ -185,7 +178,8 @@ export function ProjectEditDialog({
 											...formData,
 											source_type: st,
 											is_remote: st !== "local",
-											path: st === "remote" || st === "ingest" ? "" : formData.path,
+											path:
+												st === "remote" || st === "ingest" ? "" : formData.path,
 										});
 									}}
 									className="w-full"
@@ -194,10 +188,18 @@ export function ProjectEditDialog({
 										<TabsTrigger value="local" title="Local" className="flex-1">
 											<HardDrive className="w-5 h-5" />
 										</TabsTrigger>
-										<TabsTrigger value="remote" title="Distant (Direct)" className="flex-1">
+										<TabsTrigger
+											value="remote"
+											title="Distant (Direct)"
+											className="flex-1"
+										>
 											<Globe className="w-5 h-5" />
 										</TabsTrigger>
-										<TabsTrigger value="ingest" title="Ingestion CI" className="flex-1">
+										<TabsTrigger
+											value="ingest"
+											title="Ingestion CI"
+											className="flex-1"
+										>
 											<UploadCloud className="w-5 h-5" />
 										</TabsTrigger>
 									</TabsList>
@@ -342,10 +344,18 @@ export function ProjectEditDialog({
 									className="w-full"
 								>
 									<TabsList className="w-full h-10">
-										<TabsTrigger value="npm" className="flex-1">NPM</TabsTrigger>
-										<TabsTrigger value="yarn" className="flex-1">Yarn</TabsTrigger>
-										<TabsTrigger value="bun" className="flex-1">Bun</TabsTrigger>
-										<TabsTrigger value="composer" className="flex-1">Composer</TabsTrigger>
+										<TabsTrigger value="npm" className="flex-1">
+											NPM
+										</TabsTrigger>
+										<TabsTrigger value="yarn" className="flex-1">
+											Yarn
+										</TabsTrigger>
+										<TabsTrigger value="bun" className="flex-1">
+											Bun
+										</TabsTrigger>
+										<TabsTrigger value="composer" className="flex-1">
+											Composer
+										</TabsTrigger>
 									</TabsList>
 								</Tabs>
 							</div>

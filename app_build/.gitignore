@@ -44,3 +44,4 @@ test_run.json
 # sur 421 : on ne versionne que la surface réellement consommée
 # (`src/lib/jira/types.ts`), régénérable à la demande.
 src/lib/jira/schema.d.ts
+.aegis_remote_projects/

@@ -76,12 +76,25 @@ export type ProjectListItem = Project & {
  * explicitement, poser `AEGIS_ALLOWED_ROOTS=/`.
  */
 function isPathAllowed(targetPath: string) {
+	const absolutePath = nodePath.resolve(targetPath);
+
+	// Autoriser explicitement le dossier des projets distants gérés par l'application
+	const remoteProjectsDir = nodePath.join(
+		process.cwd(),
+		".aegis_remote_projects",
+	);
+	if (
+		absolutePath === remoteProjectsDir ||
+		absolutePath.startsWith(remoteProjectsDir + nodePath.sep)
+	) {
+		return true;
+	}
+
 	const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
 	if (!allowedRootsStr) return false;
 	const allowedRoots = allowedRootsStr
 		.split(",")
 		.map((r) => nodePath.resolve(r.trim()));
-	const absolutePath = nodePath.resolve(targetPath);
 	return allowedRoots.some((root) => {
 		if (absolutePath === root) return true;
 		// La comparaison se fait au séparateur, pour que `/srv/autorise-bis` ne
@@ -302,19 +315,7 @@ export const projectsRoutes = {
 			const project = createProject(data);
 
 			if (project.source_type === "remote") {
-				const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
-				if (!allowedRootsStr) {
-					// Need to rollback creation? Not really, but it will fail.
-					return Response.json(
-						{
-							error:
-								"AEGIS_ALLOWED_ROOTS n'est pas défini, impossible de créer un projet distant.",
-						},
-						{ status: 403 },
-					);
-				}
-				const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
-				const baseDir = nodePath.join(firstRoot, ".aegis_remote_projects");
+				const baseDir = nodePath.join(process.cwd(), ".aegis_remote_projects");
 				const projectDir = nodePath.join(baseDir, `project_${project.id}`);
 
 				// Update path now that we have ID
@@ -368,18 +369,7 @@ export const projectsRoutes = {
 			}
 
 			if (data.source_type === "remote") {
-				const allowedRootsStr = process.env.AEGIS_ALLOWED_ROOTS;
-				if (!allowedRootsStr) {
-					return Response.json(
-						{
-							error:
-								"AEGIS_ALLOWED_ROOTS n'est pas défini, impossible de créer un projet distant.",
-						},
-						{ status: 403 },
-					);
-				}
-				const firstRoot = allowedRootsStr.split(",")[0]?.trim() || "";
-				const baseDir = nodePath.join(firstRoot, ".aegis_remote_projects");
+				const baseDir = nodePath.join(process.cwd(), ".aegis_remote_projects");
 				data.path = nodePath.join(baseDir, `project_${id}`);
 			}
 

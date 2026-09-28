@@ -4,6 +4,7 @@ import {
 	AlertTriangle,
 	Database,
 	GitBranch,
+	Info,
 	Shield,
 } from "lucide-react";
 import { memo } from "react";
@@ -11,6 +12,12 @@ import { Link } from "react-router-dom";
 import type { StatsResponse } from "@/routes/stats";
 import { HistoryChart } from "../components/organisms/HistoryChart";
 import { Button } from "../components/ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "../components/ui/tooltip";
 
 /**
  * Habillage de la note de santé globale.
@@ -69,9 +76,73 @@ export const Overview = memo(function Overview({
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
 				{stats?.healthGrade && (
 					<div className="bg-card border-border p-6 rounded-3xl flex flex-col items-center justify-center gap-2 relative overflow-hidden">
-						<p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest z-10">
-							Santé Globale
-						</p>
+						<div className="flex items-center gap-2 z-10">
+							<p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
+								Santé Globale
+							</p>
+							<TooltipProvider delayDuration={100}>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											className="text-muted-foreground/50 hover:text-primary transition-colors cursor-help"
+										>
+											<Info className="w-4 h-4" />
+										</button>
+									</TooltipTrigger>
+									<TooltipContent
+										side="bottom"
+										className="max-w-sm p-4 bg-popover text-popover-foreground shadow-xl border rounded-xl font-sans"
+									>
+										<h4 className="font-semibold mb-2">
+											Comment est calculée la santé ?
+										</h4>
+										<p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+											Le score part de <strong>100 points</strong>. Chaque
+											vulnérabilité non résolue retire des points selon sa
+											sévérité :
+										</p>
+										<ul className="text-xs space-y-1 mb-4 border-l-2 border-muted pl-3">
+											<li>
+												<strong className="text-red-500">Critique</strong> : -20
+												pts
+											</li>
+											<li>
+												<strong className="text-orange-500">Haute</strong> : -10
+												pts
+											</li>
+											<li>
+												<strong className="text-yellow-500">Modérée</strong> :
+												-2 pts
+											</li>
+										</ul>
+										<h4 className="font-semibold mb-2">Échelle des notes</h4>
+										<div className="grid grid-cols-5 gap-1 text-center text-[10px] font-bold">
+											<div className="bg-green-500/20 text-green-700 dark:text-green-300 py-1.5 rounded flex flex-col gap-0.5">
+												<span>A</span>
+												<span className="font-normal opacity-70">90-100</span>
+											</div>
+											<div className="bg-blue-500/20 text-blue-700 dark:text-blue-300 py-1.5 rounded flex flex-col gap-0.5">
+												<span>B</span>
+												<span className="font-normal opacity-70">80-89</span>
+											</div>
+											<div className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 py-1.5 rounded flex flex-col gap-0.5">
+												<span>C</span>
+												<span className="font-normal opacity-70">60-79</span>
+											</div>
+											<div className="bg-orange-500/20 text-orange-700 dark:text-orange-300 py-1.5 rounded flex flex-col gap-0.5">
+												<span>D</span>
+												<span className="font-normal opacity-70">40-59</span>
+											</div>
+											<div className="bg-red-500/20 text-red-700 dark:text-red-300 py-1.5 rounded flex flex-col gap-0.5">
+												<span>F</span>
+												<span className="font-normal opacity-70">&lt;40</span>
+											</div>
+										</div>
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
+						</div>
 						<div
 							className={`relative z-10 w-24 h-24 mt-2 rounded-2xl flex items-center justify-center text-5xl font-black ${GRADE_COLORS[stats.healthGrade] ?? GRADE_COLORS.F}`}
 						>

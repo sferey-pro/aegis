@@ -100,7 +100,6 @@ export const statsRoutes = {
 			else if (scoreValue >= 80) healthGrade = "B";
 			else if (scoreValue >= 60) healthGrade = "C";
 			else if (scoreValue >= 40) healthGrade = "D";
-			else if (scoreValue >= 20) healthGrade = "E";
 
 			const topProjects = projectRisks
 				.sort((a, b) => b.risk - a.risk)

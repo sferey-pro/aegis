@@ -1,5 +1,7 @@
 import {
 	Edit2,
+	GitBranch,
+	GitCommit,
 	Play,
 	Shield,
 	Trash2,
@@ -65,7 +67,21 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 				</div>
 			</TableCell>
 			<TableCell>
-				<span className="text-xs text-muted-foreground italic">Non applicable</span>
+				<div className="flex flex-col gap-1 items-start text-xs font-mono">
+					{(p as any).git?.branch && (
+						<span className="flex items-center gap-1 text-muted-foreground" title="Branche surveillée">
+							<GitBranch className="w-3 h-3" />
+							{(p as any).git.branch}
+						</span>
+					)}
+					{(p as any).git?.sha && (
+						<span className="flex items-center gap-1" title="Commit audité">
+							<GitCommit className="w-3 h-3 text-primary/50" />
+							{(p as any).git.sha.substring(0, 7)}
+						</span>
+					)}
+					{!(p as any).git?.isRepo && <span className="text-muted-foreground italic">Non synchronisé</span>}
+				</div>
 			</TableCell>
 			<TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
 				<div className="flex items-center justify-end gap-1">

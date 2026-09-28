@@ -25,13 +25,7 @@ import {
 	resolveAuditTarget,
 } from "../lib/audit";
 import { runSingleAudit } from "../lib/audit/queue";
-import {
-	expandPath,
-	type GitInfo,
-	getGitInfo,
-	gitFetch,
-	gitPull,
-} from "../lib/git";
+import { expandPath, type GitInfo, gitFetch, gitPull } from "../lib/git";
 import { getAdapter } from "../lib/project-adapters";
 import { detectBodySchema, projectBodySchema } from "../lib/schemas";
 import { parseBody } from "../lib/validate";
@@ -274,12 +268,11 @@ export const projectsRoutes = {
 					const p = projects[index];
 					if (!p) continue;
 					let git: ProjectGitState = { isRepo: false };
-					if (p.source_type === "local") {
-						try {
-							git = await getGitInfo(p.path);
-						} catch (e) {
-							console.error(`Git error on ${p.path}:`, e);
-						}
+					try {
+						const adapter = getAdapter(p);
+						git = await adapter.getGitInfo();
+					} catch (e) {
+						console.error(`Git error on project ${p.id}:`, e);
 					}
 					// Persisté : c'est ce qui évite de tout recalculer au prochain
 					// affichage, et qui fait qu'une vérification laisse une trace.
@@ -316,7 +309,11 @@ export const projectsRoutes = {
 			const project = createProject(data);
 
 			if (project.source_type === "remote") {
-				const baseDir = nodePath.join(process.cwd(), process.cwd().endsWith("app_build") ? ".." : ".", ".aegis_remote_projects");
+				const baseDir = nodePath.join(
+					process.cwd(),
+					process.cwd().endsWith("app_build") ? ".." : ".",
+					".aegis_remote_projects",
+				);
 				const projectDir = nodePath.join(baseDir, `project_${project.id}`);
 
 				// Update path now that we have ID
@@ -334,12 +331,11 @@ export const projectsRoutes = {
 			const p = listProjects().find((p) => p.id === id);
 			if (!p) return Response.json({ error: "Not found" }, { status: 404 });
 			let git: ProjectGitState = { isRepo: false };
-			if (p.source_type === "local") {
-				try {
-					git = await getGitInfo(p.path);
-				} catch (e) {
-					console.error(`Git error on ${p.path}:`, e);
-				}
+			try {
+				const adapter = getAdapter(p);
+				git = await adapter.getGitInfo();
+			} catch (e) {
+				console.error(`Git error on project ${p.id}:`, e);
 			}
 			saveGitState(p.id, git);
 			const run = getLatestRun(p.id);
@@ -370,7 +366,11 @@ export const projectsRoutes = {
 			}
 
 			if (data.source_type === "remote") {
-				const baseDir = nodePath.join(process.cwd(), process.cwd().endsWith("app_build") ? ".." : ".", ".aegis_remote_projects");
+				const baseDir = nodePath.join(
+					process.cwd(),
+					process.cwd().endsWith("app_build") ? ".." : ".",
+					".aegis_remote_projects",
+				);
 				data.path = nodePath.join(baseDir, `project_${id}`);
 			}
 

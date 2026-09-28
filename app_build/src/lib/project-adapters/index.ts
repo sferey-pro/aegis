@@ -59,6 +59,56 @@ class RemoteAdapter implements ProjectAdapter {
 	}
 
 	async getGitInfo(): Promise<GitInfo> {
+		if (!this.project.remote_url) return mockGitInfo;
+
+		try {
+			if (this.project.remote_url.startsWith("https://raw.githubusercontent.com/")) {
+				const pathStr = this.project.remote_url.replace("https://raw.githubusercontent.com/", "");
+				const parts = pathStr.split("/");
+				const owner = parts[0];
+				const repo = parts[1];
+				const rest = parts.slice(2);
+				
+				let branch = rest[0] || null;
+				let pathParts = rest.slice(1);
+				
+				if (rest[0] === "refs" && rest[1] === "heads") {
+					branch = rest[2] || null;
+					pathParts = rest.slice(3);
+				}
+
+				const filePath = pathParts.join("/");
+				const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?path=${filePath}&sha=${branch}&per_page=1`;
+
+				const headers: Record<string, string> = {
+					"User-Agent": "Aegis-Scanner",
+					"Accept": "application/vnd.github.v3+json",
+				};
+				const token = this.project.remote_token || process.env.GITHUB_TOKEN;
+				if (token) {
+					headers["Authorization"] = `Bearer ${token}`;
+				}
+
+				const res = await fetch(apiUrl, { headers });
+				if (res.ok) {
+					const data = await res.json() as any[];
+					if (Array.isArray(data) && data.length > 0) {
+						return {
+							isRepo: true,
+							branch: branch,
+							sha: data[0].sha,
+							upstream: null,
+							ahead: 0,
+							behind: 0,
+							dirty: false,
+						};
+					}
+				}
+			}
+		} catch (e) {
+			console.error("Failed to fetch remote git info", e);
+		}
+		
 		return mockGitInfo;
 	}
 

@@ -3,6 +3,8 @@ import {
 	CheckCircle2,
 	Clock,
 	Edit2,
+	GitBranch,
+	GitCommit,
 	Globe,
 	Loader2,
 	MoreHorizontal,
@@ -17,7 +19,8 @@ import { Button } from "../../ui/button";
 import type { ProjectCardProps } from "./index";
 
 
-function getWebUrl(rawUrl: string): string {
+
+function getWebUrl(rawUrl: string, sha?: string | null): string {
 	try {
 		if (rawUrl.startsWith("https://raw.githubusercontent.com/")) {
 			const path = rawUrl.replace("https://raw.githubusercontent.com/", "");
@@ -28,11 +31,13 @@ function getWebUrl(rawUrl: string): string {
 			if (rest[0] === "refs" && rest[1] === "heads") {
 				rest.splice(0, 2);
 			}
-			return `https://github.com/${owner}/${repo}/blob/${rest.join("/")}`;
+			const targetBranchOrSha = sha || rest[0];
+			const filePath = rest.slice(1).join("/");
+			return `https://github.com/${owner}/${repo}/blob/${targetBranchOrSha}/${filePath}`;
 		}
 		// GitLab
 		if (rawUrl.includes("/-/raw/")) {
-			return rawUrl.replace("/-/raw/", "/-/blob/");
+			return rawUrl.replace("/-/raw/", "/-/blob/"); // TODO support SHA for Gitlab
 		}
 		return rawUrl;
 	} catch (e) {
@@ -137,21 +142,47 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 				</div>
 			</div>
 
-			<div className="flex items-center gap-1 mt-0">
-				<Globe className="w-3 h-3 text-muted-foreground" />
-				<span className="text-xs text-muted-foreground">Distant</span>
-			</div>
+						<div className="grid grid-cols-2 gap-4 mt-2 p-3 bg-muted/50 rounded-lg border border-border/50 shadow-sm">
+				<div className="flex flex-col gap-1">
+					<span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+						Source
+					</span>
+					<div className="flex items-center gap-1.5 text-xs">
+						<Globe className="w-3 h-3 text-primary/70" />
+						<a 
+							href={getWebUrl((p as any).remote_url, (p as any).git?.sha)}
+							target="_blank"
+							rel="noopener noreferrer"
+							onClick={(e) => e.stopPropagation()}
+							className="text-primary hover:underline font-medium"
+							title="Ouvrir le fichier distant (immuable)"
+						>
+							Fichier source
+						</a>
+					</div>
+				</div>
 
-			<a 
-				href={getWebUrl((p as any).remote_url)}
-				target="_blank"
-				rel="noopener noreferrer"
-				onClick={(e) => e.stopPropagation()}
-				className="text-xs text-primary hover:underline truncate w-full"
-				title="Ouvrir le fichier distant"
-			>
-				Fichier source
-			</a>
+				<div className="flex flex-col gap-1 items-end">
+					<span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+						Version
+					</span>
+					<div className="flex items-center gap-2 text-xs font-mono">
+						{(p as any).git?.branch && (
+							<span className="flex items-center gap-1 text-muted-foreground" title="Branche surveillée">
+								<GitBranch className="w-3 h-3" />
+								{(p as any).git.branch}
+							</span>
+						)}
+						{(p as any).git?.sha && (
+							<span className="flex items-center gap-1" title="Commit audité">
+								<GitCommit className="w-3 h-3 text-primary/50" />
+								{(p as any).git.sha.substring(0, 7)}
+							</span>
+						)}
+						{!(p as any).git?.isRepo && <span className="text-muted-foreground italic">Non synchronisé</span>}
+					</div>
+				</div>
+			</div>
 
 			{p.tags && p.tags.length > 0 && (
 				<div className="flex flex-wrap gap-1 mt-2">

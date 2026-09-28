@@ -1383,8 +1383,8 @@ export const Projects = React.memo(function Projects() {
 							<p className="text-sm text-muted-foreground mt-1">
 								Conçu pour l'automatisation. Ce n'est pas Aegis qui scanne le
 								projet, mais votre propre pipeline d'intégration continue
-								(GitHub Actions, GitLab CI...) qui génère un SBOM (CycloneDX) et
-								le pousse vers l'API d'Aegis pour centraliser les rapports.
+								(GitHub Actions, GitLab CI...) qui exécute l'audit et pousse le
+								rapport vers l'API d'Aegis pour centraliser les résultats.
 							</p>
 						</div>
 					</div>

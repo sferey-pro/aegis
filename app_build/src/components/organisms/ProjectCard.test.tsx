@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import type { Run } from "@/db/runs";
 import type { ProjectListItem } from "@/routes/projects";
-import { ProjectCard } from "./ProjectCard";
+import { ProjectCard } from "./project-cards";
 
 function run(over: Partial<Run> = {}): Run {
 	return {
@@ -182,7 +182,7 @@ describe("ProjectCard", () => {
 
 	test("le clic sur la carte ouvre le détail du projet", () => {
 		const vus: number[] = [];
-		render(<ProjectCard {...props({ onOpen: (id) => vus.push(id) })} />);
+		render(<ProjectCard {...props({ onOpen: (id: number) => vus.push(id) })} />);
 		fireEvent.click(screen.getByText("Mon API"));
 		expect(vus).toEqual([7]);
 	});
@@ -215,7 +215,7 @@ describe("ProjectCard", () => {
 
 	test("Ignorer transmet le projet entier, pas seulement son id", () => {
 		const vus: ProjectListItem[] = [];
-		render(<ProjectCard {...props({ toggleIgnore: (p) => vus.push(p) })} />);
+		render(<ProjectCard {...props({ toggleIgnore: (p: any) => vus.push(p) })} />);
 		fireEvent.click(screen.getByText("Ignorer le projet"));
 		expect(vus[0]?.id).toBe(7);
 		expect(vus[0]?.name).toBe("Mon API");

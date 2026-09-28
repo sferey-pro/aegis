@@ -118,9 +118,16 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 				<span className="text-xs text-muted-foreground">Distant</span>
 			</div>
 
-			<div className="text-xs text-muted-foreground truncate w-full" title={(p as any).remote_url}>
-				{(p as any).remote_url}
-			</div>
+			<a 
+				href={(p as any).remote_url}
+				target="_blank"
+				rel="noopener noreferrer"
+				onClick={(e) => e.stopPropagation()}
+				className="text-xs text-primary hover:underline truncate w-full"
+				title="Ouvrir le fichier distant"
+			>
+				Fichier source
+			</a>
 
 			{p.tags && p.tags.length > 0 && (
 				<div className="flex flex-wrap gap-1 mt-2">

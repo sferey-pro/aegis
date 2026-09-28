@@ -156,7 +156,17 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 								title="Branche surveillée"
 							>
 								<GitBranch className="w-3 h-3" />
-								{(p as any).git.branch}
+								{typeof (p as any).git.branch === "string" &&
+								(p as any).git.branch.endsWith(" (Active)") ? (
+									<>
+										{(p as any).git.branch.replace(" (Active)", "")}
+										<span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase tracking-wider leading-none shadow-sm border border-emerald-500/20">
+											Active
+										</span>
+									</>
+								) : (
+									(p as any).git.branch
+								)}
 							</span>
 						)}
 						{(p as any).git?.sha && (

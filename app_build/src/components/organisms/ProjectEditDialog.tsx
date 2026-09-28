@@ -329,32 +329,26 @@ export function ProjectEditDialog({
 												</TooltipTrigger>
 												<TooltipContent
 													side="right"
-													className="max-w-xs text-xs font-normal"
+													className="max-w-sm bg-popover text-popover-foreground border shadow-md text-sm p-4 font-normal space-y-3"
 												>
 													<p>
-														Pour un suivi classique, utilisez une URL de branche
-														GitHub/GitLab (ex:{" "}
-														<code className="bg-muted px-1 rounded">
+														Pour un suivi classique, indiquez la branche GitHub
+														:<br />
+														<code className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono text-xs mt-1 inline-block">
 															refs/heads/main
 														</code>
-														).
 													</p>
-													<p className="mt-1">
+													<p>
 														Pour cibler dynamiquement un{" "}
-														<strong>déploiement GitHub Active</strong>,
-														remplacez la branche par le préfixe{" "}
-														<code className="bg-muted text-primary px-1 rounded">
+														<strong>déploiement GitHub Active</strong>, utilisez
+														le préfixe{" "}
+														<code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono text-xs font-bold">
 															env:
 														</code>{" "}
-														(ex:{" "}
-														<code className="bg-muted text-primary px-1 rounded">
+														:<br />
+														<code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono text-xs font-bold mt-1 inline-block">
 															env:prod
-														</code>{" "}
-														ou{" "}
-														<code className="bg-muted text-primary px-1 rounded">
-															env:production
 														</code>
-														).
 													</p>
 												</TooltipContent>
 											</Tooltip>

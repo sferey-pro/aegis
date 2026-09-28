@@ -1361,16 +1361,24 @@ export const Projects = React.memo(function Projects() {
 							</p>
 							<div className="bg-primary/5 p-3 rounded-md mt-3 text-sm border border-primary/10">
 								<strong className="text-primary">
-									💡 Astuce : Ciblage dynamique de la production
+									💡 Astuce : Ciblage dynamique d'un environnement
 								</strong>
 								<br />
 								Remplacez le nom de la branche dans l'URL par{" "}
 								<code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono font-bold">
+									env:
+								</code>{" "}
+								suivi du nom de votre environnement (ex:{" "}
+								<code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono font-bold">
 									env:prod
+								</code>{" "}
+								ou{" "}
+								<code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono font-bold">
+									env:preprod
 								</code>
-								. Aegis interrogera l'API GitHub pour identifier automatiquement
-								le SHA du dernier déploiement marqué comme{" "}
-								<strong>Active</strong> sur cet environnement !
+								). Aegis interrogera l'API GitHub pour identifier
+								automatiquement le SHA du dernier déploiement marqué comme{" "}
+								<strong>Active</strong> sur cet environnement précis !
 							</div>
 						</div>
 

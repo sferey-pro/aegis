@@ -16,6 +16,30 @@ import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import type { ProjectCardProps } from "./index";
 
+
+function getWebUrl(rawUrl: string): string {
+	try {
+		if (rawUrl.startsWith("https://raw.githubusercontent.com/")) {
+			const path = rawUrl.replace("https://raw.githubusercontent.com/", "");
+			const parts = path.split("/");
+			const owner = parts[0];
+			const repo = parts[1];
+			const rest = parts.slice(2);
+			if (rest[0] === "refs" && rest[1] === "heads") {
+				rest.splice(0, 2);
+			}
+			return `https://github.com/${owner}/${repo}/blob/${rest.join("/")}`;
+		}
+		// GitLab
+		if (rawUrl.includes("/-/raw/")) {
+			return rawUrl.replace("/-/raw/", "/-/blob/");
+		}
+		return rawUrl;
+	} catch (e) {
+		return rawUrl;
+	}
+}
+
 export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 	p,
 	index,
@@ -119,7 +143,7 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 			</div>
 
 			<a 
-				href={(p as any).remote_url}
+				href={getWebUrl((p as any).remote_url)}
 				target="_blank"
 				rel="noopener noreferrer"
 				onClick={(e) => e.stopPropagation()}

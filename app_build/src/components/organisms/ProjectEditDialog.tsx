@@ -360,16 +360,45 @@ export function ProjectEditDialog({
 											</Tooltip>
 										</TooltipProvider>
 									</Label>
-									<Input
-										id="edit-remote-url"
-										required={formData.source_type === "remote"}
-										type="text"
-										value={formData.remote_url}
-										onChange={(e) =>
-											setFormData({ ...formData, remote_url: e.target.value })
-										}
-										placeholder="Ex: https://raw.githubusercontent.com/.../package-lock.json"
-									/>
+									<div className="flex h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 overflow-hidden">
+										<span className="flex items-center px-3 bg-muted text-muted-foreground border-r shrink-0 whitespace-nowrap text-xs">
+											https://raw.githubusercontent.com/
+										</span>
+										<input
+											id="edit-remote-url"
+											required={formData.source_type === "remote"}
+											type="text"
+											className="flex-1 bg-transparent px-3 py-2 placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-w-0"
+											value={
+												formData.remote_url.startsWith(
+													"https://raw.githubusercontent.com/",
+												)
+													? formData.remote_url.replace(
+															"https://raw.githubusercontent.com/",
+															"",
+														)
+													: formData.remote_url
+											}
+											onChange={(e) => {
+												let val = e.target.value.trim();
+												if (
+													val.startsWith("https://raw.githubusercontent.com/")
+												) {
+													val = val.replace(
+														"https://raw.githubusercontent.com/",
+														"",
+													);
+												}
+												setFormData({
+													...formData,
+													remote_url: val
+														? "https://raw.githubusercontent.com/" + val
+														: "",
+												});
+											}}
+											placeholder="orga/repo/env:prod/composer.lock"
+										/>
+									</div>
 								</div>
 							)}
 

@@ -59,6 +59,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "../components/ui/table";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "../components/ui/tooltip";
 
 export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
@@ -909,9 +915,49 @@ export const Projects = React.memo(function Projects() {
 											<div className="flex flex-col gap-1 md:col-span-2">
 												<label
 													htmlFor="project-remote-url"
-													className="text-sm font-medium"
+													className="text-sm font-medium flex items-center gap-1.5"
 												>
 													URL distante du fichier lock
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger
+																type="button"
+																className="cursor-help"
+															>
+																<Info className="w-3.5 h-3.5 text-muted-foreground hover:text-primary transition-colors" />
+															</TooltipTrigger>
+															<TooltipContent
+																side="right"
+																className="max-w-xs text-xs font-normal"
+															>
+																<p>
+																	Pour un suivi classique, utilisez une URL de
+																	branche GitHub/GitLab (ex:{" "}
+																	<code className="bg-muted px-1 rounded">
+																		refs/heads/main
+																	</code>
+																	).
+																</p>
+																<p className="mt-1">
+																	Pour cibler dynamiquement un{" "}
+																	<strong>déploiement GitHub Active</strong>,
+																	remplacez la branche par le préfixe{" "}
+																	<code className="bg-muted text-primary px-1 rounded">
+																		env:
+																	</code>{" "}
+																	(ex:{" "}
+																	<code className="bg-muted text-primary px-1 rounded">
+																		env:prod
+																	</code>{" "}
+																	ou{" "}
+																	<code className="bg-muted text-primary px-1 rounded">
+																		env:production
+																	</code>
+																	).
+																</p>
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
 												</label>
 												<Input
 													id="project-remote-url"

@@ -4,6 +4,7 @@ import {
 	Copy,
 	Globe,
 	HardDrive,
+	Info,
 	Loader2,
 	UploadCloud,
 	XCircle,
@@ -22,6 +23,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
@@ -310,8 +317,48 @@ export function ProjectEditDialog({
 
 							{formData.source_type === "remote" && (
 								<div className="flex flex-col gap-1 md:col-span-2">
-									<Label htmlFor="edit-remote-url">
+									<Label
+										htmlFor="edit-remote-url"
+										className="flex items-center gap-1.5"
+									>
 										URL distante du fichier lock
+										<TooltipProvider>
+											<Tooltip>
+												<TooltipTrigger type="button" className="cursor-help">
+													<Info className="w-3.5 h-3.5 text-muted-foreground hover:text-primary transition-colors" />
+												</TooltipTrigger>
+												<TooltipContent
+													side="right"
+													className="max-w-xs text-xs font-normal"
+												>
+													<p>
+														Pour un suivi classique, utilisez une URL de branche
+														GitHub/GitLab (ex:{" "}
+														<code className="bg-muted px-1 rounded">
+															refs/heads/main
+														</code>
+														).
+													</p>
+													<p className="mt-1">
+														Pour cibler dynamiquement un{" "}
+														<strong>déploiement GitHub Active</strong>,
+														remplacez la branche par le préfixe{" "}
+														<code className="bg-muted text-primary px-1 rounded">
+															env:
+														</code>{" "}
+														(ex:{" "}
+														<code className="bg-muted text-primary px-1 rounded">
+															env:prod
+														</code>{" "}
+														ou{" "}
+														<code className="bg-muted text-primary px-1 rounded">
+															env:production
+														</code>
+														).
+													</p>
+												</TooltipContent>
+											</Tooltip>
+										</TooltipProvider>
 									</Label>
 									<Input
 										id="edit-remote-url"

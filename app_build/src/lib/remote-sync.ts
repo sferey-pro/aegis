@@ -3,13 +3,18 @@ import { join } from "node:path";
 import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
 import { emitConsoleEnd, emitConsoleStart } from "./console";
+import { getAdapter } from "./project-adapters";
 
 export async function syncRemoteProject(project: Project) {
 	if (project.source_type !== "remote" || !project.remote_url) {
 		throw new Error("Projet non distant ou URL manquante");
 	}
 
-	const baseDir = join(process.cwd(), process.cwd().endsWith("app_build") ? ".." : ".", ".aegis_remote_projects");
+	const baseDir = join(
+		process.cwd(),
+		process.cwd().endsWith("app_build") ? ".." : ".",
+		".aegis_remote_projects",
+	);
 	const projectDir = join(baseDir, `project_${project.id}`);
 	const { getSetting } = await import("../db/settings");
 	const globalToken = getSetting(
@@ -18,11 +23,33 @@ export async function syncRemoteProject(project: Project) {
 	);
 	const token = project.remote_token || globalToken;
 
+	const adapter = getAdapter(project);
+	const gitInfo = await adapter.getGitInfo();
+
+	let downloadUrl = project.remote_url;
+	if (
+		gitInfo.sha &&
+		downloadUrl.startsWith("https://raw.githubusercontent.com/")
+	) {
+		const pathStr = downloadUrl.replace(
+			"https://raw.githubusercontent.com/",
+			"",
+		);
+		const parts = pathStr.split("/");
+
+		let branchIdx = 2;
+		if (parts.length > 4 && parts[2] === "refs" && parts[3] === "heads") {
+			branchIdx = 4;
+		}
+		parts[branchIdx] = gitInfo.sha;
+		downloadUrl = "https://raw.githubusercontent.com/" + parts.join("/");
+	}
+
 	let cmdString = `curl -H "Accept: application/vnd.github.v3.raw, */*"`;
 	if (token) {
 		cmdString += ` -H "Authorization: Bearer ***"`;
 	}
-	cmdString += ` ${project.remote_url}`;
+	cmdString += ` ${downloadUrl}`;
 
 	const consoleId = emitConsoleStart({
 		cmd: cmdString,
@@ -48,7 +75,7 @@ export async function syncRemoteProject(project: Project) {
 			headers.Authorization = `Bearer ${token}`;
 		}
 
-		const res = await fetch(project.remote_url, { headers });
+		const res = await fetch(downloadUrl, { headers });
 		if (!res.ok) {
 			throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
 		}
@@ -65,7 +92,8 @@ export async function syncRemoteProject(project: Project) {
 
 		// Create dummy manifest files so that audit tools (like composer or npm) don't crash
 		// complaining about missing composer.json or package.json
-		const manifestName = project.tool === "composer" ? "composer.json" : "package.json";
+		const manifestName =
+			project.tool === "composer" ? "composer.json" : "package.json";
 		await Bun.write(join(projectDir, manifestName), "{}");
 
 		// Update the project path to point to this new local directory
@@ -73,17 +101,8 @@ export async function syncRemoteProject(project: Project) {
 			updateProject(project.id, { path: projectDir });
 		}
 
-		// Fake a git state update to reflect the "fetch" success
-		const git = {
-			isRepo: false,
-			branch: null,
-			sha: null,
-			upstream: null,
-			ahead: 0,
-			behind: 0,
-			dirty: false,
-		};
-		saveGitState(project.id, git);
+		// Save the fetched git state (branch and active sha)
+		saveGitState(project.id, gitInfo);
 
 		emitConsoleEnd(consoleId, {
 			ok: true,

@@ -142,7 +142,7 @@ export function ProjectEditDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+			<DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
 				<form
 					ref={formRef}
 					onSubmit={handleSubmit}

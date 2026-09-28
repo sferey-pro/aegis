@@ -86,7 +86,9 @@ class RemoteAdapter implements ProjectAdapter {
 					"User-Agent": "Aegis-Scanner",
 					Accept: "application/vnd.github.v3+json",
 				};
-				const token = this.project.remote_token || process.env.GITHUB_TOKEN;
+				const { getSetting } = await import("../../db/settings");
+				const globalToken = getSetting("REMOTE_TOKEN", process.env.REMOTE_TOKEN ?? process.env.GITHUB_TOKEN ?? "");
+				const token = this.project.remote_token || globalToken;
 				if (token) {
 					headers["Authorization"] = `Bearer ${token}`;
 				}

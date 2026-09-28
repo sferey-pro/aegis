@@ -143,10 +143,20 @@ export const Overview = memo(function Overview({
 								</Tooltip>
 							</TooltipProvider>
 						</div>
-						<div
-							className={`relative z-10 w-24 h-24 mt-2 rounded-2xl flex items-center justify-center text-5xl font-black ${GRADE_COLORS[stats.healthGrade] ?? GRADE_COLORS.F}`}
-						>
-							{stats.healthGrade}
+						<div className="flex items-center gap-4 mt-2 relative z-10">
+							<div
+								className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex shrink-0 items-center justify-center text-5xl font-black ${GRADE_COLORS[stats.healthGrade] ?? GRADE_COLORS.F}`}
+							>
+								{stats.healthGrade}
+							</div>
+							<div className="flex flex-col items-start justify-center">
+								<span className="text-3xl font-black leading-none">
+									{stats.healthScore}
+								</span>
+								<span className="text-xs text-muted-foreground font-semibold mt-1">
+									/ 100 PTS
+								</span>
+							</div>
 						</div>
 					</div>
 				)}

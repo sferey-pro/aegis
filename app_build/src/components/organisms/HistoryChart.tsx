@@ -33,6 +33,14 @@ const chartConfig = {
 		label: "Faible",
 		color: "#3b82f6",
 	},
+	info: {
+		label: "Info",
+		color: "#64748b",
+	},
+	unknown: {
+		label: "Inconnue",
+		color: "#94a3b8",
+	},
 } satisfies ChartConfig;
 
 /**
@@ -197,6 +205,31 @@ export function HistoryChart({
 									stopOpacity={0}
 								/>
 							</linearGradient>
+
+							<linearGradient id="colorInfo" x1="0" y1="0" x2="0" y2="1">
+								<stop
+									offset="5%"
+									stopColor="var(--color-info)"
+									stopOpacity={0.3}
+								/>
+								<stop
+									offset="95%"
+									stopColor="var(--color-info)"
+									stopOpacity={0}
+								/>
+							</linearGradient>
+							<linearGradient id="colorUnknown" x1="0" y1="0" x2="0" y2="1">
+								<stop
+									offset="5%"
+									stopColor="var(--color-unknown)"
+									stopOpacity={0.3}
+								/>
+								<stop
+									offset="95%"
+									stopColor="var(--color-unknown)"
+									stopOpacity={0}
+								/>
+							</linearGradient>
 						</defs>
 						<CartesianGrid strokeDasharray="3 3" vertical={false} />
 						<XAxis
@@ -242,6 +275,21 @@ export function HistoryChart({
 							fill="url(#colorLow)"
 							strokeWidth={2}
 							isAnimationActive={false}
+						/>
+
+						<Area
+							type="monotone"
+							dataKey="info"
+							stackId="1"
+							stroke="var(--color-info)"
+							fill="url(#colorInfo)"
+						/>
+						<Area
+							type="monotone"
+							dataKey="unknown"
+							stackId="1"
+							stroke="var(--color-unknown)"
+							fill="url(#colorUnknown)"
 						/>
 					</AreaChart>
 				</ChartContainer>

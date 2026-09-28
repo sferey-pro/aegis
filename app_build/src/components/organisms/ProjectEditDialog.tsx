@@ -332,24 +332,34 @@ export function ProjectEditDialog({
 													className="max-w-sm bg-popover text-popover-foreground border shadow-md text-sm p-4 font-normal space-y-3"
 												>
 													<p>
-														Pour un suivi classique, indiquez la branche GitHub
-														:<br />
+														Pour un suivi classique, indiquez la branche :<br />
 														<code className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono text-xs mt-1 inline-block">
 															refs/heads/main
 														</code>
 													</p>
-													<p>
-														Pour cibler dynamiquement un{" "}
-														<strong>déploiement GitHub Active</strong>, utilisez
-														le préfixe{" "}
-														<code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono text-xs font-bold">
-															env:
-														</code>{" "}
-														:<br />
-														<code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono text-xs font-bold mt-1 inline-block">
-															env:prod
-														</code>
-													</p>
+													<div className="border-t pt-3">
+														<p className="font-semibold text-primary/90 mb-1">
+															Cibler la vraie Production
+														</p>
+														<p className="text-muted-foreground text-xs leading-relaxed mb-2">
+															Utilisez le préfixe{" "}
+															<code className="bg-primary/10 text-primary px-1 py-0.5 rounded font-mono font-bold">
+																env:
+															</code>{" "}
+															(ex:{" "}
+															<code className="bg-primary/10 text-primary px-1 py-0.5 rounded font-mono font-bold">
+																env:prod
+															</code>
+															).
+														</p>
+														<p className="text-muted-foreground text-xs leading-relaxed">
+															💡 Aegis interrogera l'API GitHub pour trouver le
+															commit exact actuellement déployé avec succès (le
+															badge <strong>Active</strong> dans l'onglet
+															Deployments), garantissant un audit sur la version
+															réellement en ligne !
+														</p>
+													</div>
 												</TooltipContent>
 											</Tooltip>
 										</TooltipProvider>

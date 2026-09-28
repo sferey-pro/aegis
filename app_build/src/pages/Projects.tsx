@@ -8,6 +8,7 @@ import {
 	Folder,
 	Globe,
 	HardDrive,
+	HelpCircle,
 	Info,
 	LayoutGrid,
 	List,
@@ -125,6 +126,7 @@ export const Projects = React.memo(function Projects() {
 	);
 
 	const [isAdding, setIsAdding] = useState(false);
+	const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 	const [isFormVisible, setIsFormVisible] = useState(false);
 	/**
 	 * Erreur renvoyée par le serveur au dernier envoi du formulaire.
@@ -600,6 +602,15 @@ export const Projects = React.memo(function Projects() {
 							<CloudDownload className="w-4 h-4 mr-2" />
 						)}
 						Synchroniser (Git / Distant)
+					</Button>
+					<Button
+						variant="outline"
+						size="icon"
+						onClick={() => setIsHelpModalOpen(true)}
+						title="Guide des types de projets"
+						className="mr-2"
+					>
+						<HelpCircle className="w-4 h-4 text-muted-foreground" />
 					</Button>
 					<Button
 						onClick={() => {
@@ -1312,6 +1323,78 @@ export const Projects = React.memo(function Projects() {
 				onConfirm={confirmDelete}
 				onCancel={() => setProjectToDelete(null)}
 			/>
+
+			<Dialog open={isHelpModalOpen} onOpenChange={setIsHelpModalOpen}>
+				<DialogContent className="sm:max-w-2xl">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2 text-xl text-primary">
+							<HelpCircle className="w-5 h-5" />
+							Guide : Les types de projets Aegis
+						</DialogTitle>
+					</DialogHeader>
+					<div className="space-y-6 py-2">
+						{/* Local */}
+						<div>
+							<h4 className="flex items-center gap-2 font-semibold text-lg">
+								<HardDrive className="w-4 h-4 text-muted-foreground" /> Projets
+								Locaux
+							</h4>
+							<p className="text-sm text-muted-foreground mt-1">
+								Idéal pour les projets présents sur votre machine ou réseau
+								local. Aegis analyse directement les fichiers du dossier et
+								utilise Git localement pour déterminer la branche et le commit.
+							</p>
+						</div>
+
+						{/* Distant */}
+						<div>
+							<h4 className="flex items-center gap-2 font-semibold text-lg">
+								<Globe className="w-4 h-4 text-primary/70" /> Projets Distants
+								(GitHub)
+							</h4>
+							<p className="text-sm text-muted-foreground mt-1">
+								Plus besoin de cloner le dépôt complet ! Indiquez l'URL GitHub
+								brute (Raw) du fichier{" "}
+								<code className="bg-muted px-1 rounded">package-lock.json</code>{" "}
+								ou <code className="bg-muted px-1 rounded">composer.lock</code>.
+								Aegis le téléchargera de manière isolée pour l'auditer.
+							</p>
+							<div className="bg-primary/5 p-3 rounded-md mt-3 text-sm border border-primary/10">
+								<strong className="text-primary">
+									💡 Astuce : Ciblage dynamique de la production
+								</strong>
+								<br />
+								Remplacez le nom de la branche dans l'URL par{" "}
+								<code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-mono font-bold">
+									env:prod
+								</code>
+								. Aegis interrogera l'API GitHub pour identifier automatiquement
+								le SHA du dernier déploiement marqué comme{" "}
+								<strong>Active</strong> sur cet environnement !
+							</div>
+						</div>
+
+						{/* Ingest */}
+						<div>
+							<h4 className="flex items-center gap-2 font-semibold text-lg">
+								<ArrowDownToLine className="w-4 h-4 text-emerald-500/70" />{" "}
+								Ingestion CI/CD
+							</h4>
+							<p className="text-sm text-muted-foreground mt-1">
+								Conçu pour l'automatisation. Ce n'est pas Aegis qui scanne le
+								projet, mais votre propre pipeline d'intégration continue
+								(GitHub Actions, GitLab CI...) qui génère un SBOM (CycloneDX) et
+								le pousse vers l'API d'Aegis pour centraliser les rapports.
+							</p>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button onClick={() => setIsHelpModalOpen(false)}>
+							J'ai compris
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 });

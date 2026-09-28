@@ -9,7 +9,6 @@ import {
 	HardDrive,
 	Info,
 	Loader2,
-	MoreHorizontal,
 	Play,
 	RefreshCw,
 	Shield,
@@ -104,23 +103,9 @@ export const LocalProjectCard = React.memo(function LocalProjectCard({
 					)}
 				</div>
 
-				<div className="relative group/menu">
-					<button
-						type="button"
-						className="p-1.5 rounded-full text-muted-foreground hover:bg-muted"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<MoreHorizontal className="w-4 h-4" />
-					</button>
-					<div className="absolute right-0 top-full mt-1 w-48 bg-card border rounded-lg opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible z-50 flex flex-col p-1 shadow-md">
-						<div className="px-2 py-1.5 text-xs text-muted-foreground border-b mb-1 flex items-center justify-between">
-							<span>Outil d'audit</span>
-							<span className="font-bold text-foreground uppercase">
-								{p.tool}
-							</span>
-						</div>
-					</div>
-				</div>
+				<span className="shrink-0 text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50">
+					{p.tool}
+				</span>
 			</div>
 
 			<div className="flex items-center gap-1 mt-0">

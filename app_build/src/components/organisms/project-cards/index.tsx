@@ -1,8 +1,8 @@
 import React from "react";
 import type { ProjectListItem } from "@/routes/projects";
+import { IngestProjectCard } from "./IngestProjectCard";
 import { LocalProjectCard } from "./LocalProjectCard";
 import { RemoteProjectCard } from "./RemoteProjectCard";
-import { IngestProjectCard } from "./IngestProjectCard";
 
 export interface ProjectCardProps {
 	p: ProjectListItem;
@@ -24,7 +24,9 @@ export interface ProjectCardProps {
 	tagColors?: Record<string, string>;
 }
 
-export const ProjectCard = React.memo(function ProjectCard(props: ProjectCardProps) {
+export const ProjectCard = React.memo(function ProjectCard(
+	props: ProjectCardProps,
+) {
 	if (props.p.source_type === "local") {
 		return <LocalProjectCard {...props} />;
 	}

@@ -7,7 +7,6 @@ import {
 	GitCommit,
 	Globe,
 	Loader2,
-	MoreHorizontal,
 	Play,
 	Shield,
 	Trash2,
@@ -17,8 +16,6 @@ import { TagBadge } from "../../molecules/TagBadge";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import type { ProjectCardProps } from "./index";
-
-
 
 function getWebUrl(rawUrl: string, sha?: string | null): string {
 	try {
@@ -123,33 +120,19 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 					)}
 				</div>
 
-				<div className="relative group/menu">
-					<button
-						type="button"
-						className="p-1.5 rounded-full text-muted-foreground hover:bg-muted"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<MoreHorizontal className="w-4 h-4" />
-					</button>
-					<div className="absolute right-0 top-full mt-1 w-48 bg-card border rounded-lg opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible z-50 flex flex-col p-1 shadow-md">
-						<div className="px-2 py-1.5 text-xs text-muted-foreground border-b mb-1 flex items-center justify-between">
-							<span>Outil d'audit</span>
-							<span className="font-bold text-foreground uppercase">
-								{p.tool}
-							</span>
-						</div>
-					</div>
-				</div>
+				<span className="shrink-0 text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50">
+					{p.tool}
+				</span>
 			</div>
 
-						<div className="grid grid-cols-2 gap-4 mt-2 p-3 bg-muted/50 rounded-lg border border-border/50 shadow-sm">
+			<div className="grid grid-cols-2 gap-4 mt-2 p-3 bg-muted/50 rounded-lg border border-border/50 shadow-sm">
 				<div className="flex flex-col gap-1">
 					<span className="text-[10px] text-muted-foreground uppercase tracking-wider">
 						Source
 					</span>
 					<div className="flex items-center gap-1.5 text-xs">
 						<Globe className="w-3 h-3 text-primary/70" />
-						<a 
+						<a
 							href={getWebUrl((p as any).remote_url, (p as any).git?.sha)}
 							target="_blank"
 							rel="noopener noreferrer"
@@ -168,7 +151,10 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 					</span>
 					<div className="flex items-center gap-2 text-xs font-mono">
 						{(p as any).git?.branch && (
-							<span className="flex items-center gap-1 text-muted-foreground" title="Branche surveillée">
+							<span
+								className="flex items-center gap-1 text-muted-foreground"
+								title="Branche surveillée"
+							>
 								<GitBranch className="w-3 h-3" />
 								{(p as any).git.branch}
 							</span>
@@ -179,7 +165,11 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 								{(p as any).git.sha.substring(0, 7)}
 							</span>
 						)}
-						{!(p as any).git?.isRepo && <span className="text-muted-foreground italic">Non synchronisé</span>}
+						{!(p as any).git?.isRepo && (
+							<span className="text-muted-foreground italic">
+								Non synchronisé
+							</span>
+						)}
 					</div>
 				</div>
 			</div>

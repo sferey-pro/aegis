@@ -433,6 +433,14 @@ export function ProjectEditDialog({
 															réellement en ligne !
 														</p>
 													</div>
+													<div className="border-t pt-3 mt-3">
+														<p className="font-semibold text-primary/90 mb-1">
+															Téléchargement des fichiers
+														</p>
+														<p className="text-muted-foreground text-xs leading-relaxed">
+															Aegis déduit et télécharge automatiquement le <strong>manifest</strong> (ex: <code>package.json</code>) en plus du <strong>fichier lock</strong> pour que l'audit fonctionne dans les conditions réelles du projet.
+														</p>
+													</div>
 												</TooltipContent>
 											</Tooltip>
 										</TooltipProvider>

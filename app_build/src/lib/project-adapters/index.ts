@@ -1,11 +1,6 @@
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-	IngestProject,
-	LocalProject,
-	Project,
-	RemoteProject,
-} from "../../db/projects";
+import type { LocalProject, Project, RemoteProject } from "../../db/projects";
 import { resolveAuditTarget } from "../audit/index";
 import { type GitInfo, getGitInfo as realGetGitInfo } from "../git";
 import { syncRemoteProject } from "../remote-sync";
@@ -93,26 +88,36 @@ class RemoteAdapter implements ProjectAdapter {
 				);
 				const token = this.project.remote_token || globalToken;
 				if (token) {
-					headers["Authorization"] = `Bearer ${token}`;
+					headers.Authorization = `Bearer ${token}`;
 				}
 
 				let sha: string | null = null;
 				let finalBranch = branch;
 
-				if (branch && branch.startsWith("env:")) {
+				if (branch?.startsWith("env:")) {
 					const envName = branch.replace("env:", "");
 					finalBranch = `${envName} (Active)`;
 					const deployUrl = `https://api.github.com/repos/${owner}/${repo}/deployments?environment=${envName}&per_page=10`;
 					const deployRes = await fetch(deployUrl, { headers });
 					if (deployRes.ok) {
-						const deployments = (await deployRes.json()) as any[];
+						const deployments = (await deployRes.json()) as {
+							sha?: string;
+							statuses_url?: string;
+							state?: string;
+						}[];
 						for (const dep of deployments) {
-							const statusesRes = await fetch(dep.statuses_url, { headers });
+							const statusesRes = await fetch(dep.statuses_url || "", {
+								headers,
+							});
 							if (statusesRes.ok) {
-								const statuses = (await statusesRes.json()) as any[];
+								const statuses = (await statusesRes.json()) as {
+									sha?: string;
+									statuses_url?: string;
+									state?: string;
+								}[];
 								// Le plus récent statut est en index 0
-								if (statuses.length > 0 && statuses[0].state === "success") {
-									sha = dep.sha;
+								if (statuses.length > 0 && statuses[0]?.state === "success") {
+									sha = dep.sha || null;
 									break;
 								}
 							}
@@ -123,9 +128,13 @@ class RemoteAdapter implements ProjectAdapter {
 					const apiUrl = `https://api.github.com/repos/${owner}/${repo}/commits?path=${filePath}&sha=${branch}&per_page=1`;
 					const res = await fetch(apiUrl, { headers });
 					if (res.ok) {
-						const data = (await res.json()) as any[];
+						const data = (await res.json()) as {
+							sha?: string;
+							statuses_url?: string;
+							state?: string;
+						}[];
 						if (Array.isArray(data) && data.length > 0) {
-							sha = data[0].sha;
+							sha = data[0]?.sha || null;
 						}
 					}
 				}
@@ -169,8 +178,6 @@ class RemoteAdapter implements ProjectAdapter {
 }
 
 class IngestAdapter implements ProjectAdapter {
-	constructor(_project: IngestProject) {}
-
 	async prepare(): Promise<void> {
 		throw new Error(
 			"Les projets Ingest ne peuvent pas être audités activement. Attente d'un webhook CI.",
@@ -195,7 +202,8 @@ export function getAdapter(project: Project): ProjectAdapter {
 		return new LocalAdapter(project as LocalProject);
 	if (project.source_type === "remote")
 		return new RemoteAdapter(project as RemoteProject);
-	if (project.source_type === "ingest")
-		return new IngestAdapter(project as IngestProject);
-	throw new Error(`Unknown source_type for project ${(project as any).id}`);
+	if (project.source_type === "ingest") return new IngestAdapter();
+	throw new Error(
+		`Unknown source_type for project ${(project as Record<string, unknown>).id}`,
+	);
 }

@@ -217,7 +217,9 @@ describe("ProjectCard", () => {
 	test("Ignorer transmet le projet entier, pas seulement son id", () => {
 		const vus: ProjectListItem[] = [];
 		render(
-			<ProjectCard {...props({ toggleIgnore: (p: any) => vus.push(p) })} />,
+			<ProjectCard
+				{...props({ toggleIgnore: (p: ProjectListItem) => vus.push(p) })}
+			/>,
 		);
 		fireEvent.click(screen.getByText("Ignorer le projet"));
 		expect(vus[0]?.id).toBe(7);

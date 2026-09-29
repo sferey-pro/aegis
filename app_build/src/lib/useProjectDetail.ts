@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { useProject, useProjectHistory } from "@/lib/api/queries";
-import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiErrorMessage, fetchJson } from "@/lib/api";
+import { useProject, useProjectHistory } from "@/lib/api/queries";
 import type { AuditRunResponse } from "@/lib/useGlobalAudit";
-import type { ProjectHistoryItem, ProjectListItem } from "@/routes/projects";
 
 /** Retour d'un audit lancé depuis la page, affiché sous les actions. */
 export interface AuditFeedback {
@@ -22,12 +20,24 @@ export interface AuditFeedback {
  * aucun appel, et on le dit — un `/api/projects/NaN` produirait un 404 trompeur.
  */
 export function useProjectDetail(projectId: number | null) {
-	const queryClient = useQueryClient();
-	const { data: project = null, isLoading: projectLoading, error: projectErrorRaw, refetch: refetchProject } = useProject(projectId ?? 0);
-	const { data: history = [], isLoading: historyLoading, refetch: refetchHistory } = useProjectHistory(projectId ?? 0);
-	
+	const {
+		data: project = null,
+		isLoading: projectLoading,
+		error: projectErrorRaw,
+		refetch: refetchProject,
+	} = useProject(projectId ?? 0);
+	const {
+		data: history = [],
+		isLoading: historyLoading,
+		refetch: refetchHistory,
+	} = useProjectHistory(projectId ?? 0);
+
 	const loading = projectLoading || historyLoading;
-	const error = projectErrorRaw ? (projectErrorRaw instanceof ApiError && projectErrorRaw.status === 404 ? "Projet introuvable." : apiErrorMessage(projectErrorRaw)) : null;
+	const error = projectErrorRaw
+		? projectErrorRaw instanceof ApiError && projectErrorRaw.status === 404
+			? "Projet introuvable."
+			: apiErrorMessage(projectErrorRaw)
+		: null;
 
 	const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
 	const [auditing, setAuditing] = useState(false);
@@ -42,9 +52,13 @@ export function useProjectDetail(projectId: number | null) {
 
 	useEffect(() => {
 		if (history.length > 0 && selectedRunId === null) {
-			setSelectedRunId(history[0].id);
-		} else if (history.length > 0 && selectedRunId !== null && !history.some(r => r.id === selectedRunId)) {
-			setSelectedRunId(history[0].id);
+			setSelectedRunId(history[0]?.id || null);
+		} else if (
+			history.length > 0 &&
+			selectedRunId !== null &&
+			!history.some((r) => r.id === selectedRunId)
+		) {
+			setSelectedRunId(history[0]?.id || null);
 		}
 	}, [history, selectedRunId]);
 

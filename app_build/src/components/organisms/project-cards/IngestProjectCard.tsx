@@ -99,7 +99,9 @@ export const IngestProjectCard = React.memo(function IngestProjectCard({
 
 			<div className="flex items-center gap-1 mt-0">
 				<UploadCloud className="w-3 h-3 text-orange-600 dark:text-orange-400" />
-				<span className="text-xs font-medium text-orange-600 dark:text-orange-400">Ingestion CI</span>
+				<span className="text-xs font-medium text-orange-600 dark:text-orange-400">
+					Ingestion CI
+				</span>
 			</div>
 			<div
 				className="text-xs text-muted-foreground font-mono mt-1"

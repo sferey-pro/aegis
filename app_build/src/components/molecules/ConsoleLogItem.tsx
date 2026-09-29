@@ -22,7 +22,9 @@ export const ConsoleLogItem = memo(function ConsoleLogItem({
 				{log.status === "success" && (
 					<CheckCircle className="w-4 h-4 text-green-500" />
 				)}
-				{log.status === "error" && <XCircle className="w-4 h-4 text-destructive" />}
+				{log.status === "error" && (
+					<XCircle className="w-4 h-4 text-destructive" />
+				)}
 			</div>
 
 			<div className="flex-1 flex flex-col min-w-0">

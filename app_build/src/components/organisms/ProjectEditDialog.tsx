@@ -73,7 +73,11 @@ export function ProjectEditDialog({
 		if (isOpen) {
 			setFormData({
 				name: project.name,
-				path: project.source_type === "remote" || (project.path && project.path.includes(".aegis_remote_projects")) ? "" : project.path,
+				path:
+					project.source_type === "remote" ||
+					project.path?.includes(".aegis_remote_projects")
+						? ""
+						: project.path,
 				audit_path: project.audit_path || "",
 				tool: project.tool,
 				type: project.type,
@@ -81,10 +85,10 @@ export function ProjectEditDialog({
 				ignored: !!project.ignored,
 
 				source_type: (project?.source_type ||
-					(project as any)?.source_type ||
+					(project as { source_type?: string })?.source_type ||
 					"local") as "local" | "ingest" | "remote",
-				remote_url: (project as any).remote_url || "",
-				remote_token: (project as any).remote_token || "",
+				remote_url: (project as { remote_url?: string }).remote_url || "",
+				remote_token: (project as { remote_token?: string }).remote_token || "",
 			});
 			setSubmitError(null);
 			setDetectStatus("idle");
@@ -340,7 +344,9 @@ export function ProjectEditDialog({
 							{formData.source_type === "local" && (
 								<div className="flex flex-col md:flex-row gap-4 md:col-span-2">
 									<div className="flex flex-col gap-1 flex-1">
-										<Label htmlFor="edit-path">Chemin absolu (Racine Git)</Label>
+										<Label htmlFor="edit-path">
+											Chemin absolu (Racine Git)
+										</Label>
 										<Input
 											id="edit-path"
 											required={formData.source_type === "local"}
@@ -438,7 +444,11 @@ export function ProjectEditDialog({
 															Téléchargement des fichiers
 														</p>
 														<p className="text-muted-foreground text-xs leading-relaxed">
-															Aegis déduit et télécharge automatiquement le <strong>manifest</strong> (ex: <code>package.json</code>) en plus du <strong>fichier lock</strong> pour que l'audit fonctionne dans les conditions réelles du projet.
+															Aegis déduit et télécharge automatiquement le{" "}
+															<strong>manifest</strong> (ex:{" "}
+															<code>package.json</code>) en plus du{" "}
+															<strong>fichier lock</strong> pour que l'audit
+															fonctionne dans les conditions réelles du projet.
 														</p>
 													</div>
 												</TooltipContent>
@@ -477,7 +487,7 @@ export function ProjectEditDialog({
 												setFormData({
 													...formData,
 													remote_url: val
-														? "https://raw.githubusercontent.com/" + val
+														? `https://raw.githubusercontent.com/${val}`
 														: "",
 												});
 											}}

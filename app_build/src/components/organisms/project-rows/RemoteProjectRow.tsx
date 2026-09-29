@@ -22,9 +22,11 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 	handleEdit,
 	handleDelete,
 }: ProjectRowProps) {
-	const rp = p as (typeof p & { remote_url: string; remote_token?: string });
+	const rp = p as typeof p & { remote_url: string; remote_token?: string };
 	const isRepo = rp.git?.isRepo === true;
-	const gitBranch = isRepo ? (rp.git as import("@/lib/git").GitInfo).branch : null;
+	const gitBranch = isRepo
+		? (rp.git as import("@/lib/git").GitInfo).branch
+		: null;
 	const gitSha = isRepo ? (rp.git as import("@/lib/git").GitInfo).sha : null;
 
 	const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
@@ -46,14 +48,21 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 						<span className="font-bold">{p.name}</span>
 						<span className="text-[10px] text-muted-foreground uppercase flex items-center justify-between w-full">
 							<span>
-								{p.tool} • <span className="text-purple-600 dark:text-purple-400 font-medium">Remote (Git)</span>
-							</span>
-							{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
-								<span className="ml-auto px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 text-[9px] font-bold uppercase tracking-wider dark:text-emerald-400 flex items-center gap-1 shadow-sm" title="Ce commit était le déploiement actif au moment du dernier audit">
-									<div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-									Actif (audit)
+								{p.tool} •{" "}
+								<span className="text-purple-600 dark:text-purple-400 font-medium">
+									Remote (Git)
 								</span>
-							)}
+							</span>
+							{typeof gitBranch === "string" &&
+								gitBranch.endsWith(" (Active)") && (
+									<span
+										className="ml-auto px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 text-[9px] font-bold uppercase tracking-wider dark:text-emerald-400 flex items-center gap-1 shadow-sm"
+										title="Ce commit était le déploiement actif au moment du dernier audit"
+									>
+										<div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+										Actif (audit)
+									</span>
+								)}
 						</span>
 					</div>
 				</div>
@@ -87,7 +96,9 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 							title="Branche surveillée"
 						>
 							<GitBranch className="w-3 h-3" />
-							{typeof gitBranch === "string" ? gitBranch.replace(" (Active)", "") : gitBranch}
+							{typeof gitBranch === "string"
+								? gitBranch.replace(" (Active)", "")
+								: gitBranch}
 						</span>
 					)}
 					{gitSha && (

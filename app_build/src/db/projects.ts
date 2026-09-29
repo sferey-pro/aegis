@@ -61,10 +61,10 @@ type ProjectRow = {
 	id: number;
 	name: string;
 	slug: string;
-	type: any;
-	tool: any;
+	type: ProjectType;
+	tool: ProjectTool;
 	created_at: string;
-	source_type: any;
+	source_type: "local" | "remote" | "ingest";
 	tags: string | string[];
 	ignored: number | boolean;
 	is_remote?: number | boolean;
@@ -97,7 +97,7 @@ function parseProject(row: ProjectRow): Project {
 			source_type: "remote",
 			path: row.path,
 			audit_path: row.audit_path || null,
-			remote_url: row.remote_url!,
+			remote_url: row.remote_url as string,
 			remote_token: row.remote_token || null,
 		};
 	}

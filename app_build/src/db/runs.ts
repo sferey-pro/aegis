@@ -333,14 +333,16 @@ export function getGlobalHistory(
 	if (!premier) return vide();
 	// Début de fenêtre au format de `ran_at`, pour comparer en SQL sans conversion.
 	const debut = isHourly ? `${premier}:00:00` : `${premier} 00:00:00`;
-	
-	const projectFilter = projectId === undefined 
-		? `project_id IN (SELECT id FROM projects WHERE ignored = 0)`
-		: `project_id = $projectId`;
-		
-	const queryParams = projectId === undefined 
-		? { $debut: debut } 
-		: { $projectId: projectId, $debut: debut };
+
+	const projectFilter =
+		projectId === undefined
+			? `project_id IN (SELECT id FROM projects WHERE ignored = 0)`
+			: `project_id = $projectId`;
+
+	const queryParams =
+		projectId === undefined
+			? { $debut: debut }
+			: { $projectId: projectId, $debut: debut };
 
 	// 1. Les runs de la fenêtre, et eux seuls.
 	const rows = db
@@ -350,7 +352,7 @@ export function getGlobalHistory(
     WHERE ${projectFilter} AND ran_at >= $debut
     ORDER BY ran_at ASC
   `)
-		.all(queryParams) as HistoryRow[];
+		.all(queryParams as import("bun:sqlite").SQLQueryBindings) as HistoryRow[];
 
 	// 2. L'état d'entrée : dernier run **non-erreur** de chaque projet avant la
 	//    fenêtre. `ROW_NUMBER` plutôt qu'un `MAX()` joint, pour trier sur
@@ -369,7 +371,10 @@ export function getGlobalHistory(
 		)
 		WHERE rang = 1
 	`)
-		.all(queryParams) as { project_id: number; counts: string | RunCounts }[];
+		.all(queryParams as import("bun:sqlite").SQLQueryBindings) as {
+		project_id: number;
+		counts: string | RunCounts;
+	}[];
 
 	const etat = new Map<number, RunCounts>();
 	const lireCounts = (brut: string | RunCounts): RunCounts =>

@@ -14,11 +14,9 @@ import {
 	Shield,
 	Trash2,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import type { Report } from "@/db/reports";
+import { memo, useEffect, useRef, useState } from "react";
 import { apiErrorMessage, fetchVoid } from "@/lib/api";
-import { useReports, queryKeys } from "@/lib/api/queries";
-import { useQueryClient } from "@tanstack/react-query";
+import { useReports } from "@/lib/api/queries";
 import type { Vulnerability } from "@/lib/parsers/types";
 import { copyToClipboard } from "@/lib/utils";
 
@@ -67,8 +65,12 @@ export const Reports = memo(function Reports({
 }: {
 	auditing?: boolean;
 }) {
-	const queryClient = useQueryClient();
-	const { data: reports = [], isLoading: loading, isFetching, refetch: fetchReports } = useReports();
+	const {
+		data: reports = [],
+		isLoading: loading,
+		isFetching,
+		refetch: fetchReports,
+	} = useReports();
 	const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 	const [reportToDelete, setReportToDelete] = useState<number | null>(null);
 	const [selectedReports, setSelectedReports] = useState<number[]>([]);
@@ -143,7 +145,9 @@ export const Reports = memo(function Reports({
 
 	useEffect(() => {
 		setCurrentPage((prev) =>
-			prev > Math.ceil(reports.length / itemsPerPage) ? Math.max(1, Math.ceil(reports.length / itemsPerPage)) : prev
+			prev > Math.ceil(reports.length / itemsPerPage)
+				? Math.max(1, Math.ceil(reports.length / itemsPerPage))
+				: prev,
 		);
 		const allIds = reports.map((r) => r.id);
 		setSelectedReports((prev) => prev.filter((id) => allIds.includes(id)));
@@ -563,7 +567,6 @@ export const Reports = memo(function Reports({
 				confirmText="Supprimer"
 				onConfirm={async () => {
 					try {
-						setLoading(true);
 						setBulkDeleteModalOpen(false);
 						// N6 : `Promise.all` abandonne au premier rejet, masquant les
 						// échecs partiels — l'utilisateur voyait la liste se rafraîchir
@@ -585,7 +588,6 @@ export const Reports = memo(function Reports({
 						fetchReports();
 					} catch (e) {
 						setBulkError(apiErrorMessage(e));
-						setLoading(false);
 					}
 				}}
 				onCancel={() => setBulkDeleteModalOpen(false)}

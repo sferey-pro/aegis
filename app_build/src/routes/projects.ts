@@ -465,7 +465,10 @@ export const projectsRoutes = {
 				{ project: project.name },
 				async () => {
 					const adapter = getAdapter(project);
-					let action: any = { success: true, stdout: "Opération terminée" };
+					let action: Record<string, unknown> = {
+						success: true,
+						stdout: "Opération terminée",
+					};
 					if (project.source_type === "remote") {
 						await adapter.prepare();
 						action.stdout = "Fichier lock téléchargé avec succès.";
@@ -476,7 +479,7 @@ export const projectsRoutes = {
 					}
 
 					const git = await adapter.getGitInfo();
-					saveGitState(project.id, git as any);
+					saveGitState(project.id, git);
 					return { ...action, git };
 				},
 			);
@@ -500,7 +503,10 @@ export const projectsRoutes = {
 				{ project: project.name },
 				async () => {
 					const adapter = getAdapter(project);
-					let action: any = { success: true, stdout: "Opération terminée" };
+					let action: Record<string, unknown> = {
+						success: true,
+						stdout: "Opération terminée",
+					};
 					if (project.source_type === "remote") {
 						await adapter.prepare();
 						action.stdout = "Fichier lock téléchargé avec succès.";
@@ -511,7 +517,7 @@ export const projectsRoutes = {
 					}
 
 					const git = await adapter.getGitInfo();
-					saveGitState(project.id, git as any);
+					saveGitState(project.id, git);
 					return { ...action, git };
 				},
 			);
@@ -567,4 +573,11 @@ export const projectsRoutes = {
 			}
 		},
 	},
+};
+
+export type ProjectDetailItem = import("../db/projects").Project & {
+	tags: string[];
+	git: ProjectGitState;
+	lastRun: import("../db/runs").Run | null;
+	summary: unknown;
 };

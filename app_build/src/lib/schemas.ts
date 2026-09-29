@@ -135,7 +135,7 @@ export const projectBodySchema = z
 					path: ["remote_url"],
 				});
 			} else {
-								try {
+				try {
 					const parsed = new URL(data.remote_url);
 					if (parsed.hostname !== "raw.githubusercontent.com") {
 						ctx.addIssue({

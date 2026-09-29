@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import {
 	Route,
@@ -8,11 +9,9 @@ import {
 } from "react-router-dom";
 import type { Report, ReportDetail } from "@/db/reports";
 import { apiErrorMessage, fetchJson, jsonInit } from "@/lib/api";
+import { queryKeys, useStats } from "@/lib/api/queries";
 import { useGlobalAudit } from "@/lib/useGlobalAudit";
-import { useStats, queryKeys } from "@/lib/api/queries";
-import { useQueryClient } from "@tanstack/react-query";
 import type { ProjectListItem } from "@/routes/projects";
-import type { StatsResponse } from "@/routes/stats";
 
 import { GlobalLoader } from "./components/layout/GlobalLoader";
 import {
@@ -37,7 +36,12 @@ export function App() {
 	const location = useLocation();
 
 	const queryClient = useQueryClient();
-	const { data: stats = null, error: statsErrorRaw, isLoading: loading, refetch: refetchStats } = useStats();
+	const {
+		data: stats = null,
+		error: statsErrorRaw,
+		isLoading: loading,
+		refetch: refetchStats,
+	} = useStats();
 	const statsError = statsErrorRaw ? apiErrorMessage(statsErrorRaw) : null;
 	/** Projets dont l'audit a échoué pendant le dernier lot. */
 	const [auditErrors, setAuditErrors] = useState<AuditFailure[]>([]);
@@ -90,7 +94,6 @@ export function App() {
 
 		return () => clearInterval(interval);
 	}, []);
-
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -240,7 +243,7 @@ export function App() {
 				{ projectId: -1, name: "Audit global", message: apiErrorMessage(err) },
 			]);
 		}
-	}, [filtreTag, lancer]);
+	}, [filtreTag, lancer, queryClient.invalidateQueries]);
 
 	let syncDisplay = "Aucune synchronisation";
 	if (stats?.lastSync) {

@@ -37,13 +37,23 @@ export async function syncRemoteProject(project: Project) {
 		);
 		const parts = pathStr.split("/");
 
-		let newParts;
+		let newParts: string[];
 		if (parts.length > 4 && parts[2] === "refs" && parts[3] === "heads") {
-			newParts = [parts[0], parts[1], gitInfo.sha, ...parts.slice(5)];
+			newParts = [
+				parts[0] || "",
+				parts[1] || "",
+				gitInfo.sha || "",
+				...parts.slice(5),
+			];
 		} else {
-			newParts = [parts[0], parts[1], gitInfo.sha, ...parts.slice(3)];
+			newParts = [
+				parts[0] || "",
+				parts[1] || "",
+				gitInfo.sha || "",
+				...parts.slice(3),
+			];
 		}
-		downloadUrl = "https://raw.githubusercontent.com/" + newParts.join("/");
+		downloadUrl = `https://raw.githubusercontent.com/${newParts.join("/")}`;
 	}
 
 	let cmdString = `curl -H "Accept: application/vnd.github.v3.raw, */*"`;
@@ -76,7 +86,7 @@ export async function syncRemoteProject(project: Project) {
 			headers.Authorization = `Bearer ${token}`;
 		}
 
-				const res = await fetch(downloadUrl, { headers });
+		const res = await fetch(downloadUrl, { headers });
 		if (!res.ok) {
 			throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
 		}
@@ -92,9 +102,10 @@ export async function syncRemoteProject(project: Project) {
 		await Bun.write(filePath, content);
 
 		// Fetch actual manifest instead of dummy
-		const manifestName = project.tool === "composer" ? "composer.json" : "package.json";
+		const manifestName =
+			project.tool === "composer" ? "composer.json" : "package.json";
 		const manifestUrl = downloadUrl.replace(filename, manifestName);
-		
+
 		try {
 			const mRes = await fetch(manifestUrl, { headers });
 			if (mRes.ok) {
@@ -104,7 +115,7 @@ export async function syncRemoteProject(project: Project) {
 				// Fallback to empty object if manifest not found
 				await Bun.write(join(projectDir, manifestName), "{}");
 			}
-		} catch (e) {
+		} catch (_e) {
 			await Bun.write(join(projectDir, manifestName), "{}");
 		}
 

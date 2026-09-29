@@ -96,7 +96,7 @@ export function ProjectDetail() {
 							</p>
 							{detail.project.tags.length > 0 && (
 								<div className="flex flex-wrap gap-1">
-									{detail.project.tags.map((t) => (
+									{detail.project.tags.map((t: string) => (
 										<TagBadge key={t} name={t} />
 									))}
 								</div>

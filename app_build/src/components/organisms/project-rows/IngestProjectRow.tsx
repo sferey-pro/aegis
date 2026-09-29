@@ -32,7 +32,10 @@ export const IngestProjectRow = React.memo(function IngestProjectRow({
 					<div className="flex flex-col">
 						<span className="font-bold">{p.name}</span>
 						<span className="text-[10px] text-muted-foreground uppercase">
-							{p.tool} • <span className="text-orange-600 dark:text-orange-400 font-medium">Ingest (CI)</span>
+							{p.tool} •{" "}
+							<span className="text-orange-600 dark:text-orange-400 font-medium">
+								Ingest (CI)
+							</span>
 						</span>
 					</div>
 				</div>

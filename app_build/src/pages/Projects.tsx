@@ -1,5 +1,4 @@
-import { useProjects, useTags, useSettings, queryKeys } from "@/lib/api/queries";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	AlertTriangle,
 	ArrowDownToLine,
@@ -29,8 +28,13 @@ import React, {
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { Project, ProjectTool } from "@/db/projects";
-import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
+import {
+	queryKeys,
+	useProjects,
+	useSettings,
+	useTags,
+} from "@/lib/api/queries";
 import { useGlobalGitSync } from "@/lib/useGlobalGitSync";
 import type { ProjectGitState, ProjectListItem } from "@/routes/projects";
 import { AuditProgressBar } from "../components/molecules/AuditProgressBar";
@@ -72,14 +76,22 @@ import {
 export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const { data: projects = [], isLoading: projectsLoading, refetch: refetchProjectsRaw } = useProjects();
+	const {
+		data: projects = [],
+		isLoading: projectsLoading,
+		refetch: refetchProjectsRaw,
+	} = useProjects();
 	const { data: availableTags = [] } = useTags();
-	
+
 	const { data: settingsData } = useSettings();
-	const hasGithubToken = settingsData?.GITHUB_TOKEN_CONFIGURED === true || settingsData?.GITHUB_TOKEN_CONFIGURED === "true";
+	const hasGithubToken =
+		settingsData?.GITHUB_TOKEN_CONFIGURED === "true" ||
+		settingsData?.GITHUB_TOKEN_CONFIGURED === "true";
 	const loading = projectsLoading;
-	
-	const fetchProjects = async () => { await refetchProjectsRaw(); };
+
+	const fetchProjects = async () => {
+		await refetchProjectsRaw();
+	};
 
 	/**
 	 * Couleur par nom de tag. Un projet ne stocke que les noms : sans cette table
@@ -252,7 +264,6 @@ export const Projects = React.memo(function Projects() {
 				});
 	};
 
-
 	const resetForm = () => {
 		setIsAdding(false);
 		setIsFormVisible(false);
@@ -366,7 +377,11 @@ export const Projects = React.memo(function Projects() {
 		setDetectingId(id);
 		try {
 			const rafraichi = await fetchJson<ProjectListItem>(`/api/projects/${id}`);
-			queryClient.setQueryData(queryKeys.projects, (old: ProjectListItem[] | undefined) => old ? old.map((p) => (p.id === id ? rafraichi : p)) : old);
+			queryClient.setQueryData(
+				queryKeys.projects,
+				(old: ProjectListItem[] | undefined) =>
+					old ? old.map((p) => (p.id === id ? rafraichi : p)) : old,
+			);
 		} catch (err) {
 			console.error(err);
 		} finally {
@@ -381,11 +396,16 @@ export const Projects = React.memo(function Projects() {
 	 * la recharger après un `fetch` effacerait donc ce que l'action vient
 	 * d'apprendre. Or chaque action le renvoie déjà (§5).
 	 */
-	const mergeGit = useCallback((id: number, git: ProjectGitState) => {
-		queryClient.setQueryData(queryKeys.projects, (old: ProjectListItem[] | undefined) => 
-			old ? old.map((p) => (p.id === id ? { ...p, git } : p)) : old
-		);
-	}, [queryClient]);
+	const mergeGit = useCallback(
+		(id: number, git: ProjectGitState) => {
+			queryClient.setQueryData(
+				queryKeys.projects,
+				(old: ProjectListItem[] | undefined) =>
+					old ? old.map((p) => (p.id === id ? { ...p, git } : p)) : old,
+			);
+		},
+		[queryClient],
+	);
 
 	const handleFetch = async (id: number, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
@@ -480,7 +500,20 @@ export const Projects = React.memo(function Projects() {
 			(sortie) => {
 				const git = sortie.value?.git;
 				if (!git) return;
-				queryClient.setQueryData(queryKeys.projects, (old: ProjectListItem[] | undefined) => old ? old.map((p) => p.id === sortie.project.id ? { ...p, git: { ...git, checkedAt: new Date().toISOString() } } : p) : old);
+				queryClient.setQueryData(
+					queryKeys.projects,
+					(old: ProjectListItem[] | undefined) =>
+						old
+							? old.map((p) =>
+									p.id === sortie.project.id
+										? {
+												...p,
+												git: { ...git, checkedAt: new Date().toISOString() },
+											}
+										: p,
+								)
+							: old,
+				);
 			},
 		);
 
@@ -976,7 +1009,7 @@ export const Projects = React.memo(function Projects() {
 															setFormData({
 																...formData,
 																remote_url: val
-																	? "https://raw.githubusercontent.com/" + val
+																	? `https://raw.githubusercontent.com/${val}`
 																	: "",
 															});
 														}}

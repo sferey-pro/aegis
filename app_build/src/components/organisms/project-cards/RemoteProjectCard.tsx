@@ -55,9 +55,11 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 	formatDate,
 	tagColors,
 }: ProjectCardProps) {
-	const rp = p as (typeof p & { remote_url: string; remote_token?: string });
+	const rp = p as typeof p & { remote_url: string; remote_token?: string };
 	const isRepo = rp.git?.isRepo === true;
-	const gitBranch = isRepo ? (rp.git as import("@/lib/git").GitInfo).branch : null;
+	const gitBranch = isRepo
+		? (rp.git as import("@/lib/git").GitInfo).branch
+		: null;
 	const gitSha = isRepo ? (rp.git as import("@/lib/git").GitInfo).sha : null;
 
 	const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
@@ -125,7 +127,6 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 							Critique
 						</Badge>
 					)}
-
 				</div>
 
 				<span className="shrink-0 text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50">
@@ -136,7 +137,9 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 			<div className="flex items-center justify-between mt-0 w-full">
 				<div className="flex items-center gap-1">
 					<CloudDownload className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-					<span className="text-xs font-medium text-purple-600 dark:text-purple-400">Distant</span>
+					<span className="text-xs font-medium text-purple-600 dark:text-purple-400">
+						Distant
+					</span>
 				</div>
 				{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
 					<Badge
@@ -180,7 +183,9 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 								title="Branche surveillée"
 							>
 								<GitBranch className="w-3 h-3" />
-{typeof gitBranch === "string" ? gitBranch.replace(" (Active)", "") : gitBranch}
+								{typeof gitBranch === "string"
+									? gitBranch.replace(" (Active)", "")
+									: gitBranch}
 							</span>
 						)}
 						{gitSha && (

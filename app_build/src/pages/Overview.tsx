@@ -104,8 +104,8 @@ export const Overview = memo(function Overview({
 										</p>
 										<ul className="text-xs space-y-1 mb-4 border-l-2 border-muted pl-3">
 											<li>
-												<strong className="text-destructive">Critique</strong> : -20
-												pts
+												<strong className="text-destructive">Critique</strong> :
+												-20 pts
 											</li>
 											<li>
 												<strong className="text-orange-500">Haute</strong> : -10

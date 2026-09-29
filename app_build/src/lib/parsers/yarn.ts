@@ -26,7 +26,7 @@ export function parseYarn(output: string): ParseResult {
 		if (!line.trim()) continue;
 		let parsed: RawYarnLine;
 		try {
-			parsed = JSON.parse(line) as any;
+			parsed = JSON.parse(line) as Record<string, unknown>;
 		} catch (_e) {
 			// NDJSON yarns tolère le bruit (lignes non-json ignorées silencieusement)
 			continue;
@@ -45,7 +45,9 @@ export function parseYarn(output: string): ParseResult {
 			}
 
 			rawVulns.push({
-				path: (parsed as any).data?.resolution?.path || null,
+				path:
+					(parsed as { data?: { resolution?: { path?: string } } }).data
+						?.resolution?.path || null,
 				package: adv.module_name || "?",
 				severity: normSeverity(adv.severity),
 				title: adv.title || "Advisory",

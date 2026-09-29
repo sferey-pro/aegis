@@ -2,6 +2,7 @@ import {
 	AlertTriangle,
 	CheckCircle2,
 	Clock,
+	CloudDownload,
 	Edit2,
 	GitBranch,
 	GitCommit,

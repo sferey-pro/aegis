@@ -16,7 +16,7 @@ import type { ProjectTool } from "../../db/projects";
  */
 export const AUDIT_TOOLS = {
 	npm: {
-		args: ["npm", "audit", "--json"],
+		args: ["npm", "audit", "--json", "--package-lock-only"],
 		lockfiles: ["package-lock.json"],
 	},
 	yarn: {

@@ -110,8 +110,8 @@ export const LocalProjectCard = React.memo(function LocalProjectCard({
 			</div>
 
 			<div className="flex items-center gap-1 mt-0">
-				<HardDrive className="w-3 h-3 text-muted-foreground" />
-				<span className="text-xs text-muted-foreground">Local</span>
+				<HardDrive className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+				<span className="text-xs font-medium text-blue-600 dark:text-blue-400">Local</span>
 				<span
 					title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || "Racine"}`}
 					className="cursor-help inline-flex"

@@ -45,7 +45,7 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 					<div className="flex flex-col">
 						<span className="font-bold">{p.name}</span>
 						<span className="text-[10px] text-muted-foreground uppercase">
-							{p.tool} • Remote (Git)
+							{p.tool} • <span className="text-purple-600 dark:text-purple-400 font-medium">Remote (Git)</span>
 						</span>
 					</div>
 				</div>

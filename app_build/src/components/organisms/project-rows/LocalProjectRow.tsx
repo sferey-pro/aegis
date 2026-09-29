@@ -47,7 +47,7 @@ export const LocalProjectRow = React.memo(function LocalProjectRow({
 					<div className="flex flex-col">
 						<span className="font-bold">{p.name}</span>
 						<span className="text-[10px] text-muted-foreground uppercase">
-							{p.tool} • Local
+							{p.tool} • <span className="text-blue-600 dark:text-blue-400 font-medium">Local</span>
 						</span>
 					</div>
 				</div>

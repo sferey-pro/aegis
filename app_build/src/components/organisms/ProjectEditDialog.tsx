@@ -338,54 +338,53 @@ export function ProjectEditDialog({
 							</div>
 
 							{formData.source_type === "local" && (
-								<div className="flex flex-col gap-1 md:col-span-2">
-									<Label htmlFor="edit-path">Chemin absolu (Racine Git)</Label>
-									<Input
-										id="edit-path"
-										required={formData.source_type === "local"}
-										type="text"
-										value={formData.path}
-										onChange={(e) =>
-											setFormData({ ...formData, path: e.target.value })
-										}
-										onBlur={handleDetectTool}
-										placeholder="Ex: /home/user/projects/api"
-									/>
-									{detectStatus === "detecting" && (
-										<span className="text-xs mt-1 flex items-center gap-1">
-											<Loader2 className="w-3 h-3" /> Détection automatique...
-										</span>
-									)}
-									{detectStatus === "success" && (
-										<span className="text-xs mt-1 flex items-center gap-1">
-											<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
-											{detectedToolName}
-										</span>
-									)}
-									{detectStatus === "error" && (
-										<span className="text-xs mt-1 flex items-center gap-1">
-											<XCircle className="w-3 h-3" /> Impossible de détecter
-											automatiquement (vérifiez le chemin)
-										</span>
-									)}
-								</div>
-							)}
-
-							{formData.source_type === "local" && (
-								<div className="flex flex-col gap-1">
-									<Label htmlFor="edit-audit-path">
-										Sous-dossier d'audit (Optionnel)
-									</Label>
-									<Input
-										id="edit-audit-path"
-										type="text"
-										value={formData.audit_path}
-										onChange={(e) =>
-											setFormData({ ...formData, audit_path: e.target.value })
-										}
-										onBlur={handleDetectTool}
-										placeholder="Ex: backend/src (vide si racine)"
-									/>
+								<div className="flex flex-col md:flex-row gap-4 md:col-span-2">
+									<div className="flex flex-col gap-1 flex-1">
+										<Label htmlFor="edit-path">Chemin absolu (Racine Git)</Label>
+										<Input
+											id="edit-path"
+											required={formData.source_type === "local"}
+											type="text"
+											value={formData.path}
+											onChange={(e) =>
+												setFormData({ ...formData, path: e.target.value })
+											}
+											onBlur={handleDetectTool}
+											placeholder="Ex: /home/user/projects/api"
+										/>
+										{detectStatus === "detecting" && (
+											<span className="text-xs mt-1 flex items-center gap-1">
+												<Loader2 className="w-3 h-3" /> Détection automatique...
+											</span>
+										)}
+										{detectStatus === "success" && (
+											<span className="text-xs mt-1 flex items-center gap-1">
+												<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
+												{detectedToolName}
+											</span>
+										)}
+										{detectStatus === "error" && (
+											<span className="text-xs mt-1 flex items-center gap-1">
+												<XCircle className="w-3 h-3" /> Impossible de détecter
+												automatiquement (vérifiez le chemin)
+											</span>
+										)}
+									</div>
+									<div className="flex flex-col gap-1 flex-1">
+										<Label htmlFor="edit-audit-path">
+											Sous-dossier d'audit (Optionnel)
+										</Label>
+										<Input
+											id="edit-audit-path"
+											type="text"
+											value={formData.audit_path}
+											onChange={(e) =>
+												setFormData({ ...formData, audit_path: e.target.value })
+											}
+											onBlur={handleDetectTool}
+											placeholder="Ex: backend/src (vide si racine)"
+										/>
+									</div>
 								</div>
 							)}
 

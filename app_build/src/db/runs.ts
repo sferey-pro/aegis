@@ -175,8 +175,6 @@ export function getLatestRunsByProjectIds(
 ): Record<number, Run> {
 	if (projectIds.length === 0) return {};
 	const db = getDb();
-	const marques = projectIds.map(() => "?").join(",");
-
 	const rows = db
 		.query(`
 		SELECT * FROM (
@@ -184,11 +182,11 @@ export function getLatestRunsByProjectIds(
 				PARTITION BY r.project_id ORDER BY r.ran_at DESC, r.id DESC
 			) AS rang
 			FROM runs r
-			WHERE r.project_id IN (${marques})
+			WHERE r.project_id IN (SELECT value FROM json_each($ids))
 		)
 		WHERE rang = 1
 	`)
-		.all(...projectIds) as (RunRow & { rang: number })[];
+		.all({ $ids: JSON.stringify(projectIds) }) as (RunRow & { rang: number })[];
 
 	const res: Record<number, Run> = {};
 	for (const row of rows) {
@@ -335,18 +333,24 @@ export function getGlobalHistory(
 	if (!premier) return vide();
 	// Début de fenêtre au format de `ran_at`, pour comparer en SQL sans conversion.
 	const debut = isHourly ? `${premier}:00:00` : `${premier} 00:00:00`;
-	const marques = projets.map(() => "?").join(",");
-	const ids = projets.map((p) => p.id);
+	
+	const projectFilter = projectId === undefined 
+		? `project_id IN (SELECT id FROM projects WHERE ignored = 0)`
+		: `project_id = $projectId`;
+		
+	const queryParams = projectId === undefined 
+		? { $debut: debut } 
+		: { $projectId: projectId, $debut: debut };
 
 	// 1. Les runs de la fenêtre, et eux seuls.
 	const rows = db
 		.query(`
     SELECT project_id, ran_at, counts, status
     FROM runs
-    WHERE project_id IN (${marques}) AND ran_at >= ?
+    WHERE ${projectFilter} AND ran_at >= $debut
     ORDER BY ran_at ASC
   `)
-		.all(...ids, debut) as HistoryRow[];
+		.all(queryParams) as HistoryRow[];
 
 	// 2. L'état d'entrée : dernier run **non-erreur** de chaque projet avant la
 	//    fenêtre. `ROW_NUMBER` plutôt qu'un `MAX()` joint, pour trier sur
@@ -359,13 +363,13 @@ export function getGlobalHistory(
 				PARTITION BY r.project_id ORDER BY r.ran_at DESC, r.id DESC
 			) AS rang
 			FROM runs r
-			WHERE r.project_id IN (${marques})
-			  AND r.ran_at < ?
+			WHERE ${projectFilter}
+			  AND r.ran_at < $debut
 			  AND r.status != 'error'
 		)
 		WHERE rang = 1
 	`)
-		.all(...ids, debut) as { project_id: number; counts: string | RunCounts }[];
+		.all(queryParams) as { project_id: number; counts: string | RunCounts }[];
 
 	const etat = new Map<number, RunCounts>();
 	const lireCounts = (brut: string | RunCounts): RunCounts =>

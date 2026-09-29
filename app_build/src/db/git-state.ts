@@ -71,13 +71,10 @@ export function getGitStates(
 ): Record<number, StoredGitState> {
 	if (projectIds.length === 0) return {};
 	const rows = getDb()
-		// SQL construit à partir du **nombre** de paramètres, jamais de leurs
-		// valeurs : les identifiants restent liés. `query()` met en cache par texte
-		// SQL, donc un parc de taille stable réutilise l'instruction préparée.
 		.query(
-			`SELECT * FROM git_states WHERE project_id IN (${projectIds.map(() => "?").join(",")})`,
+			`SELECT * FROM git_states WHERE project_id IN (SELECT value FROM json_each($ids))`,
 		)
-		.all(...projectIds) as GitStateRow[];
+		.all({ $ids: JSON.stringify(projectIds) }) as GitStateRow[];
 
 	const out: Record<number, StoredGitState> = {};
 	for (const row of rows) out[row.project_id] = parseRow(row);

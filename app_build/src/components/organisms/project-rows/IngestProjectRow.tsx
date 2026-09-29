@@ -1,8 +1,4 @@
-import {
-	Edit2,
-	Shield,
-	Trash2,
-} from "lucide-react";
+import { Edit2, Shield, Trash2 } from "lucide-react";
 import React from "react";
 import { TagBadge } from "../../molecules/TagBadge";
 import { Badge } from "../../ui/badge";
@@ -63,7 +59,9 @@ export const IngestProjectRow = React.memo(function IngestProjectRow({
 				</div>
 			</TableCell>
 			<TableCell>
-				<span className="text-xs text-muted-foreground italic">Non applicable</span>
+				<span className="text-xs text-muted-foreground italic">
+					Non applicable
+				</span>
 			</TableCell>
 			<TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
 				<div className="flex items-center justify-end gap-1">

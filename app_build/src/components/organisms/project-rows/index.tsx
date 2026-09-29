@@ -1,8 +1,8 @@
 import React from "react";
 import type { ProjectListItem } from "@/routes/projects";
+import { IngestProjectRow } from "./IngestProjectRow";
 import { LocalProjectRow } from "./LocalProjectRow";
 import { RemoteProjectRow } from "./RemoteProjectRow";
-import { IngestProjectRow } from "./IngestProjectRow";
 
 export interface ProjectRowProps {
 	p: ProjectListItem;
@@ -18,7 +18,9 @@ export interface ProjectRowProps {
 	handleDelete: (id: number, e: React.MouseEvent) => void;
 }
 
-export const ProjectRow = React.memo(function ProjectRow(props: ProjectRowProps) {
+export const ProjectRow = React.memo(function ProjectRow(
+	props: ProjectRowProps,
+) {
 	if (props.p.source_type === "local") {
 		return <LocalProjectRow {...props} />;
 	}

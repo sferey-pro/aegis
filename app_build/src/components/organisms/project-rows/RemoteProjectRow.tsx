@@ -22,6 +22,11 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 	handleEdit,
 	handleDelete,
 }: ProjectRowProps) {
+	const rp = p as (typeof p & { remote_url: string; remote_token?: string });
+	const isRepo = rp.git?.isRepo === true;
+	const gitBranch = isRepo ? (rp.git as import("@/lib/git").GitInfo).branch : null;
+	const gitSha = isRepo ? (rp.git as import("@/lib/git").GitInfo).sha : null;
+
 	const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 	const hasNoCves =
 		p.lastRun &&
@@ -68,32 +73,32 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 			</TableCell>
 			<TableCell>
 				<div className="flex flex-col gap-1 items-start text-xs font-mono">
-					{(p as any).git?.branch && (
+					{gitBranch && (
 						<span
 							className="flex items-center gap-1 text-muted-foreground"
 							title="Branche surveillée"
 						>
 							<GitBranch className="w-3 h-3" />
-							{typeof (p as any).git.branch === "string" &&
-							(p as any).git.branch.endsWith(" (Active)") ? (
+							{typeof gitBranch === "string" &&
+							gitBranch.endsWith(" (Active)") ? (
 								<>
-									{(p as any).git.branch.replace(" (Active)", "")}
+									{gitBranch.replace(" (Active)", "")}
 									<span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase tracking-wider leading-none shadow-sm border border-emerald-500/20">
 										Active
 									</span>
 								</>
 							) : (
-								(p as any).git.branch
+								gitBranch
 							)}
 						</span>
 					)}
-					{(p as any).git?.sha && (
+					{gitSha && (
 						<span className="flex items-center gap-1" title="Commit audité">
 							<GitCommit className="w-3 h-3 text-primary/50" />
-							{(p as any).git.sha.substring(0, 7)}
+							{gitSha.substring(0, 7)}
 						</span>
 					)}
-					{!(p as any).git?.isRepo && (
+					{!isRepo && (
 						<span className="text-muted-foreground italic">
 							Non synchronisé
 						</span>

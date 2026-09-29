@@ -135,8 +135,15 @@ export const projectBodySchema = z
 					path: ["remote_url"],
 				});
 			} else {
-				try {
-					new URL(data.remote_url);
+								try {
+					const parsed = new URL(data.remote_url);
+					if (parsed.hostname !== "raw.githubusercontent.com") {
+						ctx.addIssue({
+							code: "custom",
+							message: "Seul GitHub (raw.githubusercontent.com) est supporté",
+							path: ["remote_url"],
+						});
+					}
 				} catch {
 					ctx.addIssue({
 						code: "custom",

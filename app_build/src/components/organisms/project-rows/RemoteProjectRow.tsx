@@ -43,7 +43,15 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 						className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-destructive" : "text-primary"}`}
 					/>
 					<div className="flex flex-col">
-						<span className="font-bold">{p.name}</span>
+						<div className="flex items-center gap-2">
+							<span className="font-bold">{p.name}</span>
+							{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
+								<span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 text-[9px] font-bold uppercase tracking-wider dark:text-emerald-400 flex items-center gap-1 shadow-sm" title="Ce commit était le déploiement actif au moment du dernier audit">
+									<div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+									Actif (audit)
+								</span>
+							)}
+						</div>
 						<span className="text-[10px] text-muted-foreground uppercase">
 							{p.tool} • <span className="text-purple-600 dark:text-purple-400 font-medium">Remote (Git)</span>
 						</span>
@@ -79,17 +87,7 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 							title="Branche surveillée"
 						>
 							<GitBranch className="w-3 h-3" />
-							{typeof gitBranch === "string" &&
-							gitBranch.endsWith(" (Active)") ? (
-								<>
-									{gitBranch.replace(" (Active)", "")}
-									<span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase tracking-wider leading-none shadow-sm border border-emerald-500/20">
-										Active
-									</span>
-								</>
-							) : (
-								gitBranch
-							)}
+							{typeof gitBranch === "string" ? gitBranch.replace(" (Active)", "") : gitBranch}
 						</span>
 					)}
 					{gitSha && (

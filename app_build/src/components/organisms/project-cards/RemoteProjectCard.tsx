@@ -125,6 +125,15 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 							Critique
 						</Badge>
 					)}
+					{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
+						<Badge
+							className="text-[10px] flex items-center gap-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/40 shadow-sm"
+							title="Ce commit était le déploiement actif au moment du dernier audit"
+						>
+							<div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+							Actif (audit)
+						</Badge>
+					)}
 				</div>
 
 				<span className="shrink-0 text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50">
@@ -168,17 +177,7 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 								title="Branche surveillée"
 							>
 								<GitBranch className="w-3 h-3" />
-								{typeof gitBranch === "string" &&
-								gitBranch.endsWith(" (Active)") ? (
-									<>
-										{gitBranch.replace(" (Active)", "")}
-										<span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase tracking-wider leading-none shadow-sm border border-emerald-500/20">
-											Active
-										</span>
-									</>
-								) : (
-									gitBranch
-								)}
+{typeof gitBranch === "string" ? gitBranch.replace(" (Active)", "") : gitBranch}
 							</span>
 						)}
 						{gitSha && (

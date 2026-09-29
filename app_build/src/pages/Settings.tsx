@@ -26,15 +26,15 @@ export const Settings = React.memo(function Settings() {
                     <TabsTrigger value="maintenance" className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">Données & Maintenance</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="connections" className="mt-0 outline-none">
+                <TabsContent value="connections" className="mt-0 outline-none min-h-[calc(100vh-16rem)]">
                     <TabConnections />
                 </TabsContent>
 
-                <TabsContent value="analysis" className="mt-0 outline-none">
+                <TabsContent value="analysis" className="mt-0 outline-none min-h-[calc(100vh-16rem)]">
                     <TabAnalysis />
                 </TabsContent>
 
-                <TabsContent value="maintenance" className="mt-0 outline-none">
+                <TabsContent value="maintenance" className="mt-0 outline-none min-h-[calc(100vh-16rem)]">
                     <TabMaintenance />
                 </TabsContent>
             </Tabs>

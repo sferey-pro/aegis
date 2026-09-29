@@ -16,11 +16,11 @@ import type { ProjectTool } from "../../db/projects";
  */
 export const AUDIT_TOOLS = {
 	npm: {
-		args: ["npm", "audit", "--json", "--package-lock-only"],
+		args: ["npm", "audit", "--json", "--package-lock-only", "--omit=dev"],
 		lockfiles: ["package-lock.json"],
 	},
 	yarn: {
-		args: ["yarn", "audit", "--json"],
+		args: ["yarn", "audit", "--json", "--groups", "dependencies"],
 		lockfiles: ["yarn.lock"],
 	},
 	bun: {
@@ -35,6 +35,7 @@ export const AUDIT_TOOLS = {
 			"--format=json",
 			"--locked",
 			"--no-interaction",
+			"--no-dev",
 		],
 		lockfiles: ["composer.lock"],
 	},

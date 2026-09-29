@@ -20,10 +20,10 @@ export const Settings = React.memo(function Settings() {
             </div>
 
             <Tabs defaultValue="connections" className="w-full flex flex-col gap-6">
-                <TabsList className="w-fit h-auto p-1 bg-muted rounded-xl">
-                    <TabsTrigger value="connections" className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">Connexions & API</TabsTrigger>
-                    <TabsTrigger value="analysis" className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">Analyse & Tags</TabsTrigger>
-                    <TabsTrigger value="maintenance" className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">Données & Maintenance</TabsTrigger>
+                <TabsList>
+                    <TabsTrigger value="connections">Connexions & API</TabsTrigger>
+                    <TabsTrigger value="analysis">Analyse & Tags</TabsTrigger>
+                    <TabsTrigger value="maintenance">Données & Maintenance</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="connections" className="mt-0 outline-none min-h-[calc(100vh-16rem)]">

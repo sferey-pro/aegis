@@ -265,7 +265,7 @@ export function App() {
 			<AuditProgressBar progression={progression} onCancel={annuler} />
 
 			<div
-				className={`flex flex-col min-h-screen overflow-x-hidden relative transition-opacity duration-300 ${loading ? "opacity-50 pointer-events-none blur-sm" : "opacity-100"}`}
+				className={`flex flex-col min-h-screen overflow-x-hidden overflow-y-scroll relative transition-opacity duration-300 ${loading ? "opacity-50 pointer-events-none blur-sm" : "opacity-100"}`}
 			>
 				<Routes>
 					<Route

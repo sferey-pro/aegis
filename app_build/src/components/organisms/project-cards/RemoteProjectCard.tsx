@@ -125,15 +125,7 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 							Critique
 						</Badge>
 					)}
-					{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
-						<Badge
-							className="text-[10px] flex items-center gap-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/40 shadow-sm"
-							title="Ce commit était le déploiement actif au moment du dernier audit"
-						>
-							<div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-							Actif (audit)
-						</Badge>
-					)}
+
 				</div>
 
 				<span className="shrink-0 text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50">
@@ -141,9 +133,20 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 				</span>
 			</div>
 
-			<div className="flex items-center gap-1 mt-0">
-				<CloudDownload className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-				<span className="text-xs font-medium text-purple-600 dark:text-purple-400">Distant</span>
+			<div className="flex items-center gap-2 mt-0">
+				<div className="flex items-center gap-1">
+					<CloudDownload className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+					<span className="text-xs font-medium text-purple-600 dark:text-purple-400">Distant</span>
+				</div>
+				{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
+					<Badge
+						className="text-[10px] flex items-center gap-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/40 shadow-sm"
+						title="Ce commit était le déploiement actif au moment du dernier audit"
+					>
+						<div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+						Actif (audit)
+					</Badge>
+				)}
 			</div>
 
 			<div className="grid grid-cols-2 gap-4 mt-2 p-3 bg-muted/50 rounded-lg border border-border/50 shadow-sm">

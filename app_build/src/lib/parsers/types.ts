@@ -8,6 +8,7 @@ export type Severity =
 
 export interface Vulnerability {
 	package: string;
+	path?: string | null;
 	severity: Severity;
 	title: string;
 	cve: string | null;

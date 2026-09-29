@@ -154,7 +154,7 @@ export function RunReport({ run }: { run: ProjectHistoryItem }) {
 														{SEVERITY_LABELS[v.severity] ?? v.severity}
 													</span>
 												</TableCell>
-												<TableCell className="font-mono text-xs">
+																								<TableCell className="font-mono text-xs">
 													{v.package}
 													{isNew(v) && (
 														<Badge
@@ -163,6 +163,14 @@ export function RunReport({ run }: { run: ProjectHistoryItem }) {
 														>
 															Nouveau
 														</Badge>
+													)}
+													{v.path && v.path.includes('>') && (
+														<div 
+															className="mt-1.5 text-[10px] text-muted-foreground opacity-90 break-all" 
+															title={v.path}
+														>
+															<span className="font-semibold text-primary/80">Via:</span> {v.path.split('>')[0]}
+														</div>
 													)}
 												</TableCell>
 												<TableCell className="text-xs">

@@ -38,21 +38,22 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 			onClick={() => navigate(`/projects/${p.id}`)}
 		>
 			<TableCell>
-				<div className="flex items-center gap-3">
+				<div className="flex items-center gap-3 w-full">
 					<Shield
 						className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-destructive" : "text-primary"}`}
 					/>
-					<div className="flex flex-col">
+					<div className="flex flex-col w-full">
 						<span className="font-bold">{p.name}</span>
-						<span className="text-[10px] text-muted-foreground uppercase">
-							{p.tool} • <span className="text-purple-600 dark:text-purple-400 font-medium flex items-center gap-2">Remote (Git)
-								{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
-									<span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 text-[9px] font-bold uppercase tracking-wider dark:text-emerald-400 flex items-center gap-1 shadow-sm" title="Ce commit était le déploiement actif au moment du dernier audit">
-										<div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-										Actif (audit)
-									</span>
-								)}
-</span>
+						<span className="text-[10px] text-muted-foreground uppercase flex items-center justify-between w-full">
+							<span>
+								{p.tool} • <span className="text-purple-600 dark:text-purple-400 font-medium">Remote (Git)</span>
+							</span>
+							{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
+								<span className="ml-auto px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 text-[9px] font-bold uppercase tracking-wider dark:text-emerald-400 flex items-center gap-1 shadow-sm" title="Ce commit était le déploiement actif au moment du dernier audit">
+									<div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+									Actif (audit)
+								</span>
+							)}
 						</span>
 					</div>
 				</div>

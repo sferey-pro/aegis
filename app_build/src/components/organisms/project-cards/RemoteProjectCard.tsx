@@ -133,7 +133,7 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 				</span>
 			</div>
 
-			<div className="flex items-center gap-2 mt-0">
+			<div className="flex items-center justify-between mt-0 w-full">
 				<div className="flex items-center gap-1">
 					<CloudDownload className="w-3 h-3 text-purple-600 dark:text-purple-400" />
 					<span className="text-xs font-medium text-purple-600 dark:text-purple-400">Distant</span>

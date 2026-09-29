@@ -366,7 +366,7 @@ export const Projects = React.memo(function Projects() {
 		setDetectingId(id);
 		try {
 			const rafraichi = await fetchJson<ProjectListItem>(`/api/projects/${id}`);
-			setProjects((prev) => prev.map((p) => (p.id === id ? rafraichi : p)));
+			queryClient.setQueryData(queryKeys.projects, (old: ProjectListItem[] | undefined) => old ? old.map((p) => (p.id === id ? rafraichi : p)) : old);
 		} catch (err) {
 			console.error(err);
 		} finally {
@@ -480,13 +480,7 @@ export const Projects = React.memo(function Projects() {
 			(sortie) => {
 				const git = sortie.value?.git;
 				if (!git) return;
-				setProjects((prev) =>
-					prev.map((p) =>
-						p.id === sortie.project.id
-							? { ...p, git: { ...git, checkedAt: new Date().toISOString() } }
-							: p,
-					),
-				);
+				queryClient.setQueryData(queryKeys.projects, (old: ProjectListItem[] | undefined) => old ? old.map((p) => p.id === sortie.project.id ? { ...p, git: { ...git, checkedAt: new Date().toISOString() } } : p) : old);
 			},
 		);
 

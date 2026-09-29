@@ -16,7 +16,9 @@ import {
 } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { Report } from "@/db/reports";
-import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
+import { apiErrorMessage, fetchVoid } from "@/lib/api";
+import { useReports, queryKeys } from "@/lib/api/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Vulnerability } from "@/lib/parsers/types";
 import { copyToClipboard } from "@/lib/utils";
 
@@ -65,9 +67,8 @@ export const Reports = memo(function Reports({
 }: {
 	auditing?: boolean;
 }) {
-	const [reports, setReports] = useState<Report[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [isFetching, setIsFetching] = useState(false);
+	const queryClient = useQueryClient();
+	const { data: reports = [], isLoading: loading, isFetching, refetch: fetchReports } = useReports();
 	const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 	const [reportToDelete, setReportToDelete] = useState<number | null>(null);
 	const [selectedReports, setSelectedReports] = useState<number[]>([]);
@@ -140,29 +141,13 @@ export const Reports = memo(function Reports({
 		setSelectedReportIndex(index);
 	};
 
-	const fetchReports = useCallback(async () => {
-		setIsFetching(true);
-		try {
-			const data = await fetchJson<Report[]>("/api/reports");
-			setReports(data);
-			// Reset to page 1 if data changes and current page is out of bounds
-			setCurrentPage((prev) =>
-				prev > Math.ceil(data.length / itemsPerPage) ? 1 : prev,
-			);
-			// Remove deleted reports from selection
-			const allIds = data.map((r) => r.id);
-			setSelectedReports((prev) => prev.filter((id) => allIds.includes(id)));
-		} catch (e) {
-			console.error(e);
-		} finally {
-			setIsFetching(false);
-			setLoading(false);
-		}
-	}, []);
-
 	useEffect(() => {
-		fetchReports();
-	}, [fetchReports]);
+		setCurrentPage((prev) =>
+			prev > Math.ceil(reports.length / itemsPerPage) ? Math.max(1, Math.ceil(reports.length / itemsPerPage)) : prev
+		);
+		const allIds = reports.map((r) => r.id);
+		setSelectedReports((prev) => prev.filter((id) => allIds.includes(id)));
+	}, [reports]);
 
 	// Recharger au passage de « audit en cours » à « terminé », moment où le
 	// compte-rendu vient d'être écrit.
@@ -320,7 +305,7 @@ export const Reports = memo(function Reports({
 					)}
 					<Button
 						variant="outline"
-						onClick={fetchReports}
+						onClick={() => fetchReports()}
 						disabled={isFetching}
 						className={`group flex items-center gap-2 text-sm font-semibold ${isFetching ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
 					>

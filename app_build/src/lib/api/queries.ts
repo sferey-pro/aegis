@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "../api";
-import type { ProjectListItem, ProjectDetailItem } from "@/routes/projects";
+import type { ProjectListItem, ProjectDetailItem, ProjectHistoryItem } from "@/routes/projects";
 import type { StatsResponse } from "@/routes/stats";
 import type { Tag } from "@/db/tags";
 import type { Report } from "@/db/reports";
@@ -12,6 +12,7 @@ export const queryKeys = {
 	tags: ["tags"] as const,
 	reports: ["reports"] as const,
 	history: (days: number) => ["history", days] as const,
+	settings: ["settings"] as const,
 };
 
 export function useProjects() {
@@ -40,5 +41,27 @@ export function useTags() {
 	return useQuery({
 		queryKey: queryKeys.tags,
 		queryFn: () => fetchJson<Tag[]>("/api/tags"),
+	});
+}
+
+export function useSettings() {
+	return useQuery({
+		queryKey: queryKeys.settings,
+		queryFn: () => fetchJson<Record<string, string>>("/api/settings"),
+	});
+}
+
+export function useReports() {
+	return useQuery({
+		queryKey: queryKeys.reports,
+		queryFn: () => fetchJson<Report[]>("/api/reports"),
+	});
+}
+
+export function useProjectHistory(id: number | null) {
+	return useQuery({
+		queryKey: ["project-history", id],
+		queryFn: () => fetchJson<ProjectHistoryItem[]>(`/api/projects/${id}/history`),
+		enabled: !!id,
 	});
 }

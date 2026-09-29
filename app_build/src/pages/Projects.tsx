@@ -1,4 +1,4 @@
-import { useProjects, useTags, queryKeys } from "@/lib/api/queries";
+import { useProjects, useTags, useSettings, queryKeys } from "@/lib/api/queries";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
 	AlertTriangle,
@@ -75,10 +75,7 @@ export const Projects = React.memo(function Projects() {
 	const { data: projects = [], isLoading: projectsLoading, refetch: refetchProjectsRaw } = useProjects();
 	const { data: availableTags = [] } = useTags();
 	
-	const { data: settingsData } = useQuery({
-		queryKey: ["settings"],
-		queryFn: () => fetchJson<Record<string, string | boolean>>("/api/settings").catch(() => ({}) as Record<string, string | boolean>)
-	});
+	const { data: settingsData } = useSettings();
 	const hasGithubToken = settingsData?.GITHUB_TOKEN_CONFIGURED === true || settingsData?.GITHUB_TOKEN_CONFIGURED === "true";
 	const loading = projectsLoading;
 	

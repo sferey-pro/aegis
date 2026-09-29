@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { useProject, useProjectHistory } from "@/lib/api/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, apiErrorMessage, fetchJson } from "@/lib/api";
 import type { AuditRunResponse } from "@/lib/useGlobalAudit";
 import type { ProjectHistoryItem, ProjectListItem } from "@/routes/projects";
@@ -20,53 +22,31 @@ export interface AuditFeedback {
  * aucun appel, et on le dit — un `/api/projects/NaN` produirait un 404 trompeur.
  */
 export function useProjectDetail(projectId: number | null) {
-	const [project, setProject] = useState<ProjectListItem | null>(null);
-	const [history, setHistory] = useState<ProjectHistoryItem[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const queryClient = useQueryClient();
+	const { data: project = null, isLoading: projectLoading, error: projectErrorRaw, refetch: refetchProject } = useProject(projectId ?? 0);
+	const { data: history = [], isLoading: historyLoading, refetch: refetchHistory } = useProjectHistory(projectId ?? 0);
+	
+	const loading = projectLoading || historyLoading;
+	const error = projectErrorRaw ? (projectErrorRaw instanceof ApiError && projectErrorRaw.status === 404 ? "Projet introuvable." : apiErrorMessage(projectErrorRaw)) : null;
+
 	const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
 	const [auditing, setAuditing] = useState(false);
 	const [feedback, setFeedback] = useState<AuditFeedback | null>(null);
-	/** Incrémenté après chaque audit : le graphique relit sa série. */
 	const [refreshToken, setRefreshToken] = useState(0);
 
 	const load = useCallback(async () => {
-		if (projectId === null) {
-			setError("Identifiant de projet invalide.");
-			setLoading(false);
-			return;
+		if (projectId !== null) {
+			await Promise.all([refetchProject(), refetchHistory()]);
 		}
-		setLoading(true);
-		setError(null);
-		try {
-			const [fiche, runs] = await Promise.all([
-				fetchJson<ProjectListItem>(`/api/projects/${projectId}`),
-				fetchJson<ProjectHistoryItem[]>(`/api/projects/${projectId}/history`),
-			]);
-			setProject(fiche);
-			setHistory(runs);
-			// Garder la sélection si le run existe encore, sinon le plus récent.
-			setSelectedRunId((current) =>
-				current !== null && runs.some((r) => r.id === current)
-					? current
-					: (runs[0]?.id ?? null),
-			);
-		} catch (e: unknown) {
-			// La route de la fiche répond « Not found » : on le dit en français, et
-			// on distingue ce cas d'une panne — un 404 se corrige en changeant d'URL.
-			setError(
-				e instanceof ApiError && e.status === 404
-					? "Projet introuvable."
-					: apiErrorMessage(e),
-			);
-		} finally {
-			setLoading(false);
-		}
-	}, [projectId]);
+	}, [projectId, refetchProject, refetchHistory]);
 
 	useEffect(() => {
-		void load();
-	}, [load]);
+		if (history.length > 0 && selectedRunId === null) {
+			setSelectedRunId(history[0].id);
+		} else if (history.length > 0 && selectedRunId !== null && !history.some(r => r.id === selectedRunId)) {
+			setSelectedRunId(history[0].id);
+		}
+	}, [history, selectedRunId]);
 
 	/**
 	 * Audit **forcé** : depuis cette page, l'utilisateur veut une mesure neuve,

@@ -8,7 +8,7 @@ import { TabMaintenance } from "./settings/TabMaintenance";
 
 export const Settings = React.memo(function Settings() {
     return (
-        <div className="flex flex-col gap-6 p-8 max-w-[1200px] mx-auto animate-in fade-in duration-500">
+        <div className="flex flex-col gap-6 p-8 w-full max-w-[1200px] mx-auto animate-in fade-in duration-500">
             <div>
                 <h1 className="text-3xl font-black tracking-tight text-primary flex items-center gap-3">
                     <SettingsIcon className="w-8 h-8" />
@@ -26,15 +26,15 @@ export const Settings = React.memo(function Settings() {
                     <TabsTrigger value="maintenance">Données & Maintenance</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="connections" className="mt-0 outline-none min-h-[calc(100vh-16rem)]">
+                <TabsContent value="connections" className="mt-0 outline-none w-full min-h-[calc(100vh-16rem)]">
                     <TabConnections />
                 </TabsContent>
 
-                <TabsContent value="analysis" className="mt-0 outline-none min-h-[calc(100vh-16rem)]">
+                <TabsContent value="analysis" className="mt-0 outline-none w-full min-h-[calc(100vh-16rem)]">
                     <TabAnalysis />
                 </TabsContent>
 
-                <TabsContent value="maintenance" className="mt-0 outline-none min-h-[calc(100vh-16rem)]">
+                <TabsContent value="maintenance" className="mt-0 outline-none w-full min-h-[calc(100vh-16rem)]">
                     <TabMaintenance />
                 </TabsContent>
             </Tabs>

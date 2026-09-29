@@ -65,3 +65,22 @@ export function useProjectHistory(id: number | null) {
 		enabled: !!id,
 	});
 }
+
+export interface AuditStatus {
+	isRunning: boolean;
+	currentProject: number | null;
+	runningProjects: number[];
+	progress: number;
+	total: number;
+	lastCompleted: number | null;
+	lastTotal: number | null;
+	lastFinishedAt: string | null;
+}
+
+export function useAuditStatus() {
+	return useQuery({
+		queryKey: ["audit-status"],
+		queryFn: () => fetchJson<AuditStatus>("/api/audit/status"),
+		refetchInterval: (query) => (query.state.data?.isRunning ? 2000 : 5000),
+	});
+}

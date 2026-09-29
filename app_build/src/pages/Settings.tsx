@@ -16,6 +16,9 @@ import type { SnapshotInfo } from "@/db/backup";
 import type { ResetResult } from "@/db/reset";
 import { apiErrorMessage, fetchJson, fetchVoid, jsonInit } from "@/lib/api";
 import { errorMessage } from "@/lib/utils";
+import { useAuditStatus, useProjects } from "@/lib/api/queries";
+import { Activity, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
 import { SettingsSection } from "../components/organisms/SettingsSection";
 import { TagsManager } from "../components/organisms/TagsManager";
@@ -82,6 +85,8 @@ export function Settings() {
 	});
 	const [loading, setLoading] = useState(true);
 
+	const { data: auditStatus } = useAuditStatus();
+	const { data: projects = [] } = useProjects();
 	const [testJiraLoading, setTestJiraLoading] = useState(false);
 	const [testJiraMessage, setTestJiraMessage] = useState<{
 		text: string;
@@ -1147,6 +1152,52 @@ export function Settings() {
 							)}
 						</div>
 					</SettingsSection>
+
+					<section className="bg-card border-border p-6 rounded-2xl flex flex-col gap-6">
+						<div className="flex flex-col gap-1">
+							<h3 className="text-lg font-bold font-heading flex items-center gap-2">
+								<Activity className="w-5 h-5 text-primary" />
+								Audits en cours
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								État des audits de vulnérabilités tournant actuellement en arrière-plan.
+							</p>
+						</div>
+
+						{auditStatus?.isRunning ? (
+							<div className="flex flex-col gap-4">
+								<div className="flex items-center gap-2 text-sm font-medium">
+									<div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+									Audit global en cours ({auditStatus.progress}/{auditStatus.total})
+								</div>
+								
+								<div className="flex flex-col gap-2">
+									{auditStatus.runningProjects.length > 0 ? (
+										auditStatus.runningProjects.map(id => {
+											const proj = projects.find(p => p.id === id);
+											return (
+												<Link key={id} to={`/projects/${id}`} className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 transition-colors">
+													<div className="flex items-center gap-3">
+														<Shield className="w-4 h-4 text-primary animate-pulse" />
+														<span className="font-semibold text-sm">{proj?.name || `Projet #${id}`}</span>
+													</div>
+													<span className="text-xs text-muted-foreground">Audit en cours...</span>
+												</Link>
+											);
+										})
+									) : (
+										<div className="p-3 border border-dashed rounded-xl text-center text-sm text-muted-foreground">
+											Préparation en cours...
+										</div>
+									)}
+								</div>
+							</div>
+						) : (
+							<div className="p-6 border border-dashed rounded-xl flex items-center justify-center text-sm text-muted-foreground text-center">
+								Aucun audit en cours. Les audits peuvent être déclenchés manuellement depuis la liste des projets, ou via le pipeline d'intégration continue.
+							</div>
+						)}
+					</section>
 
 					<div className="flex flex-col gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
 						<span className="text-lg font-bold">Zone de danger</span>

@@ -1,9 +1,7 @@
-
 import React, { useState } from "react";
 import { Settings as SettingsIcon, Activity, Shield } from "lucide-react";
 import { useSettings, useAuditStatus, useProjects } from "@/lib/api/queries";
-import { fetchVoid, jsonInit } from "@/lib/api";
-import { apiErrorMessage } from "@/lib/api";
+import { fetchVoid, jsonInit, apiErrorMessage } from "@/lib/api";
 import { SettingsSection } from "@/components/organisms/SettingsSection";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -29,9 +27,9 @@ export function TabAnalysis() {
     const sectionModifiee = (section: string) => {
         if (section === "audit") {
             return (
-                settings.AUDIT_MAX_AGE_DAYS !== enregistre.AUDIT_MAX_AGE_DAYS ||
-                settings.AUDIT_CRON_SCHEDULE !== enregistre.AUDIT_CRON_SCHEDULE ||
-                settings.AUDIT_CRON_ENABLED !== enregistre.AUDIT_CRON_ENABLED
+                settings.AUDIT_MAX_AGE_HOURS !== enregistre.AUDIT_MAX_AGE_HOURS ||
+                settings.CRITICAL_ONLY !== enregistre.CRITICAL_ONLY ||
+                settings.DISABLE_CONSOLE !== enregistre.DISABLE_CONSOLE
             );
         }
         return false;
@@ -66,57 +64,54 @@ export function TabAnalysis() {
                 succes={!sectionModifiee("audit") && Object.keys(enregistre).length > 0}
                 erreur={sectionErreur?.section === "audit" ? sectionErreur.message : null}
                 onSave={() => handleSave("audit", {
-                    AUDIT_MAX_AGE_DAYS: settings.AUDIT_MAX_AGE_DAYS || "7",
-                    AUDIT_CRON_SCHEDULE: settings.AUDIT_CRON_SCHEDULE || "0 2 * * *",
-                    AUDIT_CRON_ENABLED: settings.AUDIT_CRON_ENABLED || "false"
+                    AUDIT_MAX_AGE_HOURS: settings.AUDIT_MAX_AGE_HOURS || "24",
+                    CRITICAL_ONLY: settings.CRITICAL_ONLY || "false",
+                    DISABLE_CONSOLE: settings.DISABLE_CONSOLE || "false"
                 })}
             >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                        <label htmlFor="audit-max-age" className="text-sm font-bold">
-                            Validité d'un audit (jours)
-                        </label>
-                        <Input
-                            id="audit-max-age"
-                            type="number"
-                            min="1"
-                            value={settings.AUDIT_MAX_AGE_DAYS || "7"}
-                            onChange={(e) => handleChange("AUDIT_MAX_AGE_DAYS", e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Passé ce délai, le projet est considéré comme obsolète.
-                        </p>
-                    </div>
+                <div className="flex flex-col gap-2">
+                    <label htmlFor="audit-max-age" className="text-sm font-bold">
+                        Cache d'Audit (Heures)
+                    </label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                        Durée pendant laquelle un projet dont l'état Git n'a pas changé ne sera pas ré-audité inutilement.
+                    </p>
+                    <Input
+                        id="audit-max-age"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={settings.AUDIT_MAX_AGE_HOURS || "24"}
+                        onChange={(e) => handleChange("AUDIT_MAX_AGE_HOURS", e.target.value)}
+                        className="w-32"
+                    />
                 </div>
 
-                <div className="flex items-center space-x-2 mt-4 p-4 border rounded-xl bg-muted/50">
-                    <Switch
-                        id="audit-cron-enabled"
-                        checked={settings.AUDIT_CRON_ENABLED === "true"}
-                        onCheckedChange={(c) => handleChange("AUDIT_CRON_ENABLED", c ? "true" : "false")}
-                    />
-                    <label
-                        htmlFor="audit-cron-enabled"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                        Activer l'audit périodique automatique
+                <div className="flex flex-col gap-2 mt-4">
+                    <span className="text-sm font-bold">Options Globales</span>
+
+                    <label htmlFor="critical-only" className="flex items-center gap-3 cursor-pointer mt-2">
+                        <Switch
+                            id="critical-only"
+                            checked={settings.CRITICAL_ONLY === "true"}
+                            onCheckedChange={(c) => handleChange("CRITICAL_ONLY", c ? "true" : "false")}
+                        />
+                        <span className="text-sm font-medium text-muted-foreground">
+                            Mode Silencieux (N'afficher que les CVEs Critical/High)
+                        </span>
+                    </label>
+
+                    <label htmlFor="disable-console" className="flex items-center gap-3 cursor-pointer mt-2">
+                        <Switch
+                            id="disable-console"
+                            checked={settings.DISABLE_CONSOLE === "true"}
+                            onCheckedChange={(c) => handleChange("DISABLE_CONSOLE", c ? "true" : "false")}
+                        />
+                        <span className="text-sm font-medium text-muted-foreground">
+                            Désactiver la Console (Coupe le broadcast SSE et allège les performances frontend)
+                        </span>
                     </label>
                 </div>
-                
-                {settings.AUDIT_CRON_ENABLED === "true" && (
-                    <div className="flex flex-col gap-1 mt-2">
-                        <label htmlFor="audit-cron-schedule" className="text-sm font-bold">
-                            Expression Cron
-                        </label>
-                        <Input
-                            id="audit-cron-schedule"
-                            type="text"
-                            placeholder="0 2 * * *"
-                            value={settings.AUDIT_CRON_SCHEDULE || "0 2 * * *"}
-                            onChange={(e) => handleChange("AUDIT_CRON_SCHEDULE", e.target.value)}
-                        />
-                    </div>
-                )}
             </SettingsSection>
 
             <section className="bg-card border-border p-6 rounded-2xl flex flex-col gap-6">

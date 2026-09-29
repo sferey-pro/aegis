@@ -9,6 +9,8 @@ import {
 import type { Report, ReportDetail } from "@/db/reports";
 import { apiErrorMessage, fetchJson, jsonInit } from "@/lib/api";
 import { useGlobalAudit } from "@/lib/useGlobalAudit";
+import { useStats, queryKeys } from "@/lib/api/queries";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ProjectListItem } from "@/routes/projects";
 import type { StatsResponse } from "@/routes/stats";
 
@@ -34,12 +36,12 @@ export function App() {
 	const navigate = useNavigate();
 	const location = useLocation();
 
-	const [stats, setStats] = useState<StatsResponse | null>(null);
-	/** Message d'échec du chargement des statistiques, distinct de l'état vide. */
-	const [statsError, setStatsError] = useState<string | null>(null);
+	const queryClient = useQueryClient();
+	const { data: stats = null, error: statsErrorRaw, isLoading: loading, refetch: refetchStats } = useStats();
+	const statsError = statsErrorRaw ? apiErrorMessage(statsErrorRaw) : null;
 	/** Projets dont l'audit a échoué pendant le dernier lot. */
 	const [auditErrors, setAuditErrors] = useState<AuditFailure[]>([]);
-	const [loading, setLoading] = useState(true);
+
 	const [reportModal, setReportModal] = useState<Report | null>(null);
 	const [auditSummaryText, setAuditSummaryText] = useState<string | null>(null);
 
@@ -89,33 +91,6 @@ export function App() {
 		return () => clearInterval(interval);
 	}, []);
 
-	const fetchStats = useCallback(async (initial = false) => {
-		try {
-			let data: StatsResponse;
-			if (initial) {
-				[data] = await Promise.all([
-					fetchJson<StatsResponse>("/api/stats"),
-					new Promise<void>((resolve) => setTimeout(resolve, 1000)),
-				]);
-			} else {
-				data = await fetchJson<StatsResponse>("/api/stats");
-			}
-			setStats(data);
-			setStatsError(null);
-		} catch (err) {
-			// N6 : un chargement en échec ne doit pas se lire comme un parc sain.
-			// `stats` est remis à null pour que l'affichage montre « — » et non
-			// « 0 failles critiques », et l'erreur est portée à l'écran.
-			setStats(null);
-			setStatsError(apiErrorMessage(err));
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	useEffect(() => {
-		fetchStats(true);
-	}, [fetchStats]);
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -257,7 +232,7 @@ export function App() {
 					: echecs,
 			);
 
-			await fetchStats();
+			await queryClient.invalidateQueries({ queryKey: queryKeys.stats });
 		} catch (err) {
 			// Échec avant même le lot — par exemple `GET /api/projects`. Aucun projet
 			// n'est en cause, d'où l'identifiant sentinelle.
@@ -308,7 +283,7 @@ export function App() {
 								<Overview
 									stats={stats}
 									error={statsError}
-									onRetry={() => fetchStats()}
+									onRetry={() => refetchStats()}
 									loading={loading}
 									syncDisplay={syncDisplay}
 								/>

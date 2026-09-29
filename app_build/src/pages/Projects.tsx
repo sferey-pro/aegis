@@ -1,3 +1,5 @@
+import { useProjects, useTags, queryKeys } from "@/lib/api/queries";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
 	AlertTriangle,
 	ArrowDownToLine,
@@ -69,11 +71,18 @@ import {
 
 export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
-	const [projects, setProjects] = useState<ProjectListItem[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [hasGithubToken, setHasGithubToken] = useState(false);
-
-	const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+	const queryClient = useQueryClient();
+	const { data: projects = [], isLoading: projectsLoading, refetch: refetchProjectsRaw } = useProjects();
+	const { data: availableTags = [] } = useTags();
+	
+	const { data: settingsData } = useQuery({
+		queryKey: ["settings"],
+		queryFn: () => fetchJson<Record<string, string | boolean>>("/api/settings").catch(() => ({}) as Record<string, string | boolean>)
+	});
+	const hasGithubToken = settingsData?.GITHUB_TOKEN_CONFIGURED === true || settingsData?.GITHUB_TOKEN_CONFIGURED === "true";
+	const loading = projectsLoading;
+	
+	const fetchProjects = async () => { await refetchProjectsRaw(); };
 
 	/**
 	 * Couleur par nom de tag. Un projet ne stocke que les noms : sans cette table
@@ -246,42 +255,6 @@ export const Projects = React.memo(function Projects() {
 				});
 	};
 
-	const fetchTags = useCallback(async () => {
-		try {
-			setAvailableTags(await fetchJson<Tag[]>("/api/tags"));
-		} catch (e) {
-			console.error(e);
-		}
-	}, []);
-
-	const fetchProjects = useCallback(async () => {
-		try {
-			const [data, settingsData] = await Promise.all([
-				fetchJson<ProjectListItem[]>("/api/projects"),
-				fetchJson<Record<string, string | boolean>>("/api/settings").catch(
-					() => ({}) as Record<string, string | boolean>,
-				),
-			]);
-			setProjects(data);
-			if (
-				settingsData.GITHUB_TOKEN_CONFIGURED === true ||
-				settingsData.GITHUB_TOKEN_CONFIGURED === "true"
-			) {
-				setHasGithubToken(true);
-			} else {
-				setHasGithubToken(false);
-			}
-		} catch (e) {
-			console.error(e);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	useEffect(() => {
-		fetchProjects();
-		fetchTags();
-	}, [fetchProjects, fetchTags]);
 
 	const resetForm = () => {
 		setIsAdding(false);
@@ -412,8 +385,10 @@ export const Projects = React.memo(function Projects() {
 	 * d'apprendre. Or chaque action le renvoie déjà (§5).
 	 */
 	const mergeGit = useCallback((id: number, git: ProjectGitState) => {
-		setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, git } : p)));
-	}, []);
+		queryClient.setQueryData(queryKeys.projects, (old: ProjectListItem[] | undefined) => 
+			old ? old.map((p) => (p.id === id ? { ...p, git } : p)) : old
+		);
+	}, [queryClient]);
 
 	const handleFetch = async (id: number, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();

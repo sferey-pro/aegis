@@ -128,15 +128,6 @@ export const LocalProjectCard = React.memo(function LocalProjectCard({
 				</div>
 			)}
 
-			<div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground/70">
-				<Clock className="w-3 h-3" />
-				{p.lastRun ? (
-					<span>Dernier audit : {formatDate(p.lastRun.ran_at)}</span>
-				) : (
-					<span>Ajouté le {formatDate(p.created_at)}</span>
-				)}
-			</div>
-
 			{p.git?.isRepo ? (
 				<div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-muted/30 rounded-lg border text-xs">
 					<div className="flex flex-col gap-1">
@@ -231,6 +222,15 @@ export const LocalProjectCard = React.memo(function LocalProjectCard({
 					</button>
 				</div>
 			)}
+
+			<div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground/70">
+				<Clock className="w-3 h-3" />
+				{p.lastRun ? (
+					<span>Dernier audit : {formatDate(p.lastRun.ran_at)}</span>
+				) : (
+					<span>Ajouté le {formatDate(p.created_at)}</span>
+				)}
+			</div>
 
 			<div className="flex items-center justify-between mt-auto pt-4 border-t border-border ">
 				<button

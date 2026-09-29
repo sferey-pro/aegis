@@ -19,8 +19,7 @@ import { Projects } from "./Projects";
 let sse: ReturnType<typeof mockEventSource>;
 
 function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
-	
- 	// @ts-expect-error
+	// @ts-expect-error
 	return {
 		id: 7,
 		name: "Mon API",

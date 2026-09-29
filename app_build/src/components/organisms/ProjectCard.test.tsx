@@ -30,8 +30,7 @@ function run(over: Partial<Run> = {}): Run {
 }
 
 function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
-	
- 	// @ts-expect-error
+	// @ts-expect-error
 	return {
 		id: 7,
 		name: "Mon API",
@@ -182,7 +181,9 @@ describe("ProjectCard", () => {
 
 	test("le clic sur la carte ouvre le détail du projet", () => {
 		const vus: number[] = [];
-		render(<ProjectCard {...props({ onOpen: (id: number) => vus.push(id) })} />);
+		render(
+			<ProjectCard {...props({ onOpen: (id: number) => vus.push(id) })} />,
+		);
 		fireEvent.click(screen.getByText("Mon API"));
 		expect(vus).toEqual([7]);
 	});
@@ -215,7 +216,9 @@ describe("ProjectCard", () => {
 
 	test("Ignorer transmet le projet entier, pas seulement son id", () => {
 		const vus: ProjectListItem[] = [];
-		render(<ProjectCard {...props({ toggleIgnore: (p: any) => vus.push(p) })} />);
+		render(
+			<ProjectCard {...props({ toggleIgnore: (p: any) => vus.push(p) })} />,
+		);
 		fireEvent.click(screen.getByText("Ignorer le projet"));
 		expect(vus[0]?.id).toBe(7);
 		expect(vus[0]?.name).toBe("Mon API");

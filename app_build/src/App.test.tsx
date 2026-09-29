@@ -30,6 +30,7 @@ function stats(over: Partial<StatsResponse> = {}): StatsResponse {
 		pendingCves: 5,
 		lastSync: "2026-08-21 09:00:00",
 		healthGrade: "C",
+		healthScore: 75,
 		topProjects: [],
 		topCves: [],
 		...over,

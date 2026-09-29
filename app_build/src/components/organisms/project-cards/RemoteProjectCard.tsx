@@ -37,7 +37,7 @@ function getWebUrl(rawUrl: string, sha?: string | null): string {
 			return rawUrl.replace("/-/raw/", "/-/blob/"); // TODO support SHA for Gitlab
 		}
 		return rawUrl;
-	} catch (e) {
+	} catch (_e) {
 		return rawUrl;
 	}
 }
@@ -54,12 +54,18 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 	formatDate,
 	tagColors,
 }: ProjectCardProps) {
+	const rp = p as (typeof p & { remote_url: string; remote_token?: string });
+	const isRepo = rp.git?.isRepo === true;
+	const gitBranch = isRepo ? (rp.git as import("@/lib/git").GitInfo).branch : null;
+	const gitSha = isRepo ? (rp.git as import("@/lib/git").GitInfo).sha : null;
+
 	const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 	const hasNoCves =
 		p.lastRun &&
 		Object.values(p.lastRun.counts).reduce((a, b) => a + b, 0) === 0;
 
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: La carte entière est cliquable mais contient d'autres boutons (impossibilité d'utiliser <button>)
 		<div
 			className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-red-500/50 cursor-pointer " : "hover:-translate-y-1 cursor-pointer "}`}
 			style={{
@@ -133,7 +139,7 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 					<div className="flex items-center gap-1.5 text-xs">
 						<Globe className="w-3 h-3 text-primary/70" />
 						<a
-							href={getWebUrl((p as any).remote_url, (p as any).git?.sha)}
+							href={getWebUrl(rp.remote_url, gitSha)}
 							target="_blank"
 							rel="noopener noreferrer"
 							onClick={(e) => e.stopPropagation()}
@@ -150,32 +156,32 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 						Version
 					</span>
 					<div className="flex items-center gap-2 text-xs font-mono">
-						{(p as any).git?.branch && (
+						{gitBranch && (
 							<span
 								className="flex items-center gap-1 text-muted-foreground"
 								title="Branche surveillée"
 							>
 								<GitBranch className="w-3 h-3" />
-								{typeof (p as any).git.branch === "string" &&
-								(p as any).git.branch.endsWith(" (Active)") ? (
+								{typeof gitBranch === "string" &&
+								gitBranch.endsWith(" (Active)") ? (
 									<>
-										{(p as any).git.branch.replace(" (Active)", "")}
+										{gitBranch.replace(" (Active)", "")}
 										<span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold uppercase tracking-wider leading-none shadow-sm border border-emerald-500/20">
 											Active
 										</span>
 									</>
 								) : (
-									(p as any).git.branch
+									gitBranch
 								)}
 							</span>
 						)}
-						{(p as any).git?.sha && (
+						{gitSha && (
 							<span className="flex items-center gap-1" title="Commit audité">
 								<GitCommit className="w-3 h-3 text-primary/50" />
-								{(p as any).git.sha.substring(0, 7)}
+								{gitSha.substring(0, 7)}
 							</span>
 						)}
-						{!(p as any).git?.isRepo && (
+						{!isRepo && (
 							<span className="text-muted-foreground italic">
 								Non synchronisé
 							</span>

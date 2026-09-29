@@ -87,7 +87,10 @@ class RemoteAdapter implements ProjectAdapter {
 					Accept: "application/vnd.github.v3+json",
 				};
 				const { getSetting } = await import("../../db/settings");
-				const globalToken = getSetting("REMOTE_TOKEN", process.env.REMOTE_TOKEN ?? process.env.GITHUB_TOKEN ?? "");
+				const globalToken = getSetting(
+					"REMOTE_TOKEN",
+					process.env.REMOTE_TOKEN ?? process.env.GITHUB_TOKEN ?? "",
+				);
 				const token = this.project.remote_token || globalToken;
 				if (token) {
 					headers["Authorization"] = `Bearer ${token}`;

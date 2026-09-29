@@ -43,6 +43,7 @@ export const LocalProjectCard = React.memo(function LocalProjectCard({
 		Object.values(p.lastRun.counts).reduce((a, b) => a + b, 0) === 0;
 
 	return (
+		// biome-ignore lint/a11y/useSemanticElements: La carte entière est cliquable mais contient d'autres boutons (impossibilité d'utiliser <button>)
 		<div
 			className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-red-500/50 cursor-pointer " : "hover:-translate-y-1 cursor-pointer "}`}
 			style={{

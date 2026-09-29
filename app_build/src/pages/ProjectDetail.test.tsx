@@ -14,8 +14,7 @@ import { ProjectDetail } from "./ProjectDetail";
  */
 
 function projet(over: Partial<ProjectListItem> = {}): ProjectListItem {
-	
- 	// @ts-expect-error
+	// @ts-expect-error
 	return {
 		id: 7,
 		name: "Mon API",
@@ -136,7 +135,9 @@ describe("ProjectDetail", () => {
 		monte();
 		await screen.findByRole("heading", { level: 1, name: "Mon API" });
 		const liste = screen.getByRole("list", { name: "Historique des audits" });
-		const [, bouton] = Array.from(liste.querySelectorAll("button")).filter(b => b.hasAttribute("aria-pressed"));
+		const [, bouton] = Array.from(liste.querySelectorAll("button")).filter(
+			(b) => b.hasAttribute("aria-pressed"),
+		);
 		if (!bouton) throw new Error("second run absent");
 		fireEvent.click(bouton);
 		const rapport = screen.getByRole("article", { name: "Rapport d'audit" });
@@ -221,7 +222,10 @@ describe("ProjectDetail", () => {
 	});
 
 	test("un projet distant a un bouton d'audit fonctionnel", async () => {
-		mockFetch({ ...base, "GET /api/projects/7": projet({ source_type: "remote" }) });
+		mockFetch({
+			...base,
+			"GET /api/projects/7": projet({ source_type: "remote" }),
+		});
 		monte();
 		await screen.findByRole("heading", { level: 1, name: "Mon API" });
 		expect(

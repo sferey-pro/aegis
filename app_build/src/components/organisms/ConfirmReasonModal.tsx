@@ -49,7 +49,7 @@ export function ConfirmReasonModal({
 						<p className="text-sm text-foreground/90 mt-2">
 							Vous êtes sur le point de confirmer cette faille. Le composant
 							sera marqué comme{" "}
-							<strong className="text-red-600 dark:text-red-400">
+							<strong className="text-destructive dark:text-destructive">
 								Urgent à sécuriser
 							</strong>
 							.

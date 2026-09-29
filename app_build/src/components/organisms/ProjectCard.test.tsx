@@ -86,7 +86,7 @@ describe("ProjectCard", () => {
 		// `undefined > 0`. Le `?? 0` rend l'intention explicite.
 		const { container } = render(<ProjectCard {...props()} />);
 		expect(container.firstElementChild?.className).not.toContain(
-			"border-red-500/50",
+			"border-destructive/30",
 		);
 	});
 
@@ -96,7 +96,7 @@ describe("ProjectCard", () => {
 		});
 		const { container } = render(<ProjectCard {...props({ p })} />);
 		expect(container.firstElementChild?.className).toContain(
-			"border-red-500/50",
+			"border-destructive/30",
 		);
 	});
 

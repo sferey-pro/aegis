@@ -340,7 +340,7 @@ export const Triage = React.memo(function Triage() {
 									<button
 										type="button"
 										onClick={onClearProject}
-										className="hover:text-red-600 dark:hover:text-red-400"
+										className="hover:text-destructive dark:hover:text-destructive"
 									>
 										<X className="w-3.5 h-3.5" />
 									</button>
@@ -354,7 +354,7 @@ export const Triage = React.memo(function Triage() {
 									<button
 										type="button"
 										onClick={onClearCve}
-										className="hover:text-red-600 dark:hover:text-red-400"
+										className="hover:text-destructive dark:hover:text-destructive"
 									>
 										<X className="w-3.5 h-3.5" />
 									</button>
@@ -418,7 +418,7 @@ export const Triage = React.memo(function Triage() {
 				   parc sain était le pire mode de défaillance de cet écran. */
 				<div
 					role="alert"
-					className="bg-card border border-red-500/50 bg-red-500/10 p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4"
+					className="bg-card border border-destructive/30 bg-destructive/10 p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4"
 				>
 					<Shield className="w-16 h-16 opacity-80" />
 					<div>
@@ -478,7 +478,7 @@ export const Triage = React.memo(function Triage() {
 
 			{toast?.isOpen && (
 				<div
-					className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border flex flex-col gap-2 bg-card border-border ${toast.type === "success" ? "bg-green-500/10 " : toast.type === "error" ? "bg-red-500/10 " : "bg-blue-500/10 "}`}
+					className={`fixed bottom-6 right-6 z-[200] max-w-sm w-full p-4 rounded-xl border flex flex-col gap-2 bg-card border-border ${toast.type === "success" ? "bg-green-500/10 " : toast.type === "error" ? "bg-destructive/10 " : "bg-blue-500/10 "}`}
 				>
 					<div className="flex justify-between items-start">
 						<h4 className="font-bold flex items-center gap-2">

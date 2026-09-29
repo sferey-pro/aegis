@@ -156,7 +156,7 @@ export function ReportModal({
 					{auditErrors.length > 0 && (
 						<div
 							role="alert"
-							className="mt-4 rounded-xl border border-red-500/50 bg-red-500/10 p-4"
+							className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4"
 						>
 							<p className="text-sm font-semibold">
 								{auditErrors.length} projet

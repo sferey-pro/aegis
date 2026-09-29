@@ -67,7 +67,7 @@ export function AuditProgressBar({
 						variant="ghost"
 						size="sm"
 						onClick={onCancel}
-						className="text-red-600 dark:text-red-400"
+						className="text-destructive dark:text-destructive"
 					>
 						<X className="w-4 h-4 mr-1.5" /> Annuler
 					</Button>

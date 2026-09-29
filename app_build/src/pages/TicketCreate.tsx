@@ -78,7 +78,7 @@ export function TicketCreate() {
 			{projectId === null && (
 				<div
 					role="alert"
-					className="rounded-2xl border border-red-500/50 bg-red-500/10 px-5 py-4 text-sm font-medium"
+					className="rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4 text-sm font-medium"
 				>
 					Projet manquant : ouvrez cette page depuis le triage, par le bouton «
 					Ticket » d'un paquet.
@@ -92,7 +92,7 @@ export function TicketCreate() {
 			{projectId !== null && !draft.loading && draft.error && (
 				<div
 					role="alert"
-					className="flex items-center justify-between gap-4 rounded-2xl border border-red-500/50 bg-red-500/10 px-5 py-4"
+					className="flex items-center justify-between gap-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4"
 				>
 					<p className="text-sm font-medium">
 						Impossible de charger les vulnérabilités : {draft.error}
@@ -211,7 +211,7 @@ export function TicketCreate() {
 							{draft.feedback && (
 								<p
 									role="alert"
-									className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300"
+									className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive "
 								>
 									{draft.feedback}
 								</p>

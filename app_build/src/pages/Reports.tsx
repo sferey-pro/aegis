@@ -280,7 +280,7 @@ export const Reports = memo(function Reports({
 			{bulkError && (
 				<div
 					role="alert"
-					className="mb-6 rounded-2xl border border-red-500/50 bg-red-500/10 px-5 py-4 text-sm font-medium"
+					className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4 text-sm font-medium"
 				>
 					{bulkError}
 				</div>
@@ -297,7 +297,7 @@ export const Reports = memo(function Reports({
 						<Button
 							variant="outline"
 							onClick={() => setBulkDeleteModalOpen(true)}
-							className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-600 hover:bg-red-50"
+							className="flex items-center gap-2 text-sm font-semibold text-destructive hover:text-destructive hover:bg-red-50"
 						>
 							<Trash2 className="w-4 h-4" />
 							Supprimer ({selectedReports.length})
@@ -623,8 +623,8 @@ export const Reports = memo(function Reports({
 						{diffData && (
 							<>
 								<div className="grid grid-cols-3 gap-4">
-									<div className="bg-red-500/10 border rounded-xl p-4 flex flex-col gap-1">
-										<span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-2">
+									<div className="bg-destructive/10 border rounded-xl p-4 flex flex-col gap-1">
+										<span className="text-destructive dark:text-destructive font-bold flex items-center gap-2">
 											<ArrowUpRight className="w-4 h-4" /> Nouvelles failles
 										</span>
 										<span className="text-3xl font-light">

@@ -33,7 +33,7 @@ export const IngestProjectCard = React.memo(function IngestProjectCard({
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: La carte entière est cliquable mais contient d'autres boutons (impossibilité d'utiliser <button>)
 		<div
-			className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-red-500/50 cursor-pointer " : "hover:-translate-y-1 cursor-pointer "}`}
+			className={`group bg-card border-border p-5 rounded-xl flex flex-col gap-3 slide-in-from-bottom-4 relative overflow-hidden ${p.ignored ? "opacity-50 grayscale" : hasCritical ? "border-destructive/30 cursor-pointer " : "hover:-translate-y-1 cursor-pointer "}`}
 			style={{
 				animationDelay: `${(index % 20) * 50}ms`,
 				animationFillMode: "backwards",
@@ -64,7 +64,7 @@ export const IngestProjectCard = React.memo(function IngestProjectCard({
 			<div className="flex items-start justify-between">
 				<div className="flex items-center gap-2 flex-wrap">
 					<Shield
-						className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-red-500" : "text-primary"}`}
+						className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-destructive" : "text-primary"}`}
 					/>
 					<h3
 						className="font-bold text-lg leading-tight truncate max-w-[140px]"

@@ -74,13 +74,13 @@ export function TriageTable({
 						return (
 							<React.Fragment key={group.key}>
 								<TableRow
-									className={`cursor-pointer ${group.hasConfirmed ? "bg-red-500/5 dark:bg-red-950/40" : ""}`}
+									className={`cursor-pointer ${group.hasConfirmed ? "bg-destructive/10 " : ""}`}
 									onClick={() => setSelectedGroup(group)}
 								>
 									<TableCell className="whitespace-nowrap">
 										<div className="flex items-center gap-3">
 											<div
-												className={`p-1.5 rounded-lg border ${group.hasConfirmed ? "bg-red-500/20 text-red-700 border-red-500 dark:bg-red-500/25 dark:text-red-200" : SEVERITY_COLORS[group.worstSeverity]}`}
+												className={`p-1.5 rounded-lg border ${group.hasConfirmed ? "bg-destructive/10 text-destructive border-destructive dark:bg-destructive/10 " : SEVERITY_COLORS[group.worstSeverity]}`}
 											>
 												{group.hasConfirmed ? (
 													<AlertOctagon className="w-5 h-5" />
@@ -91,7 +91,7 @@ export function TriageTable({
 											<div className="flex flex-col">
 												<div className="flex items-center gap-2">
 													<span
-														className={`font-bold font-mono text-sm ${group.hasConfirmed ? "text-red-700 dark:text-red-300" : "text-foreground"}`}
+														className={`font-bold font-mono text-sm ${group.hasConfirmed ? "text-destructive " : "text-foreground"}`}
 													>
 														{group.package}
 													</span>
@@ -151,7 +151,7 @@ export function TriageTable({
 												)}
 												{group.hasNetDiscovery && (
 													<span
-														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${group.maxSlaAgeInDays > 30 ? "bg-red-500/10 border " : group.maxSlaAgeInDays > 15 ? "bg-orange-500/10 border " : "bg-green-500/10 border "}`}
+														className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 ${group.maxSlaAgeInDays > 30 ? "bg-destructive/10 border " : group.maxSlaAgeInDays > 15 ? "bg-orange-500/10 border " : "bg-green-500/10 border "}`}
 														title="Découverte nette : l'âge est compté depuis notre première détection."
 													>
 														SLA:{" "}

@@ -151,7 +151,7 @@ describe("Console", () => {
 		pousser(fin({ exitCode: 200, ok: true }));
 
 		expect(container.querySelector(".text-green-500")).not.toBeNull();
-		expect(container.querySelector(".text-red-500")).toBeNull();
+		expect(container.querySelector(".text-destructive")).toBeNull();
 		expect(screen.queryAllByText(/code 200/)).toHaveLength(0);
 	});
 
@@ -161,7 +161,7 @@ describe("Console", () => {
 		pousser(debut({ label: "github", cmd: "GET advisories GHSA-1234" }));
 		pousser(fin({ exitCode: 404, ok: false }));
 
-		expect(container.querySelector(".text-red-500")).not.toBeNull();
+		expect(container.querySelector(".text-destructive")).not.toBeNull();
 		expect(screen.getByText(/code 404/)).toBeInTheDocument();
 	});
 
@@ -173,7 +173,7 @@ describe("Console", () => {
 		pousser(debut({ label: "github" }));
 		pousser(fin({ exitCode: undefined, ok: false, errorText: "ENOTFOUND" }));
 
-		expect(container.querySelector(".text-red-500")).not.toBeNull();
+		expect(container.querySelector(".text-destructive")).not.toBeNull();
 		expect(screen.getByText("ENOTFOUND")).toBeInTheDocument();
 	});
 
@@ -185,7 +185,7 @@ describe("Console", () => {
 		pousser(debut());
 		pousser(fin({ exitCode: 1 }));
 
-		expect(container.querySelector(".text-red-500")).not.toBeNull();
+		expect(container.querySelector(".text-destructive")).not.toBeNull();
 	});
 
 	test("le message : disabled ferme le flux et l'annonce", () => {

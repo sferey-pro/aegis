@@ -42,7 +42,7 @@ export const LocalProjectRow = React.memo(function LocalProjectRow({
 			<TableCell>
 				<div className="flex items-center gap-3">
 					<Shield
-						className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-red-500" : "text-primary"}`}
+						className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-destructive" : "text-primary"}`}
 					/>
 					<div className="flex flex-col">
 						<span className="font-bold">{p.name}</span>
@@ -92,7 +92,7 @@ export const LocalProjectRow = React.memo(function LocalProjectRow({
 						)}
 						{p.git.behind > 0 && (
 							<span
-								className="text-red-600 dark:text-red-400 font-bold flex items-center gap-0.5"
+								className="text-destructive dark:text-destructive font-bold flex items-center gap-0.5"
 								title={`${p.git.behind} commits de retard`}
 							>
 								<ArrowDownToLine className="w-3 h-3" /> {p.git.behind}

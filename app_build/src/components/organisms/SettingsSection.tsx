@@ -68,7 +68,7 @@ export function SettingsSection({
 					    bouton qui l'a déclenché. Un message global ne disait pas quelle
 					    partie du formulaire avait échoué. */}
 					{erreur && (
-						<span role="alert" className="text-sm font-medium text-red-500">
+						<span role="alert" className="text-sm font-medium text-destructive">
 							Échec de l'enregistrement : {erreur}
 						</span>
 					)}

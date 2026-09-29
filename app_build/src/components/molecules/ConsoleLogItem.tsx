@@ -22,7 +22,7 @@ export const ConsoleLogItem = memo(function ConsoleLogItem({
 				{log.status === "success" && (
 					<CheckCircle className="w-4 h-4 text-green-500" />
 				)}
-				{log.status === "error" && <XCircle className="w-4 h-4 text-red-500" />}
+				{log.status === "error" && <XCircle className="w-4 h-4 text-destructive" />}
 			</div>
 
 			<div className="flex-1 flex flex-col min-w-0">
@@ -48,7 +48,7 @@ export const ConsoleLogItem = memo(function ConsoleLogItem({
 					)}
 
 					{log.status === "error" && log.exitCode !== undefined && (
-						<span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-700 dark:text-red-300 shrink-0">
+						<span className="text-xs px-2 py-0.5 rounded bg-destructive/10 text-destructive  shrink-0">
 							code {log.exitCode}
 						</span>
 					)}
@@ -61,7 +61,7 @@ export const ConsoleLogItem = memo(function ConsoleLogItem({
 				)}
 
 				{log.status === "error" && log.errorText && !debugMode ? (
-					<div className="text-xs mt-1 pl-2 border-l-2 border-red-500/50 p-2 bg-red-500/10 rounded break-all text-red-800 dark:text-red-200">
+					<div className="text-xs mt-1 pl-2 border-l-2 border-destructive/30 p-2 bg-destructive/10 rounded break-all text-destructive ">
 						{log.errorText}
 					</div>
 				) : null}
@@ -77,8 +77,8 @@ export const ConsoleLogItem = memo(function ConsoleLogItem({
 							</div>
 						) : null}
 						{log.errorText ? (
-							<div className="text-[10px] border-l-2 border-red-500/50 p-2 bg-red-500/10 rounded overflow-x-auto whitespace-pre-wrap break-words w-full text-red-800 dark:text-red-200 font-mono">
-								<span className="font-bold block mb-1 text-red-600 dark:text-red-400">
+							<div className="text-[10px] border-l-2 border-destructive/30 p-2 bg-destructive/10 rounded overflow-x-auto whitespace-pre-wrap break-words w-full text-destructive  font-mono">
+								<span className="font-bold block mb-1 text-destructive dark:text-destructive">
 									STDERR :
 								</span>
 								{log.errorText}

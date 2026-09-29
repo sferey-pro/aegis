@@ -33,7 +33,7 @@ const GRADE_COLORS: Record<string, string> = {
 	B: "bg-blue-500/20 text-blue-700 border-blue-500/50 dark:text-blue-300",
 	C: "bg-yellow-500/20 text-yellow-700 border-yellow-500/50 dark:text-yellow-300",
 	D: "bg-orange-500/20 text-orange-700 border-orange-500/50 dark:text-orange-300",
-	F: "bg-red-500/20 text-red-700 border-red-500/50 dark:text-red-300",
+	F: "bg-destructive/10 text-destructive border-destructive/30 ",
 };
 
 export const Overview = memo(function Overview({
@@ -60,7 +60,7 @@ export const Overview = memo(function Overview({
 			{error && (
 				<div
 					role="alert"
-					className="flex items-center justify-between gap-4 rounded-2xl border border-red-500/50 bg-red-500/10 px-5 py-4"
+					className="flex items-center justify-between gap-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4"
 				>
 					<p className="text-sm font-medium">
 						Impossible de charger les indicateurs : {error}. Les chiffres
@@ -104,7 +104,7 @@ export const Overview = memo(function Overview({
 										</p>
 										<ul className="text-xs space-y-1 mb-4 border-l-2 border-muted pl-3">
 											<li>
-												<strong className="text-red-500">Critique</strong> : -20
+												<strong className="text-destructive">Critique</strong> : -20
 												pts
 											</li>
 											<li>
@@ -134,7 +134,7 @@ export const Overview = memo(function Overview({
 												<span>D</span>
 												<span className="font-normal opacity-70">40-59</span>
 											</div>
-											<div className="bg-red-500/20 text-red-700 dark:text-red-300 py-1.5 rounded flex flex-col gap-0.5">
+											<div className="bg-destructive/10 text-destructive  py-1.5 rounded flex flex-col gap-0.5">
 												<span>F</span>
 												<span className="font-normal opacity-70">&lt;40</span>
 											</div>

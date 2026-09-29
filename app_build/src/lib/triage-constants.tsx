@@ -27,7 +27,7 @@ import type React from "react";
  */
 export const SEVERITY_COLORS: Record<string, string> = {
 	critical:
-		"bg-red-500/10 text-red-700 border-red-500/40 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/50",
+		"bg-destructive/10 text-destructive border-destructive/30 dark:bg-destructive/10  ",
 	high: "bg-orange-500/10 text-orange-700 border-orange-500/40 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/50",
 	moderate:
 		"bg-yellow-500/10 text-yellow-700 border-yellow-500/40 dark:bg-yellow-500/15 dark:text-yellow-300 dark:border-yellow-500/50",

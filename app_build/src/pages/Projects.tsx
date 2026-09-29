@@ -1074,7 +1074,7 @@ export const Projects = React.memo(function Projects() {
 									{submitError && (
 										<p
 											role="alert"
-											className="mr-auto text-sm font-medium text-red-500"
+											className="mr-auto text-sm font-medium text-destructive"
 										>
 											{submitError}
 										</p>
@@ -1157,10 +1157,10 @@ export const Projects = React.memo(function Projects() {
 			    `console.error` : un dépôt sans amont ou une authentification refusée
 			    laissait la carte afficher le même « à jour » qu'un succès. */}
 			{gitSyncFailures.length > 0 && (
-				<div className="rounded-xl border border-red-500/50 bg-red-500/10 p-4 flex flex-col gap-2">
+				<div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex flex-col gap-2">
 					<div className="flex items-center justify-between gap-4">
 						<p className="text-sm font-semibold flex items-center gap-2">
-							<AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+							<AlertTriangle className="w-4 h-4 text-destructive dark:text-destructive" />
 							{gitSyncFailures.length} dépôt(s) non synchronisé(s)
 						</p>
 						<Button

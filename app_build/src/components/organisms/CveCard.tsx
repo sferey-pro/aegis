@@ -90,7 +90,7 @@ export function CveCard({
 					)}
 					{cveObj.ageInDays !== undefined && (
 						<span
-							className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${cveObj.isBaseline ? "bg-purple-500/10 text-purple-700 border-purple-500/40 dark:text-purple-300" : cveObj.ageInDays > 30 ? "bg-red-500/10 text-red-700 border-red-500/40 dark:text-red-300" : cveObj.ageInDays > 15 ? "bg-orange-500/10 text-orange-700 border-orange-500/40 dark:text-orange-300" : "bg-muted/60 text-muted-foreground dark:bg-white/5"}`}
+							className={`font-mono px-2 py-1 rounded border flex items-center gap-1 ${cveObj.isBaseline ? "bg-purple-500/10 text-purple-700 border-purple-500/40 dark:text-purple-300" : cveObj.ageInDays > 30 ? "bg-destructive/10 text-destructive border-destructive/30 " : cveObj.ageInDays > 15 ? "bg-orange-500/10 text-orange-700 border-orange-500/40 dark:text-orange-300" : "bg-muted/60 text-muted-foreground dark:bg-white/5"}`}
 							title={
 								cveObj.isBaseline
 									? "Existant à l'installation : l'âge court depuis la publication de l'avis."

@@ -40,7 +40,7 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 			<TableCell>
 				<div className="flex items-center gap-3">
 					<Shield
-						className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-red-500" : "text-primary"}`}
+						className={`w-5 h-5 ${p.ignored ? "text-muted-foreground" : hasNoCves ? "text-green-500" : hasCritical ? "text-destructive" : "text-primary"}`}
 					/>
 					<div className="flex flex-col">
 						<span className="font-bold">{p.name}</span>

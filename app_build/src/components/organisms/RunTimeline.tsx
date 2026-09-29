@@ -53,7 +53,7 @@ export function RunTimeline({
 							<div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
 								<span>{statusLabel(run)}</span>
 								{nouveautes > 0 && (
-									<span className="font-semibold text-red-600 dark:text-red-400">
+									<span className="font-semibold text-destructive dark:text-destructive">
 										+{nouveautes} nouvelle{nouveautes > 1 ? "s" : ""}
 									</span>
 								)}
@@ -109,7 +109,7 @@ function StatusIcon({ run }: { run: ProjectHistoryItem }) {
 	return (
 		<ShieldAlert
 			aria-hidden="true"
-			className="w-4 h-4 text-red-600 dark:text-red-400"
+			className="w-4 h-4 text-destructive dark:text-destructive"
 		/>
 	);
 }

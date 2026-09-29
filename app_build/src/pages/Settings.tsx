@@ -525,7 +525,7 @@ export function Settings() {
 				   sans message ni recours, dès que le serveur était indisponible. */
 				<div
 					role="alert"
-					className="border border-red-500/50 bg-red-500/10 p-8 rounded-2xl flex flex-col items-center gap-4 text-center"
+					className="border border-destructive/30 bg-destructive/10 p-8 rounded-2xl flex flex-col items-center gap-4 text-center"
 				>
 					<p className="font-semibold">
 						Impossible de charger les réglages : {loadError}
@@ -579,7 +579,7 @@ export function Settings() {
 										<strong
 											className={
 												Number(settings.GITHUB_RL_REMAINING) === 0
-													? "text-red-600 dark:text-red-400"
+													? "text-destructive dark:text-destructive"
 													: "text-green-600 dark:text-green-400"
 											}
 										>
@@ -676,7 +676,7 @@ export function Settings() {
 							</div>
 							{clearCacheMessage && (
 								<div
-									className={`text-sm px-3 py-2 rounded-md ${clearCacheMessage.type === "success" ? "bg-green-500/20 border " : "bg-red-500/20 border "}`}
+									className={`text-sm px-3 py-2 rounded-md ${clearCacheMessage.type === "success" ? "bg-green-500/20 border " : "bg-destructive/10 border "}`}
 								>
 									{clearCacheMessage.text}
 								</div>
@@ -1140,7 +1140,7 @@ export function Settings() {
 							</Button>
 							{testJiraMessage && (
 								<span
-									className={`text-sm font-medium ${testJiraMessage.type === "success" ? "text-green-500" : "text-red-500"}`}
+									className={`text-sm font-medium ${testJiraMessage.type === "success" ? "text-green-500" : "text-destructive"}`}
 								>
 									{testJiraMessage.text}
 								</span>
@@ -1148,7 +1148,7 @@ export function Settings() {
 						</div>
 					</SettingsSection>
 
-					<div className="flex flex-col gap-2 rounded-2xl border border-red-500/50 bg-red-500/5 p-6">
+					<div className="flex flex-col gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
 						<span className="text-lg font-bold">Zone de danger</span>
 						<p className="text-sm text-muted-foreground">
 							Remet la configuration à zéro pour repartir d'un import de projets
@@ -1207,7 +1207,7 @@ export function Settings() {
 										: "Remettre la configuration à zéro"}
 								</Button>
 								{resetError && (
-									<span role="alert" className="text-sm text-red-500">
+									<span role="alert" className="text-sm text-destructive">
 										{resetError}
 									</span>
 								)}
@@ -1273,7 +1273,7 @@ export function Settings() {
 								variant="outline"
 								onClick={handleRestoreSnapshot}
 								disabled={backupLoading || !snapshotChoisi}
-								className="text-red-600 dark:text-red-400"
+								className="text-destructive dark:text-destructive"
 							>
 								<AlertTriangle className="w-4 h-4 mr-2" /> Restaurer
 							</Button>
@@ -1320,7 +1320,7 @@ export function Settings() {
 
 				{backupMessage && (
 					<div
-						className={`mt-6 p-4 rounded-lg border ${backupMessage.type === "error" ? "bg-red-500/10 " : "bg-green-500/10 "} flex items-center gap-2`}
+						className={`mt-6 p-4 rounded-lg border ${backupMessage.type === "error" ? "bg-destructive/10 " : "bg-green-500/10 "} flex items-center gap-2`}
 					>
 						{backupMessage.type === "error" ? (
 							<AlertTriangle className="w-5 h-5" />

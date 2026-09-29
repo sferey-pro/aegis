@@ -207,7 +207,7 @@ describe("TriageTable", () => {
 		);
 		const badge = screen.getByText(/SLA:/);
 		expect(badge).toHaveTextContent("45j");
-		expect(badge.className).toContain("bg-red-500/10");
+		expect(badge.className).toContain("bg-destructive/10");
 	});
 
 	test("la pagination est masquée sur une seule page courte", () => {

@@ -70,7 +70,7 @@ export const Header = memo(function Header({
 						<AlertOctagon className="w-4 h-4" />
 						CVEs
 						{pendingCves !== undefined && pendingCves > 0 && (
-							<span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+							<span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-white">
 								{pendingCves}
 							</span>
 						)}

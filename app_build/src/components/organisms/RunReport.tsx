@@ -67,7 +67,7 @@ export function RunReport({ run }: { run: ProjectHistoryItem }) {
 
 			{run.status === "error" && run.error && (
 				<section aria-label="Erreur de l'audit">
-					<pre className="whitespace-pre-wrap break-words rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-xs text-red-700 dark:text-red-300">
+					<pre className="whitespace-pre-wrap break-words rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-xs text-destructive ">
 						{run.error}
 					</pre>
 				</section>

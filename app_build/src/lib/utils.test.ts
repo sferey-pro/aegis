@@ -17,7 +17,7 @@ describe("lib/utils — cn", () => {
 		// généré, pas celui de l'appel, déciderait — d'où des surcharges de props
 		// silencieusement inopérantes.
 		expect(cn("px-2", "px-4")).toBe("px-4");
-		expect(cn("text-red-500", "text-blue-500")).toBe("text-blue-500");
+		expect(cn("text-destructive", "text-blue-500")).toBe("text-blue-500");
 	});
 
 	test("les classes non conflictuelles sont toutes conservées", () => {

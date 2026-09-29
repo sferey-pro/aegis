@@ -44,7 +44,7 @@ export function ProjectDetail() {
 			{!detail.loading && detail.error && (
 				<div
 					role="alert"
-					className="flex items-center justify-between gap-4 rounded-2xl border border-red-500/50 bg-red-500/10 px-5 py-4"
+					className="flex items-center justify-between gap-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-5 py-4"
 				>
 					<p className="text-sm font-medium">{detail.error}</p>
 					{projectId !== null && (
@@ -149,7 +149,7 @@ export function ProjectDetail() {
 							role="status"
 							className={
 								detail.feedback.type === "error"
-									? "text-sm text-red-700 dark:text-red-300"
+									? "text-sm text-destructive "
 									: "text-sm text-green-700 dark:text-green-300"
 							}
 						>

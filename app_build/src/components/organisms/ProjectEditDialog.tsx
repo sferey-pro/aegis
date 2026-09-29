@@ -533,7 +533,7 @@ export function ProjectEditDialog({
 
 						{showIgnoreToggle && (
 							<div className="flex flex-col gap-2 mt-2 pt-4 border-t">
-								<Label className="flex items-center gap-2 cursor-pointer text-red-600 dark:text-red-400">
+								<Label className="flex items-center gap-2 cursor-pointer text-destructive dark:text-destructive">
 									<Switch
 										checked={formData.ignored}
 										onCheckedChange={(c) =>
@@ -554,7 +554,7 @@ export function ProjectEditDialog({
 						{submitError && (
 							<p
 								role="alert"
-								className="mr-auto text-sm font-medium text-red-500"
+								className="mr-auto text-sm font-medium text-destructive"
 							>
 								{submitError}
 							</p>

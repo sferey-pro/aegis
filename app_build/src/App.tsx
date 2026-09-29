@@ -240,7 +240,7 @@ export function App() {
 				{ projectId: -1, name: "Audit global", message: apiErrorMessage(err) },
 			]);
 		}
-	}, [fetchStats, filtreTag, lancer]);
+	}, [filtreTag, lancer]);
 
 	let syncDisplay = "Aucune synchronisation";
 	if (stats?.lastSync) {

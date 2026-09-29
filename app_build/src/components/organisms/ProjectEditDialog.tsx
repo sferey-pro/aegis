@@ -57,7 +57,7 @@ export function ProjectEditDialog({
 		type: "node",
 		tags: [] as string[],
 		ignored: false,
-		source_type: "local" as "local" | "ingest" | "remote",
+		source_type: "remote" as "local" | "ingest" | "remote",
 		remote_url: "",
 		remote_token: "",
 	});
@@ -73,7 +73,7 @@ export function ProjectEditDialog({
 		if (isOpen) {
 			setFormData({
 				name: project.name,
-				path: project.path,
+				path: project.source_type === "remote" || (project.path && project.path.includes(".aegis_remote_projects")) ? "" : project.path,
 				audit_path: project.audit_path || "",
 				tool: project.tool,
 				type: project.type,
@@ -188,9 +188,6 @@ export function ProjectEditDialog({
 									className="w-full"
 								>
 									<TabsList className="w-full h-10">
-										<TabsTrigger value="local" title="Local" className="flex-1">
-											<HardDrive className="w-5 h-5" />
-										</TabsTrigger>
 										<TabsTrigger
 											value="remote"
 											title="Distant (Direct)"
@@ -198,12 +195,16 @@ export function ProjectEditDialog({
 										>
 											<Globe className="w-5 h-5" />
 										</TabsTrigger>
+										<TabsTrigger value="local" title="Local" className="flex-1">
+											<HardDrive className="w-5 h-5" />
+										</TabsTrigger>
 										<TabsTrigger
 											value="ingest"
 											title="Ingestion CI"
 											className="flex-1"
+											disabled
 										>
-											<UploadCloud className="w-5 h-5" />
+											<UploadCloud className="w-5 h-5 opacity-50" />
 										</TabsTrigger>
 									</TabsList>
 								</Tabs>

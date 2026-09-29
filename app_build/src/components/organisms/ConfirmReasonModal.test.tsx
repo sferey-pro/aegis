@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@/test/utils";
 
 import { ConfirmReasonModal } from "./ConfirmReasonModal";
 import type { ConfirmModalState } from "./triage-types";

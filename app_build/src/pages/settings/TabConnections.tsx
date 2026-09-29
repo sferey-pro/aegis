@@ -10,6 +10,7 @@ export function TabConnections() {
 	const { data: settingsData, refetch } = useSettings();
 	const [settings, setSettings] = useState<Record<string, string>>({});
 	const [enregistre, setEnregistre] = useState<Record<string, string>>({});
+	const [isInitialized, setIsInitialized] = useState(false);
 	const [sectionEnCours, setSectionEnCours] = useState<string | null>(null);
 	const [sectionErreur, setSectionErreur] = useState<{
 		section: string;
@@ -30,11 +31,12 @@ export function TabConnections() {
 
 	// Initialize local state when settingsData arrives
 	React.useEffect(() => {
-		if (settingsData && Object.keys(enregistre).length === 0) {
+		if (settingsData && !isInitialized) {
+			setIsInitialized(true);
 			setSettings(settingsData);
 			setEnregistre(settingsData);
 		}
-	}, [settingsData, enregistre]);
+	}, [settingsData, isInitialized]);
 
 	const sectionModifiee = (section: string) => {
 		if (section === "github")

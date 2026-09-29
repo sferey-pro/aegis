@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { MemoryRouter } from "react-router-dom";
 
 import type { StatsResponse } from "@/routes/stats";

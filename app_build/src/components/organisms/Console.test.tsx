@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@/test/utils";
 
 import { mockEventSource, restoreEventSource } from "@/test/sse";
 import { Console } from "./Console";

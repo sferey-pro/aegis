@@ -5,7 +5,7 @@ import {
 	screen,
 	waitFor,
 	within,
-} from "@testing-library/react";
+} from "@/test/utils";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import type { Ticket } from "@/db/tickets";

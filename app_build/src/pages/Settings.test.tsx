@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
 import { Settings } from "./Settings";

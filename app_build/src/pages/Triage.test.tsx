@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import type { CveGroup, CveOccurrence } from "@/lib/aggregator";

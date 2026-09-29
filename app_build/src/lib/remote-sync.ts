@@ -37,12 +37,13 @@ export async function syncRemoteProject(project: Project) {
 		);
 		const parts = pathStr.split("/");
 
-		let branchIdx = 2;
+		let newParts;
 		if (parts.length > 4 && parts[2] === "refs" && parts[3] === "heads") {
-			branchIdx = 4;
+			newParts = [parts[0], parts[1], gitInfo.sha, ...parts.slice(5)];
+		} else {
+			newParts = [parts[0], parts[1], gitInfo.sha, ...parts.slice(3)];
 		}
-		parts[branchIdx] = gitInfo.sha;
-		downloadUrl = "https://raw.githubusercontent.com/" + parts.join("/");
+		downloadUrl = "https://raw.githubusercontent.com/" + newParts.join("/");
 	}
 
 	let cmdString = `curl -H "Accept: application/vnd.github.v3.raw, */*"`;

@@ -75,7 +75,7 @@ export async function syncRemoteProject(project: Project) {
 			headers.Authorization = `Bearer ${token}`;
 		}
 
-		const res = await fetch(downloadUrl, { headers });
+				const res = await fetch(downloadUrl, { headers });
 		if (!res.ok) {
 			throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
 		}
@@ -90,11 +90,22 @@ export async function syncRemoteProject(project: Project) {
 		const filePath = join(projectDir, filename);
 		await Bun.write(filePath, content);
 
-		// Create dummy manifest files so that audit tools (like composer or npm) don't crash
-		// complaining about missing composer.json or package.json
-		const manifestName =
-			project.tool === "composer" ? "composer.json" : "package.json";
-		await Bun.write(join(projectDir, manifestName), "{}");
+		// Fetch actual manifest instead of dummy
+		const manifestName = project.tool === "composer" ? "composer.json" : "package.json";
+		const manifestUrl = downloadUrl.replace(filename, manifestName);
+		
+		try {
+			const mRes = await fetch(manifestUrl, { headers });
+			if (mRes.ok) {
+				const mContent = await mRes.arrayBuffer();
+				await Bun.write(join(projectDir, manifestName), mContent);
+			} else {
+				// Fallback to empty object if manifest not found
+				await Bun.write(join(projectDir, manifestName), "{}");
+			}
+		} catch (e) {
+			await Bun.write(join(projectDir, manifestName), "{}");
+		}
 
 		// Update the project path to point to this new local directory
 		if (project.path !== projectDir) {

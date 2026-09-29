@@ -262,6 +262,79 @@ export function ProjectEditDialog({
 									</div>
 								</div>
 							)}
+							<div className="flex flex-col gap-1 md:col-span-2">
+								<Label
+									htmlFor="edit-tool"
+									className="flex items-center gap-1.5"
+								>
+									Outil d'audit
+									<TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger type="button" className="cursor-help">
+												<Info className="w-3.5 h-3.5 text-muted-foreground hover:text-primary transition-colors" />
+											</TooltipTrigger>
+											<TooltipContent
+												side="right"
+												className="max-w-sm bg-popover text-popover-foreground border shadow-md text-sm p-4 font-normal space-y-3"
+											>
+												<p className="font-semibold text-primary/90 mb-1">
+													Comportement des outils
+												</p>
+												<ul className="list-disc pl-4 space-y-2 text-xs text-muted-foreground">
+													<li>
+														<strong>NPM</strong> : Audit 100% strict. Aegis
+														utilise <code>--package-lock-only</code> pour
+														auditer exactement ce qui est dans le fichier lock,
+														peu importe le dossier local.
+													</li>
+													<li>
+														<strong>Yarn (v1)</strong> : Audit permissif. Si ton{" "}
+														<code>yarn.lock</code> est désynchronisé (ex: git
+														pull sans <code>yarn install</code>), Yarn résout
+														dynamiquement les dépendances et trouve 0 faille.
+														Assure-toi que ton lockfile est à jour !
+													</li>
+													<li>
+														<strong>Bun & Yarn 2+</strong> : Audit intraitable.
+														Si le lockfile est désynchronisé, l'audit plante
+														immédiatement avec une erreur.
+													</li>
+													<li>
+														<strong>Composer</strong> : Audit strict avec{" "}
+														<code>--locked</code>.
+													</li>
+												</ul>
+											</TooltipContent>
+										</Tooltip>
+									</TooltipProvider>
+								</Label>
+								<Tabs
+									value={formData.tool}
+									onValueChange={(val) =>
+										setFormData({
+											...formData,
+											tool: val as ProjectTool,
+											type: val === "composer" ? "composer" : "node",
+										})
+									}
+									className="w-full"
+								>
+									<TabsList className="w-full h-10">
+										<TabsTrigger value="npm" className="flex-1">
+											NPM
+										</TabsTrigger>
+										<TabsTrigger value="yarn" className="flex-1">
+											Yarn
+										</TabsTrigger>
+										<TabsTrigger value="bun" className="flex-1">
+											Bun
+										</TabsTrigger>
+										<TabsTrigger value="composer" className="flex-1">
+											Composer
+										</TabsTrigger>
+									</TabsList>
+								</Tabs>
+							</div>
 
 							{formData.source_type === "local" && (
 								<div className="flex flex-col gap-1 md:col-span-2">
@@ -405,37 +478,6 @@ export function ProjectEditDialog({
 									</div>
 								</div>
 							)}
-
-							<div className="flex flex-col gap-1">
-								<Label htmlFor="edit-tool">Outil d'audit</Label>
-								<Tabs
-									value={formData.tool}
-									onValueChange={(val) =>
-										setFormData({
-											...formData,
-											tool: val as ProjectTool,
-											type: val === "composer" ? "composer" : "node",
-										})
-									}
-									className="w-full"
-								>
-									<TabsList className="w-full h-10">
-										<TabsTrigger value="npm" className="flex-1">
-											NPM
-										</TabsTrigger>
-										<TabsTrigger value="yarn" className="flex-1">
-											Yarn
-										</TabsTrigger>
-										<TabsTrigger value="bun" className="flex-1">
-											Bun
-										</TabsTrigger>
-										<TabsTrigger value="composer" className="flex-1">
-											Composer
-										</TabsTrigger>
-									</TabsList>
-								</Tabs>
-							</div>
-
 							<div className="flex flex-col gap-2 md:col-span-2">
 								<Label>Tags (Configurations)</Label>
 								<div className="flex flex-wrap gap-2">

@@ -13,10 +13,5 @@ export function render(ui: ReactElement, options?: Omit<RenderOptions, "wrapper"
     },
   });
 
-  return tlRender(
-    <QueryClientProvider client={queryClient}>
-      {ui}
-    </QueryClientProvider>,
-    options
-  );
+  return tlRender(ui, { wrapper: ({ children }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>, ...options });
 }

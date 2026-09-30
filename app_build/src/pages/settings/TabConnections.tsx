@@ -176,32 +176,7 @@ export function TabConnections() {
 					)}
 				</div>
 
-				<div className="flex items-center gap-4 mt-2">
-					<Button
-						type="button"
-						variant="secondary"
-						onClick={handleTestJira}
-						disabled={
-							testJiraLoading ||
-							!enregistre.JIRA_BASE_URL ||
-							!enregistre.JIRA_USER ||
-							(!enregistre.JIRA_API_KEY &&
-								enregistre.JIRA_API_KEY_CONFIGURED !== "true")
-						}
-					>
-						<RefreshCw
-							className={`w-4 h-4 mr-2 ${testJiraLoading ? "animate-spin" : ""}`}
-						/>
-						Tester la connexion Jira
-					</Button>
-					{testJiraMessage && (
-						<span
-							className={`text-sm font-medium ${testJiraMessage.type === "success" ? "text-green-500" : "text-destructive"}`}
-						>
-							{testJiraMessage.text}
-						</span>
-					)}
-				</div>
+				
 			</SettingsSection>
 
 			<SettingsSection
@@ -291,6 +266,33 @@ export function TabConnections() {
 							/>
 						</div>
 					</div>
+				</div>
+
+				<div className="flex items-center gap-4 mt-2">
+					<Button
+						type="button"
+						variant="secondary"
+						onClick={handleTestJira}
+						disabled={
+							testJiraLoading ||
+							!enregistre.JIRA_BASE_URL ||
+							!enregistre.JIRA_USER ||
+							(!enregistre.JIRA_API_KEY &&
+								enregistre.JIRA_API_KEY_CONFIGURED !== "true")
+						}
+					>
+						<RefreshCw
+							className={`w-4 h-4 mr-2 ${testJiraLoading ? "animate-spin" : ""}`}
+						/>
+						Tester la connexion Jira
+					</Button>
+					{testJiraMessage && (
+						<span
+							className={`text-sm font-medium ${testJiraMessage.type === "success" ? "text-green-500" : "text-destructive"}`}
+						>
+							{testJiraMessage.text}
+						</span>
+					)}
 				</div>
 			</SettingsSection>
 		</div>

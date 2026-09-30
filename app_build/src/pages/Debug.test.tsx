@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { render, screen } from "@/test/utils";
 import { MemoryRouter } from "react-router-dom";
-
 import { mockFetch, restoreFetch } from "@/test/http";
+import { render, screen } from "@/test/utils";
 import { Debug } from "./Debug";
 
 /**

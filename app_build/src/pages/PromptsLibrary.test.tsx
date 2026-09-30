@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@/test/utils";
-
 import type { Prompt } from "@/db/prompts";
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { PromptsLibrary } from "./PromptsLibrary";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { act, fireEvent, render, screen } from "@/test/utils";
-
 import { mockEventSource, restoreEventSource } from "@/test/sse";
+import { act, fireEvent, render, screen } from "@/test/utils";
 import { Console } from "./Console";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */

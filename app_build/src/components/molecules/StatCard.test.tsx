@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen } from "@/test/utils";
 import { Shield } from "lucide-react";
+import { render, screen } from "@/test/utils";
 
 import { StatCard } from "./StatCard";
 

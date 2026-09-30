@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { fireEvent, render, screen } from "@/test/utils";
-
 import type { Run } from "@/db/runs";
 import type { ProjectListItem } from "@/routes/projects";
+import { fireEvent, render, screen } from "@/test/utils";
 import { ProjectCard } from "./project-cards";
 
 function run(over: Partial<Run> = {}): Run {

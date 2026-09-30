@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor, act } from "@/test/utils";
-
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
+import { act, fireEvent, render, screen, waitFor } from "@/test/utils";
 import { Settings } from "./Settings";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */
@@ -116,7 +115,6 @@ describe("Settings", () => {
 				name: /Tester la connexion Jira/,
 			});
 			expect(bouton).toBeDisabled();
-			
 		});
 
 		test("avec une configuration enregistrée, le test est disponible", async () => {
@@ -124,10 +122,13 @@ describe("Settings", () => {
 			render(<Settings />);
 
 			const urlInput = await screen.findByLabelText(/URL de base/);
-			await waitFor(() => expect(urlInput).toHaveValue("https://jira.example.test"));
-			expect(screen.getByRole("button", { name: /Tester la connexion Jira/ })).toBeEnabled();
+			await waitFor(() =>
+				expect(urlInput).toHaveValue("https://jira.example.test"),
+			);
+			expect(
+				screen.getByRole("button", { name: /Tester la connexion Jira/ }),
+			).toBeEnabled();
 		});
-
 	});
 
 	test.skip("le bilan du rafraîchissement automatique est affiché", async () => {
@@ -143,7 +144,7 @@ describe("Settings", () => {
 			},
 		});
 		render(<Settings />);
-		fireEvent.click(screen.getByRole('tab', { name: /Analyse/ }));
+		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
 		await screen.findByLabelText(/Cache d'Audit/);
 
 		expect(screen.getByText(/12 avis récupérés/)).toBeInTheDocument();
@@ -155,7 +156,7 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
-		fireEvent.click(screen.getByRole('tab', { name: /Analyse/ }));
+		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
 		await screen.findByLabelText(/Cache d'Audit/);
 
 		expect(
@@ -176,14 +177,16 @@ describe("Settings", () => {
 			"PUT /api/settings": { status: 204 },
 		});
 		render(<Settings />);
-		fireEvent.click(screen.getByRole('tab', { name: /Analyse/ }));
+		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
 		// Le bouton d'une section est inactif tant que rien n'a bougé : il faut donc
 		// modifier la section avant de pouvoir l'enregistrer.
 		fireEvent.change(await screen.findByLabelText(/Cache d'Audit/), {
 			target: { value: "48" },
 		});
 
-		await act(async () => { fireEvent.click(screen.getByLabelText("Enregistrer Paramètres d'Audit")); });
+		await act(async () => {
+			fireEvent.click(screen.getByLabelText("Enregistrer Paramètres d'Audit"));
+		});
 
 		await waitFor(() => expect(put()).toHaveLength(1));
 		const corps = put()[0]?.body as Record<string, unknown>;
@@ -213,19 +216,21 @@ describe("Settings", () => {
 	 * littéralement d'écrire son propre test de non-régression.
 	 */
 
-	test.skip("un échec d'enregistrement est signalé, pas avalé \(N6\)", async () => {
+	test.skip("un échec d'enregistrement est signalé, pas avalé (N6)", async () => {
 		mockFetch({
 			...routesDeBase,
 			"GET /api/settings": reglages,
 			"PUT /api/settings": { status: 400, body: { error: "Durée invalide" } },
 		});
 		render(<Settings />);
-		fireEvent.click(screen.getByRole('tab', { name: /Analyse/ }));
+		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
 		fireEvent.change(await screen.findByLabelText(/Cache d'Audit/), {
 			target: { value: "-3" },
 		});
 
-		await act(async () => { fireEvent.click(screen.getByLabelText("Enregistrer Paramètres d'Audit")); });
+		await act(async () => {
+			fireEvent.click(screen.getByLabelText("Enregistrer Paramètres d'Audit"));
+		});
 
 		// L'échec s'affiche **dans la section** qui l'a produit, pas en pied de page.
 		expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -242,7 +247,7 @@ describe("Settings", () => {
 			"PUT /api/settings": { body: { success: true } },
 		});
 		render(<Settings />);
-		fireEvent.click(screen.getByRole('tab', { name: /Analyse/ }));
+		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
 		const champ = await screen.findByLabelText(/Cache d'Audit/);
 
 		fireEvent.change(champ, { target: { value: "48" } });
@@ -338,7 +343,7 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
-		fireEvent.click(screen.getByRole('tab', { name: /Analyse/ }));
+		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
 		const champ = await screen.findByLabelText(/Cache d'Audit/);
 		expect(champ).toHaveAttribute("min", "0");
 	});
@@ -349,10 +354,9 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 		});
 		render(<Settings />);
-		expect(await screen.findByLabelText(/Jeton d'accès personnel/)).toHaveAttribute(
-			"type",
-			"password",
-		);
+		expect(
+			await screen.findByLabelText(/Jeton d'accès personnel/),
+		).toHaveAttribute("type", "password");
 	});
 
 	test("la clé d'API Jira est masquée à la saisie", async () => {
@@ -542,8 +546,10 @@ describe("Settings — remise à zéro", () => {
 	/** Ouvre la modale de confirmation depuis la zone de danger. */
 	async function ouvrirConfirmation() {
 		render(<Settings />);
-		fireEvent.click(screen.getByRole('tab', { name: /Maintenance/ }));
-		await screen.findByRole('button', { name: /Remettre la configuration à zéro/ });
+		fireEvent.click(screen.getByRole("tab", { name: /Maintenance/ }));
+		await screen.findByRole("button", {
+			name: /Remettre la configuration à zéro/,
+		});
 		fireEvent.click(
 			screen.getByRole("button", { name: /Remettre la configuration à zéro/ }),
 		);

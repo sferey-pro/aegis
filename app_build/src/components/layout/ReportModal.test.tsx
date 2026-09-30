@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { fireEvent, render, screen } from "@/test/utils";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-
 import type { Report } from "@/db/reports";
+import { fireEvent, render, screen } from "@/test/utils";
 import { ReportModal } from "./ReportModal";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */

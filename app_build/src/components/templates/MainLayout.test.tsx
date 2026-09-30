@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen } from "@/test/utils";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-
 import { mockEventSource, restoreEventSource } from "@/test/sse";
+import { fireEvent, render, screen } from "@/test/utils";
 import { MainLayout } from "./MainLayout";
 
 /**

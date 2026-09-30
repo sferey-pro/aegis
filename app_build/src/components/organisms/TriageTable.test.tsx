@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { fireEvent, render, screen } from "@/test/utils";
-
 import type { Ticket } from "@/db/tickets";
+import { fireEvent, render, screen } from "@/test/utils";
 import { TriageTable } from "./TriageTable";
 import type { PackageGroup } from "./triage-types";
 

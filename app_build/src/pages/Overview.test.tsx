@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { render, screen } from "@/test/utils";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-
 import type { StatsResponse } from "@/routes/stats";
 import { mockFetch, restoreFetch } from "@/test/http";
+import { render, screen } from "@/test/utils";
 import { Overview } from "./Overview";
 
 /**

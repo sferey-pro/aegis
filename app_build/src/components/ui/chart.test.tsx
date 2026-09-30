@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { render } from "@/test/utils";
 import { Line, LineChart } from "recharts";
+import { render } from "@/test/utils";
 import { type ChartConfig, ChartContainer, ChartStyle } from "./chart";
 
 const config: ChartConfig = {

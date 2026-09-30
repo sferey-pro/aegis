@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen } from "@/test/utils";
 import { Filter } from "lucide-react";
+import { render, screen } from "@/test/utils";
 
 import { FilterDropdown } from "./FilterDropdown";
 

@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { MemoryRouter, useLocation } from "react-router-dom";
-
 import type { Tag } from "@/db/tags";
 import type { ProjectListItem } from "@/routes/projects";
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
 import { mockEventSource, restoreEventSource } from "@/test/sse";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { Projects } from "./Projects";
 
 /**

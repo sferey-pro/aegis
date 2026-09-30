@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { fireEvent, render, screen } from "@/test/utils";
-
 import type { PackageGroupCve } from "@/lib/package-groups";
+import { fireEvent, render, screen } from "@/test/utils";
 import { CveSelectionList } from "./CveSelectionList";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */

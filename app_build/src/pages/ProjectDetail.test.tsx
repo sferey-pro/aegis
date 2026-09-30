@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-
 import type { ProjectHistoryItem, ProjectListItem } from "@/routes/projects";
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { ProjectDetail } from "./ProjectDetail";
 
 /**

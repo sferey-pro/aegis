@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen } from "@/test/utils";
-
 import type { Ticket } from "@/db/tickets";
+import { render, screen } from "@/test/utils";
 import { CveDetailsModal } from "./CveDetailsModal";
 import type { PackageGroup, PackageGroupCve } from "./triage-types";
 

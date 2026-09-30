@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen } from "@/test/utils";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { render, screen } from "@/test/utils";
 
 import { BlankLayout } from "./BlankLayout";
 

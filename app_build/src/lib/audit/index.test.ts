@@ -192,7 +192,7 @@ describe("lib/audit — runAudit, déduplication (CONTEXT.md §12)", () => {
 			total: 0,
 			counts: vide(),
 			vulnerabilities: [],
-			command: "npm audit --json",
+			command: "npm audit --json --package-lock-only --omit=dev",
 			commit_sha: git(repo, "rev-parse", "HEAD"),
 			error: null,
 			duration_ms: 5,
@@ -240,7 +240,7 @@ describe("lib/audit — runAudit, déduplication (CONTEXT.md §12)", () => {
 			total: 0,
 			counts: vide(),
 			vulnerabilities: [],
-			command: "npm audit --json",
+			command: "npm audit --json --package-lock-only --omit=dev",
 			commit_sha: "0".repeat(40),
 			error: null,
 			duration_ms: 5,
@@ -259,7 +259,7 @@ describe("lib/audit — runAudit, déduplication (CONTEXT.md §12)", () => {
 			total: 0,
 			counts: vide(),
 			vulnerabilities: [],
-			command: "npm audit --json",
+			command: "npm audit --json --package-lock-only --omit=dev",
 			commit_sha: git(repo, "rev-parse", "HEAD"),
 			error: "npm introuvable",
 			duration_ms: 5,
@@ -285,7 +285,7 @@ describe("lib/audit — runAudit, déduplication (CONTEXT.md §12)", () => {
 			total: 0,
 			counts: vide(),
 			vulnerabilities: [],
-			command: "npm audit --json",
+			command: "npm audit --json --package-lock-only --omit=dev",
 			commit_sha: null,
 			error: null,
 			duration_ms: 5,
@@ -393,17 +393,17 @@ describe("lib/audit — runAudit, échec de la commande", () => {
 		const { project, repo } = projetSurDepot("commande");
 		const run = (await runAudit(project.id)).run;
 
-		expect(run?.command).toBe("npm audit --json");
+		expect(run?.command).toBe("npm audit --json --package-lock-only --omit=dev");
 		expect(run?.commit_sha).toBe(git(repo, "rev-parse", "HEAD"));
 	});
 
 	test("la commande dépend de l'outil du projet", async () => {
 		sansReseau();
 		const attendu: Record<string, string> = {
-			npm: "npm audit --json",
-			yarn: "yarn audit --json",
+			npm: "npm audit --json --package-lock-only --omit=dev",
+			yarn: "yarn audit --json --groups dependencies",
 			bun: "bun audit --json",
-			composer: "composer audit --format=json --locked --no-interaction",
+			composer: "composer audit --format=json --locked --no-interaction --no-dev",
 		};
 
 		for (const [tool, cmd] of Object.entries(attendu)) {
@@ -470,7 +470,7 @@ describe("lib/audit — runAudit, contrôles préalables", () => {
 		// posée devant un audit en erreur.
 		sansReseau();
 		const { project } = projetSurDepot("commande-preflight");
-		expect((await runAudit(project.id)).run?.command).toBe("npm audit --json");
+		expect((await runAudit(project.id)).run?.command).toBe("npm audit --json --package-lock-only --omit=dev");
 	});
 
 	test("un lockfile manquant nomme le fichier et le dossier cherché", async () => {
@@ -547,7 +547,7 @@ describe("lib/audit — runAudit, contrôles préalables", () => {
 describe("lib/audit — ingestAudit (CI)", () => {
 	useTempDb("audit-ingest");
 
-	/** Sortie `npm audit --json` minimale portant une CVE. */
+	/** Sortie `npm audit --json --package-lock-only --omit=dev` minimale portant une CVE. */
 	function sortieNpm(pkg = "lodash", cwe = "CWE-1321") {
 		return JSON.stringify({
 			vulnerabilities: {

@@ -34,8 +34,20 @@ describe("lib/audit/preflight — catalogue des outils", () => {
 	test("les quatre commandes sont celles du contrat", () => {
 		// CONTEXT.md §2 les énumère à la virgule près : un drapeau ajouté ici
 		// change la sortie que les parseurs (§3) attendent.
-		expect(auditCommand("npm")).toEqual(["npm", "audit", "--json"]);
-		expect(auditCommand("yarn")).toEqual(["yarn", "audit", "--json"]);
+		expect(auditCommand("npm")).toEqual([
+			"npm",
+			"audit",
+			"--json",
+			"--package-lock-only",
+			"--omit=dev",
+		]);
+		expect(auditCommand("yarn")).toEqual([
+			"yarn",
+			"audit",
+			"--json",
+			"--groups",
+			"dependencies",
+		]);
 		expect(auditCommand("bun")).toEqual(["bun", "audit", "--json"]);
 		expect(auditCommand("composer")).toEqual([
 			"composer",
@@ -43,6 +55,7 @@ describe("lib/audit/preflight — catalogue des outils", () => {
 			"--format=json",
 			"--locked",
 			"--no-interaction",
+			"--no-dev",
 		]);
 	});
 
@@ -59,7 +72,13 @@ describe("lib/audit/preflight — catalogue des outils", () => {
 		// commande de tous les audits suivants.
 		const a = auditCommand("npm");
 		a.push("--production");
-		expect(auditCommand("npm")).toEqual(["npm", "audit", "--json"]);
+		expect(auditCommand("npm")).toEqual([
+			"npm",
+			"audit",
+			"--json",
+			"--package-lock-only",
+			"--omit=dev",
+		]);
 	});
 
 	test("bun accepte ses deux lockfiles", () => {

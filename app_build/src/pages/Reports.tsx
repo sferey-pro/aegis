@@ -50,23 +50,15 @@ import {
 	TableRow,
 } from "../components/ui/table";
 
+const EMPTY_REPORTS: Report[] = [];
+
 export const Reports = memo(function Reports({
-	/**
-	 * Un audit global est-il en cours ?
-	 *
-	 * Cette page détient sa propre copie de la liste, chargée au montage. Sans ce
-	 * signal, lancer « Tout auditer » depuis le bandeau créait bien le compte-rendu
-	 * en base mais la liste restait celle d'avant : le rapport n'apparaissait pas,
-	 * et il fallait recharger la page ou cliquer le bouton de rafraîchissement.
-	 * C'est un cas particulier du défaut N19, dont la solution générale — une
-	 * invalidation partagée — reste à faire.
-	 */
 	auditing = false,
 }: {
 	auditing?: boolean;
 }) {
 	const {
-		data: reports = [],
+		data: reports = EMPTY_REPORTS,
 		isLoading: loading,
 		isFetching,
 		refetch: fetchReports,
@@ -150,7 +142,11 @@ export const Reports = memo(function Reports({
 				: prev,
 		);
 		const allIds = reports.map((r) => r.id);
-		setSelectedReports((prev) => prev.filter((id) => allIds.includes(id)));
+		setSelectedReports((prev) => {
+			const filtered = prev.filter((id) => allIds.includes(id));
+			if (filtered.length !== prev.length) return filtered;
+			return prev;
+		});
 	}, [reports]);
 
 	// Recharger au passage de « audit en cours » à « terminé », moment où le

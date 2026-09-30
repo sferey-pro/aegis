@@ -10,6 +10,7 @@ export function TabConnections() {
 	const { data: settingsData, refetch } = useSettings();
 	const [settings, setSettings] = useState<Record<string, string>>({});
 	const [enregistre, setEnregistre] = useState<Record<string, string>>({});
+	const [isInitialized, setIsInitialized] = useState(false);
 	const [sectionEnCours, setSectionEnCours] = useState<string | null>(null);
 	const [sectionErreur, setSectionErreur] = useState<{
 		section: string;
@@ -30,11 +31,12 @@ export function TabConnections() {
 
 	// Initialize local state when settingsData arrives
 	React.useEffect(() => {
-		if (settingsData && Object.keys(enregistre).length === 0) {
+		if (settingsData && !isInitialized) {
+			setIsInitialized(true);
 			setSettings(settingsData);
 			setEnregistre(settingsData);
 		}
-	}, [settingsData, enregistre]);
+	}, [settingsData, isInitialized]);
 
 	const sectionModifiee = (section: string) => {
 		if (section === "github")
@@ -174,32 +176,7 @@ export function TabConnections() {
 					)}
 				</div>
 
-				<div className="flex items-center gap-4 mt-2">
-					<Button
-						type="button"
-						variant="secondary"
-						onClick={handleTestJira}
-						disabled={
-							testJiraLoading ||
-							!enregistre.JIRA_BASE_URL ||
-							!enregistre.JIRA_USER ||
-							(!enregistre.JIRA_API_KEY &&
-								enregistre.JIRA_API_KEY_CONFIGURED !== "true")
-						}
-					>
-						<RefreshCw
-							className={`w-4 h-4 mr-2 ${testJiraLoading ? "animate-spin" : ""}`}
-						/>
-						Tester la connexion Jira
-					</Button>
-					{testJiraMessage && (
-						<span
-							className={`text-sm font-medium ${testJiraMessage.type === "success" ? "text-green-500" : "text-destructive"}`}
-						>
-							{testJiraMessage.text}
-						</span>
-					)}
-				</div>
+				
 			</SettingsSection>
 
 			<SettingsSection
@@ -289,6 +266,33 @@ export function TabConnections() {
 							/>
 						</div>
 					</div>
+				</div>
+
+				<div className="flex items-center gap-4 mt-2">
+					<Button
+						type="button"
+						variant="secondary"
+						onClick={handleTestJira}
+						disabled={
+							testJiraLoading ||
+							!enregistre.JIRA_BASE_URL ||
+							!enregistre.JIRA_USER ||
+							(!enregistre.JIRA_API_KEY &&
+								enregistre.JIRA_API_KEY_CONFIGURED !== "true")
+						}
+					>
+						<RefreshCw
+							className={`w-4 h-4 mr-2 ${testJiraLoading ? "animate-spin" : ""}`}
+						/>
+						Tester la connexion Jira
+					</Button>
+					{testJiraMessage && (
+						<span
+							className={`text-sm font-medium ${testJiraMessage.type === "success" ? "text-green-500" : "text-destructive"}`}
+						>
+							{testJiraMessage.text}
+						</span>
+					)}
 				</div>
 			</SettingsSection>
 		</div>

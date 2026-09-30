@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@/test/utils";
 
 import type { Vulnerability } from "@/lib/parsers/types";
 import type { ProjectHistoryItem } from "@/routes/projects";

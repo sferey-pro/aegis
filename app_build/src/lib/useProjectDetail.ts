@@ -33,7 +33,7 @@ export function useProjectDetail(projectId: number | null) {
 	} = useProjectHistory(projectId ?? 0);
 
 	const loading = projectLoading || historyLoading;
-	const error = projectErrorRaw
+	const error = projectId === null ? "Identifiant de projet invalide." : projectErrorRaw
 		? projectErrorRaw instanceof ApiError && projectErrorRaw.status === 404
 			? "Projet introuvable."
 			: apiErrorMessage(projectErrorRaw)

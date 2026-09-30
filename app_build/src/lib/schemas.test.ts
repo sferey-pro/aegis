@@ -148,7 +148,7 @@ describe("schemas — projectBodySchema", () => {
 			is_remote: "true",
 		});
 		expect(r.ignored).toBe(true);
-		expect(r.source_type === "ingest").toBe(true);
+		expect(r.is_remote).toBe(true);
 	});
 
 	test("les champs inconnus sont écartés du résultat", () => {

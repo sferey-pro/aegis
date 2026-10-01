@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
-import { act, fireEvent, render, screen, waitFor } from "@/test/utils";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { Settings } from "./Settings";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */
@@ -159,8 +159,6 @@ describe("Settings", () => {
 	 * littéralement d'écrire son propre test de non-régression.
 	 */
 
-	
-
 	test("une section n'envoie que ses propres clés", async () => {
 		// C'est tout l'intérêt du découpage : une URL Jira invalide ne doit plus
 		// faire échouer l'enregistrement de la fenêtre d'audit, et réciproquement.
@@ -217,8 +215,6 @@ describe("Settings", () => {
 		expect(corps.GITHUB_TOKEN).toBeUndefined();
 		expect(corps.JIRA_API_KEY).toBeUndefined();
 	});
-
-	
 
 	test("la saisie modifiée part bien au serveur", async () => {
 		mockFetch({
@@ -357,8 +353,6 @@ describe("Settings — instantanés", () => {
 		});
 	});
 
-	
-
 	test("sans instantané, la restauration est désactivée", async () => {
 		monter({ "GET /api/snapshots": { snapshots: [] } });
 		await waitFor(() =>
@@ -366,8 +360,6 @@ describe("Settings — instantanés", () => {
 		);
 		expect(boutonRestaurer()).toBeDisabled();
 	});
-
-	
 
 	test("un échec de restauration est signalé", async () => {
 		monter({
@@ -398,8 +390,6 @@ describe("Settings — remise à zéro", () => {
 			screen.getByRole("button", { name: /Réinitialiser la configuration/ }),
 		);
 	}
-
-	
 
 	test("le bouton n'agit qu'après confirmation", async () => {
 		mockFetch({
@@ -450,8 +440,4 @@ describe("Settings — remise à zéro", () => {
 			fetchCalls().filter((c) => c.url === "/api/config/reset"),
 		).toHaveLength(0);
 	});
-
-	
-
-	
 });

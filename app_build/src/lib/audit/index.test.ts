@@ -393,7 +393,9 @@ describe("lib/audit — runAudit, échec de la commande", () => {
 		const { project, repo } = projetSurDepot("commande");
 		const run = (await runAudit(project.id)).run;
 
-		expect(run?.command).toBe("npm audit --json --package-lock-only --omit=dev");
+		expect(run?.command).toBe(
+			"npm audit --json --package-lock-only --omit=dev",
+		);
 		expect(run?.commit_sha).toBe(git(repo, "rev-parse", "HEAD"));
 	});
 
@@ -403,7 +405,8 @@ describe("lib/audit — runAudit, échec de la commande", () => {
 			npm: "npm audit --json --package-lock-only --omit=dev",
 			yarn: "yarn audit --json --groups dependencies",
 			bun: "bun audit --json",
-			composer: "composer audit --format=json --locked --no-interaction --no-dev",
+			composer:
+				"composer audit --format=json --locked --no-interaction --no-dev",
 		};
 
 		for (const [tool, cmd] of Object.entries(attendu)) {
@@ -470,7 +473,9 @@ describe("lib/audit — runAudit, contrôles préalables", () => {
 		// posée devant un audit en erreur.
 		sansReseau();
 		const { project } = projetSurDepot("commande-preflight");
-		expect((await runAudit(project.id)).run?.command).toBe("npm audit --json --package-lock-only --omit=dev");
+		expect((await runAudit(project.id)).run?.command).toBe(
+			"npm audit --json --package-lock-only --omit=dev",
+		);
 	});
 
 	test("un lockfile manquant nomme le fichier et le dossier cherché", async () => {

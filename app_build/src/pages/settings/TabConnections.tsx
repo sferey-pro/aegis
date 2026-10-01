@@ -175,8 +175,6 @@ export function TabConnections() {
 						</div>
 					)}
 				</div>
-
-				
 			</SettingsSection>
 
 			<SettingsSection

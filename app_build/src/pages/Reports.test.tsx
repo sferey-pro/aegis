@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@/test/utils";
-
 import type { Report, ReportDetail } from "@/db/reports";
 import type { Vulnerability } from "@/lib/parsers/types";
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { Reports } from "./Reports";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */

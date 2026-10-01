@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { fireEvent, render, screen, waitFor } from "@/test/utils";
-
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { CveCard } from "./CveCard";
 import type { PackageGroupCve, Toast } from "./triage-types";
 

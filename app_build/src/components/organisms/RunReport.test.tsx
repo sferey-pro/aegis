@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen, within } from "@/test/utils";
-
 import type { Vulnerability } from "@/lib/parsers/types";
 import type { ProjectHistoryItem } from "@/routes/projects";
+import { render, screen, within } from "@/test/utils";
 import { RunReport } from "./RunReport";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */

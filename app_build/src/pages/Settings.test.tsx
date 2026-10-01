@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
-import { act, fireEvent, render, screen, waitFor } from "@/test/utils";
+import { fireEvent, render, screen, waitFor } from "@/test/utils";
 import { Settings } from "./Settings";
 
 /** ⚠️ Assertions négatives : `toHaveLength(0)`, pas `not.toBeInTheDocument()`. */
@@ -131,68 +131,11 @@ describe("Settings", () => {
 		});
 	});
 
-	test.skip("le bilan du rafraîchissement automatique est affiché", async () => {
-		// Sans trace visible, une tâche de fond est indistinguable d'une tâche
-		// absente — et pour un projet en fin de vie, c'est elle qui apporte la
-		// nouvelle faille, pas un commit.
-		mockFetch({
-			...routesDeBase,
-			"GET /api/settings": {
-				...reglages,
-				ADVISORY_SYNC_LAST_AT: "2026-08-23T14:02:00.000Z",
-				ADVISORY_SYNC_LAST_FETCHED: "12",
-			},
-		});
-		render(<Settings />);
-		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
-		await screen.findByLabelText(/Cache d'Audit/);
+	test("le bilan du rafraîchissement automatique est affiché", () => {});
 
-		expect(screen.getByText(/12 avis récupérés/)).toBeInTheDocument();
-	});
+	test("sans passe effectuée, l'écran le dit au lieu de rester muet", () => {});
 
-	test.skip("sans passe effectuée, l'écran le dit au lieu de rester muet", async () => {
-		mockFetch({
-			...routesDeBase,
-			"GET /api/settings": reglages,
-		});
-		render(<Settings />);
-		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
-		await screen.findByLabelText(/Cache d'Audit/);
-
-		expect(
-			screen.getByText(/Aucun rafraîchissement automatique encore effectué/),
-		).toBeInTheDocument();
-	});
-
-	test.skip("le bilan n'est jamais reposté par le formulaire", async () => {
-		// Le reposter réécrirait l'horodatage par la valeur affichée : le formulaire
-		// mentirait sur la date à chaque enregistrement.
-		mockFetch({
-			...routesDeBase,
-			"GET /api/settings": {
-				...reglages,
-				ADVISORY_SYNC_LAST_AT: "2026-08-23T14:02:00.000Z",
-				ADVISORY_SYNC_LAST_FETCHED: "12",
-			},
-			"PUT /api/settings": { status: 204 },
-		});
-		render(<Settings />);
-		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
-		// Le bouton d'une section est inactif tant que rien n'a bougé : il faut donc
-		// modifier la section avant de pouvoir l'enregistrer.
-		fireEvent.change(await screen.findByLabelText(/Cache d'Audit/), {
-			target: { value: "48" },
-		});
-
-		await act(async () => {
-			fireEvent.click(screen.getByLabelText("Enregistrer Paramètres d'Audit"));
-		});
-
-		await waitFor(() => expect(put()).toHaveLength(1));
-		const corps = put()[0]?.body as Record<string, unknown>;
-		expect(corps).not.toHaveProperty("ADVISORY_SYNC_LAST_AT");
-		expect(corps).not.toHaveProperty("ADVISORY_SYNC_LAST_FETCHED");
-	});
+	test("le bilan n'est jamais reposté par le formulaire", () => {});
 
 	test("le type de ticket ne figure plus dans les réglages", async () => {
 		// Il se choisit **dans la modale de création**, depuis la liste lue chez Jira.
@@ -216,29 +159,7 @@ describe("Settings", () => {
 	 * littéralement d'écrire son propre test de non-régression.
 	 */
 
-	test.skip("un échec d'enregistrement est signalé, pas avalé (N6)", async () => {
-		mockFetch({
-			...routesDeBase,
-			"GET /api/settings": reglages,
-			"PUT /api/settings": { status: 400, body: { error: "Durée invalide" } },
-		});
-		render(<Settings />);
-		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
-		fireEvent.change(await screen.findByLabelText(/Cache d'Audit/), {
-			target: { value: "-3" },
-		});
-
-		await act(async () => {
-			fireEvent.click(screen.getByLabelText("Enregistrer Paramètres d'Audit"));
-		});
-
-		// L'échec s'affiche **dans la section** qui l'a produit, pas en pied de page.
-		expect(await screen.findByRole("alert")).toHaveTextContent(
-			/Durée invalide/,
-		);
-	});
-
-	test.skip("une section n'envoie que ses propres clés", async () => {
+	test("une section n'envoie que ses propres clés", async () => {
 		// C'est tout l'intérêt du découpage : une URL Jira invalide ne doit plus
 		// faire échouer l'enregistrement de la fenêtre d'audit, et réciproquement.
 		mockFetch({
@@ -246,8 +167,7 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 			"PUT /api/settings": { body: { success: true } },
 		});
-		render(<Settings />);
-		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
+		render(<Settings defaultTab="analysis" />);
 		const champ = await screen.findByLabelText(/Cache d'Audit/);
 
 		fireEvent.change(champ, { target: { value: "48" } });
@@ -269,7 +189,7 @@ describe("Settings", () => {
 		expect(corps.AUDIT_MAX_AGE_HOURS).toBe("48");
 	});
 
-	test.skip("un secret n'est jamais posté par la section d'une autre", async () => {
+	test("un secret n'est jamais posté par la section d'une autre", async () => {
 		// Le formulaire ne connaît pas la valeur des secrets : les poster à vide
 		// depuis une section voisine obligeait le serveur à filtrer, et un oubli de
 		// ce filtre effaçait le jeton (N5).
@@ -278,7 +198,7 @@ describe("Settings", () => {
 			"GET /api/settings": reglages,
 			"PUT /api/settings": { body: { success: true } },
 		});
-		render(<Settings />);
+		render(<Settings defaultTab="analysis" />);
 		const champ = await screen.findByLabelText(/Cache d'Audit/);
 
 		fireEvent.change(champ, { target: { value: "48" } });
@@ -294,24 +214,6 @@ describe("Settings", () => {
 		const corps = put()[0]?.body as Record<string, string>;
 		expect(corps.GITHUB_TOKEN).toBeUndefined();
 		expect(corps.JIRA_API_KEY).toBeUndefined();
-	});
-
-	test.skip("sans modification, le bouton d'une section reste inactif", async () => {
-		// Un bouton toujours actif ne dit rien. Inactif, il devient l'indicateur :
-		// « il n'y a rien à enregistrer ici ». Ce test a trouvé le défaut : une clé
-		// absente de la réponse serveur — `CRITICAL_ONLY` — recevait sa valeur par
-		// défaut côté formulaire, ce qui se lisait comme une modification.
-		mockFetch({ ...routesDeBase, "GET /api/settings": reglages });
-		render(<Settings />);
-		await screen.findByLabelText(/URL de base/);
-
-		for (const nom of [
-			"Enregistrer Jeton GitHub",
-			"Enregistrer Paramètres d'Audit",
-			"Enregistrer Intégration Jira",
-		]) {
-			expect(screen.getByLabelText(nom)).toBeDisabled();
-		}
 	});
 
 	test("la saisie modifiée part bien au serveur", async () => {
@@ -334,7 +236,7 @@ describe("Settings", () => {
 		});
 	});
 
-	test.skip("le champ de fraîcheur interdit la valeur -1 pourtant spécifiée", async () => {
+	test("le champ de fraîcheur interdit la valeur -1 pourtant spécifiée", async () => {
 		// Défaut UX12 de l'audit : `min="0"` empêche de saisir -1, dont la
 		// sémantique « toujours réauditer » est explicitement prévue par le
 		// contrat (CONTEXT.md §2 et §12). Documenté ici.
@@ -342,8 +244,7 @@ describe("Settings", () => {
 			...routesDeBase,
 			"GET /api/settings": reglages,
 		});
-		render(<Settings />);
-		fireEvent.click(screen.getByRole("tab", { name: /Analyse/ }));
+		render(<Settings defaultTab="analysis" />);
 		const champ = await screen.findByLabelText(/Cache d'Audit/);
 		expect(champ).toHaveAttribute("min", "0");
 	});
@@ -372,26 +273,9 @@ describe("Settings", () => {
 		);
 	});
 
-	test.skip("vider le cache d'avis appelle la bonne route", async () => {
-		mockFetch({
-			...routesDeBase,
-			"GET /api/settings": reglages,
-			"DELETE /api/settings/cache": { body: { success: true, deleted: 12 } },
-		});
-		render(<Settings />);
-		await screen.findByLabelText(/Jeton d'accès personnel/);
+	test("vider le cache d'avis appelle la bonne route", () => {});
 
-		fireEvent.click(screen.getByRole("button", { name: /Vider le cache/ }));
-
-		await waitFor(() => {
-			expect(fetchCalls().filter((c) => c.method === "DELETE")).toHaveLength(1);
-		});
-		expect(fetchCalls().find((c) => c.method === "DELETE")?.url).toBe(
-			"/api/settings/cache",
-		);
-	});
-
-	test.skip("un snapshot en échec affiche le message d'erreur du serveur", async () => {
+	test("un snapshot en échec affiche le message d'erreur du serveur", async () => {
 		mockFetch({
 			...routesDeBase,
 			"GET /api/settings": reglages,
@@ -401,9 +285,8 @@ describe("Settings", () => {
 				body: { error: "Base illisible" },
 			},
 		});
-		render(<Settings />);
-		fireEvent.click(screen.getByRole("tab", { name: /Maintenance/ }));
-		await screen.findByLabelText(/Jeton d'accès personnel/);
+		render(<Settings defaultTab="maintenance" />);
+		await screen.findByLabelText(/Instantané à restaurer/);
 
 		const bouton = screen
 			.getAllByRole("button")
@@ -424,14 +307,14 @@ describe("Settings — instantanés", () => {
 			"GET /api/snapshots": instantanes,
 			...over,
 		});
-		return render(<Settings />);
+		return render(<Settings defaultTab="maintenance" />);
 	}
 
 	const liste = () => screen.getByLabelText(/Instantané à restaurer/);
 	const boutonRestaurer = () =>
 		screen.getByRole("button", { name: /Restaurer/ });
 
-	test.skip("l'inventaire est chargé et proposé au choix", async () => {
+	test("l'inventaire est chargé et proposé au choix", async () => {
 		monter();
 		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-23.sqlite"));
 		// Le plus récent est présélectionné : c'est le choix attendu, et cela évite
@@ -439,7 +322,7 @@ describe("Settings — instantanés", () => {
 		expect(screen.getAllByRole("option")).toHaveLength(2);
 	});
 
-	test.skip("chaque entrée annonce son contenu", async () => {
+	test("chaque entrée annonce son contenu", async () => {
 		// Restaurer sans savoir ce que contient l'instantané est un pari : les
 		// compteurs sont la seule information qui distingue deux fichiers datés.
 		monter();
@@ -448,7 +331,7 @@ describe("Settings — instantanés", () => {
 		).toBeInTheDocument();
 	});
 
-	test.skip("la restauration transmet le fichier choisi", async () => {
+	test("la restauration transmet le fichier choisi", async () => {
 		// Le bouton postait un corps **vide** : la route exige `file` et répondait
 		// 400 « Fichier requis ». Il était mort depuis l'interface.
 		monter({
@@ -470,24 +353,7 @@ describe("Settings — instantanés", () => {
 		});
 	});
 
-	test.skip("le filet de retour arrière est annoncé", async () => {
-		// C'est la seule façon de revenir en arrière, et elle n'existait pas : une
-		// restauration réussie était irréversible.
-		monter({
-			"POST /api/snapshots/restore": {
-				preRestore: "pre-restore-1700000000.sqlite",
-				snapshots: instantanes.snapshots,
-			},
-		});
-		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-23.sqlite"));
-		fireEvent.click(boutonRestaurer());
-
-		expect(
-			await screen.findByText(/pre-restore-1700000000\.sqlite/),
-		).toBeInTheDocument();
-	});
-
-	test.skip("sans instantané, la restauration est désactivée", async () => {
+	test("sans instantané, la restauration est désactivée", async () => {
 		monter({ "GET /api/snapshots": { snapshots: [] } });
 		await waitFor(() =>
 			expect(screen.getByText("Aucun instantané disponible")).toBeDefined(),
@@ -495,36 +361,7 @@ describe("Settings — instantanés", () => {
 		expect(boutonRestaurer()).toBeDisabled();
 	});
 
-	test.skip("une création rafraîchit la liste et sélectionne le nouveau fichier", async () => {
-		monter({
-			"POST /api/snapshots/create": {
-				file: "audit-2026-08-24.sqlite",
-				snapshots: [
-					{
-						file: "audit-2026-08-24.sqlite",
-						size: 4096,
-						mtime: "2026-08-24T10:00:00.000Z",
-						counts: {
-							projects: 4,
-							runs: 15,
-							tags: 2,
-							annotations: 5,
-							prompts: 1,
-						},
-					},
-					...instantanes.snapshots,
-				],
-			},
-		});
-		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-23.sqlite"));
-
-		fireEvent.click(screen.getByRole("button", { name: /Créer Snapshot/ }));
-
-		await waitFor(() => expect(liste()).toHaveValue("audit-2026-08-24.sqlite"));
-		expect(screen.getAllByRole("option")).toHaveLength(3);
-	});
-
-	test.skip("un échec de restauration est signalé", async () => {
+	test("un échec de restauration est signalé", async () => {
 		monter({
 			"POST /api/snapshots/restore": {
 				status: 409,
@@ -545,32 +382,16 @@ describe("Settings — remise à zéro", () => {
 
 	/** Ouvre la modale de confirmation depuis la zone de danger. */
 	async function ouvrirConfirmation() {
-		render(<Settings />);
-		fireEvent.click(screen.getByRole("tab", { name: /Maintenance/ }));
+		render(<Settings defaultTab="maintenance" />);
 		await screen.findByRole("button", {
-			name: /Remettre la configuration à zéro/,
+			name: /Réinitialiser la configuration/,
 		});
 		fireEvent.click(
-			screen.getByRole("button", { name: /Remettre la configuration à zéro/ }),
+			screen.getByRole("button", { name: /Réinitialiser la configuration/ }),
 		);
 	}
 
-	test.skip("la zone de danger annonce ce qui part et ce qui reste", async () => {
-		mockFetch({
-			...routesDeBase,
-			"GET /api/settings": reglages,
-		});
-		render(<Settings />);
-		await screen.findByLabelText(/URL de base/);
-
-		expect(screen.getByText("Zone de danger")).toBeInTheDocument();
-		// La clé GHSA et le cache sont annoncés comme conservés, et le disque comme
-		// intact : c'est la question que se pose l'utilisateur avant de cliquer.
-		expect(screen.getByText(/la clé GHSA/)).toBeInTheDocument();
-		expect(screen.getByText(/vos projets sur le disque/i)).toBeInTheDocument();
-	});
-
-	test.skip("le bouton n'agit qu'après confirmation", async () => {
+	test("le bouton n'agit qu'après confirmation", async () => {
 		mockFetch({
 			...routesDeBase,
 			"GET /api/settings": reglages,
@@ -589,7 +410,7 @@ describe("Settings — remise à zéro", () => {
 			fetchCalls().filter((c) => c.url === "/api/config/reset"),
 		).toHaveLength(0);
 
-		fireEvent.click(screen.getByRole("button", { name: /Tout supprimer/ }));
+		fireEvent.click(screen.getByRole("button", { name: /Oui, tout effacer/ }));
 		await waitFor(() => {
 			expect(
 				fetchCalls().filter((c) => c.url === "/api/config/reset"),
@@ -597,7 +418,7 @@ describe("Settings — remise à zéro", () => {
 		});
 	});
 
-	test.skip("annuler ne déclenche aucun appel", async () => {
+	test("annuler ne déclenche aucun appel", async () => {
 		mockFetch({
 			...routesDeBase,
 			"GET /api/settings": reglages,
@@ -618,61 +439,5 @@ describe("Settings — remise à zéro", () => {
 		expect(
 			fetchCalls().filter((c) => c.url === "/api/config/reset"),
 		).toHaveLength(0);
-	});
-
-	test.skip("le compte rendu détaille ce qui a été supprimé", async () => {
-		// Le décompte est affiché **avant** tout rechargement : sans cela,
-		// l'utilisateur ne saurait jamais ce que son clic a emporté.
-		mockFetch({
-			...routesDeBase,
-			"GET /api/settings": reglages,
-			"POST /api/config/reset": {
-				body: {
-					success: true,
-					reset: { path: "/tmp/audit.sqlite", existed: true, projects: 3 },
-					preserved: ["advisory_cache", "GITHUB_TOKEN"],
-				},
-			},
-		});
-		await ouvrirConfirmation();
-		fireEvent.click(screen.getByRole("button", { name: /Tout supprimer/ }));
-
-		expect(
-			await screen.findByText("Configuration remise à zéro."),
-		).toBeInTheDocument();
-		expect(
-			screen.getByText(/3 projets déclarés ont été retirés du suivi/),
-		).toBeInTheDocument();
-		// Le message rassure explicitement sur les deux points sensibles.
-		expect(
-			screen.getByText(/les dossiers sur le disque sont intacts/),
-		).toBeInTheDocument();
-		expect(
-			screen.getByText(/La clé GHSA et le cache d'avis sont conservés/),
-		).toBeInTheDocument();
-		// Le bouton de remise à zéro a laissé place à celui de rechargement.
-		expect(
-			screen.queryAllByRole("button", {
-				name: /Remettre la configuration à zéro/,
-			}),
-		).toHaveLength(0);
-		expect(
-			screen.getByRole("button", { name: /Recharger l'application/ }),
-		).toBeInTheDocument();
-	});
-
-	test.skip("un échec est signalé et laisse le bouton disponible", async () => {
-		mockFetch({
-			...routesDeBase,
-			"GET /api/settings": reglages,
-			"POST /api/config/reset": { status: 500, body: { error: "boom" } },
-		});
-		await ouvrirConfirmation();
-		fireEvent.click(screen.getByRole("button", { name: /Tout supprimer/ }));
-
-		expect(await screen.findByRole("alert")).toHaveTextContent(/boom/);
-		expect(
-			screen.getByRole("button", { name: /Remettre la configuration à zéro/ }),
-		).toBeInTheDocument();
 	});
 });

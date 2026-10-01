@@ -15,6 +15,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
+import type { Report } from "@/db/reports";
 import { apiErrorMessage, fetchVoid } from "@/lib/api";
 import { useReports } from "@/lib/api/queries";
 import type { Vulnerability } from "@/lib/parsers/types";

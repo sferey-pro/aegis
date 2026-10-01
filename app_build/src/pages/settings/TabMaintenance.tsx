@@ -33,7 +33,7 @@ export function TabMaintenance() {
 	const chargerSnapshots = React.useCallback(async () => {
 		try {
 			const data = await fetchJson<{ snapshots: SnapshotInfo[] }>(
-				"/api/settings/backup/snapshots",
+				"/api/snapshots",
 			);
 			setSnapshots(data.snapshots);
 			if (data.snapshots.length > 0 && !snapshotChoisi) {
@@ -52,7 +52,7 @@ export function TabMaintenance() {
 		setBackupLoading(true);
 		setBackupMessage(null);
 		try {
-			await fetchVoid("/api/settings/backup/snapshot", { method: "POST" });
+			await fetchVoid("/api/snapshots/create", { method: "POST" });
 			setBackupMessage({
 				type: "success",
 				text: "Instantané créé avec succès.",
@@ -70,10 +70,10 @@ export function TabMaintenance() {
 		setBackupLoading(true);
 		setBackupMessage(null);
 		try {
-			await fetchVoid(
-				`/api/settings/backup/snapshot/${encodeURIComponent(snapshotChoisi)}/restore`,
-				{ method: "POST" },
-			);
+			await fetchVoid("/api/snapshots/restore", {
+				method: "POST",
+				body: JSON.stringify({ file: snapshotChoisi }),
+			});
 			setBackupMessage({
 				type: "success",
 				text: "Instantané restauré. La page va se recharger.",
@@ -86,7 +86,7 @@ export function TabMaintenance() {
 	};
 
 	const handleExport = () => {
-		window.location.href = "/api/settings/export";
+		window.location.href = "/api/config/export";
 	};
 
 	const handleImportClick = () => {
@@ -100,7 +100,7 @@ export function TabMaintenance() {
 		try {
 			const formData = new FormData();
 			formData.append("file", file);
-			await fetchVoid("/api/settings/import", {
+			await fetchVoid("/api/config/import", {
 				method: "POST",
 				body: formData,
 			});
@@ -118,7 +118,7 @@ export function TabMaintenance() {
 		setResetLoading(true);
 		setResetError(null);
 		try {
-			const res = await fetchJson<ResetResult>("/api/settings/reset", {
+			const res = await fetchJson<ResetResult>("/api/config/reset", {
 				method: "POST",
 			});
 			setResetDone(res);

@@ -33,8 +33,10 @@ import type { GitInfo } from "@/lib/git";
 
 /** Réponse de `POST /api/projects/:id/git-fetch`, telle que la route la construit. */
 export interface GitSyncResponse {
-	ok: boolean;
-	log: string;
+	ok?: boolean;
+	log?: string;
+	success?: boolean;
+	stdout?: string;
 	git: GitInfo;
 }
 
@@ -117,7 +119,9 @@ export function useGlobalGitSync() {
 						// cause, et c'est lui qu'il faut montrer — l'ancienne boucle le
 						// jetait.
 						failureOf: (reponse) =>
-							reponse.ok ? null : reponse.log || "git fetch en échec",
+							(reponse.ok ?? reponse.success)
+								? null
+								: reponse.log || reponse.stdout || "git fetch en échec",
 					},
 				);
 				return sortGitOutcomes(outcomes);

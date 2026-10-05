@@ -5,7 +5,11 @@ import { TabAnalysis } from "./settings/TabAnalysis";
 import { TabConnections } from "./settings/TabConnections";
 import { TabMaintenance } from "./settings/TabMaintenance";
 
-export const Settings = React.memo(function Settings() {
+export const Settings = React.memo(function Settings({
+	defaultTab = "connections",
+}: {
+	defaultTab?: string;
+}) {
 	return (
 		<div className="flex flex-col gap-6 p-8 w-full max-w-[1200px] mx-auto animate-in fade-in duration-500">
 			<div>
@@ -19,7 +23,7 @@ export const Settings = React.memo(function Settings() {
 				</p>
 			</div>
 
-			<Tabs defaultValue="connections" className="w-full flex flex-col gap-6">
+			<Tabs defaultValue={defaultTab} className="w-full flex flex-col gap-6">
 				<TabsList>
 					<TabsTrigger value="connections">Connexions & API</TabsTrigger>
 					<TabsTrigger value="analysis">Analyse & Tags</TabsTrigger>

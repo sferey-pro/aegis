@@ -10,6 +10,7 @@ import {
 import { memo } from "react";
 import { Link } from "react-router-dom";
 import type { StatsResponse } from "@/routes/stats";
+import { StatCard } from "../components/molecules/StatCard";
 import { HistoryChart } from "../components/organisms/HistoryChart";
 import { Button } from "../components/ui/button";
 import {
@@ -151,74 +152,47 @@ export const Overview = memo(function Overview({
 					</div>
 				)}
 
-				<div className="bg-card border-border p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden">
-					<div className="flex items-center gap-3 relative z-10">
-						<div className="w-12 h-12 rounded-2xl border flex items-center justify-center">
-							<Activity className="w-6 h-6" />
-						</div>
-						<p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
-							Failles Critiques
-						</p>
-					</div>
-					<div className="mt-auto relative z-10">
-						<h3 className="text-5xl font-black font-heading">
-							{loading ? (
-								<span className="opacity-50 text-3xl">...</span>
-							) : error ? (
-								<span title={error}>—</span>
-							) : (
-								(stats?.criticalVulnerabilities ?? 0)
-							)}
-						</h3>
-					</div>
-				</div>
+				<StatCard
+					title="Failles Critiques"
+					icon={Activity}
+					value={
+						error ? (
+							<span title={error}>—</span>
+						) : (
+							(stats?.criticalVulnerabilities ?? 0)
+						)
+					}
+					loading={loading}
+				/>
 
-				<div className="bg-card border-border p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden">
-					<div className="flex items-center gap-3 relative z-10">
-						<div className="w-12 h-12 rounded-2xl border flex items-center justify-center">
-							<GitBranch className="w-6 h-6" />
-						</div>
-						<p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
-							Projets Surveillés
-						</p>
-					</div>
-					<div className="mt-auto relative z-10">
-						<h3 className="text-5xl font-black font-heading text-foreground">
-							{loading ? (
-								<span className="opacity-50 text-3xl">...</span>
-							) : error ? (
-								<span title={error}>—</span>
-							) : (
-								(stats?.monitoredProjects ?? 0)
-							)}
-						</h3>
-					</div>
-				</div>
+				<StatCard
+					title="Projets Surveillés"
+					icon={GitBranch}
+					value={
+						error ? (
+							<span title={error}>—</span>
+						) : (
+							(stats?.monitoredProjects ?? 0)
+						)
+					}
+					loading={loading}
+				/>
 
-				<div className="bg-card border-border p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden">
-					<div className="flex items-center gap-3 relative z-10">
-						<div className="w-12 h-12 rounded-2xl border flex items-center justify-center">
-							<Database className="w-6 h-6" />
-						</div>
-						<p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
-							Base de Données
-						</p>
-					</div>
-					<div className="mt-auto flex flex-col gap-1 relative z-10">
-						<h3 className="text-2xl font-bold">
-							{loading ? (
-								<span className="opacity-50">...</span>
-							) : stats?.lastSync ? (
-								"Synchronisée"
-							) : (
-								"En attente"
-							)}
-						</h3>
-						<p className="text-xs text-muted-foreground font-mono">
-							{loading ? "--" : syncDisplay}
-						</p>
-					</div>
-				</div>
+				<StatCard
+					title="Base de Données"
+					icon={Database}
+					value={
+						loading ? (
+							<span className="opacity-50">...</span>
+						) : stats?.lastSync ? (
+							"Synchronisée"
+						) : (
+							"En attente"
+						)
+					}
+					valueClassName="text-2xl font-bold"
+					subtitle={loading ? "--" : syncDisplay}
+				/>
 			</div>
 
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">

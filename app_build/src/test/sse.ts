@@ -38,6 +38,8 @@ export interface FakeEventSource {
 	emitJson(payload: unknown): void;
 }
 
+import { consoleClient } from "@/lib/console-client";
+
 const instances: FakeEventSource[] = [];
 let original: unknown;
 
@@ -48,6 +50,7 @@ let original: unknown;
 export function mockEventSource() {
 	original ??= (globalThis as { EventSource?: unknown }).EventSource;
 	instances.length = 0;
+	consoleClient.reset();
 
 	class Fake implements FakeEventSource {
 		onmessage: ((event: { data: string }) => void) | null = null;
@@ -112,6 +115,7 @@ export function mockEventSource() {
 export function restoreEventSource() {
 	(globalThis as { EventSource?: unknown }).EventSource = original;
 	instances.length = 0;
+	consoleClient.reset();
 }
 
 /** Installe le faux flux et le restaure automatiquement après chaque test. */

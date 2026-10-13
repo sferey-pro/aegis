@@ -1,10 +1,11 @@
 import { Terminal } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
+import { consoleClient } from "@/lib/console-client";
 import { ConsoleHeader } from "../molecules/ConsoleHeader";
 import { ConsoleLogItem } from "../molecules/ConsoleLogItem";
 import { ConsoleTabs } from "../molecules/ConsoleTabs";
 import { Button } from "../ui/button";
-import type { ConsoleEvent, LogEntry } from "./console-types";
+import type { LogEntry } from "./console-types";
 
 export const Console = memo(function Console() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -23,60 +24,47 @@ export const Console = memo(function Console() {
 	const tabs = ["Global", ...projectTabs];
 
 	useEffect(() => {
-		const evtSource = new EventSource("/api/console");
-
-		evtSource.onmessage = (event) => {
-			if (event.data === ": disabled") {
+		const unsubscribe = consoleClient.subscribe((data) => {
+			if (data === ": disabled") {
 				setIsDisabled(true);
-				evtSource.close();
 				return;
 			}
-			// Ignore ping and connected messages
-			if (event.data === ": ping" || event.data === ": connected") return;
 
-			try {
-				const data: ConsoleEvent = JSON.parse(event.data);
-
-				setLogs((prev) => {
-					if (data.phase === "start") {
-						return [
-							...prev,
-							{
-								id: data.id,
-								cmd: data.cmd || "unknown",
-								cwd: data.cwd || "",
-								label: data.label || "unknown",
-								project: data.project,
-								status: "running" as const,
-								startTime: Date.now(),
-							},
-						].slice(-200); // Keep last 200 logs
-					} else {
-						return prev.map((log) => {
-							if (log.id === data.id) {
-								return {
-									...log,
-									// `ok` d'abord : `exitCode` vaut un statut HTTP pour les
-									// appels GitHub, et la convention shell « zéro = succès »
-									// affichait une croix rouge sur un 200.
-									status:
-										(data.ok ?? data.exitCode === 0) ? "success" : "error",
-									exitCode: data.exitCode,
-									ms: data.ms,
-									outText: data.outText,
-									errorText: data.errorText,
-								};
-							}
-							return log;
-						});
+			setLogs((prev) => {
+				if (data.phase === "start") {
+					return [
+						...prev,
+						{
+							id: data.id,
+							cmd: data.cmd || "unknown",
+							cwd: data.cwd || "",
+							label: data.label || "unknown",
+							project: data.project,
+							status: "running" as const,
+							startTime: Date.now(),
+						},
+					].slice(-200); // Keep last 200 logs
+				}
+				return prev.map((log) => {
+					if (log.id === data.id) {
+						return {
+							...log,
+							// `ok` d'abord : `exitCode` vaut un statut HTTP pour les
+							// appels GitHub, et la convention shell « zéro = succès »
+							// affichait une croix rouge sur un 200.
+							status: (data.ok ?? data.exitCode === 0) ? "success" : "error",
+							exitCode: data.exitCode,
+							ms: data.ms,
+							outText: data.outText,
+							errorText: data.errorText,
+						};
 					}
+					return log;
 				});
-			} catch (e) {
-				console.error("SSE parse error", e);
-			}
-		};
+			});
+		});
 
-		return () => evtSource.close();
+		return unsubscribe;
 	}, []);
 
 	// Auto-scroll logic. logs / activeTab / debugMode sont des declencheurs

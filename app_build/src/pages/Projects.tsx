@@ -2,22 +2,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
 	AlertTriangle,
 	ArrowDownToLine,
-	Check,
-	CheckCircle2,
 	CloudDownload,
-	Copy,
 	Folder,
 	Globe,
 	HardDrive,
 	HelpCircle,
-	Info,
 	LayoutGrid,
 	List,
-	Loader2,
 	Plus,
 	RefreshCw,
-	UploadCloud,
-	XCircle,
 } from "lucide-react";
 import React, {
 	useCallback,
@@ -27,14 +20,8 @@ import React, {
 	useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import type { Project, ProjectTool } from "@/db/projects";
-import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
-import {
-	queryKeys,
-	useProjects,
-	useSettings,
-	useTags,
-} from "@/lib/api/queries";
+import { fetchJson, fetchVoid } from "@/lib/api";
+import { queryKeys, useProjects, useTags } from "@/lib/api/queries";
 import { consoleClient } from "@/lib/console-client";
 import { useGlobalGitSync } from "@/lib/useGlobalGitSync";
 import type { ProjectGitState, ProjectListItem } from "@/routes/projects";
@@ -52,14 +39,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "../components/ui/dialog";
-import { Input } from "../components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "../components/ui/select";
 import {
 	Table,
 	TableBody,
@@ -67,12 +46,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "../components/ui/table";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "../components/ui/tooltip";
 
 export const Projects = React.memo(function Projects() {
 	const navigate = useNavigate();
@@ -84,10 +57,6 @@ export const Projects = React.memo(function Projects() {
 	} = useProjects();
 	const { data: availableTags = [] } = useTags();
 
-	const { data: settingsData } = useSettings();
-	const hasGithubToken =
-		settingsData?.GITHUB_TOKEN_CONFIGURED === "true" ||
-		settingsData?.GITHUB_TOKEN_CONFIGURED === "true";
 	const loading = projectsLoading;
 
 	const fetchProjects = async () => {
@@ -146,23 +115,8 @@ export const Projects = React.memo(function Projects() {
 
 	const [isAdding, setIsAdding] = useState(false);
 	const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
-	const [isFormVisible, setIsFormVisible] = useState(false);
-	/**
-	 * Erreur renvoyée par le serveur au dernier envoi du formulaire.
-	 *
-	 * La validation HTML5 ne remplace pas celle du serveur, et ne la recouvre même
-	 * pas : un nom fait d'espaces satisfait `required` — il n'est pas vide — mais
-	 * le schéma le trime et refuse en 400 « Nom requis ». Même chose pour le
-	 * chemin. Le refus partait dans `console.error` : le formulaire ne se fermait
-	 * pas, n'affichait rien, et paraissait simplement ne pas répondre.
-	 */
-	const [submitError, setSubmitError] = useState<string | null>(null);
-	const [detectStatus, setDetectStatus] = useState<
-		"idle" | "detecting" | "success" | "error"
-	>("idle");
 	const [detectingId, setDetectingId] = useState<number | null>(null);
 	const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
-	const [detectedToolName, setDetectedToolName] = useState<string | null>(null);
 	const [projectToEdit, setProjectToEdit] = useState<ProjectListItem | null>(
 		null,
 	);
@@ -209,20 +163,6 @@ export const Projects = React.memo(function Projects() {
 		return unsubscribe;
 	}, []);
 
-	const formRef = useRef<HTMLFormElement>(null);
-	const [formData, setFormData] = useState({
-		name: "",
-		path: "",
-		audit_path: "",
-		tool: "npm" as "npm" | "yarn" | "bun" | "composer",
-		type: "node" as "node" | "composer",
-		tags: [] as string[],
-		is_remote: false,
-		source_type: "local" as "local" | "ingest" | "remote",
-		remote_url: "",
-		remote_token: "",
-	});
-
 	const copyToClipboard = (text: string) => {
 		if (navigator.clipboard && window.isSecureContext) {
 			navigator.clipboard.writeText(text);
@@ -258,81 +198,9 @@ export const Projects = React.memo(function Projects() {
 				});
 	};
 
-	const resetForm = () => {
-		setIsAdding(false);
-		setIsFormVisible(false);
-		// Sans cela, l'erreur du précédent envoi réapparaîtrait à la réouverture du
-		// formulaire, sur un contenu qui n'a plus rien à voir.
-		setSubmitError(null);
-		setDetectStatus("idle");
-		setDetectedToolName(null);
-		setFormData({
-			name: "",
-			path: "",
-			audit_path: "",
-			type: "node",
-			tool: "npm",
-			tags: [],
-			is_remote: false,
-			source_type: "local",
-			remote_url: "",
-			remote_token: "",
-		});
-	};
-
 	const handleEdit = (p: ProjectListItem, e?: React.MouseEvent) => {
 		if (e) e.stopPropagation();
 		setProjectToEdit(p);
-	};
-
-	const handleSubmit = async (
-		e: React.FormEvent | React.MouseEvent,
-		shouldAudit = false,
-	) => {
-		e.preventDefault();
-		setSubmitError(null);
-		try {
-			const payload = { ...formData };
-
-			const nouveau = await fetchJson<Project>("/api/projects", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			});
-
-			const createdProjectId = nouveau.id;
-
-			resetForm();
-			await fetchProjects();
-
-			if (createdProjectId && !payload.is_remote) {
-				// Déclencher un git fetch en arrière-plan pour vérifier les mises à jour (behind/ahead)
-				fetchVoid(`/api/projects/${createdProjectId}/git-fetch`, {
-					method: "POST",
-				})
-					.then(() => fetchProjects())
-					.catch(console.error);
-			}
-
-			if (shouldAudit && createdProjectId) {
-				setAuditState((prev) => ({
-					...prev,
-					[createdProjectId]: "Démarrage...",
-				}));
-				fetchVoid(`/api/projects/${createdProjectId}/audit`, { method: "POST" })
-					.then(() => fetchProjects())
-					.catch(console.error)
-					.finally(() => {
-						setAuditState((prev) => {
-							const newState = { ...prev };
-							delete newState[createdProjectId];
-							return newState;
-						});
-					});
-			}
-		} catch (err) {
-			setSubmitError(apiErrorMessage(err));
-		}
 	};
 
 	const handleDelete = async (id: number, e?: React.MouseEvent) => {
@@ -518,42 +386,6 @@ export const Projects = React.memo(function Projects() {
 		);
 	};
 
-	const handleDetectTool = async () => {
-		if (!formData.path) return;
-		setDetectStatus("detecting");
-		try {
-			const data = await fetchJson<{ tool: ProjectTool | null }>(
-				"/api/projects/detect",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						path: formData.path,
-						audit_path: formData.audit_path,
-					}),
-				},
-			);
-			// Capturé avant la fermeture : le rétrécissement de `data.tool` ne
-			// traverse pas la fonction passée à `setFormData`. C'était invisible
-			// tant que `res.json()` renvoyait `any`.
-			const outil = data.tool;
-			if (outil) {
-				setFormData((prev) => ({
-					...prev,
-					tool: outil,
-					type: outil === "composer" ? "composer" : "node",
-				}));
-				setDetectedToolName(outil);
-				setDetectStatus("success");
-			} else {
-				setDetectStatus("error");
-			}
-		} catch (err) {
-			console.error("Auto-detect failed", err);
-			setDetectStatus("error");
-		}
-	};
-
 	return (
 		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10">
 			<div className="flex items-center justify-between mb-8">
@@ -605,543 +437,12 @@ export const Projects = React.memo(function Projects() {
 					>
 						<HelpCircle className="w-4 h-4 text-muted-foreground" />
 					</Button>
-					<Button
-						onClick={() => {
-							resetForm();
-							setIsAdding(true);
-						}}
-						className="shadow-lg"
-					>
+					<Button onClick={() => setIsAdding(true)} className="shadow-lg">
 						<Plus className="w-4 h-4 mr-2" />
 						Ajouter un Projet
 					</Button>
 				</div>
 			</div>
-
-			<Dialog
-				open={isAdding}
-				onOpenChange={(open: boolean) => {
-					if (!open) resetForm();
-				}}
-			>
-				<DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
-					<form
-						ref={formRef}
-						onSubmit={handleSubmit}
-						className="flex flex-col h-full"
-					>
-						{!isFormVisible ? (
-							<div className="flex flex-col h-full">
-								<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
-									<DialogTitle className="text-xl font-bold text-primary">
-										Type de projet
-									</DialogTitle>
-								</DialogHeader>
-								<div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 p-10 bg-muted/20">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => {
-											setFormData({
-												...formData,
-												source_type: "local",
-												is_remote: false,
-											});
-											setIsFormVisible(true);
-										}}
-										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
-									>
-										<HardDrive className="w-12 h-12 text-primary" />
-										<span className="font-semibold text-base whitespace-normal text-center">
-											Projet Local
-										</span>
-									</Button>
-
-									<Button
-										type="button"
-										variant="outline"
-										disabled={!hasGithubToken}
-										title={
-											!hasGithubToken
-												? "Un jeton GitHub est requis dans les paramètres pour les projets distants"
-												: ""
-										}
-										onClick={() => {
-											setFormData({
-												...formData,
-												source_type: "remote",
-												is_remote: false,
-												path: "",
-											});
-											setIsFormVisible(true);
-										}}
-										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-									>
-										<Globe className="w-12 h-12 text-primary" />
-										<span className="font-semibold text-base whitespace-normal text-center">
-											Distant (Direct)
-										</span>
-									</Button>
-
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => {
-											setFormData({
-												...formData,
-												source_type: "ingest",
-												is_remote: true,
-												path: "",
-											});
-											setIsFormVisible(true);
-										}}
-										className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
-									>
-										<UploadCloud className="w-12 h-12 text-primary" />
-										<span className="font-semibold text-base whitespace-normal text-center">
-											Ingestion CI
-										</span>
-									</Button>
-								</div>
-							</div>
-						) : (
-							<>
-								<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
-									<div className="flex items-center gap-3">
-										{true && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 rounded-full"
-												onClick={() => setIsFormVisible(false)}
-											>
-												<ArrowDownToLine className="w-4 h-4 rotate-90" />
-											</Button>
-										)}
-										<DialogTitle className="text-xl font-bold text-primary">
-											{formData.source_type === "local"
-												? "Nouveau Projet Local"
-												: formData.source_type === "remote"
-													? "Nouveau Projet Distant"
-													: "Nouvelle Ingestion CI"}
-										</DialogTitle>
-									</div>
-								</DialogHeader>
-
-								<div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6 hide-scrollbar">
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
-										<div className="flex flex-col gap-1">
-											<label
-												htmlFor="project-name"
-												className="text-sm font-medium"
-											>
-												Nom du projet
-											</label>
-											<Input
-												id="project-name"
-												required
-												type="text"
-												value={formData.name}
-												onChange={(e) =>
-													setFormData({ ...formData, name: e.target.value })
-												}
-												placeholder="Ex: Mon API Node"
-											/>
-										</div>
-
-										{false && (
-											<div className="flex flex-col gap-1">
-												<label
-													htmlFor="project-source-type"
-													className="text-sm font-medium"
-												>
-													Type de projet
-												</label>
-												<Select
-													value={formData.source_type}
-													onValueChange={(val) => {
-														const st = val as "local" | "ingest" | "remote";
-														setFormData({
-															...formData,
-															source_type: st,
-															is_remote: st !== "local",
-															path:
-																st === "remote" || st === "ingest"
-																	? ""
-																	: formData.path,
-														});
-													}}
-												>
-													<SelectTrigger
-														id="project-source-type"
-														className="w-full"
-													>
-														<SelectValue />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="local">Local</SelectItem>
-														<SelectItem
-															value="remote"
-															disabled={!hasGithubToken}
-														>
-															Distant (Direct){" "}
-															{!hasGithubToken && "(Requis: Jeton GitHub)"}
-														</SelectItem>
-														<SelectItem value="ingest">Ingestion CI</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
-										)}
-
-										{formData.source_type === "ingest" && (
-											<div className="flex flex-col gap-1">
-												<label
-													htmlFor="project-ingest-url"
-													className="text-sm font-medium flex items-center gap-1"
-												>
-													<Info className="w-3.5 h-3.5" /> URL d'Ingestion CI
-												</label>
-												<div className="relative">
-													<input
-														id="project-ingest-url"
-														readOnly
-														type="text"
-														value={
-															formData.name
-																? `${window.location.origin}/api/ingest/${formData.name
-																		.toLowerCase()
-																		.replace(/[^a-z0-9]+/g, "-")
-																		.replace(/(^-|-$)/g, "")}`
-																: "URL auto-générée"
-														}
-														className="w-full border text-muted-foreground rounded-md px-3 py-2 outline-none cursor-not-allowed text-sm font-mono pr-10"
-														title="Cette URL sera utilisée par votre CI/CD pour envoyer l'audit."
-													/>
-													<Button
-														type="button"
-														variant="ghost"
-														title="Copier l'URL"
-														onClick={(e) => {
-															e.preventDefault();
-															e.stopPropagation();
-															const slug = formData.name
-																? formData.name
-																		.toLowerCase()
-																		.replace(/[^a-z0-9]+/g, "-")
-																		.replace(/(^-|-$)/g, "")
-																: "";
-															if (slug) {
-																copyToClipboard(
-																	`${window.location.origin}/api/ingest/${slug}`,
-																);
-																setCopiedSlug(-1);
-																setTimeout(() => setCopiedSlug(null), 2000);
-															}
-														}}
-														className="absolute inset-y-0 right-0 flex items-center px-3 rounded-l-none"
-													>
-														{copiedSlug === -1 ? (
-															<Check className="w-4 h-4" />
-														) : (
-															<Copy className="w-4 h-4 text-muted-foreground" />
-														)}
-													</Button>
-												</div>
-											</div>
-										)}
-
-										{formData.source_type === "local" && (
-											<div className="flex flex-col gap-1 md:col-span-2">
-												<label
-													htmlFor="project-path"
-													className="text-sm font-medium"
-												>
-													Chemin absolu (Racine Git)
-												</label>
-												<Input
-													id="project-path"
-													required={!formData.is_remote}
-													type="text"
-													value={formData.path}
-													onChange={(e) =>
-														setFormData({ ...formData, path: e.target.value })
-													}
-													onBlur={handleDetectTool}
-													placeholder="Ex: /home/user/projects/api"
-												/>
-												{detectStatus === "detecting" && (
-													<span className="text-xs mt-1 flex items-center gap-1">
-														<Loader2 className="w-3 h-3" /> Détection
-														automatique...
-													</span>
-												)}
-												{detectStatus === "success" && (
-													<span className="text-xs mt-1 flex items-center gap-1">
-														<CheckCircle2 className="w-3 h-3" /> Outil détecté :{" "}
-														{detectedToolName}
-													</span>
-												)}
-												{detectStatus === "error" && (
-													<span className="text-xs mt-1 flex items-center gap-1">
-														<XCircle className="w-3 h-3" /> Impossible de
-														détecter automatiquement (vérifiez le chemin)
-													</span>
-												)}
-											</div>
-										)}
-
-										{formData.source_type === "local" && (
-											<div className="flex flex-col gap-1">
-												<label
-													htmlFor="project-audit-path"
-													className="text-sm font-medium"
-												>
-													Sous-dossier d'audit (Optionnel)
-												</label>
-												<Input
-													id="project-audit-path"
-													type="text"
-													value={formData.audit_path}
-													onChange={(e) =>
-														setFormData({
-															...formData,
-															audit_path: e.target.value,
-														})
-													}
-													onBlur={handleDetectTool}
-													placeholder="Ex: backend/src (vide si racine)"
-												/>
-											</div>
-										)}
-
-										{formData.source_type === "remote" && (
-											<div className="flex flex-col gap-1 md:col-span-2">
-												<label
-													htmlFor="project-remote-url"
-													className="text-sm font-medium flex items-center gap-1.5"
-												>
-													URL distante du fichier lock
-													<TooltipProvider>
-														<Tooltip>
-															<TooltipTrigger
-																type="button"
-																className="cursor-help"
-															>
-																<Info className="w-3.5 h-3.5 text-muted-foreground hover:text-primary transition-colors" />
-															</TooltipTrigger>
-															<TooltipContent
-																side="right"
-																className="max-w-sm bg-popover text-popover-foreground border shadow-md text-sm p-4 font-normal space-y-3"
-															>
-																<p>
-																	Pour un suivi classique, indiquez la branche :
-																	<br />
-																	<code className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono text-xs mt-1 inline-block">
-																		refs/heads/main
-																	</code>
-																</p>
-																<div className="border-t pt-3">
-																	<p className="font-semibold text-primary/90 mb-1">
-																		Cibler la vraie Production
-																	</p>
-																	<p className="text-muted-foreground text-xs leading-relaxed mb-2">
-																		Utilisez le préfixe{" "}
-																		<code className="bg-primary/10 text-primary px-1 py-0.5 rounded font-mono font-bold">
-																			env:
-																		</code>{" "}
-																		(ex:{" "}
-																		<code className="bg-primary/10 text-primary px-1 py-0.5 rounded font-mono font-bold">
-																			env:prod
-																		</code>
-																		).
-																	</p>
-																	<p className="text-muted-foreground text-xs leading-relaxed">
-																		💡 Aegis interrogera l'API GitHub pour
-																		trouver le commit exact actuellement déployé
-																		avec succès (le badge{" "}
-																		<strong>Active</strong> dans l'onglet
-																		Deployments), garantissant un audit sur la
-																		version réellement en ligne !
-																	</p>
-																</div>
-															</TooltipContent>
-														</Tooltip>
-													</TooltipProvider>
-												</label>
-												<div className="flex h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 overflow-hidden">
-													<span className="flex items-center px-3 bg-muted text-muted-foreground border-r shrink-0 whitespace-nowrap text-xs">
-														https://raw.githubusercontent.com/
-													</span>
-													<input
-														id="project-remote-url"
-														required={formData.source_type === "remote"}
-														type="text"
-														className="flex-1 bg-transparent px-3 py-2 placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-w-0"
-														value={
-															formData.remote_url.startsWith(
-																"https://raw.githubusercontent.com/",
-															)
-																? formData.remote_url.replace(
-																		"https://raw.githubusercontent.com/",
-																		"",
-																	)
-																: formData.remote_url
-														}
-														onChange={(e) => {
-															let val = e.target.value.trim();
-															if (
-																val.startsWith(
-																	"https://raw.githubusercontent.com/",
-																)
-															) {
-																val = val.replace(
-																	"https://raw.githubusercontent.com/",
-																	"",
-																);
-															}
-															setFormData({
-																...formData,
-																remote_url: val
-																	? `https://raw.githubusercontent.com/${val}`
-																	: "",
-															});
-														}}
-														placeholder="orga/repo/env:prod/composer.lock"
-													/>
-												</div>
-											</div>
-										)}
-
-										<div className="flex flex-col gap-1">
-											<label
-												htmlFor="project-tool"
-												className="text-sm font-medium"
-											>
-												Outil d'audit
-											</label>
-											<Select
-												value={formData.tool}
-												onValueChange={(val) =>
-													setFormData({
-														...formData,
-														// Valeurs bornées par les <SelectItem> déclarés juste en dessous.
-														tool: val as ProjectTool,
-														type: val === "composer" ? "composer" : "node",
-													})
-												}
-											>
-												<SelectTrigger id="project-tool" className="w-full">
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="npm">NPM</SelectItem>
-													<SelectItem value="yarn">Yarn</SelectItem>
-													<SelectItem value="bun">Bun</SelectItem>
-													<SelectItem value="composer">Composer</SelectItem>
-												</SelectContent>
-											</Select>
-										</div>
-
-										<div className="flex flex-col gap-2 md:col-span-2">
-											<span className="text-sm font-medium">
-												Tags (Configurations)
-											</span>
-											<div className="flex flex-wrap gap-2">
-												{availableTags.map((t) => {
-													const isSelected = formData.tags.includes(t.name);
-													return (
-														<button
-															key={t.id}
-															type="button"
-															onClick={() => {
-																if (isSelected) {
-																	setFormData({
-																		...formData,
-																		tags: formData.tags.filter(
-																			(tag) => tag !== t.name,
-																		),
-																	});
-																} else {
-																	setFormData({
-																		...formData,
-																		tags: [...formData.tags, t.name],
-																	});
-																}
-															}}
-															className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${isSelected ? "border-primary text-primary" : "border-border bg-background text-muted-foreground"}`}
-														>
-															<span
-																className="w-2 h-2 rounded-full inline-block mr-2"
-																style={{
-																	backgroundColor: `var(--color-${t.color}-500, var(--primary))`,
-																}}
-															></span>
-															{t.name}
-														</button>
-													);
-												})}
-												{availableTags.length === 0 && (
-													<span className="text-xs text-muted-foreground italic">
-														Aucun tag configuré dans les Paramètres.
-													</span>
-												)}
-											</div>
-										</div>
-									</div>
-								</div>
-
-								<DialogFooter className="p-6 pt-4 border-t shrink-0 flex-col items-stretch gap-2 bg-muted/20 sm:flex-row sm:items-center sm:justify-end">
-									{submitError && (
-										<p
-											role="alert"
-											className="mr-auto text-sm font-medium text-destructive"
-										>
-											{submitError}
-										</p>
-									)}
-									<Button type="button" variant="secondary" onClick={resetForm}>
-										Annuler
-									</Button>
-									{!formData.is_remote && (
-										<Button
-											type="button"
-											variant="outline"
-											onClick={(e) => {
-												if (
-													formRef.current &&
-													!formRef.current.checkValidity()
-												) {
-													formRef.current.reportValidity();
-													return;
-												}
-												handleSubmit(e, true);
-											}}
-											className="text-blue-500"
-										>
-											Créer et Auditer
-										</Button>
-									)}
-									{formData.is_remote && (
-										<Button type="submit" className="shadow-lg">
-											Créer le projet CI
-										</Button>
-									)}
-									{!formData.is_remote && (
-										<Button
-											type="submit"
-											onClick={(e) => handleSubmit(e, false)}
-											className="shadow-lg"
-										>
-											{"Créer sans auditer"}
-										</Button>
-									)}
-								</DialogFooter>
-							</>
-						)}
-					</form>
-				</DialogContent>
-			</Dialog>
 
 			{availableTags.length > 0 && projects.length > 0 && (
 				<div className="flex flex-wrap gap-2 mb-6">
@@ -1296,17 +597,48 @@ export const Projects = React.memo(function Projects() {
 				offset
 			/>
 
-			{projectToEdit && (
-				<ProjectEditDialog
-					project={projectToEdit}
-					isOpen={true}
-					onOpenChange={(isOpen) => {
-						if (!isOpen) setProjectToEdit(null);
-					}}
-					onSaved={fetchProjects}
-					showIgnoreToggle={false}
-				/>
-			)}
+			<ProjectEditDialog
+				project={projectToEdit}
+				isOpen={isAdding || projectToEdit !== null}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						setIsAdding(false);
+						setProjectToEdit(null);
+					}
+				}}
+				onSaved={async (createdProject, shouldAudit) => {
+					await fetchProjects();
+					setIsAdding(false);
+					setProjectToEdit(null);
+					if (createdProject?.id) {
+						if (shouldAudit) {
+							setAuditState((prev) => ({
+								...prev,
+								[createdProject.id]: "Démarrage...",
+							}));
+							fetchVoid(`/api/projects/${createdProject.id}/audit`, {
+								method: "POST",
+							})
+								.then(() => fetchProjects())
+								.catch(console.error)
+								.finally(() => {
+									setAuditState((prev) => {
+										const next = { ...prev };
+										delete next[createdProject.id];
+										return next;
+									});
+								});
+						}
+						// Déclencher un git fetch en arrière-plan pour vérifier les mises à jour
+						fetchVoid(`/api/projects/${createdProject.id}/git-fetch`, {
+							method: "POST",
+						})
+							.then(() => fetchProjects())
+							.catch(console.error);
+					}
+				}}
+				showIgnoreToggle={false}
+			/>
 
 			<ConfirmDialog
 				isOpen={projectToDelete !== null}

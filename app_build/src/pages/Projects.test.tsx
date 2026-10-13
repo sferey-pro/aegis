@@ -5,6 +5,7 @@ import type { ProjectListItem } from "@/routes/projects";
 import { fetchCalls, mockFetch, restoreFetch } from "@/test/http";
 import { mockEventSource, restoreEventSource } from "@/test/sse";
 import { fireEvent, render, screen, waitFor } from "@/test/utils";
+import { Console } from "../components/organisms/Console";
 import { Projects } from "./Projects";
 
 /**
@@ -95,9 +96,7 @@ describe("Projects", () => {
 		expect(urls).toContain("/api/tags");
 	});
 
-	test("ouvre un second flux console — doublon documenté", async () => {
-		// Défaut FE11 : la page souscrit à `/api/console` alors que la console du
-		// gabarit y est déjà abonnée. Chaque commande est donc reçue deux fois.
+	test("partage le flux console sans le dupliquer (N17)", async () => {
 		mockFetch(base);
 		monte();
 		await waitFor(() => {
@@ -105,6 +104,18 @@ describe("Projects", () => {
 		});
 		expect(sse.instances).toHaveLength(1);
 		expect(sse.last().url).toBe("/api/console");
+	});
+
+	test("ne duplique pas le flux console quand monté simultanément avec Console (N17)", async () => {
+		mockFetch(base);
+		const { unmount: unmountConsole } = render(<Console />);
+		monte();
+		await waitFor(() => {
+			expect(screen.getByText("Mon API")).toBeInTheDocument();
+		});
+		// Console et Projects partagent la même connexion SSE
+		expect(sse.instances).toHaveLength(1);
+		unmountConsole();
 	});
 
 	test("sans projet, l'état vide est explicite", async () => {

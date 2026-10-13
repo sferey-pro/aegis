@@ -35,6 +35,7 @@ import {
 	useSettings,
 	useTags,
 } from "@/lib/api/queries";
+import { consoleClient } from "@/lib/console-client";
 import { useGlobalGitSync } from "@/lib/useGlobalGitSync";
 import type { ProjectGitState, ProjectListItem } from "@/routes/projects";
 import { AuditProgressBar } from "../components/molecules/AuditProgressBar";
@@ -175,44 +176,37 @@ export const Projects = React.memo(function Projects() {
 	}, [projects]);
 
 	useEffect(() => {
-		const evtSource = new EventSource("/api/console");
-		evtSource.addEventListener("message", (event) => {
-			if (event.data === ": disabled") {
-				evtSource.close();
-				return;
-			}
-			try {
-				const data = JSON.parse(event.data);
-				if (data.phase === "start" && data.project) {
-					let msg = "Analyse en cours...";
-					if (data.label === "git") msg = "Opération Git...";
-					if (data.label === "github") msg = "Recherche correctifs GitHub...";
-					if (data.label === "audit")
-						msg = `Audit ${data.cmd?.split(" ")[0] || ""}...`;
+		const unsubscribe = consoleClient.subscribe((data) => {
+			if (data === ": disabled") return;
+			if (data.phase === "start" && data.project) {
+				let msg = "Analyse en cours...";
+				if (data.label === "git") msg = "Opération Git...";
+				if (data.label === "github") msg = "Recherche correctifs GitHub...";
+				if (data.label === "audit")
+					msg = `Audit ${data.cmd?.split(" ")[0] || ""}...`;
 
-					setAuditState((prev) => {
-						const p = projectsRef.current.find(
-							(proj) => proj.name === data.project,
-						);
-						if (p) return { ...prev, [p.id]: msg };
-						return prev;
-					});
-				} else if (data.phase === "end" && data.project) {
-					setAuditState((prev) => {
-						const p = projectsRef.current.find(
-							(proj) => proj.name === data.project,
-						);
-						if (p) {
-							const next = { ...prev };
-							delete next[p.id];
-							return next;
-						}
-						return prev;
-					});
-				}
-			} catch (_e) {}
+				setAuditState((prev) => {
+					const p = projectsRef.current.find(
+						(proj) => proj.name === data.project,
+					);
+					if (p) return { ...prev, [p.id]: msg };
+					return prev;
+				});
+			} else if (data.phase === "end" && data.project) {
+				setAuditState((prev) => {
+					const p = projectsRef.current.find(
+						(proj) => proj.name === data.project,
+					);
+					if (p) {
+						const next = { ...prev };
+						delete next[p.id];
+						return next;
+					}
+					return prev;
+				});
+			}
 		});
-		return () => evtSource.close();
+		return unsubscribe;
 	}, []);
 
 	const formRef = useRef<HTMLFormElement>(null);

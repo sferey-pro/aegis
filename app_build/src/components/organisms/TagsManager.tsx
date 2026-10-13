@@ -1,11 +1,11 @@
-import { Plus, RefreshCw, Tag, X } from "lucide-react";
+import { Plus, RefreshCw, Tag } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 // `Tag` est déjà pris par l'icône lucide de ce fichier.
 import type { Tag as TagRecord } from "@/db/tags";
 import { fetchJson, fetchVoid } from "@/lib/api";
 import { errorMessage } from "@/lib/utils";
-import { Badge } from "../ui/badge";
+import { ActionBadge } from "../molecules/ActionBadge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
@@ -147,26 +147,12 @@ export function TagsManager() {
 			) : (
 				<div className="flex flex-wrap gap-2">
 					{tags.map((t) => (
-						<Badge
+						<ActionBadge
 							key={t.id}
-							variant="secondary"
-							className="flex items-center gap-1.5 px-3 py-1 text-sm font-semibold"
-						>
-							<span
-								className="w-2.5 h-2.5 rounded-full"
-								style={{
-									backgroundColor: `var(--color-${t.color}-500, var(--primary))`,
-								}}
-							></span>
-							{t.name}
-							<button
-								type="button"
-								onClick={() => handleDelete(t.id)}
-								className="ml-1 text-muted-foreground"
-							>
-								<X className="w-3.5 h-3.5" />
-							</button>
-						</Badge>
+							label={t.name}
+							color={t.color}
+							onDelete={() => handleDelete(t.id)}
+						/>
 					))}
 				</div>
 			)}

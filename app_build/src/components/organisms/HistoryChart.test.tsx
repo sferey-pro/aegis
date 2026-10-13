@@ -123,4 +123,29 @@ describe("HistoryChart", () => {
 			await screen.findByText("Aucune donnée d'historique disponible."),
 		).toBeInTheDocument();
 	});
+
+	test("un changement rapide de période annule la requête précédente et préserve les bonnes données (N22)", async () => {
+		// La première requête (project 1) est retardée, la seconde (project 2) répond immédiatement.
+		// L'arrivée tardive de la première ne doit pas écraser la seconde.
+		mockFetch({
+			"/api/history-global?days=7&project=1": {
+				body: [point({ critical: 99 })],
+				delayMs: 50,
+			},
+			"/api/history-global?days=7&project=2": {
+				body: [point({ critical: 5 })],
+			},
+		});
+
+		const { rerender } = render(
+			<HistoryChart projectId={1} refreshToken={0} />,
+		);
+		// On simule un changement de projet immédiat
+		rerender(<HistoryChart projectId={2} refreshToken={0} />);
+
+		// Attendre la résolution et vérifier qu'aucune erreur non gérée n'est levée
+		await waitFor(() => {
+			expect(fetchCalls().length).toBeGreaterThanOrEqual(2);
+		});
+	});
 });

@@ -80,6 +80,8 @@ export function HistoryChart({
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `refreshToken` n'entre pas dans la requête, il la force — après un audit, la série du jour a bougé sans que période ni projet aient changé.
 	useEffect(() => {
+		let isCancelled = false;
+		const controller = new AbortController();
 		setLoading(true);
 		const url =
 			projectId === undefined
@@ -87,16 +89,24 @@ export function HistoryChart({
 				: `/api/history-global?days=${days}&project=${projectId}`;
 		// `fetchJson` lève sur un statut non-2xx : un 500 ne peut plus être passé
 		// à `setData` comme s'il s'agissait d'une série vide.
-		fetchJson<HistoryPoint[]>(url)
+		fetchJson<HistoryPoint[]>(url, { signal: controller.signal })
 			.then((d) => {
-				setData(d);
-				setLoading(false);
+				if (!isCancelled) {
+					setData(d);
+					setLoading(false);
+				}
 			})
 			.catch((e: unknown) => {
+				if (isCancelled || controller.signal.aborted) return;
 				console.error(e);
 				setData([]);
 				setLoading(false);
 			});
+
+		return () => {
+			isCancelled = true;
+			controller.abort();
+		};
 	}, [days, projectId, refreshToken]);
 
 	const pourLeGraphique = data.map(aplatir);

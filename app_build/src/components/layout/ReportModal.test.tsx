@@ -79,4 +79,43 @@ describe("ReportModal", () => {
 		);
 		expect(vus).toContain(null);
 	});
+
+	test("affiche le résumé CR sous forme visuelle avec badges d'état", () => {
+		const summary =
+			"mon-api +2 nouvelles CVEs (Total : 5) +1 CVEs Corrigé - En danger\nmon-front +0 nouvelles CVEs (Total : 0) +0 CVEs Corrigé - Sain";
+		render(
+			<MemoryRouter initialEntries={["/"]}>
+				<ReportModal
+					reportModal={rapport()}
+					summaryText={summary}
+					setReportModal={() => {}}
+				/>
+			</MemoryRouter>,
+		);
+		expect(screen.getByText("Résumé pour compte-rendu")).toBeInTheDocument();
+		expect(screen.getByText("mon-api")).toBeInTheDocument();
+		expect(screen.getByText("mon-front")).toBeInTheDocument();
+		expect(screen.getByText("En danger")).toBeInTheDocument();
+		expect(screen.getByText("Sain")).toBeInTheDocument();
+		expect(screen.getByText("+2 nouvelles")).toBeInTheDocument();
+		expect(screen.getByText("+1 corrigée")).toBeInTheDocument();
+	});
+
+	test("permet de basculer sur le texte brut et affiche la zone de texte", () => {
+		const summary =
+			"mon-api +2 nouvelles CVEs (Total : 5) +1 CVEs Corrigé - En danger";
+		render(
+			<MemoryRouter initialEntries={["/"]}>
+				<ReportModal
+					reportModal={rapport()}
+					summaryText={summary}
+					setReportModal={() => {}}
+				/>
+			</MemoryRouter>,
+		);
+		const rawBtn = screen.getByRole("button", { name: /Texte brut/i });
+		fireEvent.click(rawBtn);
+		expect(screen.getByRole("textbox")).toBeInTheDocument();
+		expect(screen.getByDisplayValue(summary)).toBeInTheDocument();
+	});
 });

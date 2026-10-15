@@ -218,7 +218,7 @@ export function ProjectEditDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-5xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+			<DialogContent className="w-[96vw] sm:w-[94vw] md:w-[90vw] lg:w-[85vw] xl:w-[80vw] sm:max-w-6xl 2xl:max-w-7xl h-[88vh] max-h-[92vh] flex flex-col p-0 overflow-hidden">
 				<form
 					ref={formRef}
 					onSubmit={(e) => handleSubmit(e, false)}
@@ -226,12 +226,12 @@ export function ProjectEditDialog({
 				>
 					{!isTypeChosen && !project ? (
 						<div className="flex flex-col h-full">
-							<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
+							<DialogHeader className="px-8 py-5 border-b shrink-0 flex-row justify-between items-center">
 								<DialogTitle className="text-xl font-bold text-primary">
 									Type de projet
 								</DialogTitle>
 							</DialogHeader>
-							<div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 p-10 bg-muted/20">
+							<div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-8 p-12 bg-muted/20">
 								<Button
 									type="button"
 									variant="outline"
@@ -243,9 +243,9 @@ export function ProjectEditDialog({
 										}));
 										setIsTypeChosen(true);
 									}}
-									className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+									className="w-44 h-44 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
 								>
-									<HardDrive className="w-12 h-12 text-primary" />
+									<HardDrive className="w-14 h-14 text-primary" />
 									<span className="font-semibold text-base whitespace-normal text-center">
 										Projet Local
 									</span>
@@ -262,9 +262,9 @@ export function ProjectEditDialog({
 										}));
 										setIsTypeChosen(true);
 									}}
-									className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+									className="w-44 h-44 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
 								>
-									<Globe className="w-12 h-12 text-primary" />
+									<Globe className="w-14 h-14 text-primary" />
 									<span className="font-semibold text-base whitespace-normal text-center">
 										Distant (Direct)
 									</span>
@@ -281,9 +281,9 @@ export function ProjectEditDialog({
 										}));
 										setIsTypeChosen(true);
 									}}
-									className="w-40 h-40 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
+									className="w-44 h-44 flex flex-col gap-4 rounded-2xl hover:border-primary hover:bg-primary/5 transition-all"
 								>
-									<UploadCloud className="w-12 h-12 text-primary" />
+									<UploadCloud className="w-14 h-14 text-primary" />
 									<span className="font-semibold text-base whitespace-normal text-center">
 										Ingestion CI
 									</span>
@@ -292,7 +292,7 @@ export function ProjectEditDialog({
 						</div>
 					) : (
 						<>
-							<DialogHeader className="p-6 pb-4 border-b shrink-0 flex-row justify-between items-center">
+							<DialogHeader className="px-8 py-5 border-b shrink-0 flex-row justify-between items-center">
 								<div className="flex items-center gap-3">
 									{!project && (
 										<Button
@@ -320,7 +320,7 @@ export function ProjectEditDialog({
 								</div>
 							</DialogHeader>
 
-							<div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6 hide-scrollbar">
+							<div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-6 hide-scrollbar">
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
 									<div className="flex flex-col gap-1">
 										<Label htmlFor="edit-name">Nom du projet</Label>

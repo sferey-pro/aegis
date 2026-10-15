@@ -510,23 +510,31 @@ export function ProjectEditDialog({
 																if (!nextToolPaths[id]) {
 																	if (formData.source_type === "remote") {
 																		const defaultLock = TOOL_DEFAULT_LOCKS[id];
-																		const remoteMatch =
-																			formData.remote_url.match(
-																				/https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/(.*)/,
-																			);
-																		if (remoteMatch?.[1]) {
-																			const pathInRepo = remoteMatch[1];
+																		if (
+																			formData.remote_url.startsWith(
+																				"https://raw.githubusercontent.com/",
+																			)
+																		) {
+																			const afterPrefix =
+																				formData.remote_url.replace(
+																					"https://raw.githubusercontent.com/",
+																					"",
+																				);
 																			const lastSlash =
-																				pathInRepo.lastIndexOf("/");
-																			const subFolder =
-																				lastSlash >= 0
-																					? pathInRepo.substring(0, lastSlash)
-																					: "";
-																			nextToolPaths[id] = subFolder
-																				? `${subFolder}/${defaultLock}`
-																				: defaultLock;
+																				afterPrefix.lastIndexOf("/");
+																			if (lastSlash >= 0) {
+																				const baseDir = afterPrefix.substring(
+																					0,
+																					lastSlash,
+																				);
+																				nextToolPaths[id] =
+																					`https://raw.githubusercontent.com/${baseDir}/${defaultLock}`;
+																			} else {
+																				nextToolPaths[id] =
+																					`https://raw.githubusercontent.com/${defaultLock}`;
+																			}
 																		} else {
-																			nextToolPaths[id] = defaultLock;
+																			nextToolPaths[id] = "";
 																		}
 																	} else {
 																		nextToolPaths[id] =
@@ -810,11 +818,44 @@ export function ProjectEditDialog({
 																	"",
 																);
 															}
+															const newRemoteUrl = val
+																? `https://raw.githubusercontent.com/${val}`
+																: "";
+
+															const nextToolPaths = {
+																...(formData.tool_paths || {}),
+															};
+															if (formData.tools.length > 1) {
+																const lastSlash = val.lastIndexOf("/");
+																const baseDir =
+																	lastSlash >= 0
+																		? val.substring(0, lastSlash)
+																		: "";
+																for (const secTool of formData.tools.slice(1)) {
+																	const defLock = TOOL_DEFAULT_LOCKS[secTool];
+																	const currentSec =
+																		nextToolPaths[secTool] || "";
+																	if (
+																		!currentSec ||
+																		currentSec.endsWith(`/${defLock}`) ||
+																		currentSec ===
+																			`https://raw.githubusercontent.com/${defLock}`
+																	) {
+																		if (val) {
+																			nextToolPaths[secTool] = baseDir
+																				? `https://raw.githubusercontent.com/${baseDir}/${defLock}`
+																				: `https://raw.githubusercontent.com/${defLock}`;
+																		} else {
+																			nextToolPaths[secTool] = "";
+																		}
+																	}
+																}
+															}
+
 															setFormData({
 																...formData,
-																remote_url: val
-																	? `https://raw.githubusercontent.com/${val}`
-																	: "",
+																remote_url: newRemoteUrl,
+																tool_paths: nextToolPaths,
 															});
 														}}
 														placeholder="orga/repo/env:prod/composer.lock"
@@ -823,15 +864,17 @@ export function ProjectEditDialog({
 											</div>
 
 											{formData.tools.length > 1 && (
-												<div className="flex flex-col gap-2 p-3.5 bg-muted/30 rounded-lg border border-border/50">
-													<Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-														Fichiers lock des outils secondaires
-													</Label>
-													<p className="text-xs text-muted-foreground">
-														Indiquez le chemin du fichier lock dans le dépôt Git
-														(ou une URL complète) pour chaque outil secondaire.
-													</p>
-													<div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1">
+												<div className="flex flex-col gap-3 p-4 bg-muted/30 rounded-lg border border-border/50">
+													<div>
+														<Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+															Fichiers lock des outils secondaires
+														</Label>
+														<p className="text-xs text-muted-foreground mt-0.5">
+															Indiquez l'URL distante du fichier lock pour
+															chaque outil secondaire.
+														</p>
+													</div>
+													<div className="flex flex-col gap-3 mt-1">
 														{formData.tools.slice(1).map((t) => {
 															const toolLabel =
 																t === "composer"
@@ -843,6 +886,31 @@ export function ProjectEditDialog({
 																			: "NPM";
 															const defaultFilename = TOOL_DEFAULT_LOCKS[t];
 															const currentVal = formData.tool_paths?.[t] ?? "";
+															const displayVal = currentVal.startsWith(
+																"https://raw.githubusercontent.com/",
+															)
+																? currentVal.replace(
+																		"https://raw.githubusercontent.com/",
+																		"",
+																	)
+																: currentVal;
+
+															let placeholder = `orga/repo/env:prod/${defaultFilename}`;
+															if (
+																formData.remote_url.startsWith(
+																	"https://raw.githubusercontent.com/",
+																)
+															) {
+																const afterPrefix = formData.remote_url.replace(
+																	"https://raw.githubusercontent.com/",
+																	"",
+																);
+																const lastSlash = afterPrefix.lastIndexOf("/");
+																if (lastSlash >= 0) {
+																	placeholder = `${afterPrefix.substring(0, lastSlash)}/${defaultFilename}`;
+																}
+															}
+
 															return (
 																<div key={t} className="flex flex-col gap-1">
 																	<Label
@@ -853,25 +921,44 @@ export function ProjectEditDialog({
 																			{toolLabel}
 																		</span>
 																		<span>
-																			Fichier lock ({defaultFilename})
+																			URL distante ({defaultFilename})
 																		</span>
 																	</Label>
-																	<Input
-																		id={`edit-remote-${t}`}
-																		type="text"
-																		value={currentVal}
-																		onChange={(e) => {
-																			const val = e.target.value;
-																			setFormData((prev) => ({
-																				...prev,
-																				tool_paths: {
-																					...prev.tool_paths,
-																					[t]: val,
-																				},
-																			}));
-																		}}
-																		placeholder={`ex: symfony/${defaultFilename} ou frontend/${defaultFilename}`}
-																	/>
+																	<div className="flex h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 overflow-hidden">
+																		<span className="flex items-center px-3 bg-muted text-muted-foreground border-r shrink-0 whitespace-nowrap text-xs">
+																			https://raw.githubusercontent.com/
+																		</span>
+																		<input
+																			id={`edit-remote-${t}`}
+																			type="text"
+																			className="flex-1 bg-transparent px-3 py-2 placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-w-0"
+																			value={displayVal}
+																			onChange={(e) => {
+																				let val = e.target.value.trim();
+																				if (
+																					val.startsWith(
+																						"https://raw.githubusercontent.com/",
+																					)
+																				) {
+																					val = val.replace(
+																						"https://raw.githubusercontent.com/",
+																						"",
+																					);
+																				}
+																				const fullVal = val
+																					? `https://raw.githubusercontent.com/${val}`
+																					: "";
+																				setFormData((prev) => ({
+																					...prev,
+																					tool_paths: {
+																						...prev.tool_paths,
+																						[t]: fullVal,
+																					},
+																				}));
+																			}}
+																			placeholder={placeholder}
+																		/>
+																	</div>
 																</div>
 															);
 														})}

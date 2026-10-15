@@ -250,4 +250,53 @@ describe("lib/remote-sync", () => {
 			),
 		).toBe(true);
 	});
+
+	test("télécharge les fichiers lorsque le second outil a une URL raw complète", async () => {
+		const project = createProject({
+			name: "Projet Multi Distant Full URL",
+			path: "/tmp/dummy-path",
+			type: "node",
+			tool: "composer",
+			tools: ["composer", "yarn"],
+			tool_paths: {
+				yarn: "https://raw.githubusercontent.com/org/repo/refs/heads/main/frontend/yarn.lock",
+			},
+			source_type: "remote",
+			remote_url:
+				"https://raw.githubusercontent.com/org/repo/refs/heads/main/composer.lock",
+		}) as Project;
+
+		const baseDir = join(
+			process.cwd(),
+			process.cwd().endsWith("app_build") ? ".." : ".",
+			".aegis_remote_projects",
+			`project_${project.id}`,
+		);
+
+		const fetchedUrls: string[] = [];
+		globalThis.fetch = (async (url: string | URL | Request) => {
+			const urlStr = url.toString();
+			fetchedUrls.push(urlStr);
+			if (urlStr.includes("composer.lock")) {
+				return new Response('{"packages": []}', { status: 200 });
+			}
+			if (urlStr.includes("composer.json")) {
+				return new Response('{"name": "backend-php"}', { status: 200 });
+			}
+			if (urlStr.includes("frontend/yarn.lock")) {
+				return new Response("# yarn lockfile v1", { status: 200 });
+			}
+			if (urlStr.includes("frontend/package.json")) {
+				return new Response('{"name": "frontend-js"}', { status: 200 });
+			}
+			return new Response("Not found", { status: 404 });
+		}) as typeof globalThis.fetch;
+
+		const res = await syncRemoteProject(project);
+		expect(res.success).toBe(true);
+
+		expect(existsSync(join(baseDir, "composer.lock"))).toBe(true);
+		expect(existsSync(join(baseDir, "frontend", "yarn.lock"))).toBe(true);
+		expect(existsSync(join(baseDir, "frontend", "package.json"))).toBe(true);
+	});
 });

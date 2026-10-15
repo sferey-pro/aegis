@@ -13,6 +13,8 @@ import { setSetting } from "@/db/settings";
 import { useTempDb } from "@/test/db";
 import {
 	auditTargetKey,
+	extractRepoRelativePath,
+	extractToolDirectory,
 	getAuditTarget,
 	ingestAudit,
 	resolveAuditTarget,
@@ -178,6 +180,63 @@ describe("lib/audit — auditTargetKey", () => {
 
 	test("deux projets distincts gardent des clés distinctes", () => {
 		expect(auditTargetKey("/srv/api")).not.toBe(auditTargetKey("/srv/web"));
+	});
+});
+
+describe("lib/audit — extractRepoRelativePath & extractToolDirectory", () => {
+	test("chemin local simple ou fichier racine", () => {
+		expect(extractRepoRelativePath("yarn.lock")).toBe("yarn.lock");
+		expect(extractToolDirectory("yarn.lock")).toBe("");
+
+		expect(extractRepoRelativePath("frontend/yarn.lock")).toBe(
+			"frontend/yarn.lock",
+		);
+		expect(extractToolDirectory("frontend/yarn.lock")).toBe("frontend");
+
+		expect(extractRepoRelativePath("sub/dir/composer.lock")).toBe(
+			"sub/dir/composer.lock",
+		);
+		expect(extractToolDirectory("sub/dir/composer.lock")).toBe("sub/dir");
+	});
+
+	test("URL raw GitHub classique (branche simple)", () => {
+		const url = "https://raw.githubusercontent.com/org/repo/main/yarn.lock";
+		expect(extractRepoRelativePath(url)).toBe("yarn.lock");
+		expect(extractToolDirectory(url)).toBe("");
+
+		const subUrl =
+			"https://raw.githubusercontent.com/org/repo/main/frontend/yarn.lock";
+		expect(extractRepoRelativePath(subUrl)).toBe("frontend/yarn.lock");
+		expect(extractToolDirectory(subUrl)).toBe("frontend");
+	});
+
+	test("URL raw GitHub avec refs/heads/ ou refs/tags/", () => {
+		const headUrl =
+			"https://raw.githubusercontent.com/org/repo/refs/heads/main/yarn.lock";
+		expect(extractRepoRelativePath(headUrl)).toBe("yarn.lock");
+		expect(extractToolDirectory(headUrl)).toBe("");
+
+		const headSubUrl =
+			"https://raw.githubusercontent.com/org/repo/refs/heads/main/frontend/yarn.lock";
+		expect(extractRepoRelativePath(headSubUrl)).toBe("frontend/yarn.lock");
+		expect(extractToolDirectory(headSubUrl)).toBe("frontend");
+
+		const tagUrl =
+			"https://raw.githubusercontent.com/org/repo/refs/tags/v1.0.0/composer.lock";
+		expect(extractRepoRelativePath(tagUrl)).toBe("composer.lock");
+		expect(extractToolDirectory(tagUrl)).toBe("");
+	});
+
+	test("URL raw GitHub avec tag env:prod", () => {
+		const envUrl =
+			"https://raw.githubusercontent.com/org/repo/env:prod/yarn.lock";
+		expect(extractRepoRelativePath(envUrl)).toBe("yarn.lock");
+		expect(extractToolDirectory(envUrl)).toBe("");
+
+		const envSubUrl =
+			"https://raw.githubusercontent.com/org/repo/env:prod/frontend/yarn.lock";
+		expect(extractRepoRelativePath(envSubUrl)).toBe("frontend/yarn.lock");
+		expect(extractToolDirectory(envSubUrl)).toBe("frontend");
 	});
 });
 

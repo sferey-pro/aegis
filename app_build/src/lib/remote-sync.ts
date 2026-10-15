@@ -3,7 +3,7 @@ import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
-import { extractToolDirectory } from "./audit";
+import { extractRepoRelativePath, extractToolDirectory } from "./audit";
 import { emitConsoleEnd, emitConsoleStart } from "./console";
 import { getAdapter } from "./project-adapters";
 
@@ -135,12 +135,37 @@ export async function syncRemoteProject(project: Project) {
 			let subDir = "";
 
 			if (toolConfigPath) {
+				const repoRelative = extractRepoRelativePath(toolConfigPath);
+				subDir = extractToolDirectory(toolConfigPath);
+
 				if (
 					toolConfigPath.startsWith("http://") ||
 					toolConfigPath.startsWith("https://")
 				) {
-					currentLockUrl = toolConfigPath;
-					subDir = extractToolDirectory(new URL(toolConfigPath).pathname);
+					let sameRepo = false;
+					if (
+						repoBaseUrl &&
+						toolConfigPath.startsWith("https://raw.githubusercontent.com/")
+					) {
+						const currentParts = toolConfigPath
+							.replace("https://raw.githubusercontent.com/", "")
+							.split("/");
+						const baseParts = repoBaseUrl
+							.replace("https://raw.githubusercontent.com/", "")
+							.split("/");
+						if (
+							currentParts[0] === baseParts[0] &&
+							currentParts[1] === baseParts[1]
+						) {
+							sameRepo = true;
+						}
+					}
+
+					if (sameRepo && repoBaseUrl && repoRelative) {
+						currentLockUrl = `${repoBaseUrl}/${repoRelative}`;
+					} else {
+						currentLockUrl = toolConfigPath;
+					}
 				} else if (repoBaseUrl) {
 					const cleanPath = toolConfigPath.replace(/^\/+/, "");
 					if (
@@ -150,14 +175,11 @@ export async function syncRemoteProject(project: Project) {
 						cleanPath.endsWith(".json")
 					) {
 						currentLockUrl = `${repoBaseUrl}/${cleanPath}`;
-						subDir = extractToolDirectory(cleanPath);
 					} else {
-						subDir = cleanPath;
 						currentLockUrl = `${repoBaseUrl}/${cleanPath}/${filename}`;
 					}
 				} else {
 					currentLockUrl = `${baseUrl}/${toolConfigPath.replace(/^\/+/, "")}`;
-					subDir = extractToolDirectory(toolConfigPath);
 				}
 			} else {
 				if (

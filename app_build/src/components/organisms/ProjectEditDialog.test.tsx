@@ -376,7 +376,7 @@ describe("ProjectEditDialog", () => {
 		expect(yarnLockInput).toBeDefined();
 
 		fireEvent.change(yarnLockInput, {
-			target: { value: "frontend/yarn.lock" },
+			target: { value: "org/repo/env:prod/frontend/yarn.lock" },
 		});
 
 		fireEvent.click(screen.getByRole("button", { name: "Créer sans auditer" }));
@@ -393,7 +393,7 @@ describe("ProjectEditDialog", () => {
 				remote_url:
 					"https://raw.githubusercontent.com/org/repo/env:prod/symfony/composer.lock",
 				tool_paths: {
-					yarn: "frontend/yarn.lock",
+					yarn: "https://raw.githubusercontent.com/org/repo/env:prod/frontend/yarn.lock",
 				},
 			});
 		});

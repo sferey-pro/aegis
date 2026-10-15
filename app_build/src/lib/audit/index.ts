@@ -236,15 +236,65 @@ export function auditTargetKey(
 }
 
 /**
- * Extrait le sous-dossier d'audit à partir d'un chemin ou d'un nom de fichier lockfile.
+ * Extrait le chemin relatif dans le dépôt à partir d'un chemin ou d'une URL raw GitHub.
+ * Par exemple :
+ * - "https://raw.githubusercontent.com/org/repo/main/frontend/yarn.lock" -> "frontend/yarn.lock"
+ * - "https://raw.githubusercontent.com/org/repo/refs/heads/main/yarn.lock" -> "yarn.lock"
+ * - "https://raw.githubusercontent.com/org/repo/env:prod/composer.lock" -> "composer.lock"
+ * - "org/repo/main/frontend/yarn.lock" -> "frontend/yarn.lock"
+ * - "frontend/yarn.lock" -> "frontend/yarn.lock"
+ * - "yarn.lock" -> "yarn.lock"
+ */
+export function extractRepoRelativePath(pathOrUrl?: string | null): string {
+	if (!pathOrUrl) return "";
+	let cleaned = pathOrUrl.trim().replace(/\\/g, "/");
+	const isRawUrl = cleaned.startsWith("https://raw.githubusercontent.com/");
+	if (isRawUrl) {
+		cleaned = cleaned.replace("https://raw.githubusercontent.com/", "");
+	} else if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+		try {
+			cleaned = new URL(cleaned).pathname.replace(/^\/+/, "");
+		} catch {
+			// conserve cleaned
+		}
+	} else {
+		// Ce n'est pas une URL HTTP, c'est un chemin local ou relatif au dépôt (ex: "frontend/yarn.lock", "sub/dir/composer.lock")
+		return cleaned.replace(/^\/+/, "");
+	}
+
+	const parts = cleaned.split("/").filter(Boolean);
+	if (parts.length >= 4) {
+		let relativeParts: string[];
+		if (
+			parts.length > 5 &&
+			parts[2] === "refs" &&
+			(parts[3] === "heads" || parts[3] === "tags")
+		) {
+			relativeParts = parts.slice(5);
+		} else {
+			relativeParts = parts.slice(3);
+		}
+		return relativeParts.join("/");
+	}
+	if (parts.length === 3) {
+		return parts.slice(2).join("/");
+	}
+	return cleaned;
+}
+
+/**
+ * Extrait le sous-dossier d'audit à partir d'un chemin, d'un nom de fichier lockfile ou d'une URL raw GitHub.
  * Par exemple:
  * - "frontend/yarn.lock" -> "frontend"
  * - "yarn.lock" -> ""
  * - "symfony" -> "symfony"
+ * - "https://raw.githubusercontent.com/org/repo/main/frontend/yarn.lock" -> "frontend"
+ * - "https://raw.githubusercontent.com/org/repo/refs/heads/main/yarn.lock" -> ""
  */
 export function extractToolDirectory(pathOrFile?: string | null): string {
 	if (!pathOrFile) return "";
-	const trimmed = pathOrFile.trim().replace(/\\/g, "/");
+	const repoRelative = extractRepoRelativePath(pathOrFile);
+	const trimmed = repoRelative.trim().replace(/\\/g, "/");
 	if (
 		/\/(bun\.lockb?|package-lock\.json|yarn\.lock|composer\.lock|composer\.json|package\.json)$/i.test(
 			trimmed,

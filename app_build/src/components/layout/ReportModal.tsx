@@ -83,7 +83,7 @@ export function ReportModal({
 			 *    à largeur maximale n'apportait rien et gênait les petits
 			 *    écrans.
 			 */}
-			<DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+			<DialogContent className="w-[96vw] sm:w-[92vw] md:w-[88vw] lg:w-[82vw] xl:w-[75vw] sm:max-w-5xl 2xl:max-w-6xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
 				<div className="absolute top-0 right-0 p-32 blur-[80px] rounded-full pointer-events-none"></div>
 
 				<DialogHeader className="text-center sm:text-center p-6 pb-4 border-b shrink-0">
@@ -145,8 +145,11 @@ export function ReportModal({
 							</div>
 							<textarea
 								readOnly
-								className="w-full text-xs font-mono p-3 rounded-lg border bg-muted/50 resize-none outline-none focus:ring-1 focus:ring-primary"
-								rows={Math.min(10, summaryText.split("\n").length || 3)}
+								className="w-full text-xs font-mono p-3 rounded-lg border bg-muted/50 resize-none outline-none focus:ring-1 focus:ring-primary max-h-[50vh]"
+								rows={Math.min(
+									16,
+									Math.max(6, summaryText.split("\n").length || 3),
+								)}
 								value={summaryText.trim()}
 								onClick={(e) => e.currentTarget.select()}
 							/>

@@ -1,7 +1,9 @@
+import { existsSync } from "node:fs";
 import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
+import { extractToolDirectory } from "./audit";
 import { emitConsoleEnd, emitConsoleStart } from "./console";
 import { getAdapter } from "./project-adapters";
 
@@ -101,10 +103,21 @@ export async function syncRemoteProject(project: Project) {
 			baseUrl = baseUrl.replace(/\/+$/, "");
 		}
 
-		for (const currentTool of toolsToSync) {
-			let currentLockUrl = downloadUrl;
-			let filename = "package-lock.json";
+		// Racine du dépôt GitHub (ex: https://raw.githubusercontent.com/owner/repo/sha-or-ref)
+		let repoBaseUrl: string | null = null;
+		if (downloadUrl.startsWith("https://raw.githubusercontent.com/")) {
+			const afterPrefix = downloadUrl.replace(
+				"https://raw.githubusercontent.com/",
+				"",
+			);
+			const parts = afterPrefix.split("/");
+			if (parts.length >= 3) {
+				repoBaseUrl = `https://raw.githubusercontent.com/${parts[0]}/${parts[1]}/${parts[2]}`;
+			}
+		}
 
+		for (const currentTool of toolsToSync) {
+			let filename = "package-lock.json";
 			if (currentTool === "yarn") {
 				filename = "yarn.lock";
 			} else if (currentTool === "bun") {
@@ -117,11 +130,43 @@ export async function syncRemoteProject(project: Project) {
 				filename = "package-lock.json";
 			}
 
-			if (
-				currentTool !== project.tool ||
-				!downloadUrl.toLowerCase().endsWith(filename.toLowerCase())
-			) {
-				currentLockUrl = `${baseUrl}/${filename}`;
+			const toolConfigPath = project.tool_paths?.[currentTool]?.trim();
+			let currentLockUrl = downloadUrl;
+			let subDir = "";
+
+			if (toolConfigPath) {
+				if (
+					toolConfigPath.startsWith("http://") ||
+					toolConfigPath.startsWith("https://")
+				) {
+					currentLockUrl = toolConfigPath;
+					subDir = extractToolDirectory(new URL(toolConfigPath).pathname);
+				} else if (repoBaseUrl) {
+					const cleanPath = toolConfigPath.replace(/^\/+/, "");
+					if (
+						cleanPath.endsWith(filename) ||
+						cleanPath.endsWith(".lock") ||
+						cleanPath.endsWith(".lockb") ||
+						cleanPath.endsWith(".json")
+					) {
+						currentLockUrl = `${repoBaseUrl}/${cleanPath}`;
+						subDir = extractToolDirectory(cleanPath);
+					} else {
+						subDir = cleanPath;
+						currentLockUrl = `${repoBaseUrl}/${cleanPath}/${filename}`;
+					}
+				} else {
+					currentLockUrl = `${baseUrl}/${toolConfigPath.replace(/^\/+/, "")}`;
+					subDir = extractToolDirectory(toolConfigPath);
+				}
+			} else {
+				if (
+					currentTool !== project.tool ||
+					!downloadUrl.toLowerCase().endsWith(filename.toLowerCase())
+				) {
+					currentLockUrl = `${baseUrl}/${filename}`;
+				}
+				subDir = extractToolDirectory(project.audit_path);
 			}
 
 			let res = await fetch(currentLockUrl, { headers });
@@ -129,11 +174,14 @@ export async function syncRemoteProject(project: Project) {
 			if (!res.ok && currentTool === "bun") {
 				const fallbackFilename =
 					filename === "bun.lock" ? "bun.lockb" : "bun.lock";
-				const fallbackUrl = `${baseUrl}/${fallbackFilename}`;
+				const fallbackUrl = currentLockUrl.includes(filename)
+					? currentLockUrl.replace(filename, fallbackFilename)
+					: `${baseUrl}/${fallbackFilename}`;
 				const fallbackRes = await fetch(fallbackUrl, { headers });
 				if (fallbackRes.ok) {
 					res = fallbackRes;
 					filename = fallbackFilename;
+					currentLockUrl = fallbackUrl;
 				}
 			}
 
@@ -142,16 +190,30 @@ export async function syncRemoteProject(project: Project) {
 			}
 			const content = await res.arrayBuffer();
 
-			const filePath = join(projectDir, filename);
+			const destDir = subDir ? join(projectDir, subDir) : projectDir;
+			await mkdir(destDir, { recursive: true });
+
+			const filePath = join(destDir, filename);
 			await Bun.write(filePath, content);
+			if (destDir !== projectDir) {
+				const rootFilePath = join(projectDir, filename);
+				if (!existsSync(rootFilePath)) {
+					await Bun.write(rootFilePath, content);
+				}
+			}
 
 			// Nettoyer l'autre lockfile Bun éventuel pour éviter les conflits dans le dossier
 			if (currentTool === "bun") {
 				const otherLockfile =
 					filename === "bun.lock" ? "bun.lockb" : "bun.lock";
 				try {
-					await unlink(join(projectDir, otherLockfile));
+					await unlink(join(destDir, otherLockfile));
 				} catch {}
+				if (destDir !== projectDir) {
+					try {
+						await unlink(join(projectDir, otherLockfile));
+					} catch {}
+				}
 			}
 
 			// Fetch actual manifest instead of dummy
@@ -161,7 +223,7 @@ export async function syncRemoteProject(project: Project) {
 			if (manifestUrl.includes(filename)) {
 				manifestUrl = manifestUrl.replace(filename, manifestName);
 			} else {
-				manifestUrl = `${baseUrl}/${manifestName}`;
+				manifestUrl = `${currentLockUrl.substring(0, currentLockUrl.lastIndexOf("/"))}/${manifestName}`;
 			}
 
 			try {
@@ -169,15 +231,39 @@ export async function syncRemoteProject(project: Project) {
 					const mRes = await fetch(manifestUrl, { headers });
 					if (mRes.ok) {
 						const mContent = await mRes.arrayBuffer();
-						await Bun.write(join(projectDir, manifestName), mContent);
+						await Bun.write(join(destDir, manifestName), mContent);
+						if (
+							destDir !== projectDir &&
+							!existsSync(join(projectDir, manifestName))
+						) {
+							await Bun.write(join(projectDir, manifestName), mContent);
+						}
 					} else {
-						await Bun.write(join(projectDir, manifestName), "{}");
+						await Bun.write(join(destDir, manifestName), "{}");
+						if (
+							destDir !== projectDir &&
+							!existsSync(join(projectDir, manifestName))
+						) {
+							await Bun.write(join(projectDir, manifestName), "{}");
+						}
 					}
 				} else {
-					await Bun.write(join(projectDir, manifestName), "{}");
+					await Bun.write(join(destDir, manifestName), "{}");
+					if (
+						destDir !== projectDir &&
+						!existsSync(join(projectDir, manifestName))
+					) {
+						await Bun.write(join(projectDir, manifestName), "{}");
+					}
 				}
 			} catch (_e) {
-				await Bun.write(join(projectDir, manifestName), "{}");
+				await Bun.write(join(destDir, manifestName), "{}");
+				if (
+					destDir !== projectDir &&
+					!existsSync(join(projectDir, manifestName))
+				) {
+					await Bun.write(join(projectDir, manifestName), "{}");
+				}
 			}
 		}
 

@@ -189,4 +189,65 @@ describe("lib/remote-sync", () => {
 			"# yarn lockfile v1",
 		);
 	});
+
+	test("télécharge les fichiers dans des dossiers distincts selon tool_paths", async () => {
+		const project = createProject({
+			name: "Projet Multi-dossiers Distant",
+			path: "/tmp/dummy-path",
+			type: "node",
+			tool: "composer",
+			tools: ["composer", "yarn"],
+			tool_paths: {
+				composer: "backend/composer.lock",
+				yarn: "frontend/yarn.lock",
+			},
+			source_type: "remote",
+			remote_url:
+				"https://raw.githubusercontent.com/org/repo/main/backend/composer.lock",
+		}) as Project;
+
+		const baseDir = join(
+			process.cwd(),
+			process.cwd().endsWith("app_build") ? ".." : ".",
+			".aegis_remote_projects",
+			`project_${project.id}`,
+		);
+
+		const fetchedUrls: string[] = [];
+		globalThis.fetch = (async (url: string | URL | Request) => {
+			const urlStr = url.toString();
+			fetchedUrls.push(urlStr);
+			if (urlStr.includes("backend/composer.lock")) {
+				return new Response('{"packages": []}', { status: 200 });
+			}
+			if (urlStr.includes("backend/composer.json")) {
+				return new Response('{"name": "backend-php"}', { status: 200 });
+			}
+			if (urlStr.includes("frontend/yarn.lock")) {
+				return new Response("# yarn lockfile v1", { status: 200 });
+			}
+			if (urlStr.includes("frontend/package.json")) {
+				return new Response('{"name": "frontend-js"}', { status: 200 });
+			}
+			return new Response("Not found", { status: 404 });
+		}) as typeof globalThis.fetch;
+
+		const res = await syncRemoteProject(project);
+		expect(res.success).toBe(true);
+
+		// Les fichiers doivent être écrits dans les sous-dossiers appropriés
+		expect(existsSync(join(baseDir, "backend", "composer.lock"))).toBe(true);
+		expect(existsSync(join(baseDir, "backend", "composer.json"))).toBe(true);
+		expect(existsSync(join(baseDir, "frontend", "yarn.lock"))).toBe(true);
+		expect(existsSync(join(baseDir, "frontend", "package.json"))).toBe(true);
+
+		// Les URLs interrogées doivent pointer vers backend/... et frontend/...
+		expect(
+			fetchedUrls.some((u) =>
+				u.includes(
+					"https://raw.githubusercontent.com/org/repo/main/frontend/yarn.lock",
+				),
+			),
+		).toBe(true);
+	});
 });

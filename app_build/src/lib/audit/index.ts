@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { spawn } from "bun";
 import { errorMessage } from "@/lib/utils";
 import { occurrenceKey, vulnRef } from "@/lib/vuln-identity";
@@ -234,6 +235,34 @@ export function auditTargetKey(
 	return target.length > 1 ? target.replace(/\/+$/, "") : target;
 }
 
+/**
+ * Extrait le sous-dossier d'audit à partir d'un chemin ou d'un nom de fichier lockfile.
+ * Par exemple:
+ * - "frontend/yarn.lock" -> "frontend"
+ * - "yarn.lock" -> ""
+ * - "symfony" -> "symfony"
+ */
+export function extractToolDirectory(pathOrFile?: string | null): string {
+	if (!pathOrFile) return "";
+	const trimmed = pathOrFile.trim().replace(/\\/g, "/");
+	if (
+		/\/(bun\.lockb?|package-lock\.json|yarn\.lock|composer\.lock|composer\.json|package\.json)$/i.test(
+			trimmed,
+		)
+	) {
+		const lastSlash = trimmed.lastIndexOf("/");
+		return lastSlash >= 0 ? trimmed.substring(0, lastSlash) : "";
+	}
+	if (
+		/^(bun\.lockb?|package-lock\.json|yarn\.lock|composer\.lock|composer\.json|package\.json)$/i.test(
+			trimmed,
+		)
+	) {
+		return "";
+	}
+	return trimmed.replace(/\/+$/, "");
+}
+
 export async function runAudit(
 	projectId: number,
 	force = false,
@@ -271,10 +300,25 @@ export async function runAudit(
 				? project.tools
 				: [project.tool];
 
+		const getToolCwd = (currentTool: ProjectTool): string => {
+			const toolSubDir = extractToolDirectory(
+				project.tool_paths?.[currentTool] ??
+					(currentTool === project.tool ? project.audit_path : ""),
+			);
+			if (project.source_type === "local") {
+				return toolSubDir ? resolveAuditTarget(project.path, toolSubDir) : cwd;
+			}
+			if (project.source_type === "remote") {
+				const subPath = toolSubDir
+					? join(project.path, toolSubDir)
+					: project.path;
+				return existsSync(subPath) ? subPath : project.path;
+			}
+			return cwd;
+		};
+
 		for (const currentTool of toolsToRun) {
-			const toolCwd = project.tool_paths?.[currentTool]
-				? resolveAuditTarget(project.path, project.tool_paths[currentTool])
-				: cwd;
+			const toolCwd = getToolCwd(currentTool);
 
 			if (!isKnownTool(currentTool)) {
 				const errRun = addErrorRun({
@@ -309,9 +353,7 @@ export async function runAudit(
 		let totalDurationMs = 0;
 
 		for (const currentTool of toolsToRun) {
-			const toolCwd = project.tool_paths?.[currentTool]
-				? resolveAuditTarget(project.path, project.tool_paths[currentTool])
-				: cwd;
+			const toolCwd = getToolCwd(currentTool);
 
 			const args = auditCommand(currentTool);
 			const commandStr = args.join(" ");

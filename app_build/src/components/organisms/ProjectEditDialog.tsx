@@ -36,6 +36,13 @@ import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
 import { cn, copyToClipboard } from "@/lib/utils";
 import type { ProjectListItem } from "@/routes/projects";
 
+const TOOL_DEFAULT_LOCKS: Record<ProjectTool, string> = {
+	composer: "composer.lock",
+	yarn: "yarn.lock",
+	bun: "bun.lock",
+	npm: "package-lock.json",
+};
+
 export function ProjectEditDialog({
 	project,
 	isOpen,
@@ -60,6 +67,7 @@ export function ProjectEditDialog({
 		audit_path: "",
 		tool: "npm" as ProjectTool,
 		tools: ["npm"] as ProjectTool[],
+		tool_paths: {} as Record<string, string>,
 		type: "node",
 		tags: [] as string[],
 		ignored: false,
@@ -93,6 +101,7 @@ export function ProjectEditDialog({
 					audit_path: project.audit_path || "",
 					tool: project.tool,
 					tools: projectTools,
+					tool_paths: (project.tool_paths as Record<string, string>) || {},
 					type: project.type,
 					tags: project.tags || [],
 					ignored: !!project.ignored,
@@ -112,6 +121,7 @@ export function ProjectEditDialog({
 					audit_path: "",
 					tool: "npm",
 					tools: ["npm"],
+					tool_paths: {},
 					type: "node",
 					tags: [],
 					ignored: false,
@@ -134,6 +144,7 @@ export function ProjectEditDialog({
 			const data = await fetchJson<{
 				tool: ProjectTool | null;
 				tools?: ProjectTool[];
+				tool_paths?: Record<string, string>;
 			}>("/api/projects/detect", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -154,6 +165,7 @@ export function ProjectEditDialog({
 					...prev,
 					tool: primary,
 					tools: detectedTools,
+					tool_paths: data.tool_paths || prev.tool_paths || {},
 					type:
 						detectedTools.includes("composer") && detectedTools.length === 1
 							? "composer"
@@ -484,18 +496,49 @@ export function ProjectEditDialog({
 														type="button"
 														onClick={() => {
 															let newTools: ProjectTool[];
+															const nextToolPaths = {
+																...(formData.tool_paths || {}),
+															};
 															if (isSelected) {
 																if (formData.tools.length <= 1) return;
 																newTools = formData.tools.filter(
 																	(t) => t !== id,
 																);
+																delete nextToolPaths[id];
 															} else {
 																newTools = [...formData.tools, id];
+																if (!nextToolPaths[id]) {
+																	if (formData.source_type === "remote") {
+																		const defaultLock = TOOL_DEFAULT_LOCKS[id];
+																		const remoteMatch =
+																			formData.remote_url.match(
+																				/https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/(.*)/,
+																			);
+																		if (remoteMatch?.[1]) {
+																			const pathInRepo = remoteMatch[1];
+																			const lastSlash =
+																				pathInRepo.lastIndexOf("/");
+																			const subFolder =
+																				lastSlash >= 0
+																					? pathInRepo.substring(0, lastSlash)
+																					: "";
+																			nextToolPaths[id] = subFolder
+																				? `${subFolder}/${defaultLock}`
+																				: defaultLock;
+																		} else {
+																			nextToolPaths[id] = defaultLock;
+																		}
+																	} else {
+																		nextToolPaths[id] =
+																			formData.audit_path || "";
+																	}
+																}
 															}
 															setFormData({
 																...formData,
 																tools: newTools,
 																tool: newTools[0] || "npm",
+																tool_paths: nextToolPaths,
 																type:
 																	newTools.includes("composer") &&
 																	newTools.length === 1
@@ -535,8 +578,8 @@ export function ProjectEditDialog({
 									</div>
 
 									{formData.source_type === "local" && (
-										<div className="flex flex-col md:flex-row gap-4 md:col-span-2">
-											<div className="flex flex-col gap-1 flex-1">
+										<div className="flex flex-col gap-4 md:col-span-2">
+											<div className="flex flex-col gap-1">
 												<Label htmlFor="edit-path">
 													Chemin absolu (Racine Git)
 												</Label>
@@ -570,134 +613,271 @@ export function ProjectEditDialog({
 													</span>
 												)}
 											</div>
-											<div className="flex flex-col gap-1 flex-1">
-												<Label htmlFor="edit-audit-path">
-													Sous-dossier d'audit (Optionnel)
-												</Label>
-												<Input
-													id="edit-audit-path"
-													type="text"
-													value={formData.audit_path}
-													onChange={(e) =>
-														setFormData({
-															...formData,
-															audit_path: e.target.value,
-														})
-													}
-													onBlur={handleDetectTool}
-													placeholder="Ex: backend/src (vide si racine)"
-												/>
-											</div>
+
+											{formData.tools.length <= 1 ? (
+												<div className="flex flex-col gap-1">
+													<Label htmlFor="edit-audit-path">
+														Sous-dossier d'audit (Optionnel)
+													</Label>
+													<Input
+														id="edit-audit-path"
+														type="text"
+														value={formData.audit_path}
+														onChange={(e) => {
+															const val = e.target.value;
+															const primary = formData.tool;
+															setFormData({
+																...formData,
+																audit_path: val,
+																tool_paths: {
+																	...formData.tool_paths,
+																	[primary]: val,
+																},
+															});
+														}}
+														onBlur={handleDetectTool}
+														placeholder="Ex: backend/src (vide si racine)"
+													/>
+												</div>
+											) : (
+												<div className="flex flex-col gap-2 p-3.5 bg-muted/30 rounded-lg border border-border/50">
+													<Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+														Sous-dossiers d'audit par outil (Optionnel)
+													</Label>
+													<p className="text-xs text-muted-foreground">
+														Indiquez le sous-dossier de chaque outil s'ils sont
+														situés dans des répertoires distincts.
+													</p>
+													<div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1">
+														{formData.tools.map((t) => {
+															const toolLabel =
+																t === "composer"
+																	? "Composer"
+																	: t === "yarn"
+																		? "Yarn"
+																		: t === "bun"
+																			? "Bun"
+																			: "NPM";
+															const currentVal =
+																formData.tool_paths?.[t] ??
+																(t === formData.tool
+																	? formData.audit_path
+																	: "");
+															return (
+																<div key={t} className="flex flex-col gap-1">
+																	<Label
+																		htmlFor={`edit-path-${t}`}
+																		className="text-xs flex items-center gap-1.5"
+																	>
+																		<span className="font-semibold uppercase text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground border">
+																			{toolLabel}
+																		</span>
+																		<span>
+																			Sous-dossier ({TOOL_DEFAULT_LOCKS[t]})
+																		</span>
+																	</Label>
+																	<Input
+																		id={`edit-path-${t}`}
+																		type="text"
+																		value={currentVal}
+																		onChange={(e) => {
+																			const val = e.target.value;
+																			setFormData((prev) => ({
+																				...prev,
+																				audit_path:
+																					t === prev.tool
+																						? val
+																						: prev.audit_path,
+																				tool_paths: {
+																					...prev.tool_paths,
+																					[t]: val,
+																				},
+																			}));
+																		}}
+																		placeholder={
+																			t === "composer"
+																				? "ex: backend ou symfony (vide si racine)"
+																				: "ex: frontend ou assets (vide si racine)"
+																		}
+																	/>
+																</div>
+															);
+														})}
+													</div>
+												</div>
+											)}
 										</div>
 									)}
 
 									{formData.source_type === "remote" && (
-										<div className="flex flex-col gap-1 md:col-span-2">
-											<Label
-												htmlFor="edit-remote-url"
-												className="flex items-center gap-1.5"
-											>
-												URL distante du fichier lock
-												<TooltipProvider>
-													<Tooltip>
-														<TooltipTrigger
-															type="button"
-															className="cursor-help"
-														>
-															<Info className="w-3.5 h-3.5 text-muted-foreground hover:text-primary transition-colors" />
-														</TooltipTrigger>
-														<TooltipContent
-															side="right"
-															className="max-w-sm bg-popover text-popover-foreground border shadow-md text-sm p-4 font-normal space-y-3"
-														>
-															<p>
-																Pour un suivi classique, indiquez la branche :
-																<br />
-																<code className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono text-xs mt-1 inline-block">
-																	refs/heads/main
-																</code>
-															</p>
-															<div className="border-t pt-3">
-																<p className="font-semibold text-primary/90 mb-1">
-																	Cibler la vraie Production
-																</p>
-																<p className="text-muted-foreground text-xs leading-relaxed mb-2">
-																	Utilisez le préfixe{" "}
-																	<code className="bg-primary/10 text-primary px-1 py-0.5 rounded font-mono font-bold">
-																		env:
-																	</code>{" "}
-																	(ex:{" "}
-																	<code className="bg-primary/10 text-primary px-1 py-0.5 rounded font-mono font-bold">
-																		env:prod
+										<div className="flex flex-col gap-3 md:col-span-2">
+											<div className="flex flex-col gap-1">
+												<Label
+													htmlFor="edit-remote-url"
+													className="flex items-center gap-1.5"
+												>
+													{formData.tools.length > 1
+														? `URL distante du lockfile principal (${formData.tool === "composer" ? "Composer" : formData.tool.toUpperCase()})`
+														: "URL distante du fichier lock"}
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger
+																type="button"
+																className="cursor-help"
+															>
+																<Info className="w-3.5 h-3.5 text-muted-foreground hover:text-primary transition-colors" />
+															</TooltipTrigger>
+															<TooltipContent
+																side="right"
+																className="max-w-sm bg-popover text-popover-foreground border shadow-md text-sm p-4 font-normal space-y-3"
+															>
+																<p>
+																	Pour un suivi classique, indiquez la branche :
+																	<br />
+																	<code className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono text-xs mt-1 inline-block">
+																		refs/heads/main
 																	</code>
-																	).
 																</p>
-																<p className="text-muted-foreground text-xs leading-relaxed">
-																	💡 Aegis interrogera l'API GitHub pour trouver
-																	le commit exact actuellement déployé avec
-																	succès (le badge <strong>Active</strong> dans
-																	l'onglet Deployments), garantissant un audit
-																	sur la version réellement en ligne !
-																</p>
-															</div>
-															<div className="border-t pt-3 mt-3">
-																<p className="font-semibold text-primary/90 mb-1">
-																	Téléchargement des fichiers
-																</p>
-																<p className="text-muted-foreground text-xs leading-relaxed">
-																	Aegis déduit et télécharge automatiquement le{" "}
-																	<strong>manifest</strong> (ex:{" "}
-																	<code>package.json</code>) en plus du{" "}
-																	<strong>fichier lock</strong> pour que l'audit
-																	fonctionne dans les conditions réelles du
-																	projet.
-																</p>
-															</div>
-														</TooltipContent>
-													</Tooltip>
-												</TooltipProvider>
-											</Label>
-											<div className="flex h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 overflow-hidden">
-												<span className="flex items-center px-3 bg-muted text-muted-foreground border-r shrink-0 whitespace-nowrap text-xs">
-													https://raw.githubusercontent.com/
-												</span>
-												<input
-													id="edit-remote-url"
-													required={formData.source_type === "remote"}
-													type="text"
-													className="flex-1 bg-transparent px-3 py-2 placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-w-0"
-													value={
-														formData.remote_url.startsWith(
-															"https://raw.githubusercontent.com/",
-														)
-															? formData.remote_url.replace(
-																	"https://raw.githubusercontent.com/",
-																	"",
-																)
-															: formData.remote_url
-													}
-													onChange={(e) => {
-														let val = e.target.value.trim();
-														if (
-															val.startsWith(
+																<div className="border-t pt-3">
+																	<p className="font-semibold text-primary/90 mb-1">
+																		Cibler la vraie Production
+																	</p>
+																	<p className="text-muted-foreground text-xs leading-relaxed mb-2">
+																		Utilisez le préfixe{" "}
+																		<code className="bg-primary/10 text-primary px-1 py-0.5 rounded font-mono font-bold">
+																			env:
+																		</code>{" "}
+																		(ex:{" "}
+																		<code className="bg-primary/10 text-primary px-1 py-0.5 rounded font-mono font-bold">
+																			env:prod
+																		</code>
+																		).
+																	</p>
+																	<p className="text-muted-foreground text-xs leading-relaxed">
+																		💡 Aegis interrogera l'API GitHub pour
+																		trouver le commit exact actuellement déployé
+																		avec succès (le badge{" "}
+																		<strong>Active</strong> dans l'onglet
+																		Deployments), garantissant un audit sur la
+																		version réellement en ligne !
+																	</p>
+																</div>
+																<div className="border-t pt-3 mt-3">
+																	<p className="font-semibold text-primary/90 mb-1">
+																		Téléchargement des fichiers
+																	</p>
+																	<p className="text-muted-foreground text-xs leading-relaxed">
+																		Aegis déduit et télécharge automatiquement
+																		le <strong>manifest</strong> (ex:{" "}
+																		<code>package.json</code>) en plus du{" "}
+																		<strong>fichier lock</strong> pour que
+																		l'audit fonctionne dans les conditions
+																		réelles du projet.
+																	</p>
+																</div>
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
+												</Label>
+												<div className="flex h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 overflow-hidden">
+													<span className="flex items-center px-3 bg-muted text-muted-foreground border-r shrink-0 whitespace-nowrap text-xs">
+														https://raw.githubusercontent.com/
+													</span>
+													<input
+														id="edit-remote-url"
+														required={formData.source_type === "remote"}
+														type="text"
+														className="flex-1 bg-transparent px-3 py-2 placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 min-w-0"
+														value={
+															formData.remote_url.startsWith(
 																"https://raw.githubusercontent.com/",
 															)
-														) {
-															val = val.replace(
-																"https://raw.githubusercontent.com/",
-																"",
-															);
+																? formData.remote_url.replace(
+																		"https://raw.githubusercontent.com/",
+																		"",
+																	)
+																: formData.remote_url
 														}
-														setFormData({
-															...formData,
-															remote_url: val
-																? `https://raw.githubusercontent.com/${val}`
-																: "",
-														});
-													}}
-													placeholder="orga/repo/env:prod/composer.lock"
-												/>
+														onChange={(e) => {
+															let val = e.target.value.trim();
+															if (
+																val.startsWith(
+																	"https://raw.githubusercontent.com/",
+																)
+															) {
+																val = val.replace(
+																	"https://raw.githubusercontent.com/",
+																	"",
+																);
+															}
+															setFormData({
+																...formData,
+																remote_url: val
+																	? `https://raw.githubusercontent.com/${val}`
+																	: "",
+															});
+														}}
+														placeholder="orga/repo/env:prod/composer.lock"
+													/>
+												</div>
 											</div>
+
+											{formData.tools.length > 1 && (
+												<div className="flex flex-col gap-2 p-3.5 bg-muted/30 rounded-lg border border-border/50">
+													<Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+														Fichiers lock des outils secondaires
+													</Label>
+													<p className="text-xs text-muted-foreground">
+														Indiquez le chemin du fichier lock dans le dépôt Git
+														(ou une URL complète) pour chaque outil secondaire.
+													</p>
+													<div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1">
+														{formData.tools.slice(1).map((t) => {
+															const toolLabel =
+																t === "composer"
+																	? "Composer"
+																	: t === "yarn"
+																		? "Yarn"
+																		: t === "bun"
+																			? "Bun"
+																			: "NPM";
+															const defaultFilename = TOOL_DEFAULT_LOCKS[t];
+															const currentVal = formData.tool_paths?.[t] ?? "";
+															return (
+																<div key={t} className="flex flex-col gap-1">
+																	<Label
+																		htmlFor={`edit-remote-${t}`}
+																		className="text-xs flex items-center gap-1.5"
+																	>
+																		<span className="font-semibold uppercase text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground border">
+																			{toolLabel}
+																		</span>
+																		<span>
+																			Fichier lock ({defaultFilename})
+																		</span>
+																	</Label>
+																	<Input
+																		id={`edit-remote-${t}`}
+																		type="text"
+																		value={currentVal}
+																		onChange={(e) => {
+																			const val = e.target.value;
+																			setFormData((prev) => ({
+																				...prev,
+																				tool_paths: {
+																					...prev.tool_paths,
+																					[t]: val,
+																				},
+																			}));
+																		}}
+																		placeholder={`ex: symfony/${defaultFilename} ou frontend/${defaultFilename}`}
+																	/>
+																</div>
+															);
+														})}
+													</div>
+												</div>
+											)}
 										</div>
 									)}
 									<div className="flex flex-col gap-2 md:col-span-2">

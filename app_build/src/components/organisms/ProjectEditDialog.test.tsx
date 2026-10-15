@@ -279,4 +279,123 @@ describe("ProjectEditDialog", () => {
 			});
 		});
 	});
+
+	test("permet de renseigner des sous-dossiers distincts par outil en local", async () => {
+		mockFetch({
+			"GET /api/tags": mockTags,
+			"POST /api/projects": {
+				status: 201,
+				body: { id: 101, name: "Mon Monorepo" },
+			},
+		});
+
+		render(
+			<ProjectEditDialog
+				isOpen={true}
+				onOpenChange={() => {}}
+				onSaved={() => {}}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
+		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
+			target: { value: "Mon Monorepo" },
+		});
+		fireEvent.change(screen.getByLabelText(/Chemin absolu/), {
+			target: { value: "/home/user/monorepo" },
+		});
+
+		// Ajouter Composer (NPM + Composer)
+		fireEvent.click(screen.getByRole("button", { name: /Composer/ }));
+
+		// Deux champs de sous-dossier doivent maintenant être visibles
+		const npmFolderInput = screen.getByLabelText(/NPM/);
+		const composerFolderInput = screen.getByLabelText(/Composer/);
+		expect(npmFolderInput).toBeDefined();
+		expect(composerFolderInput).toBeDefined();
+
+		fireEvent.change(npmFolderInput, { target: { value: "frontend" } });
+		fireEvent.change(composerFolderInput, { target: { value: "backend" } });
+
+		fireEvent.click(screen.getByRole("button", { name: "Créer sans auditer" }));
+
+		await waitFor(() => {
+			const postCall = fetchCalls().find(
+				(c) => c.method === "POST" && c.url === "/api/projects",
+			);
+			expect(postCall).toBeDefined();
+			expect(postCall?.body).toMatchObject({
+				name: "Mon Monorepo",
+				path: "/home/user/monorepo",
+				tools: ["npm", "composer"],
+				tool_paths: {
+					npm: "frontend",
+					composer: "backend",
+				},
+			});
+		});
+	});
+
+	test("permet de renseigner des lockfiles distincts pour un projet distant multi-outils", async () => {
+		mockFetch({
+			"GET /api/tags": mockTags,
+			"POST /api/projects": {
+				status: 201,
+				body: { id: 102, name: "Remote Multi" },
+			},
+		});
+
+		render(
+			<ProjectEditDialog
+				isOpen={true}
+				onOpenChange={() => {}}
+				onSaved={() => {}}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: /Distant/ }));
+		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
+			target: { value: "Remote Multi" },
+		});
+
+		// Basculer Composer en premier outil, puis ajouter Yarn
+		fireEvent.click(screen.getByRole("button", { name: /^Composer/ }));
+		fireEvent.click(screen.getByRole("button", { name: /^NPM/ })); // retirer NPM
+		fireEvent.click(screen.getByRole("button", { name: /^Yarn/ })); // ajouter Yarn
+
+		// Renseigner l'URL principale de Composer
+		const mainUrlInput = screen.getByPlaceholderText(
+			"orga/repo/env:prod/composer.lock",
+		);
+		fireEvent.change(mainUrlInput, {
+			target: { value: "org/repo/env:prod/symfony/composer.lock" },
+		});
+
+		// Le champ lockfile Yarn secondaire doit être présent
+		const yarnLockInput = screen.getByLabelText(/Yarn/);
+		expect(yarnLockInput).toBeDefined();
+
+		fireEvent.change(yarnLockInput, {
+			target: { value: "frontend/yarn.lock" },
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "Créer sans auditer" }));
+
+		await waitFor(() => {
+			const postCall = fetchCalls().find(
+				(c) => c.method === "POST" && c.url === "/api/projects",
+			);
+			expect(postCall).toBeDefined();
+			expect(postCall?.body).toMatchObject({
+				name: "Remote Multi",
+				source_type: "remote",
+				tools: ["composer", "yarn"],
+				remote_url:
+					"https://raw.githubusercontent.com/org/repo/env:prod/symfony/composer.lock",
+				tool_paths: {
+					yarn: "frontend/yarn.lock",
+				},
+			});
+		});
+	});
 });

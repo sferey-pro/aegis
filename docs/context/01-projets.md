@@ -62,7 +62,7 @@ Autres règles : `audit_path` trimé, chaîne vide → `null`. `tags` accepté s
 - **Supprimer** : cascade sur runs, annotations, tickets. Idempotent — un id inexistant ne lève pas.
 - **Détecter l'outil** (`POST /api/projects/detect`) : cherche dans le dossier, **dans cet ordre**, `composer.lock`, `bun.lock` **ou** `bun.lockb`, `yarn.lock`, `package-lock.json`, puis en repli `composer.json` et `package.json`. Renvoie `{ tool, tools }` contenant l'outil principal et la liste de tous les outils détectés. Les noms de lockfiles viennent d'`AUDIT_TOOLS` ([§2](02-audits.md)), **source de vérité unique**.
 
-  Support multi-outils : un projet peut déclarer plusieurs outils (`tools: ProjectTool[]`), par exemple un dépôt combinant `composer.lock` et `yarn.lock`. Tous les outils configurés sont audités séquentiellement et leurs vulnérabilités consolidées dans un rapport d'audit unique. Chaque vulnérabilité reste étiquetée avec l'outil d'origine pour l'enrichissement et l'affichage.
+  Support multi-outils et multi-dossiers : un projet peut déclarer plusieurs outils (`tools: ProjectTool[]`) et des emplacements/chemins distincts par outil (`tool_paths: Record<string, string>`). En local comme en distant, chaque outil peut cibler son propre sous-répertoire ou fichier lock spécifique (ex: `backend/composer.lock` et `frontend/yarn.lock`). Tous les outils configurés sont audités dans leurs répertoires cibles respectifs et leurs vulnérabilités sont consolidées dans un rapport d'audit unique. Chaque vulnérabilité reste étiquetée avec l'outil d'origine pour l'enrichissement et l'affichage.
 
 ---
 

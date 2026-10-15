@@ -26,7 +26,7 @@ export const auditRoutes = {
 			const { isProjectPathAllowed } = await import("./projects");
 			const candidats = listProjects().filter((p) => !p.ignored);
 			const projects = candidats.filter((p) =>
-				isProjectPathAllowed(p.path, p.audit_path),
+				isProjectPathAllowed(p.path, p.audit_path, p.tool_paths),
 			);
 			const skipped = candidats.length - projects.length;
 

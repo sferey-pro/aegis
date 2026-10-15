@@ -122,7 +122,13 @@ export const LocalProjectCard = React.memo(function LocalProjectCard({
 					Local
 				</span>
 				<span
-					title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || "Racine"}`}
+					title={`Racine Git : ${p.path}\n${
+						p.tool_paths && Object.keys(p.tool_paths).length > 0
+							? Object.entries(p.tool_paths)
+									.map(([tool, pth]) => `${tool}: ${pth || "Racine"}`)
+									.join("\n")
+							: `Sous-dossier : ${p.audit_path || "Racine"}`
+					}`}
 					className="cursor-help inline-flex"
 				>
 					<Info className="w-3 h-3 text-muted-foreground/50" />

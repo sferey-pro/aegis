@@ -122,14 +122,42 @@ export function ProjectDetail() {
 										: detail.project.path
 								}
 							>
-								{detail.project.source_type === "remote" &&
-									detail.project.remote_url}
+								{detail.project.source_type === "remote" && (
+									<>
+										<span>{detail.project.remote_url}</span>
+										{detail.project.tool_paths &&
+											Object.entries(detail.project.tool_paths)
+												.filter(([tool]) => tool !== detail.project?.tool)
+												.map(([tool, pth]) => (
+													<span
+														key={tool}
+														className="block text-xs text-muted-foreground mt-0.5"
+													>
+														{tool}: {pth}
+													</span>
+												))}
+									</>
+								)}
 								{detail.project.source_type === "local" && (
 									<>
-										{detail.project.path}
-										{detail.project.audit_path
-											? ` → ${detail.project.audit_path}`
-											: ""}
+										<span>{detail.project.path}</span>
+										{detail.project.tool_paths &&
+										Object.keys(detail.project.tool_paths).length > 0 ? (
+											Object.entries(detail.project.tool_paths).map(
+												([tool, pth]) => (
+													<span
+														key={tool}
+														className="block text-xs text-muted-foreground mt-0.5"
+													>
+														{tool}: {pth || "racine"}
+													</span>
+												),
+											)
+										) : detail.project.audit_path ? (
+											<span>{` → ${detail.project.audit_path}`}</span>
+										) : (
+											""
+										)}
 									</>
 								)}
 								{detail.project.source_type === "ingest" && "Ingestion API"}

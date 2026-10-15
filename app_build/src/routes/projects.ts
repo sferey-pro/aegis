@@ -21,6 +21,7 @@ import {
 import {
 	auditTargetKey,
 	diffNewCves,
+	extractToolDirectory,
 	type NewCve,
 	resolveAuditTarget,
 } from "../lib/audit";
@@ -107,31 +108,46 @@ function isPathAllowed(targetPath: string) {
  * git (qui exécutent les hooks du dépôt), la cible sert au lancement de l'outil
  * d'audit. Contrôler la cible telle qu'elle sera réellement exécutée.
  */
-function pathGuard(path: string, auditPath: string | null): Response | null {
+function pathGuard(
+	path: string,
+	auditPath: string | null,
+	toolPaths?: Record<string, string> | null,
+): Response | null {
 	const root = expandPath(path);
 	const target = resolveAuditTarget(path, auditPath);
-	if (isPathAllowed(root) && isPathAllowed(target)) return null;
+	if (!isPathAllowed(root) || !isPathAllowed(target)) {
+		if (!process.env.AEGIS_ALLOWED_ROOTS) {
+			return Response.json(
+				{
+					error:
+						"AEGIS_ALLOWED_ROOTS n'est pas défini : aucun chemin n'est autorisé. " +
+						"Renseignez les racines auditables, ou AEGIS_ALLOWED_ROOTS=/ pour tout autoriser.",
+				},
+				{ status: 403 },
+			);
+		}
 
-	// Deux situations très différentes, et un message qui les confondait : « chemin
-	// non autorisé par AEGIS_ALLOWED_ROOTS » envoyait chercher un périmètre trop
-	// étroit alors que la variable n'était pas définie du tout. Sur une instance
-	// fraîche, tous les projets échouent alors pour cette raison, et l'outil passe
-	// pour cassé.
-	if (!process.env.AEGIS_ALLOWED_ROOTS) {
 		return Response.json(
-			{
-				error:
-					"AEGIS_ALLOWED_ROOTS n'est pas défini : aucun chemin n'est autorisé. " +
-					"Renseignez les racines auditables, ou AEGIS_ALLOWED_ROOTS=/ pour tout autoriser.",
-			},
+			{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
 			{ status: 403 },
 		);
 	}
 
-	return Response.json(
-		{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
-		{ status: 403 },
-	);
+	if (toolPaths) {
+		for (const tPath of Object.values(toolPaths)) {
+			if (!tPath) continue;
+			const subDir = extractToolDirectory(tPath);
+			const toolTarget = resolveAuditTarget(path, subDir);
+			if (!isPathAllowed(toolTarget)) {
+				return Response.json(
+					{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
+					{ status: 403 },
+				);
+			}
+		}
+	}
+
+	return null;
 }
 
 /**
@@ -149,8 +165,9 @@ function pathGuard(path: string, auditPath: string | null): Response | null {
 export function isProjectPathAllowed(
 	path: string,
 	auditPath?: string | null,
+	toolPaths?: Record<string, string> | null,
 ): boolean {
-	return pathGuard(path, auditPath ?? null) === null;
+	return pathGuard(path, auditPath ?? null, toolPaths) === null;
 }
 
 /** Ancien nom, conservé pour l'import de configuration. */
@@ -196,6 +213,7 @@ export const projectsRoutes = {
 			const ORDRE_DETECTION: ProjectTool[] = ["composer", "bun", "yarn", "npm"];
 
 			const detectedTools: ProjectTool[] = [];
+			const detectedToolPaths: Record<string, string> = {};
 			try {
 				for (const candidat of ORDRE_DETECTION) {
 					const trouve = AUDIT_TOOLS[candidat].lockfiles.some((nom) =>
@@ -203,20 +221,65 @@ export const projectsRoutes = {
 					);
 					if (trouve) {
 						detectedTools.push(candidat);
+						detectedToolPaths[candidat] = data.audit_path || "";
 					}
 				}
 
+				// Recherche dans les sous-dossiers immédiats pour détecter d'autres outils (ex: frontend/yarn.lock)
+				try {
+					const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+					const IGNORED_DIRS = new Set([
+						"node_modules",
+						"vendor",
+						".git",
+						".aegis_remote_projects",
+						"dist",
+						"build",
+					]);
+					for (const entry of entries) {
+						if (
+							entry.isDirectory() &&
+							!entry.name.startsWith(".") &&
+							!IGNORED_DIRS.has(entry.name)
+						) {
+							const subDirPath = nodePath.join(fullPath, entry.name);
+							const relativeSub = data.audit_path
+								? nodePath.join(data.audit_path, entry.name)
+								: entry.name;
+							for (const candidat of ORDRE_DETECTION) {
+								if (!detectedTools.includes(candidat)) {
+									const trouve = AUDIT_TOOLS[candidat].lockfiles.some((nom) =>
+										fs.existsSync(nodePath.join(subDirPath, nom)),
+									);
+									if (trouve) {
+										detectedTools.push(candidat);
+										detectedToolPaths[candidat] = relativeSub;
+									}
+								}
+							}
+						}
+					}
+				} catch (_e) {}
+
 				// Repli sur les manifestes si aucun lockfile n'a été trouvé
 				if (detectedTools.length === 0) {
-					if (fs.existsSync(nodePath.join(fullPath, "composer.json")))
+					if (fs.existsSync(nodePath.join(fullPath, "composer.json"))) {
 						detectedTools.push("composer");
-					if (fs.existsSync(nodePath.join(fullPath, "package.json")))
+						detectedToolPaths.composer = data.audit_path || "";
+					}
+					if (fs.existsSync(nodePath.join(fullPath, "package.json"))) {
 						detectedTools.push("npm");
+						detectedToolPaths.npm = data.audit_path || "";
+					}
 				}
 			} catch (_e) {}
 
 			const tool = detectedTools[0] ?? null;
-			return Response.json({ tool, tools: detectedTools });
+			return Response.json({
+				tool,
+				tools: detectedTools,
+				tool_paths: detectedToolPaths,
+			});
 		},
 	},
 
@@ -289,7 +352,7 @@ export const projectsRoutes = {
 			if (!data) return response;
 
 			if (data.source_type === "local") {
-				const denied = pathGuard(data.path, data.audit_path);
+				const denied = pathGuard(data.path, data.audit_path, data.tool_paths);
 				if (denied) return denied;
 
 				const duplicate = findDuplicate(data.path, data.audit_path);
@@ -348,7 +411,7 @@ export const projectsRoutes = {
 			if (!data) return response;
 
 			if (data.source_type === "local") {
-				const denied = pathGuard(data.path, data.audit_path);
+				const denied = pathGuard(data.path, data.audit_path, data.tool_paths);
 				if (denied) return denied;
 
 				const duplicate = findDuplicate(data.path, data.audit_path, id);

@@ -10,8 +10,11 @@ import { getAdapter } from "./project-adapters";
 
 /**
  * Résout le dossier local où sont mis en cache les fichiers d'un projet distant.
- * Pour les projets existants, préserve leur chemin actuel (ex: project_1).
- * Pour les nouveaux projets distants, génère une clé unique `${slug}-${hash8}`.
+ * - Si le chemin est déjà au format unique (non-legacy), il est conservé.
+ * - Si le chemin était au format legacy (project_X) :
+ *   - S'il existe encore sur le disque, il est préservé.
+ *   - Si l'utilisateur l'a supprimé du disque, il est automatiquement migré vers ${slug}-${hash8}.
+ * - Pour les nouveaux projets distants, génère une clé unique ${slug}-${hash8}.
  */
 export function getRemoteProjectDir(project: {
 	id?: number;
@@ -19,7 +22,13 @@ export function getRemoteProjectDir(project: {
 	path?: string | null;
 }): string {
 	if (project.path?.includes(".aegis_remote_projects")) {
-		return project.path;
+		if (/project_\d+$/.test(project.path)) {
+			if (existsSync(project.path)) {
+				return project.path;
+			}
+		} else {
+			return project.path;
+		}
 	}
 	const baseDir = join(
 		process.cwd(),

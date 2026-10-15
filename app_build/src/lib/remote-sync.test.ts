@@ -276,18 +276,44 @@ describe("lib/remote-sync", () => {
 		expect(existsSync(join(baseDir, "frontend", "package.json"))).toBe(true);
 	});
 
-	test("getRemoteProjectDir génère une clé unique slug-hash8 pour les nouveaux projets et préserve les chemins existants", () => {
+	test("getRemoteProjectDir génère une clé unique slug-hash8 pour les nouveaux projets et migre les project_* supprimés", async () => {
+		const { mkdir } = await import("node:fs/promises");
 		// Projet sans chemin existant
 		const newDir = getRemoteProjectDir({ slug: "mon-projet-api" });
 		expect(newDir).toMatch(
 			/\.aegis_remote_projects\/mon-projet-api-[a-f0-9]{8}$/,
 		);
 
-		// Projet existant avec chemin déjà posé (ex: project_1)
-		const existingPath =
-			"/home/sferey/project/aegis/.aegis_remote_projects/project_1";
-		expect(
-			getRemoteProjectDir({ path: existingPath, slug: "mon-projet" }),
-		).toBe(existingPath);
+		// Ancien dossier project_9999 qui n'existe PAS sur disque -> régénère en slug-hash8
+		const absentLegacy = join(
+			process.cwd(),
+			process.cwd().endsWith("app_build") ? ".." : ".",
+			".aegis_remote_projects",
+			"project_99999",
+		);
+		const migrated = getRemoteProjectDir({
+			path: absentLegacy,
+			slug: "mon-projet",
+		});
+		expect(migrated).toMatch(
+			/\.aegis_remote_projects\/mon-projet-[a-f0-9]{8}$/,
+		);
+
+		// Ancien dossier project_8888 qui EXISTE sur disque -> préservé
+		const existingLegacy = join(
+			process.cwd(),
+			process.cwd().endsWith("app_build") ? ".." : ".",
+			".aegis_remote_projects",
+			"project_88888",
+		);
+		await mkdir(existingLegacy, { recursive: true });
+		try {
+			expect(
+				getRemoteProjectDir({ path: existingLegacy, slug: "mon-projet" }),
+			).toBe(existingLegacy);
+		} finally {
+			const { rm } = await import("node:fs/promises");
+			await rm(existingLegacy, { recursive: true, force: true });
+		}
 	});
 });

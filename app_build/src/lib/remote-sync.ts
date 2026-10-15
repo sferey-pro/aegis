@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
@@ -92,27 +92,54 @@ export async function syncRemoteProject(project: Project) {
 		}
 		const content = await res.arrayBuffer();
 
-		// Deduce filename from URL or project tool
+		// Deduce lockfile name from URL or project tool
 		let filename = "package-lock.json";
-		if (project.tool === "yarn") filename = "yarn.lock";
-		if (project.tool === "bun") filename = "bun.lockb";
-		if (project.tool === "composer") filename = "composer.lock";
+		const lowerUrl = downloadUrl.toLowerCase();
+		if (project.tool === "yarn") {
+			filename = "yarn.lock";
+		} else if (project.tool === "bun") {
+			filename = lowerUrl.includes("bun.lockb") ? "bun.lockb" : "bun.lock";
+		} else if (project.tool === "composer") {
+			filename = "composer.lock";
+		} else {
+			filename = "package-lock.json";
+		}
 
 		const filePath = join(projectDir, filename);
 		await Bun.write(filePath, content);
 
+		// Nettoyer l'autre lockfile Bun éventuel pour éviter les conflits dans le dossier
+		if (project.tool === "bun") {
+			const otherLockfile = filename === "bun.lock" ? "bun.lockb" : "bun.lock";
+			try {
+				await unlink(join(projectDir, otherLockfile));
+			} catch {}
+		}
+
 		// Fetch actual manifest instead of dummy
 		const manifestName =
 			project.tool === "composer" ? "composer.json" : "package.json";
-		const manifestUrl = downloadUrl.replace(filename, manifestName);
+		let manifestUrl = downloadUrl;
+		if (manifestUrl.includes(filename)) {
+			manifestUrl = manifestUrl.replace(filename, manifestName);
+		} else {
+			manifestUrl = manifestUrl.replace(
+				/(bun\.lockb?|package-lock\.json|yarn\.lock|composer\.lock)/i,
+				manifestName,
+			);
+		}
 
 		try {
-			const mRes = await fetch(manifestUrl, { headers });
-			if (mRes.ok) {
-				const mContent = await mRes.arrayBuffer();
-				await Bun.write(join(projectDir, manifestName), mContent);
+			if (manifestUrl !== downloadUrl) {
+				const mRes = await fetch(manifestUrl, { headers });
+				if (mRes.ok) {
+					const mContent = await mRes.arrayBuffer();
+					await Bun.write(join(projectDir, manifestName), mContent);
+				} else {
+					// Fallback to empty object if manifest not found
+					await Bun.write(join(projectDir, manifestName), "{}");
+				}
 			} else {
-				// Fallback to empty object if manifest not found
 				await Bun.write(join(projectDir, manifestName), "{}");
 			}
 		} catch (_e) {

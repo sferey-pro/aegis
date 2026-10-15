@@ -19,6 +19,8 @@ export interface Vulnerability {
 	cvssVector?: string | null;
 	firstSeenAt?: string | null;
 	isBaseline?: boolean;
+	/** Outil d'audit ayant découvert cette vulnérabilité */
+	tool?: "npm" | "yarn" | "bun" | "composer";
 	/** `null` explicite quand l'avis n'a pas de date, comme ses voisins ci-dessus. */
 	publishedAt?: string | null;
 	ageInDays?: number;

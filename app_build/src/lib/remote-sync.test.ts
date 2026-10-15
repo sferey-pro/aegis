@@ -137,4 +137,56 @@ describe("lib/remote-sync", () => {
 		expect(existsSync(join(baseDir, "package.json"))).toBe(true);
 		expect(readFileSync(join(baseDir, "package.json"), "utf-8")).toBe("{}");
 	});
+
+	test("télécharge tous les lockfiles et manifestes pour un projet multi-outils distant", async () => {
+		const project = createProject({
+			name: "Projet Multi-outils Distant",
+			path: "/tmp/dummy-path",
+			type: "composer",
+			tool: "composer",
+			tools: ["composer", "yarn"],
+			source_type: "remote",
+			remote_url:
+				"https://raw.githubusercontent.com/org/repo/main/composer.lock",
+		}) as Project;
+
+		const baseDir = join(
+			process.cwd(),
+			process.cwd().endsWith("app_build") ? ".." : ".",
+			".aegis_remote_projects",
+			`project_${project.id}`,
+		);
+
+		globalThis.fetch = (async (url: string | URL | Request) => {
+			const urlStr = url.toString();
+			if (urlStr.endsWith("composer.lock")) {
+				return new Response('{"packages": []}', { status: 200 });
+			}
+			if (urlStr.endsWith("composer.json")) {
+				return new Response('{"name": "php-app"}', { status: 200 });
+			}
+			if (urlStr.endsWith("yarn.lock")) {
+				return new Response("# yarn lockfile v1", { status: 200 });
+			}
+			if (urlStr.endsWith("package.json")) {
+				return new Response('{"name": "js-app"}', { status: 200 });
+			}
+			return new Response("Not found", { status: 404 });
+		}) as typeof globalThis.fetch;
+
+		const res = await syncRemoteProject(project);
+		expect(res.success).toBe(true);
+
+		expect(existsSync(join(baseDir, "composer.lock"))).toBe(true);
+		expect(existsSync(join(baseDir, "composer.json"))).toBe(true);
+		expect(existsSync(join(baseDir, "yarn.lock"))).toBe(true);
+		expect(existsSync(join(baseDir, "package.json"))).toBe(true);
+
+		expect(readFileSync(join(baseDir, "composer.lock"), "utf-8")).toBe(
+			'{"packages": []}',
+		);
+		expect(readFileSync(join(baseDir, "yarn.lock"), "utf-8")).toBe(
+			"# yarn lockfile v1",
+		);
+	});
 });

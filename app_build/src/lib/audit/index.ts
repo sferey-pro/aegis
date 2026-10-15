@@ -82,7 +82,7 @@ async function enhanceVulnerabilities(
 	const enhancedVulns = [];
 	for (const v of parsedVulns) {
 		const res = resolveFixedVersionFromCache({
-			tool: tool,
+			tool: v.tool || tool,
 			package: v.package,
 			cve: v.cve,
 			link: v.link,
@@ -265,153 +265,178 @@ export async function runAudit(
 			}
 		}
 
-		// 4. Outil connu ? Sinon il n'y a pas de commande à tenter, et l'ancienne
-		// cascade de `if` laissait `args` à `[]` : `spawn([])` levait, le run en
-		// erreur ne portait aucune commande, et le diagnostic était vide (N20).
-		if (!isKnownTool(project.tool)) {
-			const errRun = addErrorRun({
-				projectId,
-				command: "",
-				commitSha: gitInfo.sha,
-				error: [`Outil d'audit inconnu: ${project.tool}`, `cwd: ${cwd}`].join(
-					"\n",
-				),
-				duration_ms: 0,
-			});
-			return { run: errRun, deduped: false, newCves: [] };
+		// 4 & 5. Contrôles préalables pour chaque outil
+		const toolsToRun: ProjectTool[] =
+			project.tools && project.tools.length > 0
+				? project.tools
+				: [project.tool];
+
+		for (const currentTool of toolsToRun) {
+			const toolCwd = project.tool_paths?.[currentTool]
+				? resolveAuditTarget(project.path, project.tool_paths[currentTool])
+				: cwd;
+
+			if (!isKnownTool(currentTool)) {
+				const errRun = addErrorRun({
+					projectId,
+					command: "",
+					commitSha: gitInfo.sha,
+					error: [
+						`Outil d'audit inconnu: ${currentTool}`,
+						`cwd: ${toolCwd}`,
+					].join("\n"),
+					duration_ms: 0,
+				});
+				return { run: errRun, deduped: false, newCves: [] };
+			}
+
+			const preflightError = preflightAudit(currentTool, toolCwd);
+			if (preflightError) {
+				const errRun = addErrorRun({
+					projectId,
+					command: auditCommand(currentTool).join(" "),
+					commitSha: gitInfo.sha,
+					error: [preflightError, `cwd: ${toolCwd}`].join("\n"),
+					duration_ms: 0,
+				});
+				return { run: errRun, deduped: false, newCves: [] };
+			}
 		}
 
-		// 5. Contrôles préalables (§2, « Cas limites ») : chemin puis lockfile,
-		// avant tout `spawn`. Nommer la cause, plutôt que de laisser l'outil
-		// remonter un ENOENT brut que le référent devra interpréter.
-		const preflightError = preflightAudit(project.tool, cwd);
-		if (preflightError) {
-			// Aucune ligne `exit:` : rien n'a été exécuté, et un code inventé se
-			// lirait comme un échec de l'outil.
-			const errRun = addErrorRun({
-				projectId,
-				command: auditCommand(project.tool).join(" "),
-				commitSha: gitInfo.sha,
-				error: [preflightError, `cwd: ${cwd}`].join("\n"),
-				duration_ms: 0,
+		// 6. Lancement séquentiel des audits pour chaque outil
+		const allParsedVulns: Vulnerability[] = [];
+		const commandsExecuted: string[] = [];
+		let totalDurationMs = 0;
+
+		for (const currentTool of toolsToRun) {
+			const toolCwd = project.tool_paths?.[currentTool]
+				? resolveAuditTarget(project.path, project.tool_paths[currentTool])
+				: cwd;
+
+			const args = auditCommand(currentTool);
+			const commandStr = args.join(" ");
+			commandsExecuted.push(commandStr);
+			const startTime = Date.now();
+
+			const eventId = emitConsoleStart({
+				cmd: commandStr,
+				cwd: toolCwd,
+				label: "audit",
 			});
-			return { run: errRun, deduped: false, newCves: [] };
+
+			let stdout = "";
+			let stderr = "";
+			let exitCode = 1;
+			let systemError = null;
+
+			try {
+				const proc = spawn(args, {
+					cwd: toolCwd,
+					env: { ...process.env, NO_COLOR: "1" },
+					stdout: "pipe",
+					stderr: "pipe",
+				});
+				const [stdoutText, stderrText] = await Promise.all([
+					new Response(proc.stdout).text(),
+					new Response(proc.stderr).text(),
+				]);
+				stdout = stdoutText;
+				stderr = stderrText;
+				exitCode = await proc.exited;
+			} catch (err: unknown) {
+				systemError = errorMessage(err);
+			}
+
+			const duration_ms = Date.now() - startTime;
+			totalDurationMs += duration_ms;
+
+			const errorOutput = systemError || (exitCode !== 0 ? stderr : undefined);
+			emitConsoleEnd(eventId, {
+				exitCode,
+				ms: duration_ms,
+				errorText: errorOutput?.trim(),
+			});
+
+			if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
+				const errMsg = systemError
+					? `Erreur système: ${systemError}`
+					: stderr.trim() || `${currentTool}: aucune sortie (exit ${exitCode})`;
+
+				const errorBody = [
+					errMsg,
+					`cwd: ${toolCwd}`,
+					`exit: ${exitCode}`,
+					stderr,
+					stdout,
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				const errRun = addErrorRun({
+					projectId,
+					command: commandStr,
+					commitSha: gitInfo.sha,
+					error: errorBody,
+					duration_ms: totalDurationMs,
+				});
+				return { run: errRun, deduped: false, newCves: [] };
+			}
+
+			// Parsing
+			try {
+				const parsed = parseAuditOutput(currentTool, stdout);
+				for (const v of parsed.vulnerabilities) {
+					v.tool = currentTool;
+				}
+				allParsedVulns.push(...parsed.vulnerabilities);
+			} catch (err: unknown) {
+				const errorBody = [
+					errorMessage(err),
+					`cwd: ${toolCwd}`,
+					`exit: ${exitCode}`,
+					stderr,
+					stdout,
+				]
+					.filter(Boolean)
+					.join("\n");
+
+				const parseErrRun = addErrorRun({
+					projectId,
+					command: commandStr,
+					commitSha: gitInfo.sha,
+					error: errorBody,
+					duration_ms: totalDurationMs,
+				});
+				return { run: parseErrRun, deduped: false, newCves: [] };
+			}
 		}
 
-		// 6. Lancement de l'audit
-		const args = auditCommand(project.tool);
-		const commandStr = args.join(" ");
-		const startTime = Date.now();
+		// 7. Consolidation et persistance du run
+		const isBaseline = !lastRun;
+		const { enhancedVulns, counts } = await enhanceVulnerabilities(
+			projectId,
+			project.tool,
+			allParsedVulns,
+			isBaseline,
+		);
 
-		const eventId = emitConsoleStart({ cmd: commandStr, cwd, label: "audit" });
-
-		let stdout = "";
-		let stderr = "";
-		let exitCode = 1;
-		let systemError = null;
-
-		try {
-			const proc = spawn(args, {
-				cwd,
-				env: { ...process.env, NO_COLOR: "1" },
-				stdout: "pipe",
-				stderr: "pipe",
-			});
-			const [stdoutText, stderrText] = await Promise.all([
-				new Response(proc.stdout).text(),
-				new Response(proc.stderr).text(),
-			]);
-			stdout = stdoutText;
-			stderr = stderrText;
-			exitCode = await proc.exited;
-		} catch (err: unknown) {
-			systemError = errorMessage(err);
-		}
-
-		const duration_ms = Date.now() - startTime;
-
-		const errorOutput = systemError || (exitCode !== 0 ? stderr : undefined);
-		emitConsoleEnd(eventId, {
-			exitCode,
-			ms: duration_ms,
-			errorText: errorOutput?.trim(),
+		const successRun = addRun({
+			project_id: projectId,
+			status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
+			total: enhancedVulns.length,
+			counts,
+			vulnerabilities: enhancedVulns,
+			command: commandsExecuted.join(" && "),
+			commit_sha: gitInfo.sha,
+			error: null,
+			duration_ms: totalDurationMs,
 		});
 
-		if (systemError || (stdout.trim() === "" && exitCode !== 0)) {
-			const errMsg = systemError
-				? `Erreur système: ${systemError}`
-				: stderr.trim() || `${project.tool}: aucune sortie (exit ${exitCode})`;
-
-			// Format de l'erreur multi-ligne
-			const errorBody = [
-				errMsg,
-				`cwd: ${cwd}`,
-				`exit: ${exitCode}`,
-				stderr,
-				stdout,
-			]
-				.filter(Boolean)
-				.join("\n");
-
-			const errRun = addErrorRun({
-				projectId,
-				command: commandStr,
-				commitSha: gitInfo.sha,
-				error: errorBody,
-				duration_ms,
-			});
-			return { run: errRun, deduped: false, newCves: [] };
-		}
-
-		// Parsing
-		try {
-			const parsed = parseAuditOutput(project.tool, stdout);
-
-			const isBaseline = !lastRun;
-			const { enhancedVulns, counts } = await enhanceVulnerabilities(
-				projectId,
-				project.tool,
-				parsed.vulnerabilities,
-				isBaseline,
-			);
-
-			const successRun = addRun({
-				project_id: projectId,
-				status: enhancedVulns.length > 0 ? "vulnerable" : "ok",
-				total: enhancedVulns.length,
-				counts,
-				vulnerabilities: enhancedVulns,
-				command: commandStr,
-				commit_sha: gitInfo.sha,
-				error: null,
-				duration_ms,
-			});
-
-			return {
-				run: successRun,
-				deduped: false,
-				newCves: diffNewCves(lastRun, enhancedVulns),
-			};
-		} catch (err: unknown) {
-			const errorBody = [
-				errorMessage(err),
-				`cwd: ${cwd}`,
-				`exit: ${exitCode}`,
-				stderr,
-				stdout,
-			]
-				.filter(Boolean)
-				.join("\n");
-
-			const parseErrRun = addErrorRun({
-				projectId,
-				command: commandStr,
-				commitSha: gitInfo.sha,
-				error: errorBody,
-				duration_ms,
-			});
-			return { run: parseErrRun, deduped: false, newCves: [] };
-		}
+		return {
+			run: successRun,
+			deduped: false,
+			newCves: diffNewCves(lastRun, enhancedVulns),
+		};
 	});
 }
 
@@ -419,11 +444,13 @@ export async function ingestAudit(
 	projectId: number,
 	stdout: string,
 	commitSha: string = "",
+	toolOverride?: ProjectTool,
 ): Promise<{ run: Run | null; newCves: NewCve[] }> {
 	const project = getProjectById(projectId);
 	if (!project) throw new Error("Projet introuvable");
 
-	const commandStr = `ci-ingest ${project.tool}`;
+	const toolToUse = toolOverride || project.tool;
+	const commandStr = `ci-ingest ${toolToUse}`;
 
 	if (stdout.trim() === "") {
 		throw new Error("Payload vide");
@@ -431,14 +458,17 @@ export async function ingestAudit(
 
 	// Parsing
 	const { parseAuditOutput } = await import("../parsers");
-	const parsed = parseAuditOutput(project.tool, stdout);
+	const parsed = parseAuditOutput(toolToUse, stdout);
+	for (const v of parsed.vulnerabilities) {
+		v.tool = toolToUse;
+	}
 
 	const lastRun = getLatestRun(projectId);
 	const isBaseline = !lastRun;
 
 	const { enhancedVulns, counts: finalCounts } = await enhanceVulnerabilities(
 		projectId,
-		project.tool,
+		toolToUse,
 		parsed.vulnerabilities,
 		isBaseline,
 	);

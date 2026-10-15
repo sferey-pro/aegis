@@ -511,6 +511,23 @@ describe("lib/audit — runAudit, contrôles préalables", () => {
 		expect(getLatestRun(project.id)?.status).toBe("error");
 	});
 
+	test("contrôle préalable multi-outils : échoue si l'un des lockfiles est manquant", async () => {
+		sansReseau();
+		const repo = depot("multi-lock");
+		writeFileSync(join(repo, "composer.lock"), "{}");
+		const project = createProject({
+			name: "multi-preflight",
+			path: repo,
+			audit_path: null,
+			type: "composer",
+			tool: "composer",
+			tools: ["composer", "npm"],
+		});
+		const run = (await runAudit(project.id)).run;
+		expect(run?.status).toBe("error");
+		expect(run?.error).toContain("Lockfile manquant: package-lock.json");
+	});
+
 	test("un outil hors énumération ne tente aucune commande", async () => {
 		// Seule une écriture directe en base peut produire ce cas : les portes
 		// d'entrée valident `tool` par une énumération Zod. L'ancienne cascade de
@@ -996,5 +1013,12 @@ describe("lib/audit — ingestAudit (CI)", () => {
 		const { run } = await ingestAudit(p.id, sortieNpm());
 		expect(run?.status).toBe("vulnerable");
 		expect(run?.vulnerabilities[0]?.publishedAt).toBeNull();
+	});
+
+	test("ingestAudit tague les vulnérabilités avec l'outil utilisé", async () => {
+		sansReseau();
+		const p = projetSimple();
+		const { run } = await ingestAudit(p.id, sortieNpm(), "", "npm");
+		expect(run?.vulnerabilities[0]?.tool).toBe("npm");
 	});
 });

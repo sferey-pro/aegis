@@ -86,64 +86,99 @@ export async function syncRemoteProject(project: Project) {
 			headers.Authorization = `Bearer ${token}`;
 		}
 
-		const res = await fetch(downloadUrl, { headers });
-		if (!res.ok) {
-			throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
-		}
-		const content = await res.arrayBuffer();
+		const toolsToSync =
+			project.tools && project.tools.length > 0
+				? project.tools
+				: [project.tool];
 
-		// Deduce lockfile name from URL or project tool
-		let filename = "package-lock.json";
-		const lowerUrl = downloadUrl.toLowerCase();
-		if (project.tool === "yarn") {
-			filename = "yarn.lock";
-		} else if (project.tool === "bun") {
-			filename = lowerUrl.includes("bun.lockb") ? "bun.lockb" : "bun.lock";
-		} else if (project.tool === "composer") {
-			filename = "composer.lock";
+		let baseUrl = downloadUrl;
+		const matchEnding = baseUrl.match(
+			/\/(bun\.lockb?|package-lock\.json|yarn\.lock|composer\.lock|composer\.json|package\.json)$/i,
+		);
+		if (matchEnding) {
+			baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf("/"));
 		} else {
-			filename = "package-lock.json";
+			baseUrl = baseUrl.replace(/\/+$/, "");
 		}
 
-		const filePath = join(projectDir, filename);
-		await Bun.write(filePath, content);
+		for (const currentTool of toolsToSync) {
+			let currentLockUrl = downloadUrl;
+			let filename = "package-lock.json";
 
-		// Nettoyer l'autre lockfile Bun éventuel pour éviter les conflits dans le dossier
-		if (project.tool === "bun") {
-			const otherLockfile = filename === "bun.lock" ? "bun.lockb" : "bun.lock";
+			if (currentTool === "yarn") {
+				filename = "yarn.lock";
+			} else if (currentTool === "bun") {
+				filename = downloadUrl.toLowerCase().includes("bun.lockb")
+					? "bun.lockb"
+					: "bun.lock";
+			} else if (currentTool === "composer") {
+				filename = "composer.lock";
+			} else {
+				filename = "package-lock.json";
+			}
+
+			if (
+				currentTool !== project.tool ||
+				!downloadUrl.toLowerCase().endsWith(filename.toLowerCase())
+			) {
+				currentLockUrl = `${baseUrl}/${filename}`;
+			}
+
+			let res = await fetch(currentLockUrl, { headers });
+			// Pour bun, si bun.lock échoue en 404, tenter bun.lockb (ou inversement)
+			if (!res.ok && currentTool === "bun") {
+				const fallbackFilename =
+					filename === "bun.lock" ? "bun.lockb" : "bun.lock";
+				const fallbackUrl = `${baseUrl}/${fallbackFilename}`;
+				const fallbackRes = await fetch(fallbackUrl, { headers });
+				if (fallbackRes.ok) {
+					res = fallbackRes;
+					filename = fallbackFilename;
+				}
+			}
+
+			if (!res.ok) {
+				throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
+			}
+			const content = await res.arrayBuffer();
+
+			const filePath = join(projectDir, filename);
+			await Bun.write(filePath, content);
+
+			// Nettoyer l'autre lockfile Bun éventuel pour éviter les conflits dans le dossier
+			if (currentTool === "bun") {
+				const otherLockfile =
+					filename === "bun.lock" ? "bun.lockb" : "bun.lock";
+				try {
+					await unlink(join(projectDir, otherLockfile));
+				} catch {}
+			}
+
+			// Fetch actual manifest instead of dummy
+			const manifestName =
+				currentTool === "composer" ? "composer.json" : "package.json";
+			let manifestUrl = currentLockUrl;
+			if (manifestUrl.includes(filename)) {
+				manifestUrl = manifestUrl.replace(filename, manifestName);
+			} else {
+				manifestUrl = `${baseUrl}/${manifestName}`;
+			}
+
 			try {
-				await unlink(join(projectDir, otherLockfile));
-			} catch {}
-		}
-
-		// Fetch actual manifest instead of dummy
-		const manifestName =
-			project.tool === "composer" ? "composer.json" : "package.json";
-		let manifestUrl = downloadUrl;
-		if (manifestUrl.includes(filename)) {
-			manifestUrl = manifestUrl.replace(filename, manifestName);
-		} else {
-			manifestUrl = manifestUrl.replace(
-				/(bun\.lockb?|package-lock\.json|yarn\.lock|composer\.lock)/i,
-				manifestName,
-			);
-		}
-
-		try {
-			if (manifestUrl !== downloadUrl) {
-				const mRes = await fetch(manifestUrl, { headers });
-				if (mRes.ok) {
-					const mContent = await mRes.arrayBuffer();
-					await Bun.write(join(projectDir, manifestName), mContent);
+				if (manifestUrl !== currentLockUrl) {
+					const mRes = await fetch(manifestUrl, { headers });
+					if (mRes.ok) {
+						const mContent = await mRes.arrayBuffer();
+						await Bun.write(join(projectDir, manifestName), mContent);
+					} else {
+						await Bun.write(join(projectDir, manifestName), "{}");
+					}
 				} else {
-					// Fallback to empty object if manifest not found
 					await Bun.write(join(projectDir, manifestName), "{}");
 				}
-			} else {
+			} catch (_e) {
 				await Bun.write(join(projectDir, manifestName), "{}");
 			}
-		} catch (_e) {
-			await Bun.write(join(projectDir, manifestName), "{}");
 		}
 
 		// Update the project path to point to this new local directory

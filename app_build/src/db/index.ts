@@ -129,6 +129,8 @@ function initDb(database: Database) {
       audit_path TEXT,
       type TEXT NOT NULL,
       tool TEXT NOT NULL,
+      tools JSON DEFAULT '[]',
+      tool_paths JSON DEFAULT '{}',
       tags JSON DEFAULT '[]',
       ignored BOOLEAN DEFAULT 0,
       is_remote BOOLEAN DEFAULT 0,
@@ -299,12 +301,20 @@ function initDb(database: Database) {
 	ajouteColonne("projects", "source_type TEXT DEFAULT 'local'");
 	ajouteColonne("projects", "remote_url TEXT");
 	ajouteColonne("projects", "remote_token TEXT");
+	ajouteColonne("projects", "tools JSON DEFAULT '[]'");
+	ajouteColonne("projects", "tool_paths JSON DEFAULT '{}'");
 
 	// Migration rétrocompatible
 	database.exec(`
 		UPDATE projects 
 		SET source_type = 'ingest' 
 		WHERE is_remote = 1 AND source_type = 'local';
+	`);
+
+	database.exec(`
+		UPDATE projects 
+		SET tools = json_array(tool) 
+		WHERE tools IS NULL OR tools = '[]';
 	`);
 
 	// Index sur `content_hash`, interrogée par égalité à chaque création de ticket

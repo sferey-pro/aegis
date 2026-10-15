@@ -92,6 +92,25 @@ describe("schemas — projectBodySchema", () => {
 		);
 	});
 
+	test("tools et tool_paths sont supportés, et rétrocompatibles avec tool", () => {
+		const r1 = projectBodySchema.parse({
+			...projetValide,
+			tool: undefined,
+			tools: ["composer", "yarn"],
+			tool_paths: { composer: "api" },
+		});
+		expect(r1.tool).toBe("composer");
+		expect(r1.tools).toEqual(["composer", "yarn"]);
+		expect(r1.tool_paths).toEqual({ composer: "api" });
+
+		const r2 = projectBodySchema.parse({
+			...projetValide,
+			tool: "yarn",
+		});
+		expect(r2.tool).toBe("yarn");
+		expect(r2.tools).toEqual(["yarn"]);
+	});
+
 	test("un audit_path vide devient null", () => {
 		for (const v of ["", "   ", null, undefined]) {
 			expect(

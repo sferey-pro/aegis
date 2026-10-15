@@ -155,15 +155,22 @@ export function RunReport({ run }: { run: ProjectHistoryItem }) {
 													</span>
 												</TableCell>
 												<TableCell className="font-mono text-xs">
-													{v.package}
-													{isNew(v) && (
-														<Badge
-															variant="destructive"
-															className="ml-2 text-[10px]"
-														>
-															Nouveau
-														</Badge>
-													)}
+													<div className="flex items-center gap-1.5 flex-wrap">
+														<span>{v.package}</span>
+														{v.tool && (
+															<span className="text-[9px] font-bold bg-muted text-muted-foreground px-1.5 py-0.5 rounded uppercase">
+																{v.tool}
+															</span>
+														)}
+														{isNew(v) && (
+															<Badge
+																variant="destructive"
+																className="text-[10px]"
+															>
+																Nouveau
+															</Badge>
+														)}
+													</div>
 													{v.path?.includes(">") && (
 														<div
 															className="mt-1.5 text-[10px] text-muted-foreground opacity-90 break-all"

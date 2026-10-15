@@ -195,31 +195,28 @@ export const projectsRoutes = {
 			// bun résiduel est donc classé `bun`.
 			const ORDRE_DETECTION: ProjectTool[] = ["composer", "bun", "yarn", "npm"];
 
-			let tool: ProjectTool | null = null;
+			const detectedTools: ProjectTool[] = [];
 			try {
 				for (const candidat of ORDRE_DETECTION) {
 					const trouve = AUDIT_TOOLS[candidat].lockfiles.some((nom) =>
 						fs.existsSync(nodePath.join(fullPath, nom)),
 					);
 					if (trouve) {
-						tool = candidat;
-						break;
+						detectedTools.push(candidat);
 					}
 				}
 
-				// Repli sur les manifestes : propose un outil pour un projet **sans
-				// lockfile**, ce qui garantit un run en erreur (§2). C'est délibéré —
-				// l'erreur nomme le fichier attendu — mais ça reste un repli, donc en
-				// dernier.
-				if (!tool) {
+				// Repli sur les manifestes si aucun lockfile n'a été trouvé
+				if (detectedTools.length === 0) {
 					if (fs.existsSync(nodePath.join(fullPath, "composer.json")))
-						tool = "composer";
-					else if (fs.existsSync(nodePath.join(fullPath, "package.json")))
-						tool = "npm";
+						detectedTools.push("composer");
+					if (fs.existsSync(nodePath.join(fullPath, "package.json")))
+						detectedTools.push("npm");
 				}
 			} catch (_e) {}
 
-			return Response.json({ tool });
+			const tool = detectedTools[0] ?? null;
+			return Response.json({ tool, tools: detectedTools });
 		},
 	},
 

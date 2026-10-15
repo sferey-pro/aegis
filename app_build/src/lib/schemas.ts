@@ -113,7 +113,9 @@ export const projectBodySchema = z
 		path: z.string().trim().catch(""),
 		audit_path: emptyToNull,
 		type: projectTypeSchema,
-		tool: projectToolSchema,
+		tool: projectToolSchema.optional(),
+		tools: z.array(projectToolSchema).optional(),
+		tool_paths: z.record(z.string(), z.string()).optional(),
 		tags: tagNames.default([]),
 		ignored: boolStrict.default(false),
 		is_remote: boolStrict.default(false),
@@ -121,6 +123,13 @@ export const projectBodySchema = z
 		remote_token: emptyToNull,
 	})
 	.superRefine((data, ctx) => {
+		if (!data.tool && (!data.tools || data.tools.length === 0)) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Outil invalide (npm|yarn|composer)",
+				path: ["tool"],
+			});
+		}
 		if (data.source_type === "local" && !data.path) {
 			ctx.addIssue({
 				code: "custom",
@@ -153,6 +162,20 @@ export const projectBodySchema = z
 				}
 			}
 		}
+	})
+	.transform((data) => {
+		const tools =
+			data.tools && data.tools.length > 0
+				? data.tools
+				: data.tool
+					? [data.tool]
+					: [];
+		const tool = data.tool || tools[0] || "npm";
+		return {
+			...data,
+			tool,
+			tools,
+		};
 	});
 
 export type ProjectBody = z.infer<typeof projectBodySchema>;

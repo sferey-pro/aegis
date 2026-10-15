@@ -480,7 +480,7 @@ describe("DELETE /api/projects/:id", () => {
 
 describe("POST /api/projects/detect", () => {
 	async function detecter(dir: string, auditPath?: string) {
-		return srv.json<{ tool: string | null }>(
+		return srv.json<{ tool: string | null; tools?: string[] }>(
 			"/api/projects/detect",
 			jsonBody({ path: dir, audit_path: auditPath }),
 		);
@@ -583,6 +583,15 @@ describe("POST /api/projects/detect", () => {
 		writeFileSync(join(d, "bun.lockb"), "");
 		writeFileSync(join(d, "composer.lock"), "{}");
 		expect((await detecter(d)).data.tool).toBe("composer");
+	});
+
+	test("détecte tous les outils présents (ex: composer + yarn)", async () => {
+		const d = dossier("multi-outils");
+		writeFileSync(join(d, "composer.lock"), "{}");
+		writeFileSync(join(d, "yarn.lock"), "");
+		const res = await detecter(d);
+		expect(res.data.tool).toBe("composer");
+		expect(res.data.tools).toEqual(["composer", "yarn"]);
 	});
 
 	test("la détection porte sur la cible d'audit, pas sur la racine", async () => {

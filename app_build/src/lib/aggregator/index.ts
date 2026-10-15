@@ -139,12 +139,13 @@ export function buildCveGroups(): CveGroup[] {
 			 * connaissait pourtant le correctif. La résolution retombe d'elle-même
 			 * sur la valeur de l'outil quand l'avis ne couvre pas ce paquet.
 			 */
+			const occurrenceTool = vuln.tool ?? project.tool;
 			const fixedIn =
 				ann?.fixed_in ||
 				(avisConnu
 					? fixedVersionFromAdvisory({
 							advisory: avisConnu,
-							tool: project.tool,
+							tool: occurrenceTool,
 							package: vuln.package,
 							versionRange: vuln.versionRange,
 							originalFixedIn: vuln.fixedIn,
@@ -155,7 +156,7 @@ export function buildCveGroups(): CveGroup[] {
 			const occurrence: CveOccurrence = {
 				projectId: project.id,
 				projectName: project.name,
-				tool: project.tool,
+				tool: occurrenceTool,
 				package: vuln.package,
 				severity: severiteDe(vuln),
 				versionRange: vuln.versionRange || null,

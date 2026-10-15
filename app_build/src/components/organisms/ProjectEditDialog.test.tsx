@@ -235,4 +235,48 @@ describe("ProjectEditDialog", () => {
 
 		expect(screen.getByText("Type de projet")).toBeInTheDocument();
 	});
+
+	test("permet de sélectionner plusieurs outils (multi-tool)", async () => {
+		mockFetch({
+			"GET /api/tags": mockTags,
+			"POST /api/projects": {
+				status: 201,
+				body: { id: 100, name: "Projet Multi" },
+			},
+		});
+
+		render(
+			<ProjectEditDialog
+				isOpen={true}
+				onOpenChange={() => {}}
+				onSaved={() => {}}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: /Projet Local/ }));
+		fireEvent.change(screen.getByLabelText(/Nom du projet/), {
+			target: { value: "Projet Multi" },
+		});
+		fireEvent.change(screen.getByLabelText(/Chemin absolu/), {
+			target: { value: "/home/user/multi" },
+		});
+
+		// Par défaut NPM est sélectionné. On clique sur Composer pour l'ajouter aussi.
+		const composerBtn = screen.getByRole("button", { name: /Composer/ });
+		fireEvent.click(composerBtn);
+
+		fireEvent.click(screen.getByRole("button", { name: "Créer sans auditer" }));
+
+		await waitFor(() => {
+			const postCall = fetchCalls().find(
+				(c) => c.method === "POST" && c.url === "/api/projects",
+			);
+			expect(postCall).toBeDefined();
+			expect(postCall?.body).toMatchObject({
+				name: "Projet Multi",
+				path: "/home/user/multi",
+				tools: ["npm", "composer"],
+			});
+		});
+	});
 });

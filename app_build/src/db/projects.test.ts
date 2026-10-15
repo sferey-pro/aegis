@@ -143,4 +143,35 @@ describe("db/projects", () => {
 		const p = createProject({ ...base, path: "" });
 		expect(p.path).toBe("remote");
 	});
+
+	test("gère les projets multi-outils (tools et tool_paths)", () => {
+		const p = createProject({
+			name: "Projet Bi-Pile",
+			path: "/srv/multi",
+			type: "composer",
+			tools: ["composer", "yarn"],
+			tool_paths: { composer: "backend", yarn: "frontend" },
+		});
+		expect(p.tool).toBe("composer");
+		expect(p.tools).toEqual(["composer", "yarn"]);
+		expect(p.tool_paths).toEqual({ composer: "backend", yarn: "frontend" });
+
+		const reloaded = getProjectById(p.id);
+		expect(reloaded?.tools).toEqual(["composer", "yarn"]);
+		expect(reloaded?.tool_paths).toEqual({
+			composer: "backend",
+			yarn: "frontend",
+		});
+
+		const modifie = updateProject(p.id, {
+			tools: ["composer", "bun"],
+		});
+		expect(modifie.tools).toEqual(["composer", "bun"]);
+	});
+
+	test("rétrocompatibilité : un projet créé avec tool seul initialise tools à [tool]", () => {
+		const p = createProject(base);
+		expect(p.tool).toBe("npm");
+		expect(p.tools).toEqual(["npm"]);
+	});
 });

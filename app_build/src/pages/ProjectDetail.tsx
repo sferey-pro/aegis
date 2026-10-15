@@ -72,7 +72,14 @@ export function ProjectDetail() {
 								<h1 className="text-2xl font-bold font-heading truncate">
 									{detail.project.name}
 								</h1>
-								<Badge variant="outline">{detail.project.tool}</Badge>
+								{(detail.project.tools && detail.project.tools.length > 0
+									? detail.project.tools
+									: [detail.project.tool]
+								).map((t) => (
+									<Badge key={t} variant="outline" className="uppercase">
+										{t}
+									</Badge>
+								))}
 								{detail.project.ignored && (
 									<Badge variant="secondary">Ignoré</Badge>
 								)}

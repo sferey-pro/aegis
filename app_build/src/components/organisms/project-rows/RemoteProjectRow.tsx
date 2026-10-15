@@ -51,7 +51,12 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 						<span className="font-bold">{p.name}</span>
 						<span className="text-[10px] text-muted-foreground uppercase flex items-center justify-between w-full">
 							<span className="flex items-center gap-1.5">
-								<span>{p.tool} •</span>
+								<span>
+									{(p.tools && p.tools.length > 0 ? p.tools : [p.tool]).join(
+										" + ",
+									)}{" "}
+									•
+								</span>
 								{targetInfo.isDeployment ? (
 									<span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
 										<Rocket className="w-2.5 h-2.5" />

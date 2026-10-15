@@ -33,7 +33,7 @@ import {
 import type { ProjectTool } from "@/db/projects";
 import type { Tag } from "@/db/tags";
 import { apiErrorMessage, fetchJson, fetchVoid } from "@/lib/api";
-import { copyToClipboard } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 import type { ProjectListItem } from "@/routes/projects";
 
 export function ProjectEditDialog({
@@ -59,6 +59,7 @@ export function ProjectEditDialog({
 		path: "",
 		audit_path: "",
 		tool: "npm" as ProjectTool,
+		tools: ["npm"] as ProjectTool[],
 		type: "node",
 		tags: [] as string[],
 		ignored: false,
@@ -78,6 +79,10 @@ export function ProjectEditDialog({
 		if (isOpen) {
 			if (project) {
 				setIsTypeChosen(true);
+				const projectTools =
+					project.tools && project.tools.length > 0
+						? project.tools
+						: [project.tool];
 				setFormData({
 					name: project.name,
 					path:
@@ -87,6 +92,7 @@ export function ProjectEditDialog({
 							: project.path,
 					audit_path: project.audit_path || "",
 					tool: project.tool,
+					tools: projectTools,
 					type: project.type,
 					tags: project.tags || [],
 					ignored: !!project.ignored,
@@ -105,6 +111,7 @@ export function ProjectEditDialog({
 					path: "",
 					audit_path: "",
 					tool: "npm",
+					tools: ["npm"],
 					type: "node",
 					tags: [],
 					ignored: false,
@@ -124,25 +131,35 @@ export function ProjectEditDialog({
 		if (!formData.path) return;
 		setDetectStatus("detecting");
 		try {
-			const data = await fetchJson<{ tool: ProjectTool | null }>(
-				"/api/projects/detect",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						path: formData.path,
-						audit_path: formData.audit_path,
-					}),
-				},
-			);
-			const outil = data.tool;
-			if (outil) {
+			const data = await fetchJson<{
+				tool: ProjectTool | null;
+				tools?: ProjectTool[];
+			}>("/api/projects/detect", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					path: formData.path,
+					audit_path: formData.audit_path,
+				}),
+			});
+			const detectedTools =
+				data.tools && data.tools.length > 0
+					? data.tools
+					: data.tool
+						? [data.tool]
+						: [];
+			if (detectedTools.length > 0) {
+				const primary = detectedTools[0] || "npm";
 				setFormData((prev) => ({
 					...prev,
-					tool: outil,
-					type: outil === "composer" ? "composer" : "node",
+					tool: primary,
+					tools: detectedTools,
+					type:
+						detectedTools.includes("composer") && detectedTools.length === 1
+							? "composer"
+							: "node",
 				}));
-				setDetectedToolName(outil);
+				setDetectedToolName(detectedTools.join(" + "));
 				setDetectStatus("success");
 			} else {
 				setDetectStatus("error");
@@ -451,32 +468,70 @@ export function ProjectEditDialog({
 												</Tooltip>
 											</TooltipProvider>
 										</Label>
-										<Tabs
-											value={formData.tool}
-											onValueChange={(val) =>
-												setFormData({
-													...formData,
-													tool: val as ProjectTool,
-													type: val === "composer" ? "composer" : "node",
-												})
-											}
-											className="w-full"
-										>
-											<TabsList className="w-full h-10">
-												<TabsTrigger value="npm" className="flex-1">
-													NPM
-												</TabsTrigger>
-												<TabsTrigger value="yarn" className="flex-1">
-													Yarn
-												</TabsTrigger>
-												<TabsTrigger value="bun" className="flex-1">
-													Bun
-												</TabsTrigger>
-												<TabsTrigger value="composer" className="flex-1">
-													Composer
-												</TabsTrigger>
-											</TabsList>
-										</Tabs>
+										<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+											{(
+												[
+													{ id: "composer", label: "Composer", desc: "PHP" },
+													{ id: "npm", label: "NPM", desc: "Node" },
+													{ id: "yarn", label: "Yarn", desc: "Node" },
+													{ id: "bun", label: "Bun", desc: "Node / Bun" },
+												] as const
+											).map(({ id, label, desc }) => {
+												const isSelected = formData.tools.includes(id);
+												return (
+													<button
+														key={id}
+														type="button"
+														onClick={() => {
+															let newTools: ProjectTool[];
+															if (isSelected) {
+																if (formData.tools.length <= 1) return;
+																newTools = formData.tools.filter(
+																	(t) => t !== id,
+																);
+															} else {
+																newTools = [...formData.tools, id];
+															}
+															setFormData({
+																...formData,
+																tools: newTools,
+																tool: newTools[0] || "npm",
+																type:
+																	newTools.includes("composer") &&
+																	newTools.length === 1
+																		? "composer"
+																		: "node",
+															});
+														}}
+														className={cn(
+															"flex items-center justify-between p-2.5 rounded-lg border text-left transition-all",
+															isSelected
+																? "border-primary bg-primary/10 text-primary font-semibold shadow-sm"
+																: "border-border hover:border-muted-foreground/30 hover:bg-muted/30 text-muted-foreground",
+														)}
+													>
+														<div className="flex flex-col">
+															<span className="text-sm leading-tight">
+																{label}
+															</span>
+															<span className="text-[10px] text-muted-foreground font-normal">
+																{desc}
+															</span>
+														</div>
+														<div
+															className={cn(
+																"w-4 h-4 rounded-full border flex items-center justify-center transition-colors",
+																isSelected
+																	? "border-primary bg-primary text-primary-foreground"
+																	: "border-muted-foreground/40",
+															)}
+														>
+															{isSelected && <Check className="w-2.5 h-2.5" />}
+														</div>
+													</button>
+												);
+											})}
+										</div>
 									</div>
 
 									{formData.source_type === "local" && (

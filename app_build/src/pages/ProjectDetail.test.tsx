@@ -233,6 +233,21 @@ describe("ProjectDetail", () => {
 		expect(screen.getByText("Distant")).toBeInTheDocument();
 	});
 
+	test("un projet distant avec déploiement affiche le badge Déploiement", async () => {
+		mockFetch({
+			...base,
+			"GET /api/projects/7": projet({
+				source_type: "remote",
+				remote_url:
+					"https://raw.githubusercontent.com/org/repo/env:production/bun.lock",
+			}),
+		});
+		monte();
+		await screen.findByRole("heading", { level: 1, name: "Mon API" });
+		expect(screen.getByText("Distant")).toBeInTheDocument();
+		expect(screen.getByText("Déploiement")).toBeInTheDocument();
+	});
+
 	test("un projet inconnu est dit introuvable, en français", async () => {
 		mockFetch({
 			"GET /api/projects/7": { status: 404, body: { error: "Not found" } },

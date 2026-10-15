@@ -1,6 +1,15 @@
-import { ArrowLeft, Loader2, Play, Settings, Table2 } from "lucide-react";
+import {
+	ArrowLeft,
+	GitBranch,
+	Loader2,
+	Play,
+	Rocket,
+	Settings,
+	Table2,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { getRemoteTargetInfo } from "@/lib/remote-target";
 import { useProjectDetail } from "@/lib/useProjectDetail";
 import { TagBadge } from "../components/molecules/TagBadge";
 import { HistoryChart } from "../components/organisms/HistoryChart";
@@ -68,7 +77,31 @@ export function ProjectDetail() {
 									<Badge variant="secondary">Ignoré</Badge>
 								)}
 								{detail.project.source_type === "remote" && (
-									<Badge variant="secondary">Distant</Badge>
+									<div className="flex items-center gap-1.5">
+										<Badge variant="secondary">Distant</Badge>
+										{getRemoteTargetInfo(
+											detail.project.remote_url,
+											detail.project.git?.isRepo
+												? detail.project.git.branch
+												: null,
+										).isDeployment ? (
+											<Badge
+												variant="outline"
+												className="text-xs font-semibold bg-amber-500/15 text-amber-800 border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40 flex items-center gap-1"
+											>
+												<Rocket className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+												Déploiement
+											</Badge>
+										) : (
+											<Badge
+												variant="outline"
+												className="text-xs font-semibold bg-purple-500/15 text-purple-800 border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/40 flex items-center gap-1"
+											>
+												<GitBranch className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+												Branche
+											</Badge>
+										)}
+									</div>
 								)}
 								{detail.project.source_type === "ingest" && (
 									<Badge variant="secondary">Ingestion CI</Badge>

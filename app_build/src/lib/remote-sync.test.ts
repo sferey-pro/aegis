@@ -9,8 +9,16 @@ describe("lib/remote-sync", () => {
 	useTempDb("remote-sync");
 
 	const originalFetch = globalThis.fetch;
-	afterEach(() => {
+	const createdDirs: string[] = [];
+	afterEach(async () => {
 		globalThis.fetch = originalFetch;
+		const { rm } = await import("node:fs/promises");
+		for (const dir of createdDirs) {
+			try {
+				await rm(dir, { recursive: true, force: true });
+			} catch {}
+		}
+		createdDirs.length = 0;
 	});
 
 	test("télécharge bun.lock et package.json pour un projet bun distant", async () => {
@@ -24,6 +32,7 @@ describe("lib/remote-sync", () => {
 		}) as Project;
 
 		const baseDir = getRemoteProjectDir(project);
+		createdDirs.push(baseDir);
 		project.path = baseDir;
 
 		// Simuler un ancien bun.lockb résiduel
@@ -72,6 +81,7 @@ describe("lib/remote-sync", () => {
 		}) as Project;
 
 		const baseDir = getRemoteProjectDir(project);
+		createdDirs.push(baseDir);
 		project.path = baseDir;
 
 		const { mkdir } = await import("node:fs/promises");
@@ -109,6 +119,7 @@ describe("lib/remote-sync", () => {
 		}) as Project;
 
 		const baseDir = getRemoteProjectDir(project);
+		createdDirs.push(baseDir);
 		project.path = baseDir;
 
 		globalThis.fetch = (async (url: string | URL | Request) => {
@@ -139,6 +150,7 @@ describe("lib/remote-sync", () => {
 		}) as Project;
 
 		const baseDir = getRemoteProjectDir(project);
+		createdDirs.push(baseDir);
 		project.path = baseDir;
 
 		globalThis.fetch = (async (url: string | URL | Request) => {
@@ -191,6 +203,7 @@ describe("lib/remote-sync", () => {
 		}) as Project;
 
 		const baseDir = getRemoteProjectDir(project);
+		createdDirs.push(baseDir);
 		project.path = baseDir;
 
 		const fetchedUrls: string[] = [];
@@ -247,6 +260,7 @@ describe("lib/remote-sync", () => {
 		}) as Project;
 
 		const baseDir = getRemoteProjectDir(project);
+		createdDirs.push(baseDir);
 		project.path = baseDir;
 
 		const fetchedUrls: string[] = [];
@@ -276,15 +290,18 @@ describe("lib/remote-sync", () => {
 		expect(existsSync(join(baseDir, "frontend", "package.json"))).toBe(true);
 	});
 
-	test("getRemoteProjectDir génère une clé unique slug-hash8 pour les nouveaux projets et migre les project_* supprimés", async () => {
+	test("getRemoteProjectDir génère une clé unique et déterministe slug-hash8 pour les nouveaux projets et migre les project_* supprimés", async () => {
 		const { mkdir } = await import("node:fs/promises");
-		// Projet sans chemin existant
-		const newDir = getRemoteProjectDir({ slug: "mon-projet-api" });
-		expect(newDir).toMatch(
+		// Projet sans chemin existant : déterministe (identique à chaque appel)
+		const newDir1 = getRemoteProjectDir({ slug: "mon-projet-api" });
+		const newDir2 = getRemoteProjectDir({ slug: "mon-projet-api" });
+		expect(newDir1).toMatch(
 			/\.aegis_remote_projects\/mon-projet-api-[a-f0-9]{8}$/,
 		);
+		// Ne doit JAMAIS changer d'un audit à l'autre
+		expect(newDir1).toBe(newDir2);
 
-		// Ancien dossier project_9999 qui n'existe PAS sur disque -> régénère en slug-hash8
+		// Ancien dossier project_9999 qui n'existe PAS sur disque -> régénère en slug-hash8 déterministe
 		const absentLegacy = join(
 			process.cwd(),
 			process.cwd().endsWith("app_build") ? ".." : ".",
@@ -298,6 +315,7 @@ describe("lib/remote-sync", () => {
 		expect(migrated).toMatch(
 			/\.aegis_remote_projects\/mon-projet-[a-f0-9]{8}$/,
 		);
+		expect(migrated).toBe(getRemoteProjectDir({ slug: "mon-projet" }));
 
 		// Ancien dossier project_8888 qui EXISTE sur disque -> préservé
 		const existingLegacy = join(

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
@@ -9,16 +9,31 @@ import { emitConsoleEnd, emitConsoleStart } from "./console";
 import { getAdapter } from "./project-adapters";
 
 /**
+ * Calcule la clé unique et déterministe d'un dossier de projet distant.
+ * Strictement affiliée au projet via son slug et un hash SHA-256 stable (8 caractères).
+ */
+export function getDeterministicFolderKey(slugOrName: string): string {
+	const slug =
+		slugOrName
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/(^-|-$)/g, "") || "project";
+	const hash = createHash("sha256").update(slug).digest("hex").slice(0, 8);
+	return `${slug}-${hash}`;
+}
+
+/**
  * Résout le dossier local où sont mis en cache les fichiers d'un projet distant.
- * - Si le chemin est déjà au format unique (non-legacy), il est conservé.
- * - Si le chemin était au format legacy (project_X) :
- *   - S'il existe encore sur le disque, il est préservé.
- *   - Si l'utilisateur l'a supprimé du disque, il est automatiquement migré vers ${slug}-${hash8}.
- * - Pour les nouveaux projets distants, génère une clé unique ${slug}-${hash8}.
+ * - Le nom du dossier est UNIQUE, FIXE et AFFILIÉ au projet (${slug}-${hash8}).
+ * - Il ne change JAMAIS entre deux audits ou deux synchronisations.
+ * - Si le projet a déjà un chemin existant sur le disque dans .aegis_remote_projects, il est conservé.
+ * - Si le chemin n'existe pas sur le disque (création ou dossier supprimé),
+ *   il est généré de manière 100% déterministe et affilié au projet : `${slug}-${hash8}`.
  */
 export function getRemoteProjectDir(project: {
 	id?: number;
 	slug?: string;
+	name?: string;
 	path?: string | null;
 }): string {
 	if (project.path?.includes(".aegis_remote_projects")) {
@@ -26,7 +41,7 @@ export function getRemoteProjectDir(project: {
 			if (existsSync(project.path)) {
 				return project.path;
 			}
-		} else {
+		} else if (existsSync(project.path)) {
 			return project.path;
 		}
 	}
@@ -35,7 +50,9 @@ export function getRemoteProjectDir(project: {
 		process.cwd().endsWith("app_build") ? ".." : ".",
 		".aegis_remote_projects",
 	);
-	const folderKey = `${project.slug || "project"}-${randomUUID().slice(0, 8)}`;
+	const folderKey = getDeterministicFolderKey(
+		project.slug || project.name || "project",
+	);
 	return join(baseDir, folderKey);
 }
 
@@ -45,6 +62,10 @@ export async function syncRemoteProject(project: Project) {
 	}
 
 	const projectDir = getRemoteProjectDir(project);
+	if (project.id && project.path !== projectDir) {
+		updateProject(project.id, { path: projectDir });
+		project.path = projectDir;
+	}
 	const { getSetting } = await import("../db/settings");
 	const globalToken = getSetting(
 		"REMOTE_TOKEN",
@@ -234,6 +255,14 @@ export async function syncRemoteProject(project: Project) {
 				}
 			}
 
+			// Repli sur l'URL d'origine directe si le lockfile ciblé n'a pas été trouvé
+			if (!res.ok && currentLockUrl !== downloadUrl) {
+				const directRes = await fetch(downloadUrl, { headers });
+				if (directRes.ok) {
+					res = directRes;
+				}
+			}
+
 			if (!res.ok) {
 				throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
 			}
@@ -331,6 +360,15 @@ export async function syncRemoteProject(project: Project) {
 		});
 		return { success: true, message: "Fichier lock téléchargé avec succès." };
 	} catch (error) {
+		try {
+			const { readdir, rmdir } = await import("node:fs/promises");
+			if (existsSync(projectDir)) {
+				const files = await readdir(projectDir);
+				if (files.length === 0) {
+					await rmdir(projectDir);
+				}
+			}
+		} catch {}
 		const msg = error instanceof Error ? error.message : String(error);
 		emitConsoleEnd(consoleId, { ok: false, exitCode: 1, errorText: msg });
 		throw error;

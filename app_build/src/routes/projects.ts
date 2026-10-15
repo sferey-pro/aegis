@@ -28,6 +28,7 @@ import {
 import { runSingleAudit } from "../lib/audit/queue";
 import { expandPath, type GitInfo, gitFetch, gitPull } from "../lib/git";
 import { getAdapter } from "../lib/project-adapters";
+import { getRemoteProjectDir } from "../lib/remote-sync";
 import { detectBodySchema, projectBodySchema } from "../lib/schemas";
 import { parseBody } from "../lib/validate";
 
@@ -75,8 +76,9 @@ function isPathAllowed(targetPath: string) {
 	const absolutePath = nodePath.resolve(targetPath);
 
 	// Autoriser explicitement le dossier des projets distants gérés par l'application
-	const remoteProjectsDir = nodePath.join(
+	const remoteProjectsDir = nodePath.resolve(
 		process.cwd(),
+		process.cwd().endsWith("app_build") ? ".." : ".",
 		".aegis_remote_projects",
 	);
 	if (
@@ -369,12 +371,7 @@ export const projectsRoutes = {
 			const project = createProject(data);
 
 			if (project.source_type === "remote") {
-				const baseDir = nodePath.join(
-					process.cwd(),
-					process.cwd().endsWith("app_build") ? ".." : ".",
-					".aegis_remote_projects",
-				);
-				const projectDir = nodePath.join(baseDir, `project_${project.id}`);
+				const projectDir = getRemoteProjectDir(project);
 
 				// Update path now that we have ID
 				updateProject(project.id, { path: projectDir });
@@ -426,12 +423,17 @@ export const projectsRoutes = {
 			}
 
 			if (data.source_type === "remote") {
-				const baseDir = nodePath.join(
-					process.cwd(),
-					process.cwd().endsWith("app_build") ? ".." : ".",
-					".aegis_remote_projects",
-				);
-				data.path = nodePath.join(baseDir, `project_${id}`);
+				const existing = getProjectById(id);
+				data.path = getRemoteProjectDir({
+					id,
+					slug:
+						existing?.slug ||
+						data.name
+							.toLowerCase()
+							.replace(/[^a-z0-9]+/g, "-")
+							.replace(/(^-|-$)/g, ""),
+					path: existing?.path,
+				});
 			}
 
 			const project = updateProject(id, data);

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
@@ -7,17 +8,34 @@ import { extractRepoRelativePath, extractToolDirectory } from "./audit";
 import { emitConsoleEnd, emitConsoleStart } from "./console";
 import { getAdapter } from "./project-adapters";
 
-export async function syncRemoteProject(project: Project) {
-	if (project.source_type !== "remote" || !project.remote_url) {
-		throw new Error("Projet non distant ou URL manquante");
+/**
+ * Résout le dossier local où sont mis en cache les fichiers d'un projet distant.
+ * Pour les projets existants, préserve leur chemin actuel (ex: project_1).
+ * Pour les nouveaux projets distants, génère une clé unique `${slug}-${hash8}`.
+ */
+export function getRemoteProjectDir(project: {
+	id?: number;
+	slug?: string;
+	path?: string | null;
+}): string {
+	if (project.path?.includes(".aegis_remote_projects")) {
+		return project.path;
 	}
-
 	const baseDir = join(
 		process.cwd(),
 		process.cwd().endsWith("app_build") ? ".." : ".",
 		".aegis_remote_projects",
 	);
-	const projectDir = join(baseDir, `project_${project.id}`);
+	const folderKey = `${project.slug || "project"}-${randomUUID().slice(0, 8)}`;
+	return join(baseDir, folderKey);
+}
+
+export async function syncRemoteProject(project: Project) {
+	if (project.source_type !== "remote" || !project.remote_url) {
+		throw new Error("Projet non distant ou URL manquante");
+	}
+
+	const projectDir = getRemoteProjectDir(project);
 	const { getSetting } = await import("../db/settings");
 	const globalToken = getSetting(
 		"REMOTE_TOKEN",

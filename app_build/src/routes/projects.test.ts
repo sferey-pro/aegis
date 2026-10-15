@@ -102,6 +102,20 @@ describe("POST /api/projects", () => {
 		expect(data.ignored).toBe(false);
 	});
 
+	test("crée un projet distant avec un dossier à clé unique (slug-8chars)", async () => {
+		const { status, data } = await creer({
+			name: "Mon API Distante",
+			source_type: "remote",
+			remote_url:
+				"https://raw.githubusercontent.com/org/repo/main/package-lock.json",
+		});
+		expect(status).toBe(201);
+		expect(data.source_type).toBe("remote");
+		expect(data.path).toMatch(
+			/\.aegis_remote_projects\/mon-api-distante-[a-f0-9]{8}$/,
+		);
+	});
+
 	test("normalise les tags avant enregistrement", async () => {
 		const { data } = await creer({ tags: [" back ", "back", "", "front"] });
 		expect(data.tags).toEqual(["back", "front"]);

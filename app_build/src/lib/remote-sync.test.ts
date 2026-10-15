@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createProject, type Project } from "@/db/projects";
-import { syncRemoteProject } from "@/lib/remote-sync";
+import { getRemoteProjectDir, syncRemoteProject } from "@/lib/remote-sync";
 import { useTempDb } from "@/test/db";
 
 describe("lib/remote-sync", () => {
@@ -23,12 +23,8 @@ describe("lib/remote-sync", () => {
 			remote_url: "https://raw.githubusercontent.com/org/repo/main/bun.lock",
 		}) as Project;
 
-		const baseDir = join(
-			process.cwd(),
-			process.cwd().endsWith("app_build") ? ".." : ".",
-			".aegis_remote_projects",
-			`project_${project.id}`,
-		);
+		const baseDir = getRemoteProjectDir(project);
+		project.path = baseDir;
 
 		// Simuler un ancien bun.lockb résiduel
 		const { mkdir } = await import("node:fs/promises");
@@ -75,12 +71,8 @@ describe("lib/remote-sync", () => {
 			remote_url: "https://raw.githubusercontent.com/org/repo/main/bun.lockb",
 		}) as Project;
 
-		const baseDir = join(
-			process.cwd(),
-			process.cwd().endsWith("app_build") ? ".." : ".",
-			".aegis_remote_projects",
-			`project_${project.id}`,
-		);
+		const baseDir = getRemoteProjectDir(project);
+		project.path = baseDir;
 
 		const { mkdir } = await import("node:fs/promises");
 		await mkdir(baseDir, { recursive: true });
@@ -116,12 +108,8 @@ describe("lib/remote-sync", () => {
 			remote_url: "https://raw.githubusercontent.com/org/repo/main/bun.lock",
 		}) as Project;
 
-		const baseDir = join(
-			process.cwd(),
-			process.cwd().endsWith("app_build") ? ".." : ".",
-			".aegis_remote_projects",
-			`project_${project.id}`,
-		);
+		const baseDir = getRemoteProjectDir(project);
+		project.path = baseDir;
 
 		globalThis.fetch = (async (url: string | URL | Request) => {
 			const urlStr = url.toString();
@@ -150,12 +138,8 @@ describe("lib/remote-sync", () => {
 				"https://raw.githubusercontent.com/org/repo/main/composer.lock",
 		}) as Project;
 
-		const baseDir = join(
-			process.cwd(),
-			process.cwd().endsWith("app_build") ? ".." : ".",
-			".aegis_remote_projects",
-			`project_${project.id}`,
-		);
+		const baseDir = getRemoteProjectDir(project);
+		project.path = baseDir;
 
 		globalThis.fetch = (async (url: string | URL | Request) => {
 			const urlStr = url.toString();
@@ -206,12 +190,8 @@ describe("lib/remote-sync", () => {
 				"https://raw.githubusercontent.com/org/repo/main/backend/composer.lock",
 		}) as Project;
 
-		const baseDir = join(
-			process.cwd(),
-			process.cwd().endsWith("app_build") ? ".." : ".",
-			".aegis_remote_projects",
-			`project_${project.id}`,
-		);
+		const baseDir = getRemoteProjectDir(project);
+		project.path = baseDir;
 
 		const fetchedUrls: string[] = [];
 		globalThis.fetch = (async (url: string | URL | Request) => {
@@ -266,12 +246,8 @@ describe("lib/remote-sync", () => {
 				"https://raw.githubusercontent.com/org/repo/refs/heads/main/composer.lock",
 		}) as Project;
 
-		const baseDir = join(
-			process.cwd(),
-			process.cwd().endsWith("app_build") ? ".." : ".",
-			".aegis_remote_projects",
-			`project_${project.id}`,
-		);
+		const baseDir = getRemoteProjectDir(project);
+		project.path = baseDir;
 
 		const fetchedUrls: string[] = [];
 		globalThis.fetch = (async (url: string | URL | Request) => {
@@ -298,5 +274,20 @@ describe("lib/remote-sync", () => {
 		expect(existsSync(join(baseDir, "composer.lock"))).toBe(true);
 		expect(existsSync(join(baseDir, "frontend", "yarn.lock"))).toBe(true);
 		expect(existsSync(join(baseDir, "frontend", "package.json"))).toBe(true);
+	});
+
+	test("getRemoteProjectDir génère une clé unique slug-hash8 pour les nouveaux projets et préserve les chemins existants", () => {
+		// Projet sans chemin existant
+		const newDir = getRemoteProjectDir({ slug: "mon-projet-api" });
+		expect(newDir).toMatch(
+			/\.aegis_remote_projects\/mon-projet-api-[a-f0-9]{8}$/,
+		);
+
+		// Projet existant avec chemin déjà posé (ex: project_1)
+		const existingPath =
+			"/home/sferey/project/aegis/.aegis_remote_projects/project_1";
+		expect(
+			getRemoteProjectDir({ path: existingPath, slug: "mon-projet" }),
+		).toBe(existingPath);
 	});
 });

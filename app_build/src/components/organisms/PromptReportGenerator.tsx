@@ -143,51 +143,45 @@ export function buildAuditReportPrompt(
 				.map((o) => `${o.projectName}: ${o.note}`)
 				.join(" | ");
 
-			return `### ${idx + 1}. [${ref}] - Sévérité : ${sevLabel}
-- **Titre / Résumé** : ${title}
-- **Projet(s) impacté(s)** : ${projects || "Non spécifié"}
-- **Composant(s) / Paquet(s)** : ${packages || "Non spécifié"}
-- **Date d'apparition** : ${firstSeen ? formatDateTime(firstSeen) : "Non renseignée"}
-- **Date d'analyse (audit)** : ${lastAudit ? formatDateTime(lastAudit) : "Non renseignée"}
-- **Score / Vecteur CVSS** : ${cvss}${notes ? `\n- **Notes internes de l'équipe** : ${notes}` : ""}`;
+			return `${idx + 1}. [${ref}] (${sevLabel}) - ${packages} (Projets: ${projects || "N/A"})
+   - Titre : ${title}
+   - CVSS : ${cvss} | Découverte : ${firstSeen ? formatDateTime(firstSeen) : "N/A"} | Audit : ${lastAudit ? formatDateTime(lastAudit) : "N/A"}${notes ? ` | Notes : ${notes}` : ""}`;
 		})
-		.join("\n\n");
+		.join("\n");
 
-	return `Tu es un expert senior en cybersécurité.
-Rédige un compte-rendu (CR) d'évaluation et de qualification des risques sur les vulnérabilités suivantes identifiées sur nos projets.
+	return `Tu es un expert en cybersécurité.
+Rédige un compte-rendu (CR) d'audit de sécurité court, factuel et synthétique sur les vulnérabilités listées ci-dessous.
 
-🎯 OBJECTIF :
-Ce compte-rendu a pour but exclusif d'**identifier précisément chaque vulnérabilité** et d'en **évaluer le risque réel et l'impact opérationnel**.
-IMPORTANT : Ne propose PAS de plan de remédiation ni de procédure technique de correctif détaillé (dans 80% des cas, la solution consiste simplement en une montée de version / mise à jour du vendor). Focalise 100% de ton analyse sur la qualification de la menace, les vecteurs d'attaque et l'exposition concrète.
-
-📦 FORMAT LIVRABLE :
-Génère l'intégralité de ta réponse sous la forme d'un **artifact Markdown autonome et auto-portant** (un document complet, structuré et prêt à être exporté ou partagé avec les équipes techniques et le management).
+⚠️ DIRECTIVES STRICTES :
+1. **Aucune supposition / Aucune hallucination** : Tu n'as PAS accès au code source de nos projets. Ne fais AUCUNE supposition sur la manière dont les bibliothèques sont appelées dans notre code. Base-toi exclusivement sur les faits techniques connus de chaque CVE (advisory officielle, vecteur CVSS, CWE).
+2. **Pas de correctif** : Ne consacre pas d'effort à détailler des montées de version ou correctifs techniques (dans 80% des cas la remédiation consiste simplement en la mise à jour par le vendor).
+3. **Format court et concis** : Ce rapport peut contenir jusqu'à 30 CVEs. Il faut impérativement un **récapitulatif court par CVE** (2 à 3 lignes maximum par vulnérabilité). Va droit au but, sans verbiage inutile.
+4. **Livrable sous forme d'Artifact** : Produis l'intégralité du compte-rendu sous la forme d'un **artifact Markdown autonome**.
 
 ## Périmètre audité
-- Nombre de vulnérabilités analysées : ${selectedCves.length}
-- Projet(s) concerné(s) : ${uniqueProjects.join(", ") || "Non spécifié"}
-- Niveau de gravité maximal identifié : ${(SEVERITY_LABELS[highestSeverity] ?? highestSeverity).toUpperCase()}
-- Date de génération de la demande : ${formatDateTime(generationDate)}
+- Nombre de vulnérabilités : ${selectedCves.length}
+- Projet(s) : ${uniqueProjects.join(", ") || "Non spécifié"}
+- Sévérité maximale : ${(SEVERITY_LABELS[highestSeverity] ?? highestSeverity).toUpperCase()}
+- Date de l'audit : ${formatDateTime(generationDate)}
 
-## Liste détaillée des vulnérabilités sélectionnées
+## Liste des vulnérabilités sélectionnées
 ${cveDetails}
 
-## Structure attendue dans l'artifact Markdown :
-1. **Synthèse Exécutive des Risques**
-   - Évaluation globale de la posture de sécurité du périmètre audité.
-   - Typologie des menaces identifiées (ex: exécution de code à distance, déni de service, fuite de données, contournement d'authentification...).
-   - Niveau d'exposition global et qualification des risques métier majeurs.
+## Structure attendue pour l'artifact Markdown :
+1. **Synthèse Globale (3-4 lignes max)**
+   - Bilan concis de l'exposition globale et répartition par sévérité.
+   - Typologies de risques principales identifiées (ex: RCE, DoS, fuite d'informations, bypass d'authentification).
 
-2. **Fiches d'Identification et de Qualification du Risque (CVE par CVE)**
-   Pour chaque vulnérabilité sélectionnée :
-   - **Identification** : Référence CVE / GHSA, composant vulnérable, niveau de sévérité.
-   - **Nature de la vulnérabilité** : Vulgarisation technique précise de la faille et de son mécanisme.
-   - **Vecteur d'attaque & Exploitabilité** : Conditions réelles d'exploitation (accès réseau direct requis, surface d'attaque publique ou interne, authentification préalable requise, complexité d'exploitation, existence d'exploits ou de PoC publics).
-   - **Risque et Impact Réel** : Conséquences potentielles directes et indirectes en cas d'exploitation (compromission d'intégrité, exfiltration de données, interruption de service, élévation de privilèges).
-   - **Niveau de Dangerosité Contextuel** : Estimation synthétique du risque effectif dans un contexte applicatif standard.
+2. **Récapitulatif Court par CVE (2 à 3 lignes max par CVE)**
+   Pour chaque vulnérabilité, sous forme de bloc court et percutant :
+   - **[Identifiant CVE]** (\`Sévérité\`) — *Paquet / Projet*
+   - **Vulnérabilité** : Nature technique exacte de la faille en 1 phrase factuelle.
+   - **Risque réel & Impact** : Ce qu'un attaquant peut obtenir si la faille est exploitée (ex: arrêt de service, lecture arbitraire de fichiers, exécution de code distant), sans spéculer sur notre utilisation interne du code.
 
-3. **Matrice de Priorisation par le Risque**
-   - Tableau synthétique ordonnant les CVEs selon leur dangerosité réelle (ex: Risque Critique immédiat / Risque Modéré sous conditions / Risque Faible ou théorique), afin de guider l'arbitrage des équipes.`;
+3. **Tableau Récapitulatif des Risques**
+   - Un tableau Markdown synthétique ordonné par sévérité :
+     | CVE | Sévérité | Composant | Risque / Impact principal |
+     |---|---|---|---|`;
 }
 
 export function PromptReportGenerator({

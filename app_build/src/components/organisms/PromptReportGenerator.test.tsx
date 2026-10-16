@@ -79,13 +79,15 @@ describe("PromptReportGenerator helpers", () => {
 	test("buildAuditReportPrompt avec CVEs génère un prompt d'évaluation des risques et format artifact", () => {
 		const cve1 = cveGroup();
 		const prompt = buildAuditReportPrompt([cve1], "2026-02-20T12:00:00.000Z");
-		expect(prompt).toContain("Tu es un expert senior en cybersécurité");
+		expect(prompt).toContain("Tu es un expert en cybersécurité");
 		expect(prompt).toContain("CVE-2021-23337");
 		expect(prompt).toContain("Mon Projet");
 		expect(prompt).toContain("lodash (<4.17.21)");
 		expect(prompt).toContain("artifact Markdown");
-		expect(prompt).toContain("Synthèse Exécutive des Risques");
-		expect(prompt).toContain("Matrice de Priorisation par le Risque");
+		expect(prompt).toContain("Aucune supposition / Aucune hallucination");
+		expect(prompt).toContain("Format court et concis");
+		expect(prompt).toContain("Récapitulatif Court par CVE");
+		expect(prompt).toContain("Tableau Récapitulatif des Risques");
 		expect(prompt).not.toContain("Plan d'Action et Remédiation");
 	});
 });

@@ -76,16 +76,17 @@ describe("PromptReportGenerator helpers", () => {
 		expect(prompt).toContain("AUCUNE VULNÉRABILITÉ SÉLECTIONNÉE");
 	});
 
-	test("buildAuditReportPrompt avec CVEs génère un prompt structuré avec périmètre et plan", () => {
+	test("buildAuditReportPrompt avec CVEs génère un prompt d'évaluation des risques et format artifact", () => {
 		const cve1 = cveGroup();
 		const prompt = buildAuditReportPrompt([cve1], "2026-02-20T12:00:00.000Z");
 		expect(prompt).toContain("Tu es un expert senior en cybersécurité");
 		expect(prompt).toContain("CVE-2021-23337");
 		expect(prompt).toContain("Mon Projet");
 		expect(prompt).toContain("lodash (<4.17.21)");
-		expect(prompt).toContain("4.17.21");
-		expect(prompt).toContain("Synthèse Exécutive");
-		expect(prompt).toContain("Plan d'Action et Remédiation");
+		expect(prompt).toContain("artifact Markdown");
+		expect(prompt).toContain("Synthèse Exécutive des Risques");
+		expect(prompt).toContain("Matrice de Priorisation par le Risque");
+		expect(prompt).not.toContain("Plan d'Action et Remédiation");
 	});
 });
 

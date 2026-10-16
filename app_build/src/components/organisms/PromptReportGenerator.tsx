@@ -133,10 +133,6 @@ export function buildAuditReportPrompt(
 			).join(", ");
 			const firstSeen = getCveFirstSeenDate(cve);
 			const lastAudit = getCveAnalysisDate(cve);
-			const fixedIn =
-				Array.from(
-					new Set(cve.occurrences.map((o) => o.fixedIn).filter(Boolean)),
-				).join(", ") || "Aucun correctif immédiat répertorié";
 			const title = cve.occurrences[0]?.title || "Sans description";
 			const cvss =
 				cve.cvssVector ||
@@ -153,13 +149,19 @@ export function buildAuditReportPrompt(
 - **Composant(s) / Paquet(s)** : ${packages || "Non spécifié"}
 - **Date d'apparition** : ${firstSeen ? formatDateTime(firstSeen) : "Non renseignée"}
 - **Date d'analyse (audit)** : ${lastAudit ? formatDateTime(lastAudit) : "Non renseignée"}
-- **Correctif disponible** : ${fixedIn}
 - **Score / Vecteur CVSS** : ${cvss}${notes ? `\n- **Notes internes de l'équipe** : ${notes}` : ""}`;
 		})
 		.join("\n\n");
 
-	return `Tu es un expert senior en cybersécurité et DevSecOps.
-Rédige un compte-rendu d'audit de sécurité complet, clair, professionnel et directement exploitable (comprenant une synthèse managériale/exécutive et des recommandations techniques détaillées) sur les vulnérabilités suivantes identifiées sur nos projets :
+	return `Tu es un expert senior en cybersécurité.
+Rédige un compte-rendu (CR) d'évaluation et de qualification des risques sur les vulnérabilités suivantes identifiées sur nos projets.
+
+🎯 OBJECTIF :
+Ce compte-rendu a pour but exclusif d'**identifier précisément chaque vulnérabilité** et d'en **évaluer le risque réel et l'impact opérationnel**.
+IMPORTANT : Ne propose PAS de plan de remédiation ni de procédure technique de correctif détaillé (dans 80% des cas, la solution consiste simplement en une montée de version / mise à jour du vendor). Focalise 100% de ton analyse sur la qualification de la menace, les vecteurs d'attaque et l'exposition concrète.
+
+📦 FORMAT LIVRABLE :
+Génère l'intégralité de ta réponse sous la forme d'un **artifact Markdown autonome et auto-portant** (un document complet, structuré et prêt à être exporté ou partagé avec les équipes techniques et le management).
 
 ## Périmètre audité
 - Nombre de vulnérabilités analysées : ${selectedCves.length}
@@ -170,25 +172,22 @@ Rédige un compte-rendu d'audit de sécurité complet, clair, professionnel et d
 ## Liste détaillée des vulnérabilités sélectionnées
 ${cveDetails}
 
-## Structure attendue pour le compte-rendu :
-1. **Synthèse Exécutive**
-   - Bilan global du niveau d'exposition du système d'information.
-   - Évaluation des risques métier (fuite de données, exécution de code à distance, déni de service, etc.).
-   - Priorités absolues à traiter en urgence (SLA de remédiation recommandé).
+## Structure attendue dans l'artifact Markdown :
+1. **Synthèse Exécutive des Risques**
+   - Évaluation globale de la posture de sécurité du périmètre audité.
+   - Typologie des menaces identifiées (ex: exécution de code à distance, déni de service, fuite de données, contournement d'authentification...).
+   - Niveau d'exposition global et qualification des risques métier majeurs.
 
-2. **Analyse Technique des Vulnérabilités**
-   - Analyse du mode opératoire et des vecteurs d'attaque potentiels.
-   - Impacts concrets sur les applications et données hébergées.
-   - Conditions préalables d'exploitabilité (accès réseau direct, authentification requise, etc.).
+2. **Fiches d'Identification et de Qualification du Risque (CVE par CVE)**
+   Pour chaque vulnérabilité sélectionnée :
+   - **Identification** : Référence CVE / GHSA, composant vulnérable, niveau de sévérité.
+   - **Nature de la vulnérabilité** : Vulgarisation technique précise de la faille et de son mécanisme.
+   - **Vecteur d'attaque & Exploitabilité** : Conditions réelles d'exploitation (accès réseau direct requis, surface d'attaque publique ou interne, authentification préalable requise, complexité d'exploitation, existence d'exploits ou de PoC publics).
+   - **Risque et Impact Réel** : Conséquences potentielles directes et indirectes en cas d'exploitation (compromission d'intégrité, exfiltration de données, interruption de service, élévation de privilèges).
+   - **Niveau de Dangerosité Contextuel** : Estimation synthétique du risque effectif dans un contexte applicatif standard.
 
-3. **Plan d'Action et Remédiation**
-   - Correctifs techniques étape par étape (mises à jour de versions, dépendances directes vs transitives).
-   - Mesures compensatoires ou contournements d'urgence si un correctif n'est pas immédiatement applicable.
-   - Impacts potentiels de régression liés aux montées de version.
-
-4. **Bonnes Pratiques et Mesures Préventives DevSecOps**
-   - Recommandations pour renforcer les contrôles dans les pipelines d'intégration continue (CI/CD).
-   - Surveillance et durcissement de la chaîne logistique logicielle (Software Supply Chain Security).`;
+3. **Matrice de Priorisation par le Risque**
+   - Tableau synthétique ordonnant les CVEs selon leur dangerosité réelle (ex: Risque Critique immédiat / Risque Modéré sous conditions / Risque Faible ou théorique), afin de guider l'arbitrage des équipes.`;
 }
 
 export function PromptReportGenerator({
@@ -436,9 +435,9 @@ export function PromptReportGenerator({
 							</Badge>
 						</div>
 						<CardDescription className="text-sm">
-							Sélectionnez les vulnérabilités à auditer pour composer un prompt
-							structuré prêt à être copié/collé dans un LLM (ChatGPT, Claude,
-							Gemini...).
+							Sélectionnez les vulnérabilités pour composer un prompt
+							d'évaluation des risques et générer un artifact de compte-rendu IA
+							(ChatGPT, Claude, Gemini...).
 						</CardDescription>
 					</div>
 
@@ -537,8 +536,8 @@ export function PromptReportGenerator({
 
 							<div className="flex items-center justify-between text-xs text-muted-foreground px-1">
 								<span>
-									💡 Cliquez sur "Copier le prompt" puis collez le texte
-									directement dans votre IA.
+									💡 Cliquez sur "Copier le prompt" puis collez le texte dans
+									votre IA pour générer l'artifact.
 								</span>
 								{selectedKeys.size > 0 && (
 									<button

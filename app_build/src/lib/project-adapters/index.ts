@@ -159,20 +159,23 @@ class RemoteAdapter implements ProjectAdapter {
 	}
 
 	async destroy(): Promise<void> {
-		// The base cache directory
-		const targetDir = join(
-			process.cwd(),
-			process.cwd().endsWith("app_build") ? ".." : ".",
-			".aegis_remote_projects",
-			`project_${this.project.id}`,
-		);
-		try {
-			await rm(targetDir, { recursive: true, force: true });
-		} catch (err) {
-			console.error(
-				`Failed to delete cache for remote project ${this.project.id}`,
-				err,
+		const targetDir =
+			this.project.path ||
+			join(
+				process.cwd(),
+				process.cwd().endsWith("app_build") ? ".." : ".",
+				".aegis_remote_projects",
+				`project_${this.project.id}`,
 			);
+		if (targetDir?.includes(".aegis_remote_projects")) {
+			try {
+				await rm(targetDir, { recursive: true, force: true });
+			} catch (err) {
+				console.error(
+					`Failed to delete cache for remote project ${this.project.id}`,
+					err,
+				);
+			}
 		}
 	}
 }

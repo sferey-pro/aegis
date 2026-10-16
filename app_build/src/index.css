@@ -31,15 +31,40 @@
    `::-webkit-scrollbar` ci-dessous fixent une barre de 12 px non superposée :
    une page courte n'en a pas, une page longue en a, et la largeur utile change
    de 12 px à chaque navigation — le contenu centré (`mx-auto`) et l'en-tête
-   fixe se décalaient de 6 px à chaque clic dans le menu. */
+   fixe se décalaient de 6 px à chaque clic dans le menu.
+   `overflow-y: scroll` garantit la présence permanente du rail de défilement. */
 html {
 	scrollbar-gutter: stable;
+	overflow-y: scroll;
 }
 
 body {
 	margin: 0;
 	min-height: 100vh;
 	position: relative;
+}
+
+/* Empêche Radix UI (react-remove-scroll) de masquer l'ascenseur et d'injecter
+   un margin-right compensatoire qui déplace brutalement la page lors
+   de l'ouverture d'un sélecteur (<Select>) ou d'un menu déroulant.
+   Le !important est indispensable pour supplanter le !important injecté au
+   runtime dans le <head> par react-style-singleton. */
+html body[data-scroll-locked] {
+	/* biome-ignore lint/complexity/noImportantStyles: surcharge obligatoire face aux styles injectés par Radix */
+	overflow: visible !important;
+	/* biome-ignore lint/complexity/noImportantStyles: surcharge obligatoire face aux styles injectés par Radix */
+	margin-right: 0 !important;
+	/* biome-ignore lint/complexity/noImportantStyles: surcharge obligatoire face aux styles injectés par Radix */
+	padding-right: 0 !important;
+	/* biome-ignore lint/complexity/noImportantStyles: surcharge obligatoire face aux styles injectés par Radix */
+	--removed-body-scroll-bar-size: 0px !important;
+}
+
+.with-scroll-bars-hidden {
+	/* biome-ignore lint/complexity/noImportantStyles: surcharge obligatoire face aux styles injectés par Radix */
+	overflow: visible !important;
+	/* biome-ignore lint/complexity/noImportantStyles: surcharge obligatoire face aux styles injectés par Radix */
+	padding-right: 0 !important;
 }
 
 ::selection {

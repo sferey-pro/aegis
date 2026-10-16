@@ -249,4 +249,45 @@ describe("ProjectCard", () => {
 			screen.getByText("Audit npm...").closest("[aria-live]"),
 		).toBeTruthy();
 	});
+
+	test("une carte distante avec branche affiche Distant (Branche) et le nom de branche", () => {
+		const p = projet({
+			source_type: "remote",
+			remote_url:
+				"https://raw.githubusercontent.com/org/repo/main/package-lock.json",
+			git: {
+				isRepo: true,
+				branch: "main",
+				sha: "abc1234",
+				upstream: null,
+				ahead: 0,
+				behind: 0,
+				dirty: false,
+			},
+		});
+		render(<ProjectCard {...props({ p })} />);
+		expect(screen.getByText("Distant (Branche)")).toBeInTheDocument();
+		expect(screen.getByText("main")).toBeInTheDocument();
+	});
+
+	test("une carte distante avec déploiement affiche Distant (Déploiement) et env:nom", () => {
+		const p = projet({
+			source_type: "remote",
+			remote_url:
+				"https://raw.githubusercontent.com/org/repo/env:production/package-lock.json",
+			git: {
+				isRepo: true,
+				branch: "production (Active)",
+				sha: "abc1234",
+				upstream: null,
+				ahead: 0,
+				behind: 0,
+				dirty: false,
+			},
+		});
+		render(<ProjectCard {...props({ p })} />);
+		expect(screen.getByText("Distant (Déploiement)")).toBeInTheDocument();
+		expect(screen.getByText("env:production")).toBeInTheDocument();
+		expect(screen.getByText("Actif (audit)")).toBeInTheDocument();
+	});
 });

@@ -38,6 +38,7 @@ export interface CveOccurrence {
 	ageInDays?: number;
 	publishedAt?: string | null;
 	isBaseline?: boolean;
+	ranAt?: string | null;
 }
 
 export interface CveGroup {
@@ -139,12 +140,13 @@ export function buildCveGroups(): CveGroup[] {
 			 * connaissait pourtant le correctif. La résolution retombe d'elle-même
 			 * sur la valeur de l'outil quand l'avis ne couvre pas ce paquet.
 			 */
+			const occurrenceTool = vuln.tool ?? project.tool;
 			const fixedIn =
 				ann?.fixed_in ||
 				(avisConnu
 					? fixedVersionFromAdvisory({
 							advisory: avisConnu,
-							tool: project.tool,
+							tool: occurrenceTool,
 							package: vuln.package,
 							versionRange: vuln.versionRange,
 							originalFixedIn: vuln.fixedIn,
@@ -155,7 +157,7 @@ export function buildCveGroups(): CveGroup[] {
 			const occurrence: CveOccurrence = {
 				projectId: project.id,
 				projectName: project.name,
-				tool: project.tool,
+				tool: occurrenceTool,
 				package: vuln.package,
 				severity: severiteDe(vuln),
 				versionRange: vuln.versionRange || null,
@@ -168,6 +170,7 @@ export function buildCveGroups(): CveGroup[] {
 				publishedAt: avisConnu?.published_at ?? vuln.publishedAt,
 				firstSeenAt: vuln.firstSeenAt,
 				isBaseline: vuln.isBaseline,
+				ranAt: latestRun.ran_at || null,
 				ageInDays:
 					vuln.isBaseline && vuln.publishedAt
 						? Math.floor(

@@ -21,12 +21,14 @@ import {
 import {
 	auditTargetKey,
 	diffNewCves,
+	extractToolDirectory,
 	type NewCve,
 	resolveAuditTarget,
 } from "../lib/audit";
 import { runSingleAudit } from "../lib/audit/queue";
 import { expandPath, type GitInfo, gitFetch, gitPull } from "../lib/git";
 import { getAdapter } from "../lib/project-adapters";
+import { getRemoteProjectDir } from "../lib/remote-sync";
 import { detectBodySchema, projectBodySchema } from "../lib/schemas";
 import { parseBody } from "../lib/validate";
 
@@ -74,8 +76,9 @@ function isPathAllowed(targetPath: string) {
 	const absolutePath = nodePath.resolve(targetPath);
 
 	// Autoriser explicitement le dossier des projets distants gérés par l'application
-	const remoteProjectsDir = nodePath.join(
+	const remoteProjectsDir = nodePath.resolve(
 		process.cwd(),
+		process.cwd().endsWith("app_build") ? ".." : ".",
 		".aegis_remote_projects",
 	);
 	if (
@@ -107,31 +110,46 @@ function isPathAllowed(targetPath: string) {
  * git (qui exécutent les hooks du dépôt), la cible sert au lancement de l'outil
  * d'audit. Contrôler la cible telle qu'elle sera réellement exécutée.
  */
-function pathGuard(path: string, auditPath: string | null): Response | null {
+function pathGuard(
+	path: string,
+	auditPath: string | null,
+	toolPaths?: Record<string, string> | null,
+): Response | null {
 	const root = expandPath(path);
 	const target = resolveAuditTarget(path, auditPath);
-	if (isPathAllowed(root) && isPathAllowed(target)) return null;
+	if (!isPathAllowed(root) || !isPathAllowed(target)) {
+		if (!process.env.AEGIS_ALLOWED_ROOTS) {
+			return Response.json(
+				{
+					error:
+						"AEGIS_ALLOWED_ROOTS n'est pas défini : aucun chemin n'est autorisé. " +
+						"Renseignez les racines auditables, ou AEGIS_ALLOWED_ROOTS=/ pour tout autoriser.",
+				},
+				{ status: 403 },
+			);
+		}
 
-	// Deux situations très différentes, et un message qui les confondait : « chemin
-	// non autorisé par AEGIS_ALLOWED_ROOTS » envoyait chercher un périmètre trop
-	// étroit alors que la variable n'était pas définie du tout. Sur une instance
-	// fraîche, tous les projets échouent alors pour cette raison, et l'outil passe
-	// pour cassé.
-	if (!process.env.AEGIS_ALLOWED_ROOTS) {
 		return Response.json(
-			{
-				error:
-					"AEGIS_ALLOWED_ROOTS n'est pas défini : aucun chemin n'est autorisé. " +
-					"Renseignez les racines auditables, ou AEGIS_ALLOWED_ROOTS=/ pour tout autoriser.",
-			},
+			{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
 			{ status: 403 },
 		);
 	}
 
-	return Response.json(
-		{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
-		{ status: 403 },
-	);
+	if (toolPaths) {
+		for (const tPath of Object.values(toolPaths)) {
+			if (!tPath) continue;
+			const subDir = extractToolDirectory(tPath);
+			const toolTarget = resolveAuditTarget(path, subDir);
+			if (!isPathAllowed(toolTarget)) {
+				return Response.json(
+					{ error: "Chemin non autorisé par AEGIS_ALLOWED_ROOTS" },
+					{ status: 403 },
+				);
+			}
+		}
+	}
+
+	return null;
 }
 
 /**
@@ -149,8 +167,9 @@ function pathGuard(path: string, auditPath: string | null): Response | null {
 export function isProjectPathAllowed(
 	path: string,
 	auditPath?: string | null,
+	toolPaths?: Record<string, string> | null,
 ): boolean {
-	return pathGuard(path, auditPath ?? null) === null;
+	return pathGuard(path, auditPath ?? null, toolPaths) === null;
 }
 
 /** Ancien nom, conservé pour l'import de configuration. */
@@ -195,31 +214,74 @@ export const projectsRoutes = {
 			// bun résiduel est donc classé `bun`.
 			const ORDRE_DETECTION: ProjectTool[] = ["composer", "bun", "yarn", "npm"];
 
-			let tool: ProjectTool | null = null;
+			const detectedTools: ProjectTool[] = [];
+			const detectedToolPaths: Record<string, string> = {};
 			try {
 				for (const candidat of ORDRE_DETECTION) {
 					const trouve = AUDIT_TOOLS[candidat].lockfiles.some((nom) =>
 						fs.existsSync(nodePath.join(fullPath, nom)),
 					);
 					if (trouve) {
-						tool = candidat;
-						break;
+						detectedTools.push(candidat);
+						detectedToolPaths[candidat] = data.audit_path || "";
 					}
 				}
 
-				// Repli sur les manifestes : propose un outil pour un projet **sans
-				// lockfile**, ce qui garantit un run en erreur (§2). C'est délibéré —
-				// l'erreur nomme le fichier attendu — mais ça reste un repli, donc en
-				// dernier.
-				if (!tool) {
-					if (fs.existsSync(nodePath.join(fullPath, "composer.json")))
-						tool = "composer";
-					else if (fs.existsSync(nodePath.join(fullPath, "package.json")))
-						tool = "npm";
+				// Recherche dans les sous-dossiers immédiats pour détecter d'autres outils (ex: frontend/yarn.lock)
+				try {
+					const entries = fs.readdirSync(fullPath, { withFileTypes: true });
+					const IGNORED_DIRS = new Set([
+						"node_modules",
+						"vendor",
+						".git",
+						".aegis_remote_projects",
+						"dist",
+						"build",
+					]);
+					for (const entry of entries) {
+						if (
+							entry.isDirectory() &&
+							!entry.name.startsWith(".") &&
+							!IGNORED_DIRS.has(entry.name)
+						) {
+							const subDirPath = nodePath.join(fullPath, entry.name);
+							const relativeSub = data.audit_path
+								? nodePath.join(data.audit_path, entry.name)
+								: entry.name;
+							for (const candidat of ORDRE_DETECTION) {
+								if (!detectedTools.includes(candidat)) {
+									const trouve = AUDIT_TOOLS[candidat].lockfiles.some((nom) =>
+										fs.existsSync(nodePath.join(subDirPath, nom)),
+									);
+									if (trouve) {
+										detectedTools.push(candidat);
+										detectedToolPaths[candidat] = relativeSub;
+									}
+								}
+							}
+						}
+					}
+				} catch (_e) {}
+
+				// Repli sur les manifestes si aucun lockfile n'a été trouvé
+				if (detectedTools.length === 0) {
+					if (fs.existsSync(nodePath.join(fullPath, "composer.json"))) {
+						detectedTools.push("composer");
+						detectedToolPaths.composer = data.audit_path || "";
+					}
+					if (fs.existsSync(nodePath.join(fullPath, "package.json"))) {
+						detectedTools.push("npm");
+						detectedToolPaths.npm = data.audit_path || "";
+					}
 				}
 			} catch (_e) {}
 
-			return Response.json({ tool });
+			const tool = detectedTools[0] ?? null;
+			return Response.json({
+				tool,
+				tools: detectedTools,
+				tool_paths: detectedToolPaths,
+			});
 		},
 	},
 
@@ -292,7 +354,7 @@ export const projectsRoutes = {
 			if (!data) return response;
 
 			if (data.source_type === "local") {
-				const denied = pathGuard(data.path, data.audit_path);
+				const denied = pathGuard(data.path, data.audit_path, data.tool_paths);
 				if (denied) return denied;
 
 				const duplicate = findDuplicate(data.path, data.audit_path);
@@ -309,12 +371,7 @@ export const projectsRoutes = {
 			const project = createProject(data);
 
 			if (project.source_type === "remote") {
-				const baseDir = nodePath.join(
-					process.cwd(),
-					process.cwd().endsWith("app_build") ? ".." : ".",
-					".aegis_remote_projects",
-				);
-				const projectDir = nodePath.join(baseDir, `project_${project.id}`);
+				const projectDir = getRemoteProjectDir(project);
 
 				// Update path now that we have ID
 				updateProject(project.id, { path: projectDir });
@@ -351,7 +408,7 @@ export const projectsRoutes = {
 			if (!data) return response;
 
 			if (data.source_type === "local") {
-				const denied = pathGuard(data.path, data.audit_path);
+				const denied = pathGuard(data.path, data.audit_path, data.tool_paths);
 				if (denied) return denied;
 
 				const duplicate = findDuplicate(data.path, data.audit_path, id);
@@ -366,12 +423,17 @@ export const projectsRoutes = {
 			}
 
 			if (data.source_type === "remote") {
-				const baseDir = nodePath.join(
-					process.cwd(),
-					process.cwd().endsWith("app_build") ? ".." : ".",
-					".aegis_remote_projects",
-				);
-				data.path = nodePath.join(baseDir, `project_${id}`);
+				const existing = getProjectById(id);
+				data.path = getRemoteProjectDir({
+					id,
+					slug:
+						existing?.slug ||
+						data.name
+							.toLowerCase()
+							.replace(/[^a-z0-9]+/g, "-")
+							.replace(/(^-|-$)/g, ""),
+					path: existing?.path,
+				});
 			}
 
 			const project = updateProject(id, data);

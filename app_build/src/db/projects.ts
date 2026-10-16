@@ -9,6 +9,8 @@ export interface BaseProject {
 	slug: string;
 	type: ProjectType;
 	tool: ProjectTool;
+	tools: ProjectTool[];
+	tool_paths?: Record<string, string> | null;
 	tags: string[];
 	ignored: boolean;
 	created_at: string;
@@ -40,7 +42,9 @@ export interface CreateProjectInput {
 	name: string;
 	slug?: string;
 	type: ProjectType;
-	tool: ProjectTool;
+	tool?: ProjectTool;
+	tools?: ProjectTool[];
+	tool_paths?: Record<string, string> | null;
 	tags?: string[];
 	ignored?: boolean;
 	source_type?: "local" | "ingest" | "remote";
@@ -63,6 +67,8 @@ type ProjectRow = {
 	slug: string;
 	type: ProjectType;
 	tool: ProjectTool;
+	tools?: string | ProjectTool[] | null;
+	tool_paths?: string | Record<string, string> | null;
 	created_at: string;
 	source_type: "local" | "remote" | "ingest";
 	tags: string | string[];
@@ -80,12 +86,40 @@ function parseProject(row: ProjectRow): Project {
 		st = row.source_type === "ingest" ? "ingest" : "local";
 	}
 
+	let tools: ProjectTool[] = [];
+	if (row.tools) {
+		try {
+			tools = typeof row.tools === "string" ? JSON.parse(row.tools) : row.tools;
+		} catch {
+			tools = [];
+		}
+	}
+	if (!tools || tools.length === 0) {
+		tools = row.tool ? [row.tool] : [];
+	} else if (row.tool && !tools.includes(row.tool)) {
+		tools = [row.tool, ...tools];
+	}
+
+	let tool_paths: Record<string, string> | null = null;
+	if (row.tool_paths) {
+		try {
+			tool_paths =
+				typeof row.tool_paths === "string"
+					? JSON.parse(row.tool_paths)
+					: row.tool_paths;
+		} catch {
+			tool_paths = null;
+		}
+	}
+
 	const base = {
 		id: row.id,
 		name: row.name,
 		slug: row.slug,
 		type: row.type,
-		tool: row.tool,
+		tool: row.tool || tools[0] || ("npm" as ProjectTool),
+		tools,
+		tool_paths,
 		tags: typeof row.tags === "string" ? JSON.parse(row.tags) : row.tags,
 		ignored: Boolean(row.ignored),
 		created_at: row.created_at,
@@ -165,9 +199,19 @@ export function createProject(input: CreateProjectInput): Project {
 		counter++;
 	}
 
+	const tools =
+		input.tools && input.tools.length > 0
+			? input.tools
+			: input.tool
+				? [input.tool]
+				: ["npm" as ProjectTool];
+	const primaryTool: ProjectTool = input.tool || tools[0] || "npm";
+	const toolsStr = JSON.stringify(tools);
+	const toolPathsStr = JSON.stringify(input.tool_paths || {});
+
 	const query = db.query(`
-    INSERT INTO projects (name, slug, path, audit_path, type, tool, tags, ignored, source_type, remote_url, remote_token)
-    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tags, $ignored, $source_type, $remote_url, $remote_token)
+    INSERT INTO projects (name, slug, path, audit_path, type, tool, tools, tool_paths, tags, ignored, source_type, remote_url, remote_token)
+    VALUES ($name, $slug, $path, $audit_path, $type, $tool, $tools, $tool_paths, $tags, $ignored, $source_type, $remote_url, $remote_token)
     RETURNING *
   `);
 
@@ -177,7 +221,9 @@ export function createProject(input: CreateProjectInput): Project {
 		$path: input.path || "remote",
 		$audit_path: input.audit_path || null,
 		$type: input.type,
-		$tool: input.tool,
+		$tool: primaryTool,
+		$tools: toolsStr,
+		$tool_paths: toolPathsStr,
 		$tags: tagsStr,
 		$ignored: ignored,
 		$source_type: source_type,
@@ -205,7 +251,20 @@ export function updateProject(
 				: null
 			: current.audit_path;
 	const type = input.type !== undefined ? input.type : current.type;
-	const tool = input.tool !== undefined ? input.tool : current.tool;
+	const tools =
+		input.tools !== undefined
+			? input.tools.length > 0
+				? input.tools
+				: current.tools
+			: input.tool !== undefined
+				? [input.tool]
+				: current.tools;
+	const tool = input.tool !== undefined ? input.tool : tools[0] || current.tool;
+	const toolsStr = JSON.stringify(tools);
+	const toolPathsStr =
+		input.tool_paths !== undefined
+			? JSON.stringify(input.tool_paths || {})
+			: JSON.stringify(current.tool_paths || {});
 	const tags =
 		input.tags !== undefined
 			? JSON.stringify(input.tags)
@@ -232,7 +291,7 @@ export function updateProject(
 
 	const query = db.query(`
     UPDATE projects 
-    SET name = $name, path = $path, audit_path = $audit_path, type = $type, tool = $tool, tags = $tags, ignored = $ignored, source_type = $source_type, remote_url = $remote_url, remote_token = $remote_token
+    SET name = $name, path = $path, audit_path = $audit_path, type = $type, tool = $tool, tools = $tools, tool_paths = $tool_paths, tags = $tags, ignored = $ignored, source_type = $source_type, remote_url = $remote_url, remote_token = $remote_token
     WHERE id = $id
     RETURNING *
   `);
@@ -244,6 +303,8 @@ export function updateProject(
 		$audit_path: audit_path,
 		$type: type,
 		$tool: tool,
+		$tools: toolsStr,
+		$tool_paths: toolPathsStr,
 		$tags: tags,
 		$ignored: ignored,
 		$source_type: source_type,

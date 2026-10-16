@@ -1,7 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 import type { BunRequest } from "bun";
 import { errorMessage } from "@/lib/utils";
-import { getProjectBySlug, listProjects } from "../db/projects";
+import {
+	getProjectBySlug,
+	listProjects,
+	type ProjectTool,
+} from "../db/projects";
 import { ingestAudit } from "../lib/audit";
 import { enqueueGlobalAudit, getAuditStatus } from "../lib/audit/queue";
 
@@ -22,7 +26,7 @@ export const auditRoutes = {
 			const { isProjectPathAllowed } = await import("./projects");
 			const candidats = listProjects().filter((p) => !p.ignored);
 			const projects = candidats.filter((p) =>
-				isProjectPathAllowed(p.path, p.audit_path),
+				isProjectPathAllowed(p.path, p.audit_path, p.tool_paths),
 			);
 			const skipped = candidats.length - projects.length;
 
@@ -75,10 +79,12 @@ export const auditRoutes = {
 
 			const url = new URL(req.url);
 			const commitSha = url.searchParams.get("sha") || "";
+			const toolParam =
+				(url.searchParams.get("tool") as ProjectTool | null) || undefined;
 			const stdout = await req.text();
 
 			try {
-				const res = await ingestAudit(project.id, stdout, commitSha);
+				const res = await ingestAudit(project.id, stdout, commitSha, toolParam);
 				return Response.json({
 					success: true,
 					run: res.run,

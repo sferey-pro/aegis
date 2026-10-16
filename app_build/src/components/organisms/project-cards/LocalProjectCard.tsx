@@ -104,9 +104,16 @@ export const LocalProjectCard = React.memo(function LocalProjectCard({
 					)}
 				</div>
 
-				<span className="shrink-0 text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50">
-					{p.tool}
-				</span>
+				<div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+					{(p.tools && p.tools.length > 0 ? p.tools : [p.tool]).map((t) => (
+						<span
+							key={t}
+							className="text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50"
+						>
+							{t}
+						</span>
+					))}
+				</div>
 			</div>
 
 			<div className="flex items-center gap-1 mt-0">
@@ -115,7 +122,13 @@ export const LocalProjectCard = React.memo(function LocalProjectCard({
 					Local
 				</span>
 				<span
-					title={`Racine Git : ${p.path}\nSous-dossier : ${p.audit_path || "Racine"}`}
+					title={`Racine Git : ${p.path}\n${
+						p.tool_paths && Object.keys(p.tool_paths).length > 0
+							? Object.entries(p.tool_paths)
+									.map(([tool, pth]) => `${tool}: ${pth || "Racine"}`)
+									.join("\n")
+							: `Sous-dossier : ${p.audit_path || "Racine"}`
+					}`}
 					className="cursor-help inline-flex"
 				>
 					<Info className="w-3 h-3 text-muted-foreground/50" />

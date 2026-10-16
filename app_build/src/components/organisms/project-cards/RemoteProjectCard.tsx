@@ -2,17 +2,18 @@ import {
 	AlertTriangle,
 	CheckCircle2,
 	Clock,
-	CloudDownload,
 	Edit2,
 	GitBranch,
 	GitCommit,
 	Globe,
 	Loader2,
 	Play,
+	Rocket,
 	Shield,
 	Trash2,
 } from "lucide-react";
 import React from "react";
+import { getRemoteTargetInfo } from "@/lib/remote-target";
 import { TagBadge } from "../../molecules/TagBadge";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -61,6 +62,7 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 		? (rp.git as import("@/lib/git").GitInfo).branch
 		: null;
 	const gitSha = isRepo ? (rp.git as import("@/lib/git").GitInfo).sha : null;
+	const targetInfo = getRemoteTargetInfo(rp.remote_url, gitBranch);
 
 	const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 	const hasNoCves =
@@ -129,17 +131,37 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 					)}
 				</div>
 
-				<span className="shrink-0 text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50">
-					{p.tool}
-				</span>
+				<div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+					{(p.tools && p.tools.length > 0 ? p.tools : [p.tool]).map((t) => (
+						<span
+							key={t}
+							className="text-[10px] font-bold bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm border border-secondary/50"
+						>
+							{t}
+						</span>
+					))}
+				</div>
 			</div>
 
 			<div className="flex items-center justify-between mt-0 w-full">
-				<div className="flex items-center gap-1">
-					<CloudDownload className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-					<span className="text-xs font-medium text-purple-600 dark:text-purple-400">
-						Distant
-					</span>
+				<div className="flex items-center gap-1.5">
+					{targetInfo.isDeployment ? (
+						<span
+							className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-800 border border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/40 flex items-center gap-1 shadow-sm"
+							title="Projet distant ciblant un environnement de déploiement GitHub"
+						>
+							<Rocket className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+							Distant (Déploiement)
+						</span>
+					) : (
+						<span
+							className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-800 border border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/40 flex items-center gap-1 shadow-sm"
+							title="Projet distant ciblant une branche Git"
+						>
+							<GitBranch className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+							Distant (Branche)
+						</span>
+					)}
 				</div>
 				{typeof gitBranch === "string" && gitBranch.endsWith(" (Active)") && (
 					<Badge
@@ -174,19 +196,33 @@ export const RemoteProjectCard = React.memo(function RemoteProjectCard({
 
 				<div className="flex flex-col gap-1 items-end">
 					<span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-						Version
+						{targetInfo.isDeployment ? "Déploiement" : "Branche"}
 					</span>
 					<div className="flex items-center gap-2 text-xs font-mono">
-						{gitBranch && (
+						{targetInfo.isDeployment ? (
 							<span
-								className="flex items-center gap-1 text-muted-foreground"
-								title="Branche surveillée"
+								className="flex items-center gap-1 text-amber-700 dark:text-amber-400 font-medium"
+								title="Environnement de déploiement GitHub"
 							>
-								<GitBranch className="w-3 h-3" />
-								{typeof gitBranch === "string"
-									? gitBranch.replace(" (Active)", "")
-									: gitBranch}
+								<Rocket className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+								env:
+								{targetInfo.targetName ||
+									(typeof gitBranch === "string"
+										? gitBranch.replace(" (Active)", "")
+										: "")}
 							</span>
+						) : (
+							(gitBranch || targetInfo.targetName) && (
+								<span
+									className="flex items-center gap-1 text-muted-foreground"
+									title="Branche surveillée"
+								>
+									<GitBranch className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+									{typeof gitBranch === "string"
+										? gitBranch.replace(" (Active)", "")
+										: targetInfo.targetName || gitBranch}
+								</span>
+							)
 						)}
 						{gitSha && (
 							<span className="flex items-center gap-1" title="Commit audité">

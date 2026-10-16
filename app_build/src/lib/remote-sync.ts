@@ -1,21 +1,71 @@
-import { mkdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { saveGitState } from "../db/git-state";
 import { type Project, updateProject } from "../db/projects";
+import { extractRepoRelativePath, extractToolDirectory } from "./audit";
 import { emitConsoleEnd, emitConsoleStart } from "./console";
 import { getAdapter } from "./project-adapters";
+
+/**
+ * Calcule la clé unique et déterministe d'un dossier de projet distant.
+ * Strictement affiliée au projet via son slug et un hash SHA-256 stable (8 caractères).
+ */
+export function getDeterministicFolderKey(slugOrName: string): string {
+	const slug =
+		slugOrName
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/(^-|-$)/g, "") || "project";
+	const hash = createHash("sha256").update(slug).digest("hex").slice(0, 8);
+	return `${slug}-${hash}`;
+}
+
+/**
+ * Résout le dossier local où sont mis en cache les fichiers d'un projet distant.
+ * - Le nom du dossier est UNIQUE, FIXE et AFFILIÉ au projet (${slug}-${hash8}).
+ * - Il ne change JAMAIS entre deux audits ou deux synchronisations.
+ * - Si le projet a déjà un chemin existant sur le disque dans .aegis_remote_projects, il est conservé.
+ * - Si le chemin n'existe pas sur le disque (création ou dossier supprimé),
+ *   il est généré de manière 100% déterministe et affilié au projet : `${slug}-${hash8}`.
+ */
+export function getRemoteProjectDir(project: {
+	id?: number;
+	slug?: string;
+	name?: string;
+	path?: string | null;
+}): string {
+	if (project.path?.includes(".aegis_remote_projects")) {
+		if (/project_\d+$/.test(project.path)) {
+			if (existsSync(project.path)) {
+				return project.path;
+			}
+		} else if (existsSync(project.path)) {
+			return project.path;
+		}
+	}
+	const baseDir = join(
+		process.cwd(),
+		process.cwd().endsWith("app_build") ? ".." : ".",
+		".aegis_remote_projects",
+	);
+	const folderKey = getDeterministicFolderKey(
+		project.slug || project.name || "project",
+	);
+	return join(baseDir, folderKey);
+}
 
 export async function syncRemoteProject(project: Project) {
 	if (project.source_type !== "remote" || !project.remote_url) {
 		throw new Error("Projet non distant ou URL manquante");
 	}
 
-	const baseDir = join(
-		process.cwd(),
-		process.cwd().endsWith("app_build") ? ".." : ".",
-		".aegis_remote_projects",
-	);
-	const projectDir = join(baseDir, `project_${project.id}`);
+	const projectDir = getRemoteProjectDir(project);
+	if (project.id && project.path !== projectDir) {
+		updateProject(project.id, { path: projectDir });
+		project.path = projectDir;
+	}
 	const { getSetting } = await import("../db/settings");
 	const globalToken = getSetting(
 		"REMOTE_TOKEN",
@@ -86,37 +136,213 @@ export async function syncRemoteProject(project: Project) {
 			headers.Authorization = `Bearer ${token}`;
 		}
 
-		const res = await fetch(downloadUrl, { headers });
-		if (!res.ok) {
-			throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
+		const toolsToSync =
+			project.tools && project.tools.length > 0
+				? project.tools
+				: [project.tool];
+
+		let baseUrl = downloadUrl;
+		const matchEnding = baseUrl.match(
+			/\/(bun\.lockb?|package-lock\.json|yarn\.lock|composer\.lock|composer\.json|package\.json)$/i,
+		);
+		if (matchEnding) {
+			baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf("/"));
+		} else {
+			baseUrl = baseUrl.replace(/\/+$/, "");
 		}
-		const content = await res.arrayBuffer();
 
-		// Deduce filename from URL or project tool
-		let filename = "package-lock.json";
-		if (project.tool === "yarn") filename = "yarn.lock";
-		if (project.tool === "bun") filename = "bun.lockb";
-		if (project.tool === "composer") filename = "composer.lock";
-
-		const filePath = join(projectDir, filename);
-		await Bun.write(filePath, content);
-
-		// Fetch actual manifest instead of dummy
-		const manifestName =
-			project.tool === "composer" ? "composer.json" : "package.json";
-		const manifestUrl = downloadUrl.replace(filename, manifestName);
-
-		try {
-			const mRes = await fetch(manifestUrl, { headers });
-			if (mRes.ok) {
-				const mContent = await mRes.arrayBuffer();
-				await Bun.write(join(projectDir, manifestName), mContent);
-			} else {
-				// Fallback to empty object if manifest not found
-				await Bun.write(join(projectDir, manifestName), "{}");
+		// Racine du dépôt GitHub (ex: https://raw.githubusercontent.com/owner/repo/sha-or-ref)
+		let repoBaseUrl: string | null = null;
+		if (downloadUrl.startsWith("https://raw.githubusercontent.com/")) {
+			const afterPrefix = downloadUrl.replace(
+				"https://raw.githubusercontent.com/",
+				"",
+			);
+			const parts = afterPrefix.split("/");
+			if (parts.length >= 3) {
+				repoBaseUrl = `https://raw.githubusercontent.com/${parts[0]}/${parts[1]}/${parts[2]}`;
 			}
-		} catch (_e) {
-			await Bun.write(join(projectDir, manifestName), "{}");
+		}
+
+		for (const currentTool of toolsToSync) {
+			let filename = "package-lock.json";
+			if (currentTool === "yarn") {
+				filename = "yarn.lock";
+			} else if (currentTool === "bun") {
+				filename = downloadUrl.toLowerCase().includes("bun.lockb")
+					? "bun.lockb"
+					: "bun.lock";
+			} else if (currentTool === "composer") {
+				filename = "composer.lock";
+			} else {
+				filename = "package-lock.json";
+			}
+
+			const toolConfigPath = project.tool_paths?.[currentTool]?.trim();
+			let currentLockUrl = downloadUrl;
+			let subDir = "";
+
+			if (toolConfigPath) {
+				const repoRelative = extractRepoRelativePath(toolConfigPath);
+				subDir = extractToolDirectory(toolConfigPath);
+
+				if (
+					toolConfigPath.startsWith("http://") ||
+					toolConfigPath.startsWith("https://")
+				) {
+					let sameRepo = false;
+					if (
+						repoBaseUrl &&
+						toolConfigPath.startsWith("https://raw.githubusercontent.com/")
+					) {
+						const currentParts = toolConfigPath
+							.replace("https://raw.githubusercontent.com/", "")
+							.split("/");
+						const baseParts = repoBaseUrl
+							.replace("https://raw.githubusercontent.com/", "")
+							.split("/");
+						if (
+							currentParts[0] === baseParts[0] &&
+							currentParts[1] === baseParts[1]
+						) {
+							sameRepo = true;
+						}
+					}
+
+					if (sameRepo && repoBaseUrl && repoRelative) {
+						currentLockUrl = `${repoBaseUrl}/${repoRelative}`;
+					} else {
+						currentLockUrl = toolConfigPath;
+					}
+				} else if (repoBaseUrl) {
+					const cleanPath = toolConfigPath.replace(/^\/+/, "");
+					if (
+						cleanPath.endsWith(filename) ||
+						cleanPath.endsWith(".lock") ||
+						cleanPath.endsWith(".lockb") ||
+						cleanPath.endsWith(".json")
+					) {
+						currentLockUrl = `${repoBaseUrl}/${cleanPath}`;
+					} else {
+						currentLockUrl = `${repoBaseUrl}/${cleanPath}/${filename}`;
+					}
+				} else {
+					currentLockUrl = `${baseUrl}/${toolConfigPath.replace(/^\/+/, "")}`;
+				}
+			} else {
+				if (
+					currentTool !== project.tool ||
+					!downloadUrl.toLowerCase().endsWith(filename.toLowerCase())
+				) {
+					currentLockUrl = `${baseUrl}/${filename}`;
+				}
+				subDir = extractToolDirectory(project.audit_path);
+			}
+
+			let res = await fetch(currentLockUrl, { headers });
+			// Pour bun, si bun.lock échoue en 404, tenter bun.lockb (ou inversement)
+			if (!res.ok && currentTool === "bun") {
+				const fallbackFilename =
+					filename === "bun.lock" ? "bun.lockb" : "bun.lock";
+				const fallbackUrl = currentLockUrl.includes(filename)
+					? currentLockUrl.replace(filename, fallbackFilename)
+					: `${baseUrl}/${fallbackFilename}`;
+				const fallbackRes = await fetch(fallbackUrl, { headers });
+				if (fallbackRes.ok) {
+					res = fallbackRes;
+					filename = fallbackFilename;
+					currentLockUrl = fallbackUrl;
+				}
+			}
+
+			// Repli sur l'URL d'origine directe si le lockfile ciblé n'a pas été trouvé
+			if (!res.ok && currentLockUrl !== downloadUrl) {
+				const directRes = await fetch(downloadUrl, { headers });
+				if (directRes.ok) {
+					res = directRes;
+				}
+			}
+
+			if (!res.ok) {
+				throw new Error(`Erreur réseau: ${res.status} ${res.statusText}`);
+			}
+			const content = await res.arrayBuffer();
+
+			const destDir = subDir ? join(projectDir, subDir) : projectDir;
+			await mkdir(destDir, { recursive: true });
+
+			const filePath = join(destDir, filename);
+			await Bun.write(filePath, content);
+			if (destDir !== projectDir) {
+				const rootFilePath = join(projectDir, filename);
+				if (!existsSync(rootFilePath)) {
+					await Bun.write(rootFilePath, content);
+				}
+			}
+
+			// Nettoyer l'autre lockfile Bun éventuel pour éviter les conflits dans le dossier
+			if (currentTool === "bun") {
+				const otherLockfile =
+					filename === "bun.lock" ? "bun.lockb" : "bun.lock";
+				try {
+					await unlink(join(destDir, otherLockfile));
+				} catch {}
+				if (destDir !== projectDir) {
+					try {
+						await unlink(join(projectDir, otherLockfile));
+					} catch {}
+				}
+			}
+
+			// Fetch actual manifest instead of dummy
+			const manifestName =
+				currentTool === "composer" ? "composer.json" : "package.json";
+			let manifestUrl = currentLockUrl;
+			if (manifestUrl.includes(filename)) {
+				manifestUrl = manifestUrl.replace(filename, manifestName);
+			} else {
+				manifestUrl = `${currentLockUrl.substring(0, currentLockUrl.lastIndexOf("/"))}/${manifestName}`;
+			}
+
+			try {
+				if (manifestUrl !== currentLockUrl) {
+					const mRes = await fetch(manifestUrl, { headers });
+					if (mRes.ok) {
+						const mContent = await mRes.arrayBuffer();
+						await Bun.write(join(destDir, manifestName), mContent);
+						if (
+							destDir !== projectDir &&
+							!existsSync(join(projectDir, manifestName))
+						) {
+							await Bun.write(join(projectDir, manifestName), mContent);
+						}
+					} else {
+						await Bun.write(join(destDir, manifestName), "{}");
+						if (
+							destDir !== projectDir &&
+							!existsSync(join(projectDir, manifestName))
+						) {
+							await Bun.write(join(projectDir, manifestName), "{}");
+						}
+					}
+				} else {
+					await Bun.write(join(destDir, manifestName), "{}");
+					if (
+						destDir !== projectDir &&
+						!existsSync(join(projectDir, manifestName))
+					) {
+						await Bun.write(join(projectDir, manifestName), "{}");
+					}
+				}
+			} catch (_e) {
+				await Bun.write(join(destDir, manifestName), "{}");
+				if (
+					destDir !== projectDir &&
+					!existsSync(join(projectDir, manifestName))
+				) {
+					await Bun.write(join(projectDir, manifestName), "{}");
+				}
+			}
 		}
 
 		// Update the project path to point to this new local directory
@@ -134,6 +360,15 @@ export async function syncRemoteProject(project: Project) {
 		});
 		return { success: true, message: "Fichier lock téléchargé avec succès." };
 	} catch (error) {
+		try {
+			const { readdir, rmdir } = await import("node:fs/promises");
+			if (existsSync(projectDir)) {
+				const files = await readdir(projectDir);
+				if (files.length === 0) {
+					await rmdir(projectDir);
+				}
+			}
+		} catch {}
 		const msg = error instanceof Error ? error.message : String(error);
 		emitConsoleEnd(consoleId, { ok: false, exitCode: 1, errorText: msg });
 		throw error;

@@ -180,6 +180,24 @@ describe("lib/aggregator — regroupement", () => {
 		expect(o?.cvssVector).toBe("CVSS:3.1/AV:N");
 	});
 
+	test("l'occurrence d'un projet multi-outils porte l'outil spécifique de la faille", () => {
+		const p = projet("multi", {
+			tool: "composer",
+			tools: ["composer", "yarn"],
+		});
+		run(p.id, [
+			vuln({ package: "psr/log", tool: "composer", cve: "CVE-2024-10" }),
+			vuln({ package: "lodash", tool: "yarn", cve: "CVE-2024-20" }),
+		]);
+
+		const groups = buildCveGroups();
+		const psr = groups.find((g) => g.cve === "CVE-2024-10");
+		const lodash = groups.find((g) => g.cve === "CVE-2024-20");
+
+		expect(psr?.occurrences[0]?.tool).toBe("composer");
+		expect(lodash?.occurrences[0]?.tool).toBe("yarn");
+	});
+
 	test("le vecteur CVSS du groupe est repris de la première occurrence qui en a un", () => {
 		const a = projet("api");
 		const b = projet("web");

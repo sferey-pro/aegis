@@ -3,10 +3,12 @@ import {
 	GitBranch,
 	GitCommit,
 	Play,
+	Rocket,
 	Shield,
 	Trash2,
 } from "lucide-react";
 import React from "react";
+import { getRemoteTargetInfo } from "@/lib/remote-target";
 import { TagBadge } from "../../molecules/TagBadge";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -28,6 +30,7 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 		? (rp.git as import("@/lib/git").GitInfo).branch
 		: null;
 	const gitSha = isRepo ? (rp.git as import("@/lib/git").GitInfo).sha : null;
+	const targetInfo = getRemoteTargetInfo(rp.remote_url, gitBranch);
 
 	const hasCritical = (p.lastRun?.counts?.critical ?? 0) > 0;
 	const hasNoCves =
@@ -47,11 +50,24 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 					<div className="flex flex-col w-full">
 						<span className="font-bold">{p.name}</span>
 						<span className="text-[10px] text-muted-foreground uppercase flex items-center justify-between w-full">
-							<span>
-								{p.tool} •{" "}
-								<span className="text-purple-600 dark:text-purple-400 font-medium">
-									Remote (Git)
+							<span className="flex items-center gap-1.5">
+								<span>
+									{(p.tools && p.tools.length > 0 ? p.tools : [p.tool]).join(
+										" + ",
+									)}{" "}
+									•
 								</span>
+								{targetInfo.isDeployment ? (
+									<span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+										<Rocket className="w-2.5 h-2.5" />
+										Distant (Déploiement)
+									</span>
+								) : (
+									<span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium">
+										<GitBranch className="w-2.5 h-2.5" />
+										Distant (Branche)
+									</span>
+								)}
 							</span>
 							{typeof gitBranch === "string" &&
 								gitBranch.endsWith(" (Active)") && (
@@ -90,16 +106,30 @@ export const RemoteProjectRow = React.memo(function RemoteProjectRow({
 			</TableCell>
 			<TableCell>
 				<div className="flex flex-col gap-1 items-start text-xs font-mono">
-					{gitBranch && (
+					{targetInfo.isDeployment ? (
 						<span
-							className="flex items-center gap-1 text-muted-foreground"
-							title="Branche surveillée"
+							className="flex items-center gap-1 text-amber-700 dark:text-amber-400"
+							title="Environnement de déploiement GitHub"
 						>
-							<GitBranch className="w-3 h-3" />
-							{typeof gitBranch === "string"
-								? gitBranch.replace(" (Active)", "")
-								: gitBranch}
+							<Rocket className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+							env:
+							{targetInfo.targetName ||
+								(typeof gitBranch === "string"
+									? gitBranch.replace(" (Active)", "")
+									: "")}
 						</span>
+					) : (
+						(gitBranch || targetInfo.targetName) && (
+							<span
+								className="flex items-center gap-1 text-muted-foreground"
+								title="Branche surveillée"
+							>
+								<GitBranch className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+								{typeof gitBranch === "string"
+									? gitBranch.replace(" (Active)", "")
+									: targetInfo.targetName || gitBranch}
+							</span>
+						)
 					)}
 					{gitSha && (
 						<span className="flex items-center gap-1" title="Commit audité">

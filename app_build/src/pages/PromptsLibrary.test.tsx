@@ -17,6 +17,10 @@ function prompt(over: Partial<Prompt> = {}): Prompt {
 	};
 }
 
+const base = {
+	"GET /api/cves": [],
+};
+
 const post = () => fetchCalls().filter((c) => c.method === "POST");
 const put = () => fetchCalls().filter((c) => c.method === "PUT");
 const del = () => fetchCalls().filter((c) => c.method === "DELETE");
@@ -25,19 +29,19 @@ describe("PromptsLibrary", () => {
 	afterEach(restoreFetch);
 
 	test("charge et affiche les prompts", async () => {
-		mockFetch({ "/api/prompts": [prompt()] });
+		mockFetch({ ...base, "/api/prompts": [prompt()] });
 		render(<PromptsLibrary />);
 		expect(await screen.findByText("Analyse de CVE")).toBeInTheDocument();
 	});
 
 	test("sans prompt, l'état vide est explicite", async () => {
-		mockFetch({ "/api/prompts": [] });
+		mockFetch({ ...base, "/api/prompts": [] });
 		render(<PromptsLibrary />);
 		expect(await screen.findByText("Aucun prompt")).toBeInTheDocument();
 	});
 
 	test("les tags du prompt sont affichés", async () => {
-		mockFetch({ "/api/prompts": [prompt()] });
+		mockFetch({ ...base, "/api/prompts": [prompt()] });
 		render(<PromptsLibrary />);
 		await screen.findByText("Analyse de CVE");
 		expect(screen.getByText("npm")).toBeInTheDocument();
@@ -46,6 +50,7 @@ describe("PromptsLibrary", () => {
 
 	test("créer un prompt envoie les tags découpés et trimés", async () => {
 		mockFetch({
+			...base,
 			"GET /api/prompts": [],
 			"POST /api/prompts": { body: prompt(), status: 201 },
 		});
@@ -76,6 +81,7 @@ describe("PromptsLibrary", () => {
 
 	test("après création, la liste est rechargée", async () => {
 		mockFetch({
+			...base,
 			"GET /api/prompts": [],
 			"POST /api/prompts": { body: prompt(), status: 201 },
 		});
@@ -93,12 +99,16 @@ describe("PromptsLibrary", () => {
 		fireEvent.click(screen.getByRole("button", { name: /Créer le prompt/ }));
 
 		await waitFor(() => {
-			expect(fetchCalls().filter((c) => c.method === "GET")).toHaveLength(2);
+			expect(
+				fetchCalls().filter(
+					(c) => c.method === "GET" && c.url.startsWith("/api/prompts"),
+				),
+			).toHaveLength(2);
 		});
 	});
 
 	test("le titre et le contenu sont requis côté formulaire", async () => {
-		mockFetch({ "GET /api/prompts": [] });
+		mockFetch({ ...base, "GET /api/prompts": [] });
 		render(<PromptsLibrary />);
 		await screen.findByText("Aucun prompt");
 
@@ -112,7 +122,7 @@ describe("PromptsLibrary", () => {
 	});
 
 	test("modifier pré-remplit le formulaire depuis le prompt", async () => {
-		mockFetch({ "/api/prompts": [prompt()] });
+		mockFetch({ ...base, "/api/prompts": [prompt()] });
 		render(<PromptsLibrary />);
 		await screen.findByText("Analyse de CVE");
 
@@ -125,6 +135,7 @@ describe("PromptsLibrary", () => {
 
 	test("enregistrer une modification passe par PUT sur l'identifiant", async () => {
 		mockFetch({
+			...base,
 			"GET /api/prompts": [prompt()],
 			"PUT /api/prompts/1": { body: prompt() },
 		});
@@ -147,6 +158,7 @@ describe("PromptsLibrary", () => {
 
 	test("supprimer demande confirmation avant d'appeler l'API", async () => {
 		mockFetch({
+			...base,
 			"GET /api/prompts": [prompt()],
 			"DELETE /api/prompts/1": { status: 204 },
 		});
@@ -161,6 +173,7 @@ describe("PromptsLibrary", () => {
 
 	test("confirmer la suppression cible le bon identifiant", async () => {
 		mockFetch({
+			...base,
 			"GET /api/prompts": [prompt({ id: 42 })],
 			"DELETE /api/prompts/42": { status: 204 },
 		});
@@ -180,7 +193,7 @@ describe("PromptsLibrary", () => {
 	test("un chargement en échec n'affiche pas d'état vide trompeur", async () => {
 		// Même défaut que TagsManager et HistoryChart : l'erreur est avalée et
 		// l'écran annonce « Aucun prompt ». Comportement documenté, pas validé.
-		mockFetch({ "/api/prompts": { networkError: "ECONNREFUSED" } });
+		mockFetch({ ...base, "/api/prompts": { networkError: "ECONNREFUSED" } });
 		render(<PromptsLibrary />);
 		expect(await screen.findByText("Aucun prompt")).toBeInTheDocument();
 	});

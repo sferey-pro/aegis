@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Prompt } from "@/db/prompts";
 import { fetchJson, fetchVoid } from "@/lib/api";
 import { ConfirmDialog } from "../components/organisms/ConfirmDialog";
+import { PromptReportGenerator } from "../components/organisms/PromptReportGenerator";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -122,15 +123,15 @@ export function PromptsLibrary() {
 	};
 
 	return (
-		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10">
-			<div className="flex items-center justify-between mb-8">
+		<div className="flex-1 w-full max-w-7xl px-4 md:px-8 mx-auto mt-8 z-10 space-y-10">
+			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-3xl font-bold font-heading flex items-center gap-3">
 						Bibliothèque de Prompts
 					</h2>
 					<p className="text-muted-foreground mt-1">
-						Créez et stockez des prompts IA pour vous aider à analyser vos
-						vulnérabilités. À copier/coller.
+						Générez des comptes-rendus d'audit IA et gérez vos modèles de
+						prompts de sécurité.
 					</p>
 				</div>
 				<Button
@@ -144,6 +145,9 @@ export function PromptsLibrary() {
 					Nouveau Prompt
 				</Button>
 			</div>
+
+			{/* Encart Générateur de Compte-Rendu (CR) IA */}
+			<PromptReportGenerator />
 
 			<Dialog
 				open={isAdding}
@@ -223,94 +227,107 @@ export function PromptsLibrary() {
 				</DialogContent>
 			</Dialog>
 
-			{loading ? (
-				<div className="flex justify-center p-12">
-					<RefreshCw className="w-8 h-8 text-primary" />
+			<div className="space-y-4 pt-6 border-t border-border/60">
+				<div className="flex items-center justify-between">
+					<h3 className="text-xl font-bold font-heading flex items-center gap-2">
+						<Terminal className="w-5 h-5 text-primary" />
+						Modèles enregistrés
+					</h3>
+					<span className="text-xs text-muted-foreground">
+						{prompts.length} modèle{prompts.length > 1 ? "s" : ""} disponible
+						{prompts.length > 1 ? "s" : ""}
+					</span>
 				</div>
-			) : prompts.length === 0 ? (
-				<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
-					<Terminal className="w-16 h-16 text-muted-foreground opacity-50" />
-					<div>
-						<h3 className="text-xl font-bold">Aucun prompt</h3>
-						<p className="text-muted-foreground">
-							Créez votre première commande pour l'utiliser sur vos projets.
-						</p>
+
+				{loading ? (
+					<div className="flex justify-center p-12">
+						<RefreshCw className="w-8 h-8 text-primary animate-spin" />
 					</div>
-				</div>
-			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-					{prompts.map((p) => (
-						<div
-							key={p.id}
-							className="bg-card border-border p-5 rounded-xl flex flex-col gap-3"
-						>
-							<div className="flex items-start justify-between">
-								<div className="flex items-center gap-2">
-									<Code className="w-5 h-5 text-primary" />
-									<h3
-										className="font-bold text-lg leading-tight truncate max-w-[200px]"
-										title={p.title}
-									>
-										{p.title}
-									</h3>
-								</div>
-							</div>
-
-							<div className="text-sm mt-2 font-mono  p-2 rounded border text-muted-foreground h-[60px] overflow-hidden relative">
-								{p.body}
-								<div className="absolute bottom-0 left-0 right-0 h-8 from-[#111]"></div>
-							</div>
-
-							{p.tags && p.tags.length > 0 && (
-								<div className="flex flex-wrap gap-1 mt-2">
-									{p.tags.map((tag: string) => (
-										<Badge
-											key={tag}
-											variant="secondary"
-											className="flex items-center gap-1 text-[10px] uppercase tracking-wider"
-										>
-											<Tag className="w-3 h-3" />
-											{tag}
-										</Badge>
-									))}
-								</div>
-							)}
-
-							<div className="flex items-center justify-between mt-auto pt-4 border-t">
-								<Button
-									variant="secondary"
-									size="sm"
-									onClick={() => handleCopy(p.body)}
-									className="text-primary"
-								>
-									<Code className="w-4 h-4 mr-1.5" />
-									Copier
-								</Button>
-								<div className="flex items-center gap-1">
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => handleEdit(p)}
-										className="w-8 h-8 text-muted-foreground"
-										title="Modifier"
-									>
-										<Edit2 className="w-4 h-4" />
-									</Button>
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => handleDelete(p.id)}
-										className="w-8 h-8 text-muted-foreground"
-										title="Supprimer"
-									>
-										<Trash2 className="w-4 h-4" />
-									</Button>
-								</div>
-							</div>
+				) : prompts.length === 0 ? (
+					<div className="bg-card border-border p-12 rounded-2xl flex flex-col items-center justify-center text-center gap-4">
+						<Terminal className="w-16 h-16 text-muted-foreground opacity-50" />
+						<div>
+							<h3 className="text-xl font-bold">Aucun prompt</h3>
+							<p className="text-muted-foreground">
+								Créez votre première commande pour l'utiliser sur vos projets.
+							</p>
 						</div>
-					))}
-				</div>
-			)}
+					</div>
+				) : (
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+						{prompts.map((p) => (
+							<div
+								key={p.id}
+								className="bg-card border-border p-5 rounded-xl flex flex-col gap-3"
+							>
+								<div className="flex items-start justify-between">
+									<div className="flex items-center gap-2">
+										<Code className="w-5 h-5 text-primary" />
+										<h3
+											className="font-bold text-lg leading-tight truncate max-w-[200px]"
+											title={p.title}
+										>
+											{p.title}
+										</h3>
+									</div>
+								</div>
+
+								<div className="text-sm mt-2 font-mono  p-2 rounded border text-muted-foreground h-[60px] overflow-hidden relative">
+									{p.body}
+									<div className="absolute bottom-0 left-0 right-0 h-8 from-[#111]"></div>
+								</div>
+
+								{p.tags && p.tags.length > 0 && (
+									<div className="flex flex-wrap gap-1 mt-2">
+										{p.tags.map((tag: string) => (
+											<Badge
+												key={tag}
+												variant="secondary"
+												className="flex items-center gap-1 text-[10px] uppercase tracking-wider"
+											>
+												<Tag className="w-3 h-3" />
+												{tag}
+											</Badge>
+										))}
+									</div>
+								)}
+
+								<div className="flex items-center justify-between mt-auto pt-4 border-t">
+									<Button
+										variant="secondary"
+										size="sm"
+										onClick={() => handleCopy(p.body)}
+										className="text-primary"
+									>
+										<Code className="w-4 h-4 mr-1.5" />
+										Copier
+									</Button>
+									<div className="flex items-center gap-1">
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => handleEdit(p)}
+											className="w-8 h-8 text-muted-foreground"
+											title="Modifier"
+										>
+											<Edit2 className="w-4 h-4" />
+										</Button>
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => handleDelete(p.id)}
+											className="w-8 h-8 text-muted-foreground"
+											title="Supprimer"
+										>
+											<Trash2 className="w-4 h-4" />
+										</Button>
+									</div>
+								</div>
+							</div>
+						))}
+					</div>
+				)}
+			</div>
 
 			<ConfirmDialog
 				isOpen={promptToDelete !== null}

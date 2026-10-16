@@ -38,6 +38,7 @@ export interface CveOccurrence {
 	ageInDays?: number;
 	publishedAt?: string | null;
 	isBaseline?: boolean;
+	ranAt?: string | null;
 }
 
 export interface CveGroup {
@@ -169,6 +170,7 @@ export function buildCveGroups(): CveGroup[] {
 				publishedAt: avisConnu?.published_at ?? vuln.publishedAt,
 				firstSeenAt: vuln.firstSeenAt,
 				isBaseline: vuln.isBaseline,
+				ranAt: latestRun.ran_at || null,
 				ageInDays:
 					vuln.isBaseline && vuln.publishedAt
 						? Math.floor(
